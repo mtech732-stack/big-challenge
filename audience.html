@@ -217,6 +217,30 @@
     setTurn(turn);
   }
 
+  // مربع الحرف أو الحرفين. في «آخر حرفين» التطويل والحرفان في عنصرين للحركة وحدها، والوصل لا ينقطع (design/last-two.md 2.1).
+  // ويُصغَّر الحرفان إن زاد عرضهما على 392 (456 دون الحشوة)، ولا يُصغَّران تحت 128. ولا يُعاد بناؤه إن لم يتغيّر، فلا تُعاد حركته.
+  function setBox(a) {
+    const el = $('letter'), key = (a.tatweel ? 'ـ' : '') + a.letter;
+    el.classList.toggle('ending', !!a.tatweel);
+    if (el.dataset.key === key) return;
+    el.dataset.key = key;
+    if (!a.tatweel) { el.textContent = a.letter; el.style.fontSize = ''; return; }
+    // العنصران داخل عنصر واحد: لو كانا ابنين مباشرين للمربع (flex) لصار كل منهما كتلة مستقلة وانقطع الوصل.
+    el.innerHTML = `<span class="end"><span class="tw">ـ</span><span class="lt">${esc(a.letter)}</span></span>`;
+    fitBox();
+    // يُعاد القياس بعد تحميل الخط إن لم يكن محمّلاً (عرض الخط البديل غير عرضه).
+    document.fonts?.load(`800 150px "Noto Kufi Arabic"`, a.letter).then(fitBox, () => {});
+    if (!still()) replay(el, 'in');
+  }
+  // يُقاس عرض الحرفين بعنصرهما لا بالمربع: ما يفيض من مربع يتوسط محتواه لا يدخل كله في scrollWidth.
+  function fitBox() {
+    const el = $('letter'), end = el.querySelector('.end');
+    el.style.fontSize = '';
+    if (!end) return;
+    const inner = 456 - 64, w = end.offsetWidth;
+    if (w > inner) el.style.fontSize = Math.max(128, Math.floor(150 * inner / w)) + 'px';
+  }
+
   // ===== الجولة (design/letter.md، القسم 2): ما تعيده audience() من وحدة النمط، ولا إجابة فيه أبداً =====
   const gap = (a, b) => a === b ? 'تعادل' : `${a > b ? 'يتقدّم' : 'يتأخر'} بفارق <span class="ltr">${Math.abs(a - b)}</span>`;
   function renderPlay(p) {
@@ -242,7 +266,7 @@
       setBadges(`انتهت الجولة ${p.n}`);
     } else {
       showScreen('q');
-      $('letter').textContent = a.letter;
+      setBox(a);
       $('label').textContent = a.question;
       setBadges(a.levelText, `السؤال ${a.n} من ${a.count}`, a.steal?.team ?? 0);
     }
@@ -343,7 +367,7 @@
     if (!count) show(a?.clock ?? 0);
   }
 
-  const waiting = () => { stop(); setLocked(true); canvas.classList.add('pre'); setTurn(0); showScreen('q'); $('letter').textContent = ''; $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم'; };
+  const waiting = () => { stop(); setLocked(true); canvas.classList.add('pre'); setTurn(0); showScreen('q'); $('letter').textContent = ''; delete $('letter').dataset.key; $('letter').classList.remove('ending'); $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم'; };
   const ready = () => {
     if (count) stop();
     setLocked(false); show(10);

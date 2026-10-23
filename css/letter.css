@@ -62,3 +62,10 @@
 .badge.pop > i { animation: vwipe .2s ease-out both; }
 .timer.reset > span { animation: in .2s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .shine, .giant, .card-wrap, .badge > i, .verdict > *, .timer > span { animation: none !important; } }
+
+/* مربع الحرفين (ش3 · آخر حرفين، design/last-two.md 2.1 و5): التطويل ثم الحرفان، بعرض المحتوى من 220 إلى 456.
+   والحرفان يُصغَّران في الصفحة إن زادا على 392، ولا يُصغَّران تحت 128. لا transform ولا inline-block على عنصريه، كي لا ينقطع الوصل */
+.letter.ending { max-width: 456px; padding: 0 32px; white-space: nowrap; }
+.letter.in .tw { animation: in .15s ease-out both; }
+.letter.in .lt { animation: in .2s ease-out .15s both; }
+@media (prefers-reduced-motion: reduce) { .letter span { animation: none !important; } }
