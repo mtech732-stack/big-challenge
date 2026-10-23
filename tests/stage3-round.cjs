@@ -11,7 +11,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const { check, finish } = reporter();
   const errors = [];
   const wait = ms => new Promise(r => setTimeout(r, ms));
-  const LONG = ['فريق النخبة الذهبي', 'نجوم المستقبل معاً'];
+  // اسمان يبدآن بـ«ال»: سطر الحكم في نافذة المقدّم «للنخبة» لا «لـالنخبة» (ملاحظة المعاين 23).
+  const LONG = ['النخبة الذهبية', 'المستقبل المشرق'];
 
   // عامل الخدمة محجوب كي يصل البنك التجريبي في القسم 9 (context.route لا يرى طلباته).
   const context = await browser.newContext({ viewport: { width: 1366, height: 768 }, serviceWorkers: 'block' });
@@ -134,6 +135,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await wait(600);
   check('صحيحة · +1: الحكم مكان العدّاد بلون الفريق، والرصيد يزيد', (await text(audience, '#vtext')) === `${LONG[starter - 1]} · +1` && (await text(audience, '#reveal')) === `الإجابة: ${q.answer}` && await audience.$eval('#verdict', (e, t) => e.classList.contains('t' + t), starter)
     && !(await visible(audience, '#timerBox')) && (await text(audience, '#s' + starter)) === '1');
+  check('المقدّم: «صحيحة · +1 لل…» إن بدأ الاسم بـ«ال»', (await text(presenter, '#qDone')) === `صحيحة · +1 لل${LONG[starter - 1].slice(2)}`);
   await both('صحيحة');
 
   // 4. السؤال 2: خاطئة ← تنتقل الإجابة ← يتركها تنتهي ← لا نقاط

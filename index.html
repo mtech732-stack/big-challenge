@@ -361,6 +361,8 @@
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const num = s => esc(s).replace(/(\+?\d+)/g, '<span class="ltr">$1</span>');
   const tn = t => `<b class="tn t${t}">${esc(match.teams[t])}</b>`;
+  // «لـ» مع الاسم: «للمستقبل» إن بدأ بـ«ال» (تُحذف الألف بعد اللام)، و«لـفريق النخبة» في غيره.
+  const toTeam = t => { const n = match.teams[t]; return `<b class="tn t${t}">${esc(n.startsWith('ال') ? 'لل' + n.slice(2) : 'لـ' + n)}</b>`; };
 
   // ما تعرضه شاشة الجمهور: حالة المباراة وأسماء الأنماط، ومن الجولة ما تعيده audience() وحدها.
   // الجولة نفسها (وفيها الإجابات) لا تُرسل أبداً.
@@ -600,7 +602,7 @@
       $('yes').innerHTML = num(label('correct') ?? '');
       if (decided) {
         const v = pr.verdict;
-        $('qDone').innerHTML = v.team ? `صحيحة · <span class="ltr">+${v.points}</span> لـ${tn(v.team)}` : 'لا نقاط في هذا السؤال.';
+        $('qDone').innerHTML = v.team ? `صحيحة · <span class="ltr">+${v.points}</span> ${toTeam(v.team)}` : 'لا نقاط في هذا السؤال.';
         $('nextQ').innerHTML = num(label('next') ?? '');
       }
       $('undo').disabled = !match.round.history.length;

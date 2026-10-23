@@ -145,6 +145,8 @@
   const setTurn = team => { $('p1').classList.toggle('on', team === 1); $('p2').classList.toggle('on', team === 2); };
   const replay = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
   const bump = team => replay($('p' + team), 'won');
+  // لحظات الرقم العملاق على الرقم نفسه (.giant)، لا على نصه الداخلي (#g1)، فحركته مكتوبة عليه (css/letter.css).
+  const giant = team => $('g' + team).parentElement;
 
   // صف الشارات من اليمين بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (design/start.html وdesign/letter.html):
   // شارة النمط (في الجولة)، ثم الأولى، ثم الثانية. ولا شارة للحزمة ولا للطريقة ولا للمستوى ولا «سرقة» (design/shared.md 1).
@@ -396,9 +398,9 @@
         // صحيحة: الحكم يُمسح من اليمين، وبعد 250ms يزيد الرقم وتنبض لوحة الكاسب ورقمه العملاق.
         const w = m.team, to = p.scores[w];
         $('s' + w).textContent = $('g' + w).textContent = prev.scores[w];
-        later(250, () => { $('s' + w).textContent = $('g' + w).textContent = to; bump(w); replay($('g' + w), 'gain'); });
+        later(250, () => { $('s' + w).textContent = $('g' + w).textContent = to; bump(w); replay(giant(w), 'gain'); });
       }
-      if (m.name === 'lead') later(700, () => { replay($('g' + m.team), 'lead'); replay($('g' + other(m.team)), 'lose'); });
+      if (m.name === 'lead') later(700, () => { replay(giant(m.team), 'lead'); replay(giant(other(m.team)), 'lose'); });
       if (m.name === 'steal') {
         // انتقال الإجابة (السرقة): البطاقة تهتز إن كانت خاطئة، ثم لمعة، والمؤشر يقفز إلى الخصم. لا شارة ولا كلمة «سرقة». العدّاد لا ينتظر الحركة.
         const go = () => { replay($('shine'), 'go'); bump(m.team); replay($('timerBox'), 'reset'); setTurn(m.team); };
@@ -408,7 +410,7 @@
     // نهاية الجولة: رقم المتقدّم العملاق يضيء، ولا يتحرك شيء إن تعادلا.
     if (changed && a.screen === 'end' && a.totals) {
       const s = p.scores, lead = s[1] > s[2] ? 1 : s[2] > s[1] ? 2 : 0;
-      if (lead) { replay($('g' + lead), 'lead'); replay($('g' + other(lead)), 'lose'); }
+      if (lead) { replay(giant(lead), 'lead'); replay(giant(other(lead)), 'lose'); }
     }
   }
 
