@@ -71,10 +71,11 @@
 
 <script type="module">
   import { createLink } from './js/sync.js';
-  import { fetchPinRecord, checkPin } from './js/pin.js';
+  import { fetchPinRecord, checkPin, watchPin } from './js/pin.js';
 
   const $ = id => document.getElementById(id);
   const AUDIENCE = 'big-challenge-audience';
+  let link = null, watcher = null;
 
   // لا يبدأ شيء قبل الرقم السري، ولا تُنشأ قناة التزامن قبله.
   const showError = text => { $('pin-error').textContent = text; $('pin-error').hidden = false; };
@@ -82,14 +83,12 @@
     event.preventDefault();
     $('enter').disabled = true;
     $('pin-error').hidden = true;
+    const pin = $('pin').value;
     const { record } = await fetchPinRecord();
     if (!record) {
       showError('تعذّر التحقق: لا اتصال بالإنترنت. اتصل ثم أعد المحاولة.');
-    } else if (await checkPin($('pin').value, record)) {
-      $('gate').remove();
-      $('app').hidden = false;
-      startPresenter();
-      return;
+    } else if (await checkPin(pin, record)) {
+      unlock(pin);
     } else {
       showError('الرقم غير صحيح');
       $('pin').select();
@@ -97,8 +96,30 @@
     $('enter').disabled = false;
   };
 
+  function unlock(pin) {
+    $('pin').value = '';
+    $('gate').hidden = true;
+    $('app').hidden = false;
+    if (!link) startPresenter();
+    link.send('unlock');
+    watcher = watchPin(pin, lock);
+  }
+
+  // تغيّر الرقم في المستودع: تُغلق اللعبة فوراً في النافذتين، ويُطلب الرقم الجديد.
+  function lock() {
+    watcher?.stop();
+    link?.send('lock');
+    $('app').hidden = true;
+    $('gate').hidden = false;
+    showError('تغيّر الرقم السري. أدخل الرقم الجديد.');
+    $('pin').focus();
+  }
+
+  // يُستدعى عند بدء كل مباراة جديدة (من الشريحة 1).
+  window.verifyPinNow = () => watcher?.checkNow();
+
   function startPresenter() {
-    const link = createLink('presenter', (type, data) => {
+    link = createLink('presenter', (type, data) => {
       if (type === 'tick') $('mirror').textContent = data.text;
     });
 
@@ -108,6 +129,7 @@
       $('open').textContent = on ? 'أظهر نافذة الجمهور' : 'افتح نافذة الجمهور';
       $('start').disabled = $('reset').disabled = !on;
       if (!on) $('mirror').textContent = '–';
+      if (on && !$('gate').hidden) link.send('lock');
     });
 
     // إن كانت نافذة الجمهور مفتوحة يُكتفى بإظهارها، فلا يُعاد تحميلها ولا تخرج من ملء الشاشة.

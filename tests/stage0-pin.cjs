@@ -48,7 +48,7 @@ const { TEST_PIN, testPinRecord, usePin, unlock, reporter } = require('./helpers
   await page.press('#pin', 'Enter');
   await page.waitForSelector('#app:not([hidden])', { timeout: 10000 });
   check('الرقم الصحيح (بأرقام عربية وزر Enter): تظهر نافذة المقدّم', await page.isVisible('#open'));
-  check('شاشة الرقم تختفي بعد الدخول', (await page.$('#gate')) === null);
+  check('شاشة الرقم تختفي بعد الدخول', await page.isHidden('#gate'));
 
   // «مع كل فتح»: إعادة التحميل تطلب الرقم من جديد.
   await page.reload();
