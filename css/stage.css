@@ -16,21 +16,22 @@
 @keyframes rise { from { translate: 0 0; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } to { translate: 0 -420px; opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .particles span { animation: none; } }
 
-/* 2. الرقم العملاق */
+/* 2. الرقم العملاق: على أربعة أعمدة بجوار لوحته (1.2، design/system.md 6.6). الأول ينتهي عند 1094، والثاني يبدأ من 826.
+   والأول بالأزرق الداكن لا بالأحمر الشفاف (كان يظهر بنفسجياً) */
 .giant {
   height: 228px; line-height: 228px; font-size: var(--fs-giant); font-weight: 900;
   direction: ltr; white-space: nowrap; transform: skewX(calc(-1 * var(--lean)));
 }
-.giant.t1 { top: 60px; right: 808px; color: var(--team-1); opacity: .32; }
-.giant.t2 { top: 805px; left: 808px; color: var(--team-2); opacity: .16; }
+.giant.t1 { top: 60px; right: 855px; color: var(--stage-3); opacity: .5; }
+.giant.t2 { top: 805px; left: 855px; color: var(--team-2); opacity: .16; }
 
-/* 3. لوحة الفريق: الشكل مائل، والمحتوى مستقيم فوقه */
-.team { width: 600px; height: 136px; }
+/* 3. لوحة الفريق: الشكل مائل، والمحتوى مستقيم فوقه. على خمسة أعمدة: الأول 1118–1824، والثاني 96–802 (مع المؤشر والميل) */
+.team { width: 646px; height: 136px; }
 .team.t1 { top: 64px; right: 126px; }
 .team.t2 { top: 808px; left: 126px; }
 .team .shape { inset: 0; transform: skewX(calc(-1 * var(--lean))); }
 .team.t1 .shape { background: var(--team-1); }
-.team.t2 .shape { background: var(--team-2); }
+.team.t2 .shape { background: var(--team-2); box-shadow: inset -24px 0 0 var(--team-2-ink); } /* شريط داكن على الحافة الداخلية، كي لا تُقرأ اللوحة جزءاً من البطاقة */
 .team .turn { inset: -10px; border: 6px solid var(--hl); transform: skewX(calc(-1 * var(--lean))); visibility: hidden; }
 .team.on .turn { visibility: visible; }
 .team .row { inset: 0; padding: 0 48px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
@@ -49,19 +50,19 @@
   font-size: var(--fs-badge); font-weight: 800; line-height: 1; top: 314px;
 }
 .badge > i { transform: skewX(calc(-1 * var(--lean))); }
-.badge.mode { right: 108px; color: var(--ink); }
+.badge.mode { right: 104px; color: var(--ink); }
 .badge.mode > i { background: var(--hl); }
 .badge.level { color: var(--ink); }
 .badge.level > i { background: var(--card); }
 .timer {
-  top: 306px; left: 108px; height: 80px; min-width: 216px; padding: 0 40px;
+  top: 306px; left: 106px; height: 80px; min-width: 216px; padding: 0 40px;
   display: flex; align-items: center; justify-content: center;
   font-size: var(--fs-timer); font-weight: 900; line-height: 1; color: var(--hl); direction: ltr;
 }
 .timer > i { background: var(--stage-3); transform: skewX(calc(-1 * var(--lean))); }
 
-/* 6. البطاقة المستقيمة وصفيحتها المائلة */
-.card-wrap { left: 160px; top: 410px; width: 1600px; height: 352px; }
+/* 6. البطاقة المستقيمة وصفيحتها المائلة، على الأعمدة 1–12: الوجه 127–1793، والامتداد بالصفيحة والميل 96–1824 */
+.card-wrap { left: 127px; top: 410px; width: 1666px; height: 352px; }
 .card-wrap .plate { inset: 12px -12px -12px -12px; background: var(--stage-3); transform: skewX(calc(-1 * var(--tilt))); }
 .card {
   inset: 0; background: var(--card); color: var(--ink);
@@ -73,7 +74,7 @@
   font-size: var(--fs-letter); font-weight: 800; line-height: 1;
 }
 .letter:empty { display: none; }
-.question { margin: 0; font-size: var(--fs-question); font-weight: 700; line-height: var(--lh-question); max-height: 270px; overflow: clip; }
+.question { margin: 0; font-size: var(--fs-question); font-weight: 700; line-height: var(--lh-question); max-height: 264px; overflow: clip; }
 
 /* 7. لحظة انفعالية: آخر 3 ثوانٍ، حواف حمراء نابضة فوق كل شيء */
 .danger { inset: 0; pointer-events: none; box-shadow: inset 0 0 0 0 rgba(230,57,70,0); }

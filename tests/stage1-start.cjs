@@ -52,7 +52,8 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
     const f = document.getElementById('frame').getBoundingClientRect();
     return Math.round(f.width) === 1920 && Math.round(f.height) === 1080;
   }));
-  check('الإعداد: «التحدي الكبير» وحقلا الاسمين في اللوحتين', (await text('.scr.show')).includes('التحدي الكبير') && await vis('#i1') && await vis('#i2')
+  check('الإعداد: «التحدي الكبير» في سطر العنوان خارج البطاقة، وسطر الإرشاد فيها، وحقلا الاسمين في اللوحتين', (await text('#headline')) === 'التحدي الكبير' && await vis('#headline')
+    && (await text('.scr.show .guide')).startsWith('اكتب اسمَي الفريقين') && await vis('#i1') && await vis('#i2')
     && (await frame.getAttribute('#i1', 'placeholder')) === 'اكتب اسم الفريق الأول' && (await frame.getAttribute('#i2', 'placeholder')) === 'اكتب اسم الفريق الثاني');
   check('الإعداد: «عدد الأنماط» بخانتين 2 و4، والمتاح نمطان فـ2 مختارة و4 معطّلة', (await text('#count .lbl')) === 'عدد الأنماط'
     && await frame.$eval('[data-cmd="count:short"]', e => e.classList.contains('sel')) && await frame.$eval('[data-cmd="count:full"]', e => e.classList.contains('off')));
