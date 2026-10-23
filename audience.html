@@ -56,6 +56,18 @@
       run();
       timer = setInterval(run, 100);
     }
+    // أُغلقت اللعبة لتغيّر الرقم السري: لا يبقى على شاشة الجمهور شيء من اللعب.
+    if (type === 'lock') {
+      clearInterval(timer);
+      timer = 0;
+      $('timer').hidden = true;
+      $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم';
+    }
+    if (type === 'unlock') {
+      $('timer').hidden = false;
+      $('label').textContent = 'نافذة الجمهور · متصلة';
+      show(10);
+    }
     if (type === 'reset') {
       clearInterval(timer);
       $('label').textContent = 'نافذة الجمهور · متصلة';

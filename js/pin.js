@@ -40,3 +40,29 @@ export async function fetchPinRecord() {
 export async function checkPin(pin, record) {
   return (await hashPin(normalizePin(pin), record.salt, record.iterations)) === record.hash;
 }
+
+// التحقق المستمر: يعيد التحقق كل بضع دقائق، وعند طلبه (بدء كل مباراة جديدة).
+// يُغلق فقط عند التأكد: جُلب الملف من الإنترنت فعلاً، ولم يعد الرقم المُدخل يطابقه.
+// إن تعذّر الاتصال تستمر اللعبة كما هي.
+export const CHECK_EVERY_MS = 3 * 60 * 1000;
+
+export function watchPin(pin, onChanged, everyMs = CHECK_EVERY_MS) {
+  let busy = false;
+  const checkNow = async () => {
+    if (busy) return 'busy';
+    busy = true;
+    try {
+      const { record, online } = await fetchPinRecord();
+      if (!online || !record) return 'offline';
+      if (await checkPin(pin, record)) return 'same';
+      stop();
+      onChanged();
+      return 'changed';
+    } finally {
+      busy = false;
+    }
+  };
+  const timer = setInterval(checkNow, everyMs);
+  const stop = () => clearInterval(timer);
+  return { checkNow, stop };
+}
