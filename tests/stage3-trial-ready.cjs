@@ -47,7 +47,7 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
 
   // 1. المباراة كما تُلعب: نمطان مبنيان.
   await open(base);
-  check('الإعداد: «قصيرة» مختارة، و«كاملة» معطّلة وفيها سببها «تحتاج 4 أنماط · المتاح 2»', await sel('short') && await off('full') && (await text('#method [data-m="full"] span')) === 'تحتاج 4 أنماط · المتاح 2');
+  check('الإعداد: «قصيرة» مختارة، و«كاملة» معطّلة وفيها سببها «المتاح 2 من 4 أنماط»', await sel('short') && await off('full') && (await text('#method [data-m="full"] span')) === 'المتاح 2 من 4 أنماط');
   await presenter.click('#method [data-m="full"]');
   check('النقر على «كاملة» لا يختارها', await sel('short') && !(await sel('full')));
   await presenter.fill('#t1', 'الصقور');
@@ -71,6 +71,39 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   await wait(300);
   check('إعداد محفوظ بـ«كاملة»: يصير «قصيرة» عند الفتح', await sel('short'));
 
+  // مباراة بدأت في رابط المعاينة (كاملة، والمزاد للجولة 1) ثم فُتح الرابط العادي (تقرير المعاين ش3، الملاحظة 1):
+  // تعود إلى الإعداد بالاسمين و«قصيرة» ومعها سطر يشرح، فلا يقف الاختيار بلا زر.
+  const saved = (step, extra = {}) => presenter.evaluate(([step, extra]) => localStorage.setItem('big-challenge.match', JSON.stringify({ v: 1, step, teams: { 1: 'الصقور', 2: 'النجوم' }, pack: 'general',
+    method: 'full', winner: 1, picks: [{ mode: 'auction', by: 1 }], scores: { 1: 0, 2: 0 }, history: [], single: false, ...extra })), [step, extra]);
+  await saved('pick');
+  await presenter.reload();
+  await unlock(presenter);
+  await wait(300);
+  check('اختيار من رابط المعاينة: يعود إلى الإعداد بالاسمين و«قصيرة» وسطر يشرح', await presenter.isVisible('#toDraw') && (await presenter.inputValue('#t1')) === 'الصقور' && await sel('short')
+    && (await text('#setupErr')) === 'عادت المباراة إلى الإعداد لأنها بدأت في رابط المعاينة. الاسمان كما هما.');
+  await presenter.click('#toDraw');
+  await presenter.click('#drawBtn');
+  await presenter.waitForSelector('#toPick:not([hidden])', { timeout: 6000 });
+  await presenter.click('#toPick');
+  await presenter.click('#modes [data-mode="letter"]');
+  await presenter.click('#modes [data-mode="last-two"]');
+  check('بعدها يكتمل الاختيار بجولتين', await presenter.isVisible('#toFace') && !(await presenter.isDisabled('#toFace')));
+  await saved('draw', { winner: null, picks: [] });
+  await presenter.reload();
+  await unlock(presenter);
+  await wait(300);
+  check('قرعة «كاملة» من رابط المعاينة: تعود إلى الإعداد', await presenter.isVisible('#toDraw') && await sel('short'));
+  await saved('pick', { method: 'short', picks: [{ mode: 'letter', by: 1 }] });
+  await presenter.reload();
+  await unlock(presenter);
+  await wait(300);
+  check('اختيار سليم (قصيرة، الحرف المعيّن): يبقى كما هو', (await presenter.$$('#modes [data-mode]')).length === 1 && !(await presenter.isVisible('#toDraw')));
+  await saved('face', { picks: [{ mode: 'auction', by: 1 }, { mode: 'letter', by: 2 }, { mode: 'last-two', by: 1 }, { mode: 'ranking', by: 0 }] });
+  await presenter.reload();
+  await unlock(presenter);
+  await wait(300);
+  check('مواجهة من رابط المعاينة: تبقى، والجولة غير المبنية بزر «تخطَّ الجولة 1»', (await text('#startRound')) === 'تخطَّ الجولة 1');
+
   // 2. المعاينة للتجربة: «?preview» يعيد الأنماط الأربعة و«كاملة».
   await open(base + '?preview');
   check('«?preview»: «كاملة» متاحة ومختارة كما كانت', !(await off('full')) && await sel('full') && (await text('#method [data-m="full"] span')) === '4 جولات · عجلتان');
@@ -79,7 +112,7 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   const packJson = { id: 'general', name: 'الحزمة الثقافية العامة', description: 'أسئلة ثقافية خفيفة في المجالات الثمانية', excludeModes: ['ranking'] };
   await context.route('**/content/packs/general/pack.json*', r => r.fulfill({ json: packJson }));
   await open(base + '?preview');
-  check('حزمة تستثني «الترتيب» (3 أنماط): «كاملة» معطّلة و«قصيرة» مختارة', await off('full') && await sel('short') && (await text('#method [data-m="full"] span')) === 'تحتاج 4 أنماط · المتاح 3');
+  check('حزمة تستثني «الترتيب» (3 أنماط): «كاملة» معطّلة و«قصيرة» مختارة', await off('full') && await sel('short') && (await text('#method [data-m="full"] span')) === 'المتاح 3 من 4 أنماط');
   await presenter.fill('#t1', 'الصقور');
   await presenter.fill('#t2', 'النجوم');
   await presenter.click('#toDraw');
