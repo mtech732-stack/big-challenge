@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>التحدي الكبير · بدء المباراة · نافذة المقدّم</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  /* الصفحة المرجعية لنافذة المقدّم في ش1. الوحدة كما في index.html: 1rem = 32 على شاشة عرضها 1920
+     (أصغر نص 32 على أساس 1920×1080، design/system.md القسم 9). ملاحظات القياس في design/start.md، القسم 4. */
+  [hidden] { display: none !important; }
+  html { font-size: calc(100vw / 60); }
+  html, body { margin: 0; }
+  body { font-family: var(--font); font-size: 1rem; line-height: 1.5; color: var(--on-stage); min-height: 100vh;
+    background: linear-gradient(135deg, var(--stage-1) 0%, var(--stage-2) 55%, var(--stage-3) 100%); }
+  .ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+  p, h1, h2, ol { margin: 0; }
+  button { font: inherit; font-weight: 700; cursor: pointer; border: 0; border-radius: 0; min-height: 2rem; padding: 0 1.25rem; background: var(--ink); color: var(--card); white-space: nowrap; }
+  button.big { min-height: 2.5rem; padding: 0 2rem; }
+  button.alt { background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink); }
+  button.on-stage { background: var(--card); color: var(--ink); }
+  button.on-stage.alt { background: transparent; color: var(--card); box-shadow: inset 0 0 0 3px var(--card); }
+  button:disabled { opacity: .45; cursor: default; }
+
+  main { max-width: 52rem; margin: 0 auto; padding: 0.75rem 0 calc(0.75rem + var(--tools, 112px)); display: grid; gap: 0.75rem; }
+
+  /* الرأس: اسم اللعبة، وخطوات بدء المباراة، وزر الرصيد */
+  .top { display: flex; align-items: center; gap: 0.75rem; min-height: 2rem; }
+  .top h1 { font-size: 1.25rem; font-weight: 900; margin-inline-end: auto; white-space: nowrap; }
+  .steps { list-style: none; padding: 0; display: flex; gap: 0.375rem; }
+  .steps li { position: relative; min-height: 2rem; padding: 0 1rem; display: flex; align-items: center; gap: 0.375rem; font-weight: 700; white-space: nowrap; color: var(--card); }
+  .steps li i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); box-shadow: inset 0 0 0 3px rgba(255,255,255,.55); }
+  .steps li span { position: relative; }
+  .steps li.done i { background: var(--stage-3); box-shadow: none; }
+  .steps li.now { color: var(--ink); }
+  .steps li.now i { background: var(--card); box-shadow: none; }
+
+  /* لوحة: بطاقة بيضاء مستقيمة بظل صلب */
+  .panel { background: var(--card); color: var(--ink); padding: 0.75rem 1.5rem; box-shadow: 0.375rem 0.375rem 0 var(--stage-3); display: grid; gap: 0.75rem; }
+  .panel h2 { font-size: 1.25rem; font-weight: 800; line-height: 1.2; }
+  .row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+  .grow { margin-inline-start: auto; }
+  .alert { color: var(--team-1); font-weight: 700; }
+  .mark { display: inline-block; width: 0.75rem; height: 0.75rem; transform: skewX(calc(-1 * var(--lean))); vertical-align: middle; }
+  .mark.t1 { background: var(--team-1); }
+  .mark.t2 { background: var(--team-2-ink); }
+  .tn.t1 { color: var(--team-1); }
+  .tn.t2 { color: var(--team-2-ink); }
+
+  /* الشاشة: الحالة، والتنبيه في سطرين حتى تتصل نافذة الجمهور */
+  .status { font-weight: 700; display: flex; align-items: center; gap: 0.375rem; }
+  .status::before { content: ""; width: 0.5rem; height: 0.5rem; background: var(--team-1); }
+  .status.ok::before { background: #1F9D55; }
+  .notice { border-inline-start: 0.25rem solid var(--ink); padding-inline-start: 0.75rem; }
+  .notice p { white-space: nowrap; }
+
+  /* الإعداد */
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1.5rem; }
+  .field { display: grid; gap: 0.25rem; }
+  .field > label, .legend { font-weight: 700; display: flex; align-items: center; gap: 0.375rem; }
+  .input { position: relative; }
+  .input input { box-sizing: border-box; width: 100%; height: 2.5rem; font: inherit; font-size: 1.25rem; font-weight: 700; color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 0; padding: 0 0.75rem 0 4.5rem; background: var(--card); }
+  .input input.bad { border-color: var(--team-1); }
+  .input .count { position: absolute; left: 0.75rem; top: 50%; translate: 0 -50%; font-weight: 700; direction: ltr; }
+  .input .count.full { color: var(--team-1); }
+  .choices { display: flex; gap: 0.75rem; }
+  .choice { flex: 1 1 0; min-height: 3rem; padding: 0.375rem 1rem; box-shadow: inset 0 0 0 3px var(--ink); cursor: pointer; display: grid; align-content: center; line-height: 1.25; }
+  .choice b { font-weight: 800; }
+  .choice.sel { background: var(--ink); color: var(--card); }
+  .choice input { position: absolute; opacity: 0; pointer-events: none; }
+
+  /* القرعة */
+  .result { display: grid; gap: 0.25rem; padding: 0.75rem 1rem; box-shadow: inset 0 0 0 3px var(--ink); }
+  .result .who { font-size: 1.5rem; font-weight: 900; line-height: 1.3; }
+
+  /* الأنماط: زر لكل نمط، وما اختير يبقى ظاهراً بلون من اختاره */
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .mode { min-height: 3rem; display: grid; align-content: center; justify-items: start; line-height: 1.25; padding: 0.375rem 1rem; text-align: start; }
+  .mode small { font-size: 1rem; font-weight: 700; }
+  .mode.by1 { background: var(--team-1); color: var(--card); opacity: 1; }
+  .mode.by2 { background: var(--team-2-ink); color: var(--card); opacity: 1; }
+  .mode.auto { background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink); opacity: 1; }
+
+  /* المواجهة: ملخص المباراة */
+  .plan { list-style: none; padding: 0; display: grid; gap: 0.25rem; }
+  .plan li { display: flex; gap: 0.75rem; align-items: center; }
+  .plan .rn { min-width: 5rem; font-weight: 800; }
+  .plan .wheel { font-weight: 700; padding-inline-start: 5.75rem; }
+
+  /* تعديل الرصيد: يُفتح من الرأس في أي وقت */
+  .scores { position: fixed; z-index: 4; top: 50%; left: 50%; translate: -50% -50%; width: 36rem; box-shadow: 0.375rem 0.375rem 0 var(--stage-3), 0 0 0 100vmax rgba(5,14,46,.6); }
+  .scores .line { display: grid; grid-template-columns: 1fr auto 3rem auto; gap: 0.75rem; align-items: center; }
+  .scores .tn { font-weight: 800; }
+  .scores .val { font-size: 1.5rem; font-weight: 900; text-align: center; direction: ltr; }
+
+  /* أدوات المعاينة: خارج التصميم، بالبكسل */
+  .tools { position: fixed; left: 0; right: 0; bottom: 0; height: var(--tools, 112px); padding: 6px 16px; box-sizing: border-box; display: flex; gap: 6px; align-items: center; align-content: center; flex-wrap: wrap; background: #050E2E; font-size: 16px; line-height: 1.2; z-index: 5; }
+  .tools button { font-size: 16px; min-height: 0; padding: 5px 12px; background: #fff; color: var(--ink); font-weight: 400; }
+  .tools button[aria-pressed="true"] { background: var(--hl); }
+  .tools output { margin-inline-start: auto; font-size: 16px; }
+  .tools output.bad { color: #ff6b81; font-weight: 700; }
+  .clean .tools { display: none; }
+  .clean main { padding-bottom: 0.75rem; }
+</style>
+</head>
+<body>
+<main id="main">
+  <header class="top">
+    <h1>التحدي الكبير</h1>
+    <ol class="steps" id="steps">
+      <li data-k="setup"><i></i><span><span class="ltr">1</span> الإعداد</span></li>
+      <li data-k="draw"><i></i><span><span class="ltr">2</span> القرعة</span></li>
+      <li data-k="pick"><i></i><span><span class="ltr">3</span> الأنماط</span></li>
+      <li data-k="face"><i></i><span><span class="ltr">4</span> المواجهة</span></li>
+    </ol>
+    <button class="on-stage alt" id="openScores">الرصيد</button>
+  </header>
+
+  <!-- الشاشة: دائماً في الأعلى. التنبيه في سطرين يظهر في خطوة الإعداد ما دامت نافذة الجمهور غير متصلة -->
+  <section class="panel" id="screenPanel">
+    <div class="row">
+      <span class="status" id="status">نافذة الجمهور غير متصلة</span>
+      <button class="grow" id="openAud">افتح نافذة الجمهور</button>
+      <button class="alt" id="singleBtn">نافذة واحدة</button>
+    </div>
+    <div class="notice" id="notice">
+      <p>اجعل الشاشة <b>«ممتدة»</b> لا «مطابقة» (<span class="ltr">Windows + P</span>، أو إعدادات الشاشات في Mac).</p>
+      <p>افتح نافذة الجمهور واسحبها إلى التلفاز ثم «ملء الشاشة». وإن تعذّر ذلك فاختر «نافذة واحدة».</p>
+    </div>
+  </section>
+
+  <!-- 1. الإعداد -->
+  <section class="panel" data-step="setup">
+    <div class="cols">
+      <div class="field">
+        <label for="t1"><i class="mark t1"></i>الفريق الأول</label>
+        <div class="input"><input id="t1" maxlength="18" autocomplete="off"><span class="count" id="c1"></span></div>
+      </div>
+      <div class="field">
+        <label for="t2"><i class="mark t2"></i>الفريق الثاني</label>
+        <div class="input"><input id="t2" maxlength="18" autocomplete="off"><span class="count" id="c2"></span></div>
+      </div>
+      <div class="field">
+        <span class="legend">الحزمة</span>
+        <div class="choices">
+          <label class="choice sel"><input type="radio" name="pack" checked><b>الحزمة الثقافية العامة</b><span>أسئلة ثقافية خفيفة في المجالات الثمانية</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <span class="legend">طريقة اللعب</span>
+        <div class="choices" id="method">
+          <label class="choice" data-m="short"><input type="radio" name="method"><b>قصيرة</b><span>جولتان · عجلة واحدة</span></label>
+          <label class="choice sel" data-m="full"><input type="radio" name="method" checked><b>كاملة</b><span><span class="ltr">4</span> جولات · عجلتان</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <button class="big" id="toDraw">إلى القرعة</button>
+      <span id="setupHint">يُتحقق من الرقم السري عند الضغط.</span>
+      <span class="alert" id="setupErr" hidden></span>
+    </div>
+  </section>
+
+  <!-- 2. القرعة -->
+  <section class="panel" data-step="draw">
+    <h2>القرعة</h2>
+    <p>الفائز بالقرعة يختار نمط الجولة الأولى. تظهر القرعة على شاشة الجمهور.</p>
+    <div class="result" id="drawResult" hidden>
+      <span>الفائز بالقرعة</span>
+      <span class="who" id="drawWho"></span>
+      <span>يختار نمط الجولة الأولى</span>
+    </div>
+    <div class="row">
+      <button class="big" id="drawBtn">ابدأ القرعة</button>
+      <button class="big" id="toPick" hidden>التالي: اختيار الأنماط</button>
+    </div>
+  </section>
+
+  <!-- 3. الأنماط -->
+  <section class="panel" data-step="pick">
+    <h2>اختيار الأنماط</h2>
+    <p id="pickWho"></p>
+    <div class="modes" id="modes"></div>
+    <div class="row">
+      <button class="alt" id="undoPick">تراجع عن آخر اختيار</button>
+      <button class="big grow" id="toFace">إلى شاشة المواجهة</button>
+    </div>
+  </section>
+
+  <!-- 4. المواجهة -->
+  <section class="panel" data-step="face">
+    <h2>شاشة المواجهة</h2>
+    <p id="faceWho"></p>
+    <ol class="plan" id="plan"></ol>
+    <div class="row">
+      <button class="alt" id="replay">أعد عرض المواجهة</button>
+      <button class="big grow" id="startRound">ابدأ الجولة <span class="ltr">1</span></button>
+    </div>
+  </section>
+
+  <!-- تعديل الرصيد: طبقة فوق الخطوة، تُفتح من الرأس في أي وقت (خارج الجولة أيضاً)، ويُتراجع عنها -->
+  <section class="panel scores" id="scores" hidden>
+    <h2>تعديل الرصيد</h2>
+    <div class="line"><span class="tn t1" id="sn1"></span><button class="alt">−</button><span class="val">0</span><button class="alt">+</button></div>
+    <div class="line"><span class="tn t2" id="sn2"></span><button class="alt">−</button><span class="val">0</span><button class="alt">+</button></div>
+    <div class="row"><button class="alt" id="closeScores">تم</button><span>لا ينزل الرصيد تحت الصفر.</span></div>
+  </section>
+</main>
+
+<nav class="tools" aria-label="أدوات المعاينة">
+  <button data-go="setup0">الإعداد فارغاً</button>
+  <button data-go="setupErr">الإعداد · خطأ</button>
+  <button data-go="setup">الإعداد مكتملاً</button>
+  <button data-go="draw0">القرعة</button>
+  <button data-go="draw">نتيجة القرعة</button>
+  <button data-go="pick1">الاختيار 2</button>
+  <button data-go="done">اكتمل الاختيار</button>
+  <button data-go="face">المواجهة</button>
+  <button data-go="scores">الرصيد</button>
+  <button id="conn" aria-pressed="false">نافذة الجمهور متصلة</button>
+  <button id="method2">الطريقة: كاملة</button>
+  <button id="long" aria-pressed="true">أطول اسمين</button>
+  <button id="all">فحص كل الحالات</button>
+  <output id="report"></output>
+</nav>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const num = s => String(s).replace(/(\d+)/g, '<span class="ltr">$1</span>');
+  const MODES = ['الحرف المعيّن', 'آخر حرفين', 'المزاد', 'الترتيب'];
+  const PICKS = ['المزاد', 'الحرف المعيّن', 'الترتيب'];
+  const NAMES = { normal: ['الصقور', 'النجوم'], long: ['فريق النخبة الذهبي', 'نجوم المستقبل معاً'] };
+  const st = { go: 'setup', conn: false, full: true, long: true, winner: 1 };
+  const total = () => st.full ? 4 : 2;
+  const names = () => NAMES[st.long ? 'long' : 'normal'];
+  const other = t => t === 1 ? 2 : 1;
+  const tn = t => `<b class="tn t${t}">${names()[t - 1]}</b>`;
+
+  function rounds(k) {
+    const list = [];
+    for (let i = 0; i < Math.min(k, total()); i++)
+      list.push(st.full && i === 3 ? { mode: MODES.find(m => !PICKS.includes(m)), by: 0 } : { mode: PICKS[i], by: i % 2 === 0 ? st.winner : other(st.winner) });
+    return list;
+  }
+
+  function render() {
+    const go = st.go, step = go.replace(/\d|Err/g, '').replace('done', 'pick').replace('scores', 'face');
+    const order = ['setup', 'draw', 'pick', 'face'];
+    document.querySelectorAll('#steps li').forEach(li => {
+      const i = order.indexOf(li.dataset.k), now = order.indexOf(step);
+      li.className = i < now ? 'done' : i === now ? 'now' : '';
+    });
+    document.querySelectorAll('[data-step]').forEach(s => s.hidden = s.dataset.step !== step);
+    $('scores').hidden = go !== 'scores';
+
+    // الشاشة
+    $('status').textContent = st.conn ? 'نافذة الجمهور متصلة' : 'نافذة الجمهور غير متصلة';
+    $('status').classList.toggle('ok', st.conn);
+    $('openAud').textContent = st.conn ? 'أظهر نافذة الجمهور' : 'افتح نافذة الجمهور';
+    $('notice').hidden = st.conn || step !== 'setup';
+
+    // الإعداد
+    const [a, b] = names();
+    const filled = go !== 'setup0';
+    $('t1').value = filled ? a : ''; $('t2').value = filled ? (go === 'setupErr' ? a : b) : '';
+    for (const k of [1, 2]) { const n = $('t' + k).value.length; $('c' + k).textContent = `${n} / 18`; $('c' + k).classList.toggle('full', n === 18); }
+    $('setupErr').hidden = go !== 'setupErr';
+    $('setupHint').hidden = go === 'setupErr';
+    $('setupErr').textContent = 'الاسمان متطابقان. غيّر أحدهما.';
+    $('t2').classList.toggle('bad', go === 'setupErr');
+    document.querySelectorAll('#method .choice').forEach(c => c.classList.toggle('sel', (c.dataset.m === 'full') === st.full));
+
+    // القرعة
+    $('drawResult').hidden = go !== 'draw';
+    $('drawWho').innerHTML = tn(st.winner);
+    $('drawBtn').hidden = go === 'draw';
+    $('toPick').hidden = go !== 'draw';
+
+    // الأنماط
+    const k = go === 'done' ? total() : 1;
+    const made = rounds(k), finished = made.length === total();
+    const turn = k % 2 === 0 ? st.winner : other(st.winner);
+    $('pickWho').innerHTML = finished
+      ? (st.full ? `اكتمل الاختيار. الجولة <span class="ltr">4</span> للنمط المتبقي تلقائياً.` : 'اكتمل الاختيار.')
+      : `<i class="mark t${turn}"></i> ${tn(turn)} يختار نمط الجولة <span class="ltr">${k + 1}</span> من <span class="ltr">${total()}</span>`;
+    $('modes').innerHTML = MODES.map(m => {
+      const i = made.findIndex(r => r.mode === m), r = made[i];
+      if (!r) return `<button class="mode alt"${finished ? ' disabled' : ''}>${m}</button>`;
+      const who = r.by ? names()[r.by - 1] : 'تلقائياً';
+      return `<button class="mode ${r.by ? 'by' + r.by : 'auto'}" disabled>${m}<small>${num('الجولة ' + (i + 1))} · ${who}</small></button>`;
+    }).join('');
+    $('toFace').disabled = !finished;
+
+    // المواجهة
+    $('faceWho').innerHTML = `الفائز بالقرعة: ${tn(st.winner)}. شاشة المواجهة معروضة الآن على الجمهور.`;
+    const all = rounds(total()), wheels = st.full ? [1, 2] : [0];
+    $('plan').innerHTML = all.map((r, i) => `<li><span class="rn">${num('الجولة ' + (i + 1))}</span><span>${r.mode}</span><span>${r.by ? '· ' + tn(r.by) : '· تلقائياً'}</span></li>` +
+      (wheels.includes(i) ? '<li class="wheel">عجلة البونص</li>' : '')).join('');
+    $('sn1').textContent = a; $('sn2').textContent = b;
+
+    document.querySelectorAll('[data-go]').forEach(x => x.setAttribute('aria-pressed', x.dataset.go === go));
+    $('method2').textContent = `الطريقة: ${st.full ? 'كاملة' : 'قصيرة'}`;
+  }
+
+  // الفحص: لا نص أصغر من 1rem (32 على أساس 1920)، ولا زر أقصر من 2rem (64)، ولا أرقام هندية،
+  // ولا نص يفيض عن وعائه، والخطوة كلها تتسع للنافذة دون تمرير.
+  function check() {
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize), problems = [];
+    const vis = n => n.getClientRects().length && getComputedStyle(n).visibility !== 'hidden';
+    for (const n of $('main').querySelectorAll('*')) {
+      if (!vis(n)) continue;
+      const own = [...n.childNodes].some(c => c.nodeType === 3 && c.textContent.trim()) || (n.tagName === 'INPUT' && n.type !== 'radio' && n.value);
+      if (own) {
+        const fs = parseFloat(getComputedStyle(n).fontSize);
+        if (fs < rem - .01) problems.push(`نص أصغر من 32: «${(n.value || n.textContent).trim().slice(0, 16)}»`);
+        if (/[٠-٩۰-۹]/.test(n.textContent + (n.value || ''))) problems.push('أرقام هندية');
+      }
+      if (n.tagName === 'BUTTON' && n.getBoundingClientRect().height < 2 * rem - .5) problems.push(`زر أقصر من 64: «${n.textContent.trim()}»`);
+      if (n.scrollWidth > n.clientWidth + 1 && getComputedStyle(n).overflow !== 'visible') problems.push(`يفيض: «${n.textContent.trim().slice(0, 16)}»`);
+    }
+    for (const n of $('main').querySelectorAll('.notice p, .choice, .mode, .result, .top, .plan li, .scores .line')) {
+      if (!vis(n)) continue;
+      const box = n.getBoundingClientRect();
+      for (const c of n.querySelectorAll('*')) { if (!vis(c)) continue; const r = c.getBoundingClientRect(); if (r.left < box.left - 1 || r.right > box.right + 1) { problems.push(`يفيض: «${n.textContent.trim().slice(0, 16)}»`); break; } }
+      if (n.matches('.notice p') && n.getClientRects().length && Math.round(n.getBoundingClientRect().height / (rem * 1.5)) > 1) problems.push('سطر التنبيه يلتف');
+    }
+    const avail = innerHeight - (document.body.classList.contains('clean') ? 0 : 112);
+    const used = $('main').scrollHeight - (document.body.classList.contains('clean') ? 0 : 112);
+    if (used > avail + 1) problems.push(`الخطوة أطول من النافذة: ${Math.round(used / rem * 32)} من ${Math.round(avail / rem * 32)}`);
+    return { ok: !problems.length, problems: [...new Set(problems)] };
+  }
+
+  window.checkAll = function () {
+    const saved = { ...st }, fails = []; let n = 0;
+    for (const go of ['setup0', 'setupErr', 'setup', 'draw0', 'draw', 'pick1', 'done', 'face', 'scores'])
+      for (const conn of [false, true]) for (const full of [true, false]) for (const long of [false, true]) for (const winner of [1, 2]) {
+        Object.assign(st, { go, conn, full, long, winner }); render(); n++;
+        const r = check(); if (!r.ok) fails.push(`${go}/${conn ? 'متصلة' : 'غير متصلة'}/${full ? 'كاملة' : 'قصيرة'}/${long ? 'طويل' : 'عادي'}/${winner}: ${r.problems.join('، ')}`);
+      }
+    Object.assign(st, saved); render();
+    $('report').textContent = fails.length ? `✗ ${fails.length} من ${n}: ${fails[0]}` : `✓ ${n} من ${n} سليمة`;
+    $('report').className = fails.length ? 'bad' : '';
+    return { total: n, failed: fails.length, fails: fails.slice(0, 12) };
+  };
+
+  document.querySelectorAll('[data-go]').forEach(x => x.onclick = () => { st.go = x.dataset.go; render(); });
+  $('conn').onclick = e => { st.conn = !st.conn; e.target.setAttribute('aria-pressed', st.conn); render(); };
+  $('method2').onclick = () => { st.full = !st.full; render(); };
+  $('long').onclick = e => { st.long = !st.long; e.target.setAttribute('aria-pressed', st.long); render(); };
+  $('all').onclick = () => checkAll();
+  $('openScores').onclick = () => { $('scores').hidden = !$('scores').hidden; };
+  $('closeScores').onclick = () => { $('scores').hidden = true; };
+
+  const q = new URLSearchParams(location.search);
+  if (q.has('clean')) document.body.classList.add('clean');
+  if (q.get('go')) st.go = q.get('go');
+  if (q.has('conn')) st.conn = true;
+  if (q.get('method') === 'short') st.full = false;
+  document.fonts.ready.then(render);
+  render();
+</script>
+</body>
+</html>
