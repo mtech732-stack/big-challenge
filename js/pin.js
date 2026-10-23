@@ -23,17 +23,27 @@ const readCache = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY
 const writeCache = record => { try { localStorage.setItem(CACHE_KEY, JSON.stringify(record)); } catch {} };
 
 // يجلب الصورة المشفّرة من المستودع دون ذاكرة مؤقتة. إن تعذّر الاتصال يعود بآخر نسخة معروفة،
-// ويعيد null للسجل إن لم توجد أي نسخة.
+// ويعيد null للسجل إن لم توجد أي نسخة. وإن وصل الملف ناقصاً أو تالفاً يعيد bad: true دون سجل،
+// حتى لا يظن المالك أن المشكلة في الشبكة، ولا يُقبل الرقم القديم من النسخة المحفوظة.
 export async function fetchPinRecord() {
+  let res;
   try {
-    const res = await fetch(`${PIN_FILE}?t=${Date.now()}`, { cache: 'no-store' });
+    res = await fetch(`${PIN_FILE}?t=${Date.now()}`, { cache: 'no-store' });
+  } catch {
+    return { record: readCache(), online: false, bad: false };
+  }
+  try {
     if (!res.ok) throw new Error(res.status);
     const record = await res.json();
-    if (!record.salt || !record.hash || !record.iterations) throw new Error('bad record');
+    if (!/^[0-9a-f]{32,}$/.test(record.salt) || !/^[0-9a-f]{64}$/.test(record.hash) || !(record.iterations > 0)) {
+      throw new Error('bad record');
+    }
     writeCache(record);
-    return { record, online: true };
+    return { record, online: true, bad: false };
   } catch {
-    return { record: readCache(), online: false };
+    // خطأ مؤقت من الخادم (5xx) يُعامل كانقطاع، وغيره خطأ في الملف.
+    if (res.status >= 500) return { record: readCache(), online: false, bad: false };
+    return { record: null, online: true, bad: true };
   }
 }
 
@@ -52,7 +62,8 @@ export function watchPin(pin, onChanged, everyMs = CHECK_EVERY_MS) {
     if (busy) return 'busy';
     busy = true;
     try {
-      const { record, online } = await fetchPinRecord();
+      const { record, online, bad } = await fetchPinRecord();
+      if (bad) return 'bad-file';
       if (!online || !record) return 'offline';
       if (await checkPin(pin, record)) return 'same';
       stop();

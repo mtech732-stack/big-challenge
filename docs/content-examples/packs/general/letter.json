@@ -1,0 +1,30 @@
+{
+  "mode": "letter",
+  "questions": [
+    {
+      "id": "general-letter-001",
+      "level": "easy",
+      "letter": "ش",
+      "prompt": "ما تبحث عنه حين يقول هاتفك: البطارية 1%",
+      "answer": "شاحن",
+      "domain": "daily-life"
+    },
+    {
+      "id": "general-letter-002",
+      "level": "medium",
+      "letter": "ت",
+      "prompt": "فاكهة إذا قطعتها بالعرض ظهرت في قلبها نجمة",
+      "answer": "تفاحة",
+      "domain": "science"
+    },
+    {
+      "id": "general-letter-003",
+      "level": "hard",
+      "letter": "ص",
+      "prompt": "أعلى عاصمة عربية عن سطح البحر",
+      "answer": "صنعاء",
+      "domain": "geography",
+      "tiebreak": true
+    }
+  ]
+}

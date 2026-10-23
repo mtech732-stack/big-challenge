@@ -13,7 +13,7 @@ const { TEST_PIN, testPinRecord, usePin, unlock, reporter } = require('./helpers
   const errors = [];
   context.on('page', p => {
     p.on('pageerror', e => errors.push(e.message));
-    p.on('console', m => m.type() === 'error' && !m.text().includes('ERR_INTERNET_DISCONNECTED') && errors.push(m.text()));
+    p.on('console', m => m.type() === 'error' && !/ERR_INTERNET_DISCONNECTED|404/.test(m.text()) && errors.push(m.text()));
   });
   const { check, finish } = reporter();
   const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -83,6 +83,18 @@ const { TEST_PIN, testPinRecord, usePin, unlock, reporter } = require('./helpers
   check('جهاز جديد بلا إنترنت: «تعذّر التحقق» ولا يفتح',
     (await freshPage.textContent('#pin-error')).includes('تعذّر التحقق') && await freshPage.isHidden('#app'));
   await fresh.close();
+
+  // ملاحظة المعاين: ملف ناقص أو تالف يُذكر صراحة، ولا يُقبل الرقم القديم من النسخة المحفوظة.
+  for (const [label, body] of [['ناقص', '{"salt": "ab'], ['فارغ', '{}'], ['محذوف', null]]) {
+    await context.unroute('**/pin.json*');
+    await context.route('**/pin.json*', r => body === null ? r.fulfill({ status: 404, body: 'Not Found' }) : r.fulfill({ body, contentType: 'application/json' }));
+    await page.reload();
+    await page.fill('#pin', TEST_PIN);
+    await page.click('#enter');
+    await page.waitForSelector('#pin-error:not([hidden])');
+    check(`ملف الرقم ${label}: «فيه خطأ» ولا يُقبل الرقم القديم`,
+      (await page.textContent('#pin-error')).includes('ملف الرقم السري فيه خطأ') && await page.isHidden('#app'));
+  }
 
   // تغيير الرقم: الرقم القديم يُرفض والجديد يُقبل.
   await usePin(context, testPinRecord('246802'));
