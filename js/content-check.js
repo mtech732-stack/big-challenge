@@ -195,27 +195,30 @@ export function checkContent({ index, packs, wheel }) {
   for (const id of index?.packs ?? []) if (!packs[id]) err('packs/index.json', `الحزمة «${id}» مذكورة ولا مجلد لها`);
   for (const id of Object.keys(packs)) if (!(index?.packs ?? []).includes(id)) err('packs/index.json', `المجلد «${id}» غير مذكور في الفهرس`);
 
-  // العجلة
-  allowOnly('wheel.json', wheel, ['challenges', 'luck']);
-  if (!Array.isArray(wheel?.challenges) || !wheel.challenges.length) err('wheel.json', '«challenges» قائمة التحديات');
-  else wheel.challenges.forEach((c, i) => {
-    const at = `wheel.json · ${c?.id ?? `تحدٍّ ${i + 1}`}`;
-    allowOnly(at, c, ['id', 'text', 'note']);
-    if (c) checkNote(at, c);
-    if (typeof c?.id !== 'string' || !/^[a-z0-9-]+$/.test(c.id)) err(at, '«id» بحروف إنجليزية صغيرة وأرقام وشرطات');
-    else if (ids.has(c.id)) err(at, '«id» مكرر'); else ids.set(c.id, 'wheel.json');
-    needText(at, c, 'text');
-    tally('wheel', 'challenges');
-  });
-  const effects = (wheel?.luck ?? []).map(l => l?.effect);
-  if (!Array.isArray(wheel?.luck) || effects.length !== 3 || LUCK_EFFECTS.some(e => !effects.includes(e))) {
-    err('wheel.json', `«luck» ثلاث خانات بالتأثيرات: ${LUCK_EFFECTS.join(' · ')}`);
+  // العجلة: تُكتب في ش6، فغياب ملفها تنبيه كغياب ملفات الأنماط.
+  if (wheel === undefined) warn('wheel.json', 'العجلة غير متاحة بعد: لا ملف لها');
+  else {
+    allowOnly('wheel.json', wheel, ['challenges', 'luck']);
+    if (!Array.isArray(wheel?.challenges) || !wheel.challenges.length) err('wheel.json', '«challenges» قائمة التحديات');
+    else wheel.challenges.forEach((c, i) => {
+      const at = `wheel.json · ${c?.id ?? `تحدٍّ ${i + 1}`}`;
+      allowOnly(at, c, ['id', 'text', 'note']);
+      if (c) checkNote(at, c);
+      if (typeof c?.id !== 'string' || !/^[a-z0-9-]+$/.test(c.id)) err(at, '«id» بحروف إنجليزية صغيرة وأرقام وشرطات');
+      else if (ids.has(c.id)) err(at, '«id» مكرر'); else ids.set(c.id, 'wheel.json');
+      needText(at, c, 'text');
+      tally('wheel', 'challenges');
+    });
+    const effects = (wheel?.luck ?? []).map(l => l?.effect);
+    if (!Array.isArray(wheel?.luck) || effects.length !== 3 || LUCK_EFFECTS.some(e => !effects.includes(e))) {
+      err('wheel.json', `«luck» ثلاث خانات بالتأثيرات: ${LUCK_EFFECTS.join(' · ')}`);
+    }
+    (wheel?.luck ?? []).forEach((l, i) => {
+      allowOnly(`wheel.json · خانة حظ ${i + 1}`, l, ['effect', 'label']);
+      needText(`wheel.json · خانة حظ ${i + 1}`, l, 'label');
+      tally('wheel', 'luck');
+    });
   }
-  (wheel?.luck ?? []).forEach((l, i) => {
-    allowOnly(`wheel.json · خانة حظ ${i + 1}`, l, ['effect', 'label']);
-    needText(`wheel.json · خانة حظ ${i + 1}`, l, 'label');
-    tally('wheel', 'luck');
-  });
 
   return { errors, warnings, counts };
 }

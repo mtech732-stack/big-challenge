@@ -56,6 +56,11 @@ const { reporter } = require('./helpers.cjs');
   const l = checkContent(later);
   check('حزمة بلا ملفات أنماط بعد (البنك يُكتب شريحة بعد شريحة): تنبيه لا خطأ',
     l.errors.length === 0 && l.warnings.some(x => x.includes('غير متاح بعد')) && l.warnings.some(x => x.includes('المتاحة الآن 0')));
+  const noWheel = examples();
+  delete noWheel.wheel;
+  const nw = checkContent(noWheel);
+  check('ملف العجلة غير موجود بعد (يُكتب في ش6): تنبيه لا خطأ',
+    nw.errors.length === 0 && nw.warnings.some(x => x.includes('العجلة غير متاحة بعد')));
   const noYear = examples();
   noYear.packs.general['ranking.json'].lists[0].title = 'أطول الأبراج';
   const y = checkContent(noYear);
