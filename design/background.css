@@ -146,12 +146,12 @@
 .v2 .giant.t2 { transition: opacity .3s ease; }
 .v2.answered .giant.t2 { opacity: 0; }
 
-/* 4. الشعار: «التحدي الكبير» نصاً بالخط نفسه، بلا ميل للحروف ولا أصفر. على الأعمدة 1–3 (127–510 بالحافة)، y 54–282،
+/* 4. الشعار: «التحدي الكبير» نصاً بالخط نفسه، بلا ميل للحروف ولا أصفر. على الأعمدة 1–3 (127–510 بالحافة)، y 58–280،
       فلا يلقى الرقم العملاق الأول (يبدأ من 545 بثلاث خانات). «التحدي» أبيض فوق، و«الكبير» أزرق داكن على صفيحة بيضاء مائلة 14°
       وتحتها ظل صلب بالأزرق كصفيحة البطاقة، فيتكلم بلغة الإطار. */
-.logo { display: none; left: 127px; top: 70px; width: 383px; flex-direction: column; align-items: flex-start; gap: 4px; }
+.logo { display: none; left: 127px; top: 58px; width: 383px; flex-direction: column; align-items: flex-start; gap: 8px; }
 .v2 .logo { display: flex; }
-.logo .l1 { font-size: 72px; font-weight: 900; line-height: 1; color: var(--on-stage); padding: 0 24px; }
+.logo .l1 { font-size: 72px; font-weight: 900; line-height: 1.3; color: var(--on-stage); padding: 0 24px; }   /* 1.3 كي لا تقع نقطتا الياء على الصفيحة البيضاء فتختفيا */
 .logo .l2 { position: relative; height: 120px; padding: 0 32px; display: flex; align-items: center; }
 .logo .l2 > i { position: absolute; inset: 0; background: var(--card); transform: skewX(calc(-1 * var(--lean))); box-shadow: 10px 10px 0 var(--stage-3); }
 .logo .l2 > b { position: relative; font-size: 104px; font-weight: 900; line-height: 1; color: var(--ink); }
