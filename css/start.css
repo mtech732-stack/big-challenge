@@ -60,7 +60,7 @@
 .seg .mname { font-weight: 800; }
 .seg.by1 { background: var(--team-1); border-color: var(--team-1); color: var(--on-stage); }
 .seg.by2 { background: var(--team-2-ink); color: var(--on-stage); }
-.seg.wheel { flex: 0 0 136px; border-style: dashed; }
+.seg.wheel { flex: 0 0 152px; border-style: dashed; } /* 152 لا 136: «البونص» لا يلامس الإطار المتقطع (الملاحظة 6، design/start.md) */
 .short .seg .mname { font-size: 40px; }
 
 /* لحظات الحركة (design/start.md، القسم 6) */
