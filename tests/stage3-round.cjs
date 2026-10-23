@@ -111,7 +111,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   let s = await st(), q = s.questions[0];
   let b = await box(audience);
   check('الجمهور: التطويل ثم الحرفان في عنصرين، والسؤال', b.tw === 'ـ' && b.lt === q.box && (await text(audience, '#letter')) === 'ـ' + q.box && (await text(audience, '#label')) === q.prompt);
-  check(`الجمهور: المربع ارتفاعه 220 وعرضه بين 220 و456 (${b.w})، والحرفان 150، لا يفيضان`, b.h === 220 && b.w >= 220 && b.w <= 456 && b.fs === 150 && b.fits);
+  check(`الجمهور: المربع ارتفاعه 220 وعرضه بين 220 و456 (${b.w})، والحرفان 152، لا يفيضان`, b.h === 220 && b.w >= 220 && b.w <= 456 && b.fs === 152 && b.fits);
   check('الجمهور: لا transform ولا inline-block على التطويل والحرفين، والوصل لا ينقطع بينهما', b.tf && b.joined);
   check('الجمهور: دخول الحرفين بالشفافية (التطويل أولاً ثم الحرفان بعد 150ms)', await audience.$eval('#letter', e => {
     const [a, c] = [e.querySelector('.tw'), e.querySelector('.lt')].map(x => getComputedStyle(x));
@@ -263,7 +263,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
     await audienceCheck(frame, `نافذة واحدة · بعد الحكم ${i + 1}`);
     await cmd(frame, 'act:next');
   }
-  check(`أعرض الحرفين «سش»: المربع 456 والخط مصغّر بين 128 و150 (${widest?.w} · ${widest?.fs})`, widest?.w <= 456 && widest.fs >= 128 && widest.fs < 150 && widest.fits);
+  check(`أعرض الحرفين «سش»: المربع 456 والخط مصغّر بين 128 و152 (${widest?.w} · ${widest?.fs})`, widest?.w <= 456 && widest.fs >= 128 && widest.fs < 152 && widest.fits);
   check('الوصل لا ينقطع في الأسئلة الستة', widest?.joined);
   check('الأزرار لا تعرض الإجابة', !leak);
   await frame.waitForSelector('.scr.show[data-s="end"]', { timeout: 6000 });

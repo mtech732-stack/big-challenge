@@ -94,6 +94,18 @@
   #gate .alert { margin: 0; color: var(--team-1); background: var(--card); padding: 0.25rem 0.5rem; border: 2px solid var(--team-1); }
   #mirror { font-size: 1.5rem; font-weight: 900; }
 
+  /* نظام التصميم 1.2 (design/system.md 9.1): ثلاثة صفوف تملأ الارتفاع: الرأس · السؤال والإجابة (يأخذ ما بقي، ومحتواه في وسطه) ·
+     الدور والحكم في الأسفل دائماً، بأزرار 5rem في الموضع نفسه لكل سؤال. و12 عموداً بفاصل 0.75rem لصف ما بعد الحكم */
+  #app { min-height: 100vh; box-sizing: border-box; grid-template-rows: auto 1fr auto; align-content: stretch; }
+  #app > .panel.q { align-content: center; }
+  #app .q .prompt { font-size: 1.25rem; }
+  #app .answer .word { font-size: 2.5rem; }
+  #app .judge button, #app #after .big { min-height: 5rem; font-size: 1.5rem; }
+  #app #after { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0.75rem; }
+  #app #after .done { grid-column: span 6; }
+  #app #after .big { grid-column: span 6; margin: 0; }
+  #app .q .letter { min-width: 5rem; height: 5rem; font-size: 3.25rem; }
+
   /* الشاشة المشتركة (design/shared.md 2): لوحة الجمهور 1920×1080 تملأ النافذة، وأزرارها فيها. لا شريط تحتها */
   #single { position: fixed; inset: 0; z-index: 6; overflow: clip; background: #050E2E; }
   .frame { position: absolute; top: 50%; left: 50%; width: 1920px; height: 1080px; transform: translate(-50%, -50%) scale(var(--scale, 1)); }

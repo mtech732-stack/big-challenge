@@ -15,9 +15,17 @@
 .tn.t1 { color: var(--team-1); }
 .tn.t2 { color: var(--team-2-ink); }
 
+/* سطر العنوان قبل المباراة (1.2، design/system.md 14): في مساحة الفريق الأول الفارغة، الأعمدة 1–7 (x 96–1094، y 54–282).
+   يظهر في الإعداد والمواجهة وحدهما، والبطاقة لما يُنقر ويُقرأ */
+.headline { margin: 0; left: 96px; top: 54px; width: 998px; height: 228px; line-height: 228px; text-align: center; color: var(--on-stage); white-space: nowrap; display: none; }
+.headline.show { display: block; }
+.locked .headline { display: none; }
+.headline.big { font-size: 128px; font-weight: 900; }
+.headline.face { font-size: 56px; font-weight: 800; }
+.headline .tn { color: var(--on-stage); }
+
 /* الانتظار: اسم اللعبة وحده */
 .scr.title { flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
-.scr.title .big { font-size: 128px; font-weight: 900; line-height: 1.45; }
 .scr.title .sub { font-size: 40px; font-weight: 700; line-height: 1; }
 
 /* القرعة: سؤال أثناء الدوران، ثم الفائز */
