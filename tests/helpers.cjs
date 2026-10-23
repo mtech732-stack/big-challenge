@@ -29,7 +29,9 @@ function reporter() {
       let ok = true;
       for (const [k, v] of results) { console.log(`${v ? 'نجح' : 'فشل'} · ${k}`); ok &&= v; }
       if (errors.length) console.log(errors.join('\n'));
-      console.log(`${results.filter(r => r[1]).length}/${results.length}`);
+      // السطر الأخير يذكر ما أخفق باسمه، فلا يُبحث عنه في الأسطر قبله.
+      const failed = results.filter(r => !r[1]).map(r => r[0]);
+      console.log(`${results.length - failed.length}/${results.length}${failed.length ? ' · أخفق: ' + failed.join(' | ') : ''}`);
       return ok;
     },
   };

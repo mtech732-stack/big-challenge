@@ -215,12 +215,13 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await audience.waitForSelector('.scr.show[data-s="q"]');
   const lq = (await st()).questions[0];
   // ينتظر ظهور الحرف الجديد والعدّاد بوقته بدل انتظار ثابت (تقرير المعاين ش3، الملاحظة 1).
-  await audience.waitForFunction(b => document.getElementById('letter').textContent === b && document.getElementById('letter').offsetWidth === 220
+  await audience.waitForFunction(b => document.getElementById('letter').textContent === b && document.getElementById('letter').offsetWidth >= 220
     && document.getElementById('timer').textContent === '0:15', lq.box, { timeout: 5000 }).catch(() => {});
   await presenter.waitForFunction(b => document.getElementById('qLetter').textContent === b, lq.box, { timeout: 5000 }).catch(() => {});
   const l2 = [await text(audience, '#letter'), !!(await audience.$('#letter .tw')), (await box(audience)).w, await text(audience, '#timer'), await text(presenter, '#qLetter')];
-  check(`الحرف المعيّن بعد آخر حرفين: حرف واحد بلا تطويل في مربع 220، والعدّاد 0:15${l2[0] === lq.box && !l2[1] && l2[2] === 220 && l2[3] === '0:15' && l2[4] === lq.box ? '' : ' ' + JSON.stringify([lq.box, ...l2])}`,
-    l2[0] === lq.box && !l2[1] && l2[2] === 220 && l2[3] === '0:15' && l2[4] === lq.box);
+  // المربع 220 على الأقل (min-width منذ ش0): حرف عريض كـ«ص» يجعله 244 (تدقيق ش3، ملاحظة المدقّق).
+  const l2ok = l2[0] === lq.box && !l2[1] && l2[2] >= 220 && l2[3] === '0:15' && l2[4] === lq.box;
+  check(`الحرف المعيّن بعد آخر حرفين: حرف واحد بلا تطويل في مربع 220 فأكثر، والعدّاد 0:15${l2ok ? '' : ' ' + JSON.stringify([lq.box, ...l2])}`, l2ok);
   await both('الحرف المعيّن بعد آخر حرفين');
 
   // 9. النافذة الواحدة في جولة آخر حرفين، بأعرض حرفين في الخط مع أطول وصف (مباراة ثانية ببنك تجريبي من مجموعة واحدة)
