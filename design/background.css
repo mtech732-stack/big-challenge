@@ -244,6 +244,14 @@
 .v6.meta-danger .team.on .pcnt > span { animation: numpulse 1s ease-in-out infinite; }
 @keyframes numpulse { 50% { color: #FFFFFF; } }
 
+/* ===== 10. النموذج د7: بلا خطوط في الخلفية (طلب المالك 2026-10-23 17:33) =====
+   الخطوط المائلة الدقيقة على الطرفين تُزال، وتبقى حافة الضوء على الحدّ بين الطرفين، والحزم الضوئية العابرة.
+   وبزوال الخطوط زال سبب العتمة داخل اللوحتين، فصارت اللوحة شفافة تماماً كما طلب المالك: لون الطرف نفسه وإطار أبيض.
+   ولوحة صاحب الدور تضيء بأبيض 8% كما في د6. */
+.v7 .field::after, .v7 .wedge > i::after { display: none; }
+.v7 .team.t1 .shape, .v7 .team.t2 .shape { background: transparent; }
+.v7 .team.t1.on .shape, .v7 .team.t2.on .shape { background: linear-gradient(rgba(255,255,255,.1), rgba(255,255,255,.06)); }
+
 @media (prefers-reduced-motion: reduce) {
   .beam, .plane.a, .glow, .flash, .dim, .backdrop { animation: none !important; }
   .beam { display: none; }
