@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>التحدي الكبير · آخر حرفين · شاشة الجمهور</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  /* الصفحة المرجعية لشاشة الجمهور في ش3 (آخر حرفين). هي صفحة ش2 (design/letter.html) بحالاتها التسع،
+     وما تغيّر: مربع الحرفين، والعدّاد 0:20، ونصوص الافتتاح. القياسات على لوحة 1920×1080،
+     وملاحظاتها في design/last-two.md. */
+  html, body { margin: 0; height: 100%; background: #050E2E; font-family: var(--font); color: var(--on-stage); }
+  .screen { position: fixed; inset: 0 0 var(--tools, 112px) 0; overflow: hidden; }
+  :fullscreen .screen, .clean .screen { bottom: 0; }
+
+  .frame { position: absolute; top: 50%; left: 50%; width: 1920px; height: 1080px; transform: translate(-50%, -50%) scale(var(--scale, 1)); }
+  .single .frame { height: 1216px; }
+  .canvas { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; overflow: hidden;
+    background: linear-gradient(135deg, var(--stage-1) 0%, var(--stage-2) 55%, var(--stage-3) 100%); }
+  .canvas > *, .team > *, .card-wrap > *, .particles > *, .check-layer > * { position: absolute; }
+  [hidden] { display: none !important; }
+
+  /* ===== الهيكل: كما في design/main.html دون تغيير ===== */
+  .plane { width: 2600px; transform: rotate(calc(-1 * var(--tilt))); transform-origin: center; }
+  .plane.a { height: 520px; left: -340px; top: -330px; background: linear-gradient(90deg, rgba(255,255,255,.07), rgba(255,255,255,0)); }
+  .plane.b { height: 300px; left: -340px; top: 470px; background: linear-gradient(270deg, rgba(14,44,134,.55), rgba(14,44,134,0)); }
+  .plane.c { height: 420px; left: -340px; top: 860px; background: linear-gradient(90deg, rgba(14,44,134,.6), rgba(14,44,134,.15)); }
+  .particles span { width: 10px; height: 10px; background: rgba(255,255,255,.22); transform: skewX(calc(-1 * var(--lean))); animation: rise linear infinite; }
+  @keyframes rise { from { translate: 0 0; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } to { translate: 0 -420px; opacity: 0; } }
+
+  .giant { height: 228px; line-height: 228px; font-size: var(--fs-giant); font-weight: 900; direction: ltr; white-space: nowrap; transform: skewX(calc(-1 * var(--lean))); }
+  .giant.t1 { top: 60px; right: 808px; color: var(--team-1); opacity: .32; }
+  .giant.t2 { top: 805px; left: 808px; color: var(--team-2); opacity: .16; }
+
+  .team { width: 600px; height: 136px; }
+  .team.t1 { top: 64px; right: 126px; }
+  .team.t2 { top: 808px; left: 126px; }
+  .team .shape { inset: 0; transform: skewX(calc(-1 * var(--lean))); }
+  .team.t1 .shape { background: var(--team-1); }
+  .team.t2 .shape { background: var(--team-2); }
+  .team .turn { inset: -10px; border: 6px solid var(--hl); transform: skewX(calc(-1 * var(--lean))); visibility: hidden; }
+  .team.on .turn { visibility: visible; }
+  .team .row { inset: 0; padding: 0 48px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+  .team .name { font-size: var(--fs-name); font-weight: 700; line-height: 1; white-space: nowrap; }
+  .team .score { font-size: var(--fs-score); font-weight: 900; line-height: 1; direction: ltr; }
+  .team.t1 .row { color: var(--on-stage); }
+  .team.t2 .row { color: var(--team-2-ink); }
+
+  .strip { height: 48px; padding: 0 32px; display: flex; align-items: center; white-space: nowrap;
+    font-size: var(--fs-badge); font-weight: 700; line-height: 1; color: var(--on-stage); }
+  .strip > i { background: var(--stage-3); transform: skewX(calc(-1 * var(--lean))); }
+  .strip.t1 { top: 234px; right: 132px; }
+  .strip.t2 { top: 978px; left: 132px; }
+  .strip > i, .badge > i, .timer > i, .verdict > i { position: absolute; inset: 0; }
+  .strip > span, .badge > span, .timer > span, .verdict > span { position: relative; }
+  .ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+
+  /* صف الشارات: من اليمين النمط (أصفر) ثم المستوى ثم رقم السؤال ثم السرقة. والعدّاد أو الحكم في أقصى اليسار */
+  .badge { height: 64px; padding: 0 40px; display: flex; align-items: center; white-space: nowrap;
+    font-size: var(--fs-badge); font-weight: 800; line-height: 1; top: 314px; color: var(--ink); }
+  .badge > i { transform: skewX(calc(-1 * var(--lean))); background: var(--card); }
+  .badge.mode > i { background: var(--hl); }
+  .badge.steal.t1 { color: var(--on-stage); }
+  .badge.steal.t1 > i { background: var(--team-1); }
+  .badge.steal.t2 > i { background: var(--team-2); }
+  /* علامة الفريق في شارة السرقة، كي لا تشبه شارة المستوى البيضاء */
+  .badge.steal { gap: 16px; font-weight: 900; }
+  .badge .mk { position: relative; width: 24px; height: 32px; transform: skewX(calc(-1 * var(--lean))); }
+  .badge.steal.t1 .mk { background: var(--on-stage); }
+  .badge.steal.t2 .mk { background: var(--team-2-ink); }
+
+  .timer { top: 306px; left: 108px; height: 80px; min-width: 216px; padding: 0 40px; display: flex; align-items: center; justify-content: center;
+    font-size: var(--fs-timer); font-weight: 900; line-height: 1; color: var(--hl); direction: ltr; }
+  .timer > i { background: var(--stage-3); transform: skewX(calc(-1 * var(--lean))); }
+
+  /* الحكم: يحلّ محل العدّاد بمقاسه وموضعه. بلون الفريق الكاسب، أو داكناً حين لا نقاط */
+  .verdict { top: 306px; left: 108px; height: 80px; min-width: 216px; padding: 0 40px; display: flex; align-items: center; justify-content: center;
+    font-size: 48px; font-weight: 900; line-height: 1; white-space: nowrap; color: var(--on-stage); }
+  .verdict > i { transform: skewX(calc(-1 * var(--lean))); background: var(--stage-3); transform-origin: right; }
+  .verdict.t1 > i { background: var(--team-1); }
+  .verdict.t2 { color: var(--team-2-ink); }
+  .verdict.t2 > i { background: var(--team-2); }
+
+  .card-wrap { left: 160px; top: 410px; width: 1600px; height: 352px; }
+  .card-wrap .plate { inset: 12px -12px -12px -12px; background: var(--stage-3); transform: skewX(calc(-1 * var(--tilt))); }
+  .card { inset: 0; background: var(--card); color: var(--ink); overflow: hidden; }
+
+  /* ===== محتوى البطاقة ===== */
+  .scr { position: absolute; inset: 0 var(--pad-card); display: none; }
+  .scr.show { display: flex; }
+  .scr p { margin: 0; }
+  .tn.t1 { color: var(--team-1); }
+  .tn.t2 { color: var(--team-2-ink); }
+
+  /* السؤال: كما في main.html. مربع الحرف يتسع للحرفين بعرض محتواه، من 220 إلى 456 حداً أقصى، بالحجم 150 نفسه.
+     فإن زاد عرض الحرفين على 392 (س وش وص وض متجاورة) صُغّر خطهما حتى يتسعا، ولا يُصغَّر تحت 128.
+     والتطويل قبلهما (يُضاف عند العرض) بالأصفر نفسه، في عنصر مستقل للحركة وحدها؛ الوصل لا ينقطع به (اختُبر). */
+  .ask { align-items: center; gap: 48px; }
+  .letter { flex: none; min-width: 220px; height: 220px; max-width: 456px; padding: 0 32px; background: var(--ink); color: var(--hl);
+    display: flex; align-items: center; justify-content: center; font-size: var(--fs-letter); font-weight: 800; line-height: 1; white-space: nowrap; }
+  .question { font-size: var(--fs-question); font-weight: 700; line-height: var(--lh-question); max-height: 270px; overflow: hidden; }
+
+  /* افتتاح الجولة */
+  .intro { flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; }
+  .intro .rule { font-size: var(--fs-question); font-weight: 700; line-height: 1.4; }
+  .intro .sub { font-size: 40px; font-weight: 700; line-height: 1; }
+  .intro .head { font-size: 48px; font-weight: 700; line-height: 1.2; white-space: nowrap; }
+
+  /* نهاية الجولة: حصيلة كل فريق في عمود */
+  .end { flex-direction: column; align-items: stretch; justify-content: center; gap: 24px; }
+  .end .cols { display: flex; justify-content: center; gap: 96px; }
+  .end .col { display: flex; flex-direction: column; align-items: center; gap: 16px; min-width: 560px; }
+  .end .who { font-size: 48px; font-weight: 700; line-height: 1.2; white-space: nowrap; display: flex; align-items: center; gap: 16px; }
+  .end .who i { width: 24px; height: 32px; transform: skewX(calc(-1 * var(--lean))); }
+  .end .who.t1 i { background: var(--team-1); }
+  .end .who.t2 i { background: var(--team-2-ink); }
+  .end .pts { font-size: 128px; font-weight: 900; line-height: 1; direction: ltr; }
+  .end .next { font-size: 40px; font-weight: 700; line-height: 1; text-align: center; white-space: nowrap; }
+
+  /* حواف الخطر: آخر 3 ثوانٍ (system.md 6.8) */
+  .danger { inset: 0; pointer-events: none; z-index: 8; }
+  .meta-danger .danger { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { box-shadow: inset 0 0 0 12px rgba(230,57,70,.9), inset 0 0 120px 24px rgba(230,57,70,.45); } 50% { box-shadow: inset 0 0 0 4px rgba(230,57,70,.4), inset 0 0 60px 0 rgba(230,57,70,.15); } }
+
+  /* لمعة السرقة: شريط ضوء مائل يعبر الشاشة مرة. شفاف، لا نص فيه، فلا يحجب شيئاً */
+  .shine { left: -900px; top: -200px; width: 520px; height: 1480px; pointer-events: none; z-index: 7; opacity: 0;
+    background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.28), rgba(255,255,255,0)); transform: skewX(calc(-1 * var(--lean))); }
+
+  /* ===== شريط النافذة الواحدة: أزرار الانتقال والحكم وحدها، ولا إجابة فيه أبداً ===== */
+  .band { position: absolute; left: 0; top: 1080px; width: 1920px; height: 136px; display: none;
+    align-items: center; gap: 24px; padding: 0 48px; background: #050E2E; border-top: 4px solid var(--stage-3); box-sizing: border-box; }
+  .single .band { display: flex; }
+  .band button { font: inherit; font-size: 32px; font-weight: 700; height: 72px; padding: 0 32px; border: 0; border-radius: 0;
+    background: var(--card); color: var(--ink); white-space: nowrap; cursor: pointer; }
+  .band .tag { margin-inline-end: auto; background: none; color: var(--on-stage); padding: 0 24px; outline: 3px solid rgba(255,255,255,.45); outline-offset: -3px; }
+  .band button.alt { background: transparent; color: var(--on-stage); outline: 3px solid var(--card); outline-offset: -3px; }
+  .band button.no { background: transparent; color: var(--on-stage); outline: 3px solid var(--team-1); outline-offset: -3px; }
+  .band .gap { width: 24px; }
+
+  /* ===== لحظات الحركة (design/last-two.md، القسم 5): لحظات ش2 كما هي، ومعها دخول الحرفين ===== */
+  .anim .scr.show { animation: in .2s ease-out both; }
+  @keyframes in { from { opacity: 0; } }
+  .anim .verdict:not([hidden]) > i { animation: wipe .2s ease-out both; }
+  .anim .verdict:not([hidden]) > span { animation: in .15s ease-out .12s both; }
+  @keyframes wipe { from { transform: skewX(calc(-1 * var(--lean))) scaleX(0); } }
+  .team.won { animation: bump .45s ease-out; }
+  @keyframes bump { 40% { scale: 1.06; } }
+  .giant.gain { animation: gain .6s ease-out; }
+  @keyframes gain { 40% { opacity: .6; scale: 1.08; } }
+  .giant.lead { animation: lead .8s ease-in-out; }
+  @keyframes lead { 25%, 75% { opacity: .6; } 50% { opacity: .32; } }
+  .giant.lose { animation: lose .8s ease-in-out; }
+  @keyframes lose { 50% { opacity: .08; } }
+  .card-wrap.shake { animation: shake .24s linear; }
+  @keyframes shake { 25% { translate: 8px 0; } 50% { translate: -8px 0; } 75% { translate: 8px 0; } }
+  .shine.go { animation: shine .6s ease-in-out; }
+  @keyframes shine { 0% { opacity: 1; translate: 0 0; } 100% { opacity: 1; translate: 3700px 0; } }
+  .badge.pop > i { animation: wipe .2s ease-out both; }
+  /* دخول الحرفين: التطويل يظهر أولاً، ثم الحرفان بعده بـ 150ms، فيُقرأ «آخر الكلمة». بالشفافية وحدها كي لا ينقطع الوصل */
+  .anim .letter .tw { animation: in .15s ease-out both; }
+  .anim .letter .lt { animation: in .2s ease-out .15s both; }
+  .timer.reset > span { animation: in .2s ease-out both; }
+  @media (prefers-reduced-motion: reduce) { .particles span, .anim *, .anim *::before, .shine, .team, .giant, .card-wrap, .badge > i, .letter span { animation: none !important; } }
+
+  /* الفحص */
+  .check-layer { inset: 0; pointer-events: none; display: none; z-index: 10; }
+  .checking .check-layer { display: block; }
+  .check-layer .safe { left: 96px; top: 54px; width: 1728px; height: 972px; outline: 2px dashed rgba(255,255,255,.7); }
+  .check-layer .box { outline: 2px solid #3ddc84; }
+  .check-layer .box.bad { outline: 4px solid #ff2d55; background: rgba(255,45,85,.15); }
+
+  /* أدوات المعاينة: خارج اللوحة، وليست من التصميم */
+  .tools { position: fixed; left: 0; right: 0; bottom: 0; height: var(--tools, 112px); padding: 6px 16px; box-sizing: border-box;
+    display: flex; gap: 6px; align-items: center; align-content: center; flex-wrap: wrap; background: #050E2E; font-size: 16px; }
+  :fullscreen .tools, .clean .tools { display: none; }
+  .tools button { font: inherit; font-size: 16px; padding: 5px 12px; border: 0; background: #fff; color: var(--ink); cursor: pointer; }
+  .tools button[aria-pressed="true"] { background: var(--hl); }
+  .tools .sep { width: 12px; }
+  .tools output { margin-inline-start: auto; font-size: 16px; }
+  .tools output.bad { color: #ff6b81; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="screen">
+ <div class="frame" id="frame">
+  <div class="canvas" id="canvas">
+    <div class="plane a"></div><div class="plane b"></div><div class="plane c"></div>
+    <div class="particles" id="particles"></div>
+
+    <div class="giant t1" id="g1" data-bg></div>
+    <div class="giant t2" id="g2" data-bg></div>
+
+    <section class="team t1" id="p1" data-hud="لوحة الفريق الأول">
+      <div class="shape"></div><div class="turn"></div>
+      <div class="row" data-fit="لوحة الفريق الأول"><span class="name" id="n1"></span><span class="score" id="s1"></span></div>
+    </section>
+    <div class="strip t1" id="d1" data-hud="شريط الفارق الأول"><i></i><span></span></div>
+
+    <div class="badge mode" id="b1" data-hud="شارة النمط"><i></i><span></span></div>
+    <div class="badge" id="b2" data-hud="الشارة الثانية"><i></i><span></span></div>
+    <div class="badge" id="b3" data-hud="الشارة الثالثة"><i></i><span></span></div>
+    <div class="badge steal" id="b4" data-hud="شارة السرقة"><i></i><b class="mk"></b><span>سرقة</span></div>
+    <div class="timer" id="timer" data-hud="العدّاد"><i></i><span id="time">0:20</span></div>
+    <div class="verdict" id="verdict" data-hud="الحكم"><i></i><span id="vtext"></span></div>
+
+    <div class="card-wrap" id="cardWrap" data-hud="البطاقة">
+      <div class="plate"></div>
+      <div class="card">
+        <div class="scr intro" data-s="intro">
+          <p class="rule">أجب بكلمة تنتهي بالحرفين</p>
+          <p class="sub"><span class="ltr">6</span> أسئلة · <span class="ltr">20</span> ثانية للسؤال · والسرقة في <span class="ltr">5</span> ثوانٍ</p>
+          <p class="head" id="starter" data-fit="سطر البدء"></p>
+        </div>
+        <div class="scr ask" data-s="ask">
+          <div class="letter" id="letter" data-fit="مربع الحرفين"></div>
+          <p class="question" id="question" data-fit="السؤال"></p>
+        </div>
+        <div class="scr end" data-s="end">
+          <div class="cols">
+            <div class="col"><p class="who t1" data-fit="اسم الفريق الأول"><i></i><span id="e1"></span></p><p class="pts tn t1" id="r1"></p></div>
+            <div class="col"><p class="who t2" data-fit="اسم الفريق الثاني"><i></i><span id="e2"></span></p><p class="pts tn t2" id="r2"></p></div>
+          </div>
+          <p class="next" id="next" data-fit="سطر التالي"></p>
+        </div>
+      </div>
+    </div>
+
+    <section class="team t2" id="p2" data-hud="لوحة الفريق الثاني">
+      <div class="shape"></div><div class="turn"></div>
+      <div class="row" data-fit="لوحة الفريق الثاني"><span class="name" id="n2"></span><span class="score" id="s2"></span></div>
+    </section>
+    <div class="strip t2" id="dd2" data-hud="شريط الفارق الثاني"><i></i><span></span></div>
+
+    <div class="shine" id="shine"></div>
+    <div class="danger"></div>
+    <div class="check-layer" id="checkLayer"><div class="safe"></div></div>
+  </div>
+
+  <div class="band" id="band" aria-label="تحكم المقدّم في النافذة الواحدة"></div>
+ </div>
+</div>
+
+<nav class="tools" aria-label="أدوات المعاينة">
+  <button data-go="intro">افتتاح الجولة</button>
+  <button data-go="ready">السؤال: قبل «ابدأ»</button>
+  <button data-go="run">العدّاد يعدّ</button>
+  <button data-go="last3">آخر 3 ثوانٍ</button>
+  <button data-go="right">صحيحة</button>
+  <button data-go="steal">السرقة</button>
+  <button data-go="stealRight">سرقة صحيحة</button>
+  <button data-go="stealNone">لا نقاط</button>
+  <button data-go="end">نهاية الجولة</button>
+  <span class="sep"></span>
+  <button id="turn">صاحب الدور: الأول</button>
+  <button id="round">الجولة: الأولى</button>
+  <button id="long" aria-pressed="false">أطول محتوى</button>
+  <button id="wide" aria-pressed="false">أعرض حرفين</button>
+  <button id="single" aria-pressed="false">نافذة واحدة</button>
+  <button id="play">شغّل الحركة</button>
+  <button id="check" aria-pressed="false">فحص التداخل</button>
+  <button id="all">فحص كل الحالات</button>
+  <button id="fs">ملء الشاشة</button>
+  <output id="report"></output>
+</nav>
+
+<script src="check.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const num = s => String(s).replace(/(\+?\d+)/g, '<span class="ltr">$1</span>');
+
+  // المحتوى: مثال من عيّنات الوثيقة (6.5)، وأطول محتوى يسمح به النظام: سؤال 87 حرفاً (فوق حد 85)،
+  // واسمان من 18 حرفاً، ورصيد من 3 خانات، وأطول شارات الصف («متوسط · نقطتان» و«السؤال 6 من 6»).
+  // والحرفان في المحتوى الطويل «وس» (قاموس)، وفي «فحص كل الحالات» يُختبر أعرض حرفين في الخط كله «سش» (452 عند 150).
+  const SETS = {
+    normal: { names: ['الصقور', 'النجوم'], s: [12, 9], ending: 'ان', level: 'متوسط · نقطتان', pts: 2, qn: 3,
+      q: 'لا يتكلم، لكنه يفضح ما أكلتَه في العيد', round: [6, 3] },
+    long: { names: ['فريق النخبة الذهبي', 'نجوم المستقبل معاً'], s: [188, 176], ending: 'وس', level: 'متوسط · نقطتان', pts: 2, qn: 6,
+      q: 'كتاب لا تقرؤه من أوله إلى آخره، بل تفتحه حين تجهل معنى كلمة، وأشهره المحيط للفيروزآبادي', round: [12, 12] },
+  };
+  const WIDEST = 'سش';
+  // ما بعد الجولة بحسب موضعها في المباراة الكاملة (5.2 و5.7). وفي القصيرة بعد الأولى: «التالي: عجلة البونص».
+  const NEXT = { first: 'التالي: الجولة 2 · المزاد', later: 'التالي: النتيجة النهائية' };
+
+  const st = { go: 'ready', turn: 1, first: true, long: false, single: false, wide: false };
+  const other = t => t === 1 ? 2 : 1;
+  const set = () => SETS[st.long ? 'long' : 'normal'];
+  const tn = t => `<b class="tn t${t}">${set().names[t - 1]}</b>`;
+  const diff = (a, b) => a === b ? 'تعادل' : `${a > b ? 'يتقدّم' : 'يتأخر'} بفارق <span class="ltr">${Math.abs(a - b)}</span>`;
+
+  function render() {
+    const d = set(), go = st.go;
+    const scr = go === 'intro' ? 'intro' : go === 'end' ? 'end' : 'ask';
+    document.querySelectorAll('.scr').forEach(s => s.classList.toggle('show', s.dataset.s === scr));
+    const stealing = ['steal', 'stealRight', 'stealNone'].includes(go);
+    const owner = st.turn, thief = other(st.turn);
+
+    // الرصيد: يزيد بعد الحكم الصحيح بنقاط المستوى.
+    const s = [...d.s];
+    if (go === 'right') s[owner - 1] += d.pts;
+    if (go === 'stealRight') s[thief - 1] += d.pts;
+    if (go === 'intro' && st.first) s[0] = s[1] = 0;
+    if (go === 'end') { s[0] += d.round[0]; s[1] += d.round[1]; }
+    $('n1').textContent = d.names[0]; $('n2').textContent = d.names[1];
+    $('s1').textContent = s[0]; $('s2').textContent = s[1];
+
+    // قبل أول سؤال في المباراة لا شريط فارق ولا رقم عملاق (design/start.md 2).
+    const before = go === 'intro' && st.first;
+    $('g1').textContent = before ? '' : s[0]; $('g2').textContent = before ? '' : s[1];
+    $('d1').hidden = $('dd2').hidden = before;
+    $('d1').querySelector('span').innerHTML = diff(s[0], s[1]);
+    $('dd2').querySelector('span').innerHTML = diff(s[1], s[0]);
+
+    // الشارات من اليمين.
+    const badge = (el, html) => { el.hidden = !html; if (html) el.querySelector('span').innerHTML = num(html); };
+    badge($('b1'), 'آخر حرفين');
+    if (scr === 'ask') { badge($('b2'), d.level); badge($('b3'), `السؤال ${d.qn} من 6`); }
+    else if (scr === 'intro') { badge($('b2'), `الجولة ${st.first ? 1 : 4} من 4`); badge($('b3'), ''); }
+    else { badge($('b2'), `انتهت الجولة ${st.first ? 1 : 4}`); badge($('b3'), ''); }
+    $('b4').hidden = !stealing;
+    $('b4').className = `badge steal t${thief}`;
+
+    // العدّاد أو الحكم.
+    const time = { ready: '0:20', run: '0:12', last3: '0:03', steal: '0:05' }[go];
+    $('timer').hidden = !time; if (time) $('time').textContent = time;
+    document.body.classList.toggle('meta-danger', go === 'last3');
+    const v = { right: [owner, `صحيحة · +${d.pts}`], stealRight: [thief, `صحيحة · +${d.pts}`], stealNone: [0, 'لا نقاط'] }[go];
+    $('verdict').hidden = !v;
+    if (v) { $('verdict').className = `verdict${v[0] ? ' t' + v[0] : ''}`; $('vtext').innerHTML = num(v[1]); }
+
+    // البطاقة.
+    // الحرفان يُخزَّنان دون تطويل (content-format 4.2)، والتطويل يُضاف عند العرض في عنصر مستقل.
+    $('letter').innerHTML = `<span class="tw">ـ</span><span class="lt">${st.wide ? WIDEST : d.ending}</span>`;
+    fitEnding(); $('question').textContent = d.q;
+    $('starter').innerHTML = `يبدأ ${tn(st.turn)}`;
+    $('e1').textContent = d.names[0]; $('e2').textContent = d.names[1];
+    $('r1').textContent = '+' + d.round[0]; $('r2').textContent = '+' + d.round[1];
+    $('next').innerHTML = num(st.first ? NEXT.first : NEXT.later);
+
+    // مؤشر الدور: صاحب السؤال، وفي السرقة الخصم. ولا مؤشر في نهاية الجولة.
+    const on = go === 'end' ? 0 : stealing ? thief : owner;
+    $('p1').classList.toggle('on', on === 1); $('p2').classList.toggle('on', on === 2);
+
+    renderBand();
+    document.querySelectorAll('[data-go]').forEach(x => x.setAttribute('aria-pressed', x.dataset.go === go));
+    $('turn').textContent = `صاحب الدور: ${st.turn === 1 ? 'الأول' : 'الثاني'}`;
+    $('round').textContent = `الجولة: ${st.first ? 'الأولى' : 'الرابعة'}`;
+    place();
+  }
+
+  // الحرفان: 150 ما اتسع المربع (456 بحشوته)، وإلا صُغّرا بنسبة الزيادة، ولا يُصغَّران تحت 128.
+  function fitEnding() {
+    const el = $('letter'); el.style.fontSize = '';
+    const inner = 456 - 64, w = el.scrollWidth - 64;
+    if (w > inner) el.style.fontSize = Math.max(128, Math.floor(150 * inner / w)) + 'px';
+  }
+
+  // شريط النافذة الواحدة: الانتقال والحكم و«الرصيد» (ملاحظة التدقيق 4 في ش1)، ولا إجابة أبداً.
+  function renderBand() {
+    const go = st.go;
+    let html = '<button class="tag">نافذة واحدة · <span class="ltr">Esc</span> للخروج</button>';
+    if (go === 'intro') html += '<button>اعرض السؤال <span class="ltr">1</span></button>';
+    if (go === 'ready') html += '<button>ابدأ العدّاد</button><span class="gap"></span>';
+    if (['ready', 'run', 'last3', 'steal'].includes(go)) html += '<button>صحيحة</button><button class="no">خاطئة</button>';
+    if (['right', 'stealRight', 'stealNone'].includes(go)) html += set().qn === 6 ? '<button>إنهاء الجولة</button>' : `<button>السؤال التالي</button>`;
+    if (go === 'end') html += st.first ? '<button>ابدأ الجولة <span class="ltr">2</span></button>' : '<button>إلى النتيجة النهائية</button>';
+    if (go !== 'intro') html += '<button class="alt">تراجع</button>';
+    html += '<button class="alt">الرصيد</button>';
+    $('band').innerHTML = html;
+  }
+
+  // الشارات تلي بعضها من اليمين بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (كما في main.html).
+  function place() {
+    const lean = Math.tan(14 * Math.PI / 180) * 64;
+    let right = 108;
+    for (const id of ['b1', 'b2', 'b3', 'b4']) {
+      const el = $(id); if (el.hidden) continue;
+      el.style.right = right + 'px'; right += el.offsetWidth + 24 + lean;
+    }
+    if (document.body.classList.contains('checking')) runCheck();
+  }
+
+  function runCheck() {
+    const res = layoutCheck({ canvas: $('canvas'), layer: $('checkLayer'), scope: [$('canvas'), $('band')],
+      lines: [{ el: $('question'), max: 3 }] });
+    const band = $('band');
+    if (st.single && band.scrollWidth > band.clientWidth + 1) { res.problems.push('أزرار الشريط تفيض عن عرضه'); res.ok = false; }
+    const out = $('report');
+    out.textContent = res.ok ? `✓ لا تداخل · أدنى فراغ ${Math.round(res.minGap)}` : `✗ ${res.problems.join(' · ')}`;
+    out.className = res.ok ? '' : 'bad';
+    return res;
+  }
+
+  // كل الحالات: الشاشات × صاحب الدور × الجولة الأولى أو اللاحقة × المحتوى × النافذة الواحدة.
+  const GOS = ['intro', 'ready', 'run', 'last3', 'right', 'steal', 'stealRight', 'stealNone', 'end'];
+  window.checkAll = function () {
+    const saved = { ...st }, fails = []; let n = 0, minGap = Infinity;
+    const runs = [false, true].flatMap(long => long ? [[true, false], [true, true]] : [[false, false]]);
+    for (const go of GOS) for (const turn of [1, 2]) for (const first of [true, false]) for (const [long, wide] of runs) for (const single of [false, true]) {
+      Object.assign(st, { go, turn, first, long, wide, single });
+      document.body.classList.toggle('single', single); fit(); render();
+      const r = runCheck(); n++; minGap = Math.min(minGap, r.minGap);
+      if (!r.ok) fails.push(`${go}/${turn}/${first ? 'أولى' : 'لاحقة'}/${wide ? 'أعرض حرفين' : long ? 'طويل' : 'عادي'}/${single ? 'واحدة' : 'نافذتان'}: ${r.problems.join('، ')}`);
+    }
+    Object.assign(st, saved); document.body.classList.toggle('single', st.single); fit(); render();
+    $('report').textContent = fails.length ? `✗ ${fails.length} من ${n}: ${fails[0]}` : `✓ ${n} من ${n} سليمة · أدنى فراغ ${Math.round(minGap)}`;
+    $('report').className = fails.length ? 'bad' : '';
+    return { total: n, failed: fails.length, minGap, fails };
+  };
+
+  // الحركة (design/last-two.md، القسم 5): تُعرض لحظة الانتقال إلى الشاشة الحالية.
+  let timers = [];
+  const later = (ms, f) => timers.push(setTimeout(f, ms));
+  const replay = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
+  function play() {
+    timers.forEach(clearTimeout); timers = [];
+    const c = $('canvas'); c.classList.remove('anim'); void c.offsetWidth; c.classList.add('anim');
+    const go = st.go, owner = st.turn, thief = other(st.turn);
+    if (go === 'right' || go === 'stealRight') {
+      // صحيحة: الحكم يُمسح من اليمين، ثم الرقم يزيد ولوحة الكاسب تنبض ورقمه العملاق.
+      const w = go === 'right' ? owner : thief;
+      const d = set(), from = d.s[w - 1], to = from + d.pts;
+      render(); $('s' + w).textContent = $('g' + w).textContent = from;
+      later(250, () => { $('s' + w).textContent = $('g' + w).textContent = to; replay($('p' + w), 'won'); replay($('g' + w), 'gain'); });
+    } else if (go === 'steal') {
+      // السرقة: البطاقة تهتز (خاطئة)، ثم لمعة تعبر الشاشة، والمؤشر يقفز إلى الخصم، وشارة السرقة تظهر، والعدّاد يبدأ من 0:05.
+      st.go = 'run'; render(); $('p1').classList.remove('on'); $('p2').classList.remove('on');
+      replay($('cardWrap'), 'shake');
+      later(240, () => { st.go = 'steal'; render(); replay($('shine'), 'go'); replay($('p' + thief), 'won'); replay($('b4'), 'pop'); replay($('timer'), 'reset'); });
+    } else if (go === 'end') {
+      render(); replay($('g1'), 'lead'); replay($('g2'), 'lose');
+    } else render();
+  }
+
+  (function particles() {
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 22; i++) {
+      const s = document.createElement('span');
+      s.style.left = Math.round(rnd() * 1900) + 'px';
+      s.style.top = Math.round(500 + rnd() * 600) + 'px';
+      s.style.animationDuration = (14 + rnd() * 10).toFixed(1) + 's';
+      s.style.animationDelay = (-rnd() * 20).toFixed(1) + 's';
+      const k = 6 + Math.round(rnd() * 8); s.style.width = s.style.height = k + 'px';
+      $('particles').appendChild(s);
+    }
+  })();
+
+  const fit = () => {
+    const tools = document.fullscreenElement || document.body.classList.contains('clean') ? 0 : 112;
+    const h = st.single ? 1216 : 1080;
+    document.documentElement.style.setProperty('--scale', Math.min(innerWidth / 1920, (innerHeight - tools) / h));
+  };
+  addEventListener('resize', () => { fit(); place(); });
+  document.addEventListener('fullscreenchange', fit);
+
+  document.querySelectorAll('[data-go]').forEach(x => x.onclick = () => { st.go = x.dataset.go; render(); });
+  $('turn').onclick = () => { st.turn = other(st.turn); render(); };
+  $('round').onclick = () => { st.first = !st.first; render(); };
+  $('long').onclick = e => { st.long = !st.long; e.target.setAttribute('aria-pressed', st.long); render(); };
+  $('wide').onclick = e => { st.wide = !st.wide; e.target.setAttribute('aria-pressed', st.wide); render(); };
+  $('single').onclick = e => { st.single = !st.single; e.target.setAttribute('aria-pressed', st.single); document.body.classList.toggle('single', st.single); fit(); render(); };
+  $('play').onclick = play;
+  $('check').onclick = e => { const on = document.body.classList.toggle('checking'); e.target.setAttribute('aria-pressed', on); if (on) runCheck(); else $('report').textContent = ''; };
+  $('all').onclick = () => checkAll();
+  $('fs').onclick = () => document.documentElement.requestFullscreen?.();
+
+  const q = new URLSearchParams(location.search);
+  if (q.has('clean')) document.body.classList.add('clean');
+  if (GOS.includes(q.get('go'))) st.go = q.get('go');
+  if (q.get('turn') === '2') st.turn = 2;
+  if (q.has('later')) st.first = false;
+  if (q.has('long')) st.long = true;
+  if (q.has('wide')) st.wide = true;
+  if (q.has('single')) { st.single = true; document.body.classList.add('single'); }
+  fit();
+  document.fonts.ready.then(() => { render(); if (q.has('check')) $('check').click(); });
+  document.fonts.addEventListener('loadingdone', place);
+</script>
+</body>
+</html>
