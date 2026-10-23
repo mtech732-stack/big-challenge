@@ -20,7 +20,8 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
     p.on('console', m => m.type() === 'error' && !/content\/packs\/.+\.json/.test(m.location().url) && errors.push(m.text()));
   });
   const presenter = await context.newPage();
-  await presenter.goto(base);
+  // ?preview: معاينة الأنماط التي لم تُبنَ بعد، ليُختبر بدء المباراة بالطريقة الكاملة (4 أنماط) قبل بنائها كلها.
+  await presenter.goto(base + '?preview');
   await presenter.evaluate(() => localStorage.clear());
   await unlock(presenter);
   const text = (page, sel) => page.textContent(sel).then(t => t.replace(/\s+/g, ' ').trim());
