@@ -357,10 +357,12 @@
     announce(a.screen === 'end' ? { next: p.next } : { verdict: v, answer: a.answer });
     syncTimer(p.timer, a);
     setTurn(a.turn);
-    // العدّاد يعمل: الحدّ يكتسح لصاحب الدور، وإطار الوقت حول لوحته يتآكل، والثواني فيها. وفي القراءة والحكم يعود إلى المنتصف.
+    // الحدّ يكتسح لصاحب الدور من ظهور سؤاله، في القراءة ثم العدّاد بلا حركة بينهما، وللآخر فوراً إن انتقل إليه (المالك 20:39، design/system.md 15.2).
+    // وبعد الحكم يقف على من أخذ النقاط، أو يعود إلى المنتصف إن لم يأخذ أحد. وفي غير شاشة السؤال في المنتصف.
+    // والعدّاد يعمل: إطار الوقت حول لوحة صاحب الدور يتآكل، والثواني فيها، والحزم تخفت (.running وحده).
     const running = !!count && !count.test;
     setRunning(running);
-    setSide(running ? a.turn : 0);
+    setSide(a.screen !== 'ask' ? 0 : v ? v.team || 0 : a.turn);
     if (running && count.id !== drained) { drained = count.id; drain(a.turn, (count.endAt - Date.now()) / 1000, p.timer.seconds); }
     if (!running && drained) { drained = 0; drain(0); }
     renderCtl();
@@ -468,6 +470,8 @@
         // صحيحة: مربع الإعلان يُمسح من اليمين، والحزم تندفع، وبعد 250ms يزيد الرقم الكبير وتنبض لوحة الكاسب.
         const w = m.team, to = p.scores[w];
         setScore(w, prev.scores[w]); surge();
+        // جهة الكاسب تومض: الحدّ عنده غالباً من قبل، فلا تكفي ومضة الوصول.
+        replay($('stagebg').querySelector('.f' + w), 'blink');
         later(250, () => { setScore(w, to); bump(w); moment(w, 'gain'); });
       }
       if (m.name === 'lead') later(700, () => { moment(m.team, 'lead'); moment(other(m.team), 'lose'); });
