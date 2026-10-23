@@ -100,6 +100,17 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   check(`القرعة محسومة (الفائز ${W}) واسمه على الشاشة، ثم «اختيار الأنماط»`, (await text('#winner')) === names[W]);
   await stageCheck('نتيجة القرعة');
 
+  // ملاحظة المعاين 3: «تعديل الاسمين» يعود إلى الإعداد بالاسمين، ثم «عُد إلى القرعة» يعرض النتيجة نفسها دون قرعة جديدة.
+  await cmd(frame, 'back');
+  await frame.waitForSelector('.scr.show[data-s="title"]');
+  check('«تعديل الاسمين»: الإعداد بالاسمين، وزر «عُد إلى القرعة»', (await frame.inputValue('#i1')) === names[1] && (await text('.scr.show [data-cmd="draw"]')) === 'عُد إلى القرعة');
+  await frame.fill('#i1', 'الصقور الجدد');
+  await cmd(frame, 'draw');
+  await frame.waitForSelector('.scr.show[data-s="result"]', { timeout: 5000 });
+  check('العودة إلى القرعة: النتيجة نفسها بالاسم المعدّل، ولا قرعة جديدة', (await saved()).winner === W && (await saved()).teams[1] === 'الصقور الجدد'
+    && (await text('#winner')) === (W === 1 ? 'الصقور الجدد' : names[2]));
+  names[1] = 'الصقور الجدد';
+
   // 3. اختيار الأنماط بالنقر على خاناتها
   await cmd(frame, 'toPick');
   await wait(200);

@@ -52,7 +52,9 @@ const { reporter } = require('./helpers.cjs');
   check('القرعة تُخرج الفريقين', winners.has(1) && winners.has(2));
   m = M.draw(m, () => 0.8);
   check('القرعة محسومة ولا تُعاد', m.winner === 2 && M.draw(m, () => 0.1).winner === 2);
-  check('لا رجوع إلى الإعداد بعد القرعة', M.backToSetup(m).step === 'draw');
+  const fixed = M.toDraw(M.setTeams(M.backToSetup(m), 'فريق النخبة', m.teams[2]));
+  check('«تعديل الاسمين» بعد القرعة: إلى الإعداد، ثم تعود القرعة بالنتيجة نفسها ولا تُعاد', M.backToSetup(m).step === 'setup' && M.backToSetup(m).winner === 2
+    && fixed.step === 'draw' && fixed.winner === 2 && fixed.teams[1] === 'فريق النخبة' && M.draw(fixed, () => 0.1).winner === 2);
   m = M.toPick(m);
 
   // الكاملة: الفائز، ثم الآخر، ثم الفائز، والرابعة تلقائياً.
