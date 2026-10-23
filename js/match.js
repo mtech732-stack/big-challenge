@@ -11,6 +11,11 @@ export const METHODS = {
 export const other = team => (team === 1 ? 2 : 1);
 const clean = name => String(name ?? '').replace(/\s+/g, ' ').trim();
 
+// الأرقام إنجليزية في كل الشاشات (7.3): لوحة المفاتيح العربية تكتب ٣ و۳، فتُحوَّل عند الكتابة.
+export const englishDigits = text => String(text ?? '')
+  .replace(/[٠-٩]/g, d => d.charCodeAt(0) - 0x0660)
+  .replace(/[۰-۹]/g, d => d.charCodeAt(0) - 0x06F0);
+
 export function newMatch({ pack = null, method = 'full' } = {}) {
   return { v: 1, step: 'setup', teams: { 1: '', 2: '' }, pack, method, winner: null, picks: [], scores: { 1: 0, 2: 0 }, history: [], single: false };
 }
@@ -28,7 +33,7 @@ export function setupErrors(match) {
   return [];
 }
 
-export const setTeams = (match, a, b) => ({ ...match, teams: { 1: String(a ?? ''), 2: String(b ?? '') } });
+export const setTeams = (match, a, b) => ({ ...match, teams: { 1: englishDigits(a), 2: englishDigits(b) } });
 export const setPack = (match, pack) => ({ ...match, pack });
 export const setMethod = (match, method) => (METHODS[method] ? { ...match, method } : match);
 
@@ -37,6 +42,9 @@ export function toDraw(match) {
   if (match.step !== 'setup' || setupErrors(match).length) return match;
   return { ...match, step: 'draw', teams: { 1: clean(match.teams[1]), 2: clean(match.teams[2]) } };
 }
+
+// «رجوع إلى الإعداد» لتصحيح اسم أو اختيار، ما دامت القرعة لم تبدأ. لا يُمحى شيء.
+export const backToSetup = match => (match.step === 'draw' && !match.winner ? { ...match, step: 'setup' } : match);
 
 // القرعة تُحسم قبل الحركة وتُحفظ، والحركة عرض لها فقط (design/start.md، القسم 8.6). ولا إعادة لها.
 export function draw(match, rng = Math.random) {
