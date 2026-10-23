@@ -26,7 +26,6 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
     const set = (id, v) => { document.getElementById(id).textContent = v; };
     set('n1', 'فريق النخبة الذهبي'); set('n2', 'نجوم المستقبل معاً');
     set('s1', '188'); set('g1', '188'); set('s2', '176'); set('g2', '176');
-    set('d1', 'يتقدّم بفارق 12'); set('d2', 'يتأخر بفارق 12');
     set('letter', 'ـوت');
     set('label', 'بيت لا يُبنى بطين ولا حجر، ووصفه القرآن بأنه أوهن البيوت، وتراه في زوايا البيوت القد');
     const { checkLayout } = await import('./js/layout-check.js');
@@ -37,7 +36,7 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
     await audience.goto(base + 'audience.html?check');
     await audience.waitForFunction(() => window.__check, null, { timeout: 10000 });
     const r = await audience.evaluate(() => window.__check);
-    check(`الجمهور ${w}×${h}: لا تداخل ولا خروج عن الهامش (${r.count} عناصر، أدنى فراغ ${Math.round(r.minGap)})`, r.ok && r.count === 9);
+    check(`الجمهور ${w}×${h}: لا تداخل ولا خروج عن الهامش (${r.count} عناصر، أدنى فراغ ${Math.round(r.minGap)})`, r.ok && r.count === 7);
     if (!r.ok) console.log(r.problems.join('\n'));
     if (w === 1920) await audience.screenshot({ path: `${shots}/skeleton-audience.png` });
     const l = await longest();
@@ -89,8 +88,8 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   // 5. حواف الخطر في آخر 3 ثوانٍ فقط، وتختفي عند 0:00.
   await presenter.click('#start');
   await wait(300);
-  check('مع العدّاد: اللوحتان والشريطان والشارة والعدّاد والرقم العملاق ظاهرة',
-    (await Promise.all(['.team.t1', '.team.t2', '.strip.t1', '.strip.t2', '.badge.mode', '.timer', '.giant.t1'].map(s => aud.isVisible(s)))).every(Boolean));
+  check('مع العدّاد: اللوحتان والشارة والعدّاد والرقم العملاق ظاهرة، ولا شريط فارق (الإصدار 1.1)',
+    !(await aud.isVisible('.strip')) && (await Promise.all(['.team.t1', '.team.t2', '.badge.mode', '.timer', '.giant.t1'].map(s => aud.isVisible(s)))).every(Boolean));
   await wait(4200);
   const early = await aud.textContent('#timer');
   check(`قبل آخر 3 ثوانٍ (${early}): لا حواف`, ['0:06', '0:05'].includes(early) && !(await aud.evaluate(() => document.getElementById('canvas').classList.contains('meta-danger'))));

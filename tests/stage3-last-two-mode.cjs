@@ -36,10 +36,19 @@ const { reporter } = require('./helpers.cjs');
   check('لا سؤال مكرر', new Set(s0.questions.map(q => q.id)).size === 6);
   check('المربع: الحرفان من الملف كما هما، دون تطويل', s0.questions.every(q => q.box === bank.questions.find(b => b.id === q.id).ending));
 
-  // لا يتكرر الحرفان في الجولة ما أمكن (ملاحظة تدقيق ش3). وذاكرة الأسئلة أسبق: لا يعود سؤال ظهر ليتجنب التكرار.
-  let repeats = 0;
-  for (let i = 0; i < 200; i++) if (new Set(lastTwo.setup({ content: bank, first: 1, seen: [], rng }).questions.map(q => q.box)).size !== 6) repeats++;
-  check(`لا يتكرر الحرفان في الجولة (${repeats} من 200)`, repeats === 0);
+  // الإصدار 1.1: الجولة كلها بنهاية واحدة، والنهاية الأقل ظهوراً أولاً.
+  let mixed = 0;
+  for (let i = 0; i < 200; i++) if (new Set(lastTwo.setup({ content: bank, first: 1, seen: [], rng }).questions.map(q => q.box)).size !== 1) mixed++;
+  check(`كل الجولة بنهاية واحدة (${200 - mixed} من 200)`, mixed === 0);
+  const groups = new Set(bank.questions.map(q => q.ending));
+  let rotSeen = [];
+  const rot = [];
+  for (let i = 0; i < groups.size; i++) {
+    const s = lastTwo.setup({ content: bank, first: 1, seen: rotSeen, rng });
+    rot.push(s.questions[0].box);
+    rotSeen = [...rotSeen, ...s.questions.map(q => q.id)];
+  }
+  check(`مباريات متتالية: كل جولة بنهاية جديدة حتى تنفد (${new Set(rot).size} من ${groups.size})`, new Set(rot).size === groups.size);
   let forced = 0, seen = [];
   for (let i = 0; i < 60; i++) {
     const s = lastTwo.setup({ content: bank, first: 1, seen, rng });
@@ -61,12 +70,12 @@ const { reporter } = require('./helpers.cjs');
   const start = first => R.startRound(lastTwo, { content, scores: { 1: 0, 2: 0 }, first, rng });
   let r = start(1);
   let a = lastTwo.audience(r.state);
-  check('الافتتاح: «أجب بكلمة تنتهي بالحرفين» و«6 أسئلة · 20 ثانية للسؤال · والسرقة في 5 ثوانٍ»', a.rule === 'أجب بكلمة تنتهي بالحرفين' && a.sub === '6 أسئلة · 20 ثانية للسؤال · والسرقة في 5 ثوانٍ');
+  check('الافتتاح: «كل إجابات الجولة تنتهي بـ «…»» بنهاية الجولة، ولا سطر تفاصيل', a.rule === `كل إجابات الجولة تنتهي بـ «ـ${r.state.questions[0].box}»` && a.sub === undefined);
   check('الافتتاح عند المقدّم: سطر القاعدة بـ 20 ثانية', lastTwo.presenter(r.state).brief.includes('20 ثانية للسؤال'));
   r = R.act(lastTwo, r, 'show');
   a = lastTwo.audience(r.state);
   const q = r.state.questions[0];
-  check('السؤال: الحرفان مع علامة التطويل، والوصف، والمستوى', a.letter === q.box && a.tatweel === true && a.question === q.prompt && a.levelText === 'سهل · نقطة');
+  check('السؤال: الحرفان مع علامة التطويل، والوصف، ولا مستوى على الجمهور', a.letter === q.box && a.tatweel === true && a.question === q.prompt && a.levelText === undefined && a.level === undefined);
   check('قبل «ابدأ»: العدّاد ثابت 0:20', a.clock === 20 && r.timer === null);
   check('قبل «ابدأ»: «ابدأ العدّاد» وزرا الحكم', ids(lastTwo.actions(r.state)) === 'start,correct,wrong');
   const pr = lastTwo.presenter(r.state);
@@ -108,7 +117,10 @@ const { reporter } = require('./helpers.cjs');
       const aud = JSON.stringify(lastTwo.audience(x.state));
       const cur = x.state.questions[x.state.index];
       states++;
-      if (/"answer"|"alts"/.test(aud) || (x.state.phase !== 'intro' && [cur.answer, ...cur.alts].some(w => aud.includes(`"${w}"`)))) leaks++;
+      // بعد الحكم الأخير تظهر الإجابة النموذجية وحدها (الإصدار 1.1)، ولا بدائل أبداً.
+      const decided = x.state.phase === 'decided';
+      if (/"alts"/.test(aud) || (!decided && /"answer"/.test(aud)) || (x.state.phase !== 'intro' && (decided ? cur.alts : [cur.answer, ...cur.alts]).some(w => aud.includes(`"${w}"`)))) leaks++;
+      if (decided && lastTwo.audience(x.state).answer !== cur.answer) leaks++;
       const act = lastTwo.actions(x.state).map(b => b.id);
       x = R.act(lastTwo, x, act.includes('next') ? 'next' : act.includes('show') ? 'show' : act.includes('start') ? 'start' : (states % 3 ? 'wrong' : 'correct'));
     }

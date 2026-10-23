@@ -330,7 +330,7 @@
 
     // البطاقة.
     // الحرفان يُخزَّنان دون تطويل (content-format 4.2)، والتطويل يُضاف عند العرض في عنصر مستقل.
-    $('letter').innerHTML = `<span class="tw">ـ</span><span class="lt">${st.wide ? WIDEST : d.ending}</span>`;
+    $('letter').innerHTML = `<span class="end"><span class="tw">ـ</span><span class="lt">${st.wide ? WIDEST : d.ending}</span></span>`;
     fitEnding(); $('question').textContent = d.q;
     $('starter').innerHTML = `يبدأ ${tn(st.turn)}`;
     $('e1').textContent = d.names[0]; $('e2').textContent = d.names[1];
@@ -351,7 +351,8 @@
   // الحرفان: 150 ما اتسع المربع (456 بحشوته)، وإلا صُغّرا بنسبة الزيادة، ولا يُصغَّران تحت 128.
   function fitEnding() {
     const el = $('letter'); el.style.fontSize = '';
-    const inner = 456 - 64, w = el.scrollWidth - 64;
+    // يُقاس عنصر الحرفين لا المربع: ما يفيض من مربع يتوسط محتواه لا يدخل كله في scrollWidth.
+    const end = el.querySelector('.end'), inner = 456 - 64, w = end ? end.offsetWidth : el.scrollWidth - 64;
     if (w > inner) el.style.fontSize = Math.max(128, Math.floor(150 * inner / w)) + 'px';
   }
 

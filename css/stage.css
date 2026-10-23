@@ -1,5 +1,5 @@
 /* هيكل شاشة الجمهور، منقول من design/main.html بمواضعه وطبقاته (design/system.md، القسمان 4 و6).
-   ترتيب الطبقات من الأسفل: الخلفية والجسيمات ← الأرقام العملاقة ← اللوحات والشرائط ← الشارات والعدّاد ← البطاقة ← حواف الخطر. */
+   ترتيب الطبقات من الأسفل: الخلفية والجسيمات ← الأرقام العملاقة ← اللوحات ← الشارات والعدّاد ← البطاقة ← حواف الخطر. */
 .canvas { background: linear-gradient(135deg, var(--stage-1) 0%, var(--stage-2) 55%, var(--stage-3) 100%); }
 .canvas > *, .team > *, .card-wrap > *, .particles > *, .check-layer > * { position: absolute; }
 
@@ -39,16 +39,9 @@
 .team.t1 .row { color: var(--on-stage); }
 .team.t2 .row { color: var(--team-2-ink); }
 
-/* 4. شريط الفارق */
-.strip {
-  height: 48px; padding: 0 32px; display: flex; align-items: center; white-space: nowrap;
-  font-size: var(--fs-badge); font-weight: 700; line-height: 1; color: var(--on-stage);
-}
-.strip > i { background: var(--stage-3); transform: skewX(calc(-1 * var(--lean))); }
-.strip.t1 { top: 234px; right: 132px; }
-.strip.t2 { top: 978px; left: 132px; }
-.strip > i, .badge > i, .timer > i { position: absolute; inset: 0; }
-.strip > span, .badge > span, .timer > span { position: relative; }
+/* 4. شريط الفارق: أُلغي بملاحظة المالك (الوثيقة 1.1، 7.2) */
+.badge > i, .timer > i { position: absolute; inset: 0; }
+.badge > span, .timer > span { position: relative; }
 
 /* 5. صف الشارات والعدّاد */
 .badge {
@@ -80,7 +73,7 @@
   font-size: var(--fs-letter); font-weight: 800; line-height: 1;
 }
 .letter:empty { display: none; }
-.question { margin: 0; font-size: var(--fs-question); font-weight: 700; line-height: var(--lh-question); max-height: 270px; overflow: hidden; }
+.question { margin: 0; font-size: var(--fs-question); font-weight: 700; line-height: var(--lh-question); max-height: 270px; overflow: clip; }
 
 /* 7. لحظة انفعالية: آخر 3 ثوانٍ، حواف حمراء نابضة فوق كل شيء */
 .danger { inset: 0; pointer-events: none; box-shadow: inset 0 0 0 0 rgba(230,57,70,0); }

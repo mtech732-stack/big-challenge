@@ -16,8 +16,9 @@ button:disabled { opacity: .45; cursor: default; }
 .ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
 
 /* شاشة الجمهور: لوحة ثابتة بمقاس 1920×1080 تُكبَّر أو تُصغَّر لتملأ الشاشة. */
-.screen { position: fixed; inset: 0; overflow: hidden; background: #050E2E; }
+/* clip لا hidden: ما يُقصّ لا يُمرَّر أبداً، فلا يزيح تركيزُ حقل الاسم أو نقرةٌ اللوحةَ عن مكانها (اختبار ش3، الإصدار 1.1) */
+.screen { position: fixed; inset: 0; overflow: clip; background: #050E2E; }
 .canvas {
-  position: absolute; top: 50%; left: 50%; width: 1920px; height: 1080px; overflow: hidden;
+  position: absolute; top: 50%; left: 50%; width: 1920px; height: 1080px; overflow: clip;
   transform: translate(-50%, -50%) scale(var(--scale, 1)); transform-origin: center;
 }

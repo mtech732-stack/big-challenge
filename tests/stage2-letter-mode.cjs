@@ -40,13 +40,13 @@ const { reporter } = require('./helpers.cjs');
   const start = first => R.startRound(letter, { content, scores: { 1: 0, 2: 0 }, first, rng });
   let r = start(1);
   check('الافتتاح: الزر «اعرض السؤال 1» وحده', ids(letter.actions(r.state)) === 'show' && letter.audience(r.state).screen === 'intro');
-  check('الافتتاح: من يبدأ ونصّا القاعدة', letter.audience(r.state).turn === 1 && letter.audience(r.state).rule === 'أجب بكلمة تبدأ بالحرف المعيّن' && letter.audience(r.state).sub.includes('15 ثانية'));
+  check('الافتتاح: من يبدأ والقاعدة، ولا سطر تفاصيل (الإصدار 1.1)', letter.audience(r.state).turn === 1 && letter.audience(r.state).rule === 'أجب بكلمة تبدأ بالحرف المعيّن' && letter.audience(r.state).sub === undefined);
   r = R.act(letter, r, 'show');
   let a = letter.audience(r.state);
   check('قبل «ابدأ»: العدّاد ثابت 15، ولا عدّاد جارٍ', a.clock === 15 && r.timer === null && a.phase === 'ready');
   check('قبل «ابدأ»: «ابدأ العدّاد» وزرا الحكم مفعّلان', ids(letter.actions(r.state)) === 'start,correct,wrong');
   check('زر الحكم يحمل النقاط «صحيحة · +1»', letter.actions(r.state)[1].label === 'صحيحة · +1');
-  check('الشارة «سهل · نقطة» و«السؤال 1 من 6»', a.levelText === 'سهل · نقطة' && a.n === 1 && a.count === 6);
+  check('«السؤال 1 من 6»، ولا مستوى على الجمهور (الإصدار 1.1)', a.levelText === undefined && a.level === undefined && a.n === 1 && a.count === 6);
   check('«انتهى الوقت» قبل «ابدأ» يُهمل', R.act(letter, r, 'timeout', 1).state === r.state);
   r = R.act(letter, r, 'start');
   check('«ابدأ»: عدّاد 15 ثانية برقمه', r.timer?.seconds === 15 && r.events.some(e => e.type === 'timer' && e.seconds === 15 && e.id === r.timer.id));
@@ -106,7 +106,11 @@ const { reporter } = require('./helpers.cjs');
   let leaks = 0, states = 0;
   for (const first of [1, 2]) {
     let x = start(first);
-    const seenState = s => { states++; const j = JSON.stringify(letter.audience(s)); const q = s.questions[s.index]; if (q && [q.answer, ...q.alts].some(f => j.includes(`"${f}"`) || j.includes(f) && !q.prompt.includes(f))) leaks++; };
+    // بعد الحكم الأخير تظهر الإجابة النموذجية وحدها (الإصدار 1.1)، ولا بدائل أبداً.
+    const seenState = s => { states++; const a = letter.audience(s); const q = s.questions[s.index]; const decided = s.phase === 'decided';
+      const j = JSON.stringify({ ...a, answer: undefined });
+      if (q && [q.answer, ...q.alts].some(f => j.includes(`"${f}"`) || j.includes(f) && !q.prompt.includes(f))) leaks++;
+      if (q && (decided ? a.answer !== q.answer : a.answer !== undefined)) leaks++; };
     seenState(x.state);
     x = R.act(letter, x, 'show');
     while (!letter.finished(x.state)) {
@@ -129,9 +133,10 @@ const { reporter } = require('./helpers.cjs');
   check('لا تبدأ جولة أخرى والجولة جارية', P.startNext(m, { modes: MODES, content, rng }) === m && P.skipNext(m, MODES) === m);
   m = P.act(m, MODES, 'show');
   m = P.act(m, MODES, 'correct');
-  check('الحكم يمر بالمشغّل، والرصيد يتبعه', m.scores[1] === 1 && m.round.scores[1] === 1);
-  m = P.setScore(m, 2, 5);
-  check('تعديل الرصيد يدوياً أثناء الجولة، ثم التراجع عنه', m.scores[2] === 5 && P.undo(m).scores[2] === 0);
+  const f = m.round.first, o = f === 1 ? 2 : 1;
+  check('الحكم يمر بالمشغّل، والرصيد يتبعه', m.scores[f] === 1 && m.round.scores[f] === 1);
+  m = P.setScore(m, o, 5);
+  check('تعديل الرصيد يدوياً أثناء الجولة، ثم التراجع عنه', m.scores[o] === 5 && P.undo(m).scores[o] === 0);
   check('الزر غير الموجود يُهمل', P.act(m, MODES, 'start').round.state === m.round.state);
   while (!letter.finished(m.round.state)) {
     const act = letter.actions(m.round.state).map(b => b.id);

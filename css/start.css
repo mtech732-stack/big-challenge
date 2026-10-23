@@ -1,8 +1,8 @@
 /* شاشات الجمهور في ش1 (بدء المباراة)، منقولة من design/start.html بقياساتها (design/start.md، القسمان 2 و6).
    محتوى البطاقة أقسام (.scr) يظهر واحد منها في كل مرة، والبطاقة نفسها لا يتغير مقاسها. */
 
-/* قبل أول سؤال: لا عدّاد ولا شريط فارق ولا رقم عملاق ولا مربع حرف ولا شارة نمط. */
-.pre .timer, .pre .strip, .pre .giant, .pre .badge.mode { display: none; }
+/* قبل أول سؤال: لا عدّاد ولا رقم عملاق ولا مربع حرف ولا شارة نمط. */
+.pre .timer, .pre .giant, .pre .badge.mode { display: none; }
 .badge.plain { color: var(--ink); }
 .badge.plain > i { position: absolute; inset: 0; background: var(--card); }
 .badge.plain > span { position: relative; }
