@@ -132,7 +132,11 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('المقدّم: «العدّاد يعدّ على الشاشة» ولا «ابدأ»', (await text(presenter, '#qState')) === 'العدّاد يعدّ على الشاشة' && !(await visible(presenter, '#startTimer')));
   await both('العدّاد يعدّ');
   await presenter.click('#yes');
-  await wait(900);
+  await wait(450);
+  // لحظة الكسب: تبدأ بعد 250ms وتدوم 600ms، على الرقم العملاق نفسه (ملاحظة المعاين 22).
+  const gain = await audience.$eval(`#g${starter}`, e => { const g = e.parentElement; return g.classList.contains('gain') && g.getAnimations().length > 0 && getComputedStyle(g).animationName; });
+  check(`الجمهور: لحظة الكسب على الرقم العملاق للكاسب (${gain})`, gain === (starter === 1 ? 'gain1' : 'gain'));
+  await wait(450);
   check('الجمهور: الحكم «[اسم الفريق] · +1» مكان العدّاد بلون الفريق', (await text(audience, '#vtext')) === `${LONG[starter - 1]} · +1` && await audience.$eval('#verdict', (e, s) => e.classList.contains('t' + s), starter) && !(await visible(audience, '#timerBox')));
   check('الجمهور: «الإجابة: …» تحت السؤال', (await text(audience, '#reveal')) === `الإجابة: ${q1[0].answer}`);
   check('الجمهور: الرصيد 1 في اللوحة والرقم العملاق، ولا «يتقدّم بفارق»', (await text(audience, `#s${starter}`)) === '1' && (await text(audience, `#g${starter}`)) === '1' && !(await audience.$('#d1')));
