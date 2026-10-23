@@ -299,7 +299,7 @@
 @keyframes arrive { 0% { filter: brightness(1.15); } 25% { filter: brightness(1.55); } 100% { filter: brightness(1.15); } }
 .v10a.split.turn-1 .field, .v10a.split.turn-1 .edge { translate: 0 184px; }
 .v10a.split.turn-2 .field, .v10a.split.turn-2 .edge { translate: 0 -282px; }
-.v10b.split.turn-1 .field, .v10b.split.turn-1 .edge { translate: 0 554px; }
+.v10b.split.turn-1 .field, .v10b.split.turn-1 .edge { translate: 0 584px; }
 .v10b.split.turn-2 .field, .v10b.split.turn-2 .edge { translate: 0 -616px; }
 .v10b .team .shape { transition: background .4s ease .3s; }
 .v10b.turn-1 .team.t2 .shape { background: linear-gradient(180deg, #0E2C86, #1238A8); }
