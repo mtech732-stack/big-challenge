@@ -77,6 +77,30 @@
 .split.turn-2 .field, .split.turn-2 .edge { translate: 0 -40px; }
 .split .giant.t1 { color: #FFFFFF; opacity: .14; }
 
+/* ===== 5. النموذج هـ: شريحتان من زاويتَي الفريقين (توصية مشرف المصمّمين) =====
+   الأزرق يبقى مسيطراً. لون كل فريق يدخل من زاويته شريحةً بنحو ربع الشاشة، حدّها السفلي بميل الإطار 6°،
+   وحدّها الداخلي بانحراف اللوحات 14°، وعليه خط ضوء رفيع.
+   الأول: أحمر داكن خلف لوحته (أعلى اليمين)، أغمق من اللوحة بوضوح فتبرز فوقه · الثاني: أزرق فاتح أبيض الميل (أسفل اليسار).
+   الشريحة تهدأ (إضاءة 88%، دون نقص في التشبّع كي لا يصير الأحمر بنياً) حين يكون الدور للآخر أو لا دور، وتشتد وتضيء حين يكون الدور لفريقها.
+   لا شفافية على الشريحة الحمراء: الأحمر الشفاف فوق الأزرق يصير بنفسجياً. ولا سواد. */
+.wedge { display: none; height: 620px; width: 1400px;
+  transition: filter .8s ease, translate 1s cubic-bezier(.2,.8,.2,1); filter: brightness(.88); }
+.wedge-on .wedge { display: block; }
+.wedge-on .plane, .wedge-on .glow { display: none; }
+.wedge > i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); }
+.wedge.t1 { top: -150px; right: -420px; transform: rotate(calc(-1 * var(--tilt))); transform-origin: top right; }
+.wedge.t1 > i { background: linear-gradient(200deg, #8E1A28 0%, #7A1622 55%, #6A1420 100%);
+  box-shadow: inset 4px 0 0 rgba(255,255,255,.55); }
+.wedge.t2 { bottom: -150px; left: -420px; transform: rotate(calc(-1 * var(--tilt))); transform-origin: bottom left; }
+.wedge.t2 > i { background: linear-gradient(20deg, #3F6BE8 0%, #3561DE 55%, #2E58D6 100%);
+  box-shadow: inset -4px 0 0 rgba(255,255,255,.55); }
+.wedge > i::after { content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(104deg, rgba(255,255,255,.04) 0 2px, rgba(255,255,255,0) 2px 26px); }
+.wedge-on.turn-1 .wedge.t1, .wedge-on.turn-2 .wedge.t2 { filter: brightness(1.12); }
+.wedge-on.turn-1 .wedge.t1 { translate: -60px 0; }
+.wedge-on.turn-2 .wedge.t2 { translate: 60px 0; }
+.wedge-on .giant.t1 { color: #FFFFFF; opacity: .14; }
+
 @media (prefers-reduced-motion: reduce) {
   .beam, .plane.a, .glow, .flash, .dim, .backdrop { animation: none !important; }
   .beam { display: none; }

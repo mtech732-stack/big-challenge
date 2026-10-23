@@ -34,6 +34,7 @@
     <div class="backdrop" id="backdrop">
       <div class="plane a"></div><div class="plane b"></div><div class="plane c"></div>
       <div class="field t1"></div><div class="field t2"></div><div class="edge"></div>
+      <div class="wedge t1"><i></i></div><div class="wedge t2"><i></i></div>
       <div class="beam"></div><div class="beam w"></div><div class="beam"></div><div class="beam w"></div>
       <div class="glow t1" id="glow1"></div><div class="glow t2" id="glow2"></div>
     </div>
@@ -77,6 +78,7 @@
     <button data-m="ambient">ب</button>
     <button data-m="moments">ج</button>
     <button data-m="split ambient moments">د</button>
+    <button data-m="wedge-on ambient moments">هـ</button>
     <span class="sep"></span>
     <button data-a="auto" id="autoBtn">إيقاف</button>
     <button data-a="manual" id="manualBtn">تحكم يدوي</button>
@@ -90,7 +92,7 @@
     <button data-a="wrong">خطأ</button>
     <button data-a="steal">انتقال</button>
   </div>
-  <p class="key">أ: الطبقات الثلاث · ب: الأضواء والحالة · ج: اللحظات فقط · د: طرفان بلونَي الفريقين · وفي ملء الشاشة: المفاتيح 0 إلى 4</p>
+  <p class="key">أ: الطبقات الثلاث · ب: الأضواء والحالة · ج: اللحظات فقط · د: طرفان بلونَي الفريقين · هـ: شريحتان من الزاويتين · وفي ملء الشاشة: المفاتيح 0 إلى 5</p>
 </div>
 
 <script>
@@ -195,14 +197,14 @@
   // النماذج: الحالية (دون إضافة) · أ الطبقات الثلاث · ب الأضواء والحالة · ج اللحظات فقط
   const models = document.querySelectorAll('.tools [data-m]');
   const pick = b => {
-    canvas.classList.remove('ambient', 'moments', 'split');
+    canvas.classList.remove('ambient', 'moments', 'split', 'wedge-on');
     b.dataset.m.split(' ').filter(Boolean).forEach(c => canvas.classList.add(c));
     models.forEach(x => x.classList.toggle('on', x === b));
   };
   models.forEach(b => b.addEventListener('click', () => pick(b)));
   // في ملء الشاشة تختفي الأزرار: المفاتيح 0 و1 و2 و3 تبدّل النموذج
-  addEventListener('keydown', e => { const i = '01234'.indexOf(e.key); if (i >= 0) pick(models[i]); });
-  const first = { a: 1, b: 2, c: 3, d: 4, now: 0 }[location.hash.slice(1)];
+  addEventListener('keydown', e => { const i = '012345'.indexOf(e.key); if (i >= 0) pick(models[i]); });
+  const first = { a: 1, b: 2, c: 3, d: 4, e: 5, now: 0 }[location.hash.slice(1)];
   if (first !== undefined) pick(models[first]);
   // تبدأ الصفحة بالتشغيل التلقائي، فيُرى النموذج دون نقر
   fit(); act.read(); if (!still) step(0); else $('autoBtn').textContent = 'تشغيل';
