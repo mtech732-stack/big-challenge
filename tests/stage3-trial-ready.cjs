@@ -95,6 +95,9 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
   await saved('face', { picks: [{ mode: 'auction', by: 1 }, { mode: 'letter', by: 2 }, { mode: 'last-two', by: 1 }, { mode: 'ranking', by: 0 }] });
   await reopen();
   check('مواجهة من رابط المعاينة: تبقى، والجولة غير المبنية بزر «تخطَّ الجولة 1»', (await text('.scr.show [data-cmd="next"]')) === 'تخطَّ الجولة 1');
+  // ملاحظة المعاين 1: أسماء الأنماط غير المبنية بالعربية في خانات المسار، لا معرّفاتها.
+  const segs = await frame.$$eval('#track .seg .mname', e => e.map(x => x.textContent).join(' | '));
+  check(`مواجهة من رابط المعاينة: الأنماط بأسمائها العربية (${segs})`, segs === 'المزاد | الحرف المعيّن | آخر حرفين | الترتيب');
 
   // 2. المعاينة للتجربة: «?preview» يعيد الأنماط الأربعة و4.
   await open(base + '?preview');

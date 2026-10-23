@@ -104,6 +104,7 @@
   import './js/offline.js';
   import { createLink } from './js/sync.js';
   import { plan, chooser, picksDone, METHODS, other } from './js/match.js';
+  import { PLANNED } from './js/modes/index.js';
   import { play as sound, setMuted } from './js/sound.js';
 
   const $ = id => document.getElementById(id);
@@ -178,7 +179,8 @@
     if (!view || busy) return;
     if (view.match.step === 'play' && view.play) return renderPlay(view.play);
     const { match: m, modes } = view;
-    const modeName = id => modes.find(x => x.id === id)?.name ?? id;
+    // نمط لم يُبنَ في مواجهة محفوظة من رابط المعاينة: اسمه العربي من قائمة الأنماط الأربعة، لا معرّفه الإنجليزي (ملاحظة المعاين 1).
+    const modeName = id => modes.find(x => x.id === id)?.name ?? PLANNED.find(x => x.id === id)?.name ?? id;
     const total = METHODS[m.method].rounds;
     canvas.classList.add('pre');
     canvas.classList.remove('fresh');
