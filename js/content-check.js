@@ -15,19 +15,21 @@ export const TARGETS = {
   wheel: { challenges: 7, luck: 3 },
 };
 
-const ARABIC_LETTER = /^[ء-ي]$/;
-const HINDI_DIGITS = /[٠-٩۰-۹]/;
+// حروف العربية دون التطويل «ـ» (U+0640) الذي يقع داخل مداها.
+const ARABIC_LETTER = /^[\u0621-\u063F\u0641-\u064A]$/;
+const HINDI_DIGITS = /[\u0660-\u0669\u06F0-\u06F9]/;
 
 // تسوية للمقارنة فقط: تُوحَّد الهمزات والتاء المربوطة والألف المقصورة، وتُحذف الحركات والتطويل والمسافات.
 export const fold = text => String(text)
-  .replace(/[ً-ْـ]/g, '')
+  .replace(/[\u064B-\u0652\u0640]/g, '')
   .replace(/[أإآٱ]/g, 'ا')
   .replace(/ى/g, 'ي')
   .replace(/ة/g, 'ه')
   .replace(/\s+/g, ' ')
   .trim();
 
-const stripArticle = text => fold(text).replace(/^ال/, '');
+// تحذف «ال» قبل توحيد الهمزات، حتى لا تتأثر «ألماس» و«إلكترون».
+const stripArticle = text => fold(String(text).replace(/[\u064B-\u0652\u0640]/g, '').trim().replace(/^ال/, ''));
 
 export function checkContent({ index, packs, wheel }) {
   const errors = [];
@@ -56,16 +58,33 @@ export function checkContent({ index, packs, wheel }) {
       const at = `${where} · العنصر ${i + 1}`;
       allowOnly(at, it, ['name', 'alts', 'rank']);
       if (!needText(at, it, 'name')) return;
-      if (it.alts !== undefined && !(Array.isArray(it.alts) && it.alts.every(a => typeof a === 'string' && a.trim()))) {
-        err(at, '«alts» قائمة نصوص');
-      }
-      for (const form of [it.name, ...(Array.isArray(it.alts) ? it.alts : [])]) {
-        if (HINDI_DIGITS.test(form)) err(at, `«${form}» فيه أرقام هندية`);
+      for (const form of [it.name, ...checkAlts(at, it.alts)]) {
         const key = stripArticle(form);
         if (seen.has(key) && seen.get(key) !== i) err(at, `«${form}» يتكرر مع العنصر ${seen.get(key) + 1}`);
         seen.set(key, i);
       }
     });
+  };
+  const checkAlts = (where, alts) => {
+    if (alts === undefined) return [];
+    if (!(Array.isArray(alts) && alts.every(a => typeof a === 'string' && a.trim()))) return err(where, '«alts» قائمة نصوص'), [];
+    alts.forEach(a => { if (HINDI_DIGITS.test(a)) err(where, `«${a}» فيه أرقام هندية`); });
+    return alts;
+  };
+  const checkNote = (where, item) => {
+    if (item.note !== undefined) needText(where, item, 'note');
+  };
+  const checkSources = (where, sources, min) => {
+    if (sources === undefined && min === 0) return;
+    if (!Array.isArray(sources) || sources.length < Math.max(min, 1)) return err(where, `«sources» ${min > 1 ? 'مصدران على الأقل' : 'قائمة مصادر'}`);
+    sources.forEach((src, k) => {
+      const at = `${where} · المصدر ${k + 1}`;
+      allowOnly(at, src, ['title', 'url', 'accessed']);
+      needText(at, src, 'title');
+      if (typeof src?.url !== 'string' || !/^https?:\/\//.test(src.url)) err(at, '«url» رابط كامل');
+      if (typeof src?.accessed !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(src.accessed)) err(at, '«accessed» تاريخ الاطلاع بصيغة 2026-10-23');
+    });
+    if (new Set(sources.map(src => src?.url)).size < sources.length) err(where, 'مصدران متطابقا الرابط');
   };
   const tally = (mode, key) => {
     counts[mode] ??= {};
@@ -88,6 +107,9 @@ export function checkContent({ index, packs, wheel }) {
       err(`${base}/pack.json`, `«excludeModes» قائمة من: ${MODES.join(' · ')}`);
     }
     if (MODES.length - excluded.length < 2) err(`${base}/pack.json`, 'لا تكفي الأنماط الباقية لمباراة قصيرة (جولتان)');
+    // البنك يُكتب شريحة بعد شريحة: النمط بلا ملف «غير متاح بعد» ولا يظهر في الاختيار.
+    const available = MODES.filter(m => !excluded.includes(m) && pack[`${m}.json`]);
+    if (available.length < 2) warn(`${base}/pack.json`, `الأنماط المتاحة الآن ${available.length}، ولا تُلعب الحزمة قبل نمطين`);
     // كسر التعادل من أسئلة «الحرف المعيّن»، فاستثناؤه يُذكر تنبيهاً.
     if (excluded.includes('letter')) warn(`${base}/pack.json`, 'الحزمة تستثني «الحرف المعيّن»، وكسر التعادل يعتمد عليه');
 
@@ -98,7 +120,7 @@ export function checkContent({ index, packs, wheel }) {
         if (data) warn(file, 'الملف موجود والنمط مستثنى في pack.json، فلن يُستعمل');
         continue;
       }
-      if (!data) { err(file, 'الملف مفقود (النمط غير مستثنى)'); continue; }
+      if (!data) { warn(file, 'النمط غير متاح بعد: لا ملف له، فلن يظهر في الاختيار'); continue; }
       const listKey = { letter: 'questions', 'last-two': 'questions', auction: 'topics', ranking: 'lists' }[mode];
       allowOnly(file, data, ['mode', listKey]);
       if (data.mode !== mode) err(file, `«mode» يجب أن يكون «${mode}»`);
@@ -112,13 +134,14 @@ export function checkContent({ index, packs, wheel }) {
         else ids.set(item.id, file);
 
         if (mode === 'letter') {
-          allowOnly(where, item, ['id', 'level', 'letter', 'prompt', 'answer', 'domain', 'tiebreak', 'page']);
+          allowOnly(where, item, ['id', 'level', 'letter', 'prompt', 'answer', 'alts', 'domain', 'tiebreak', 'page', 'note']);
           checkCommon(where, item, LEVELS);
+          checkNote(where, item);
           needText(where, item, 'prompt');
           if (typeof item.letter !== 'string' || !ARABIC_LETTER.test(item.letter)) err(where, '«letter» حرف عربي واحد');
-          if (needText(where, item, 'answer') && ARABIC_LETTER.test(item.letter ?? '')
-            && !stripArticle(item.answer).startsWith(fold(item.letter))) {
-            warn(where, `الإجابة «${item.answer}» لا تبدأ بالحرف «${item.letter}»`);
+          const answers = needText(where, item, 'answer') ? [item.answer, ...checkAlts(where, item.alts)] : [];
+          if (ARABIC_LETTER.test(item.letter ?? '')) for (const a of answers) {
+            if (!stripArticle(a).startsWith(fold(item.letter))) warn(where, `الإجابة «${a}» لا تبدأ بالحرف «${item.letter}»`);
           }
           if (item.tiebreak !== undefined && item.tiebreak !== true) err(where, '«tiebreak» إما true وإما يُحذف');
           if (item.tiebreak && item.level !== 'hard') err(where, 'أسئلة كسر التعادل صعبة فقط');
@@ -126,20 +149,24 @@ export function checkContent({ index, packs, wheel }) {
         }
 
         if (mode === 'last-two') {
-          allowOnly(where, item, ['id', 'level', 'ending', 'prompt', 'answer', 'domain', 'page']);
+          allowOnly(where, item, ['id', 'level', 'ending', 'prompt', 'answer', 'alts', 'domain', 'page', 'note']);
           checkCommon(where, item, LEVELS);
+          checkNote(where, item);
           needText(where, item, 'prompt');
+          const answers = needText(where, item, 'answer') ? [item.answer, ...checkAlts(where, item.alts)] : [];
           if (typeof item.ending !== 'string' || [...item.ending].length !== 2 || ![...item.ending].every(c => ARABIC_LETTER.test(c))) {
             err(where, '«ending» حرفان عربيان دون تطويل (مثل «ان»)');
-          } else if (needText(where, item, 'answer') && !fold(item.answer).endsWith(fold(item.ending))) {
-            warn(where, `الإجابة «${item.answer}» لا تنتهي بـ«${item.ending}»`);
+          } else for (const a of answers) {
+            if (!fold(a).endsWith(fold(item.ending))) warn(where, `الإجابة «${a}» لا تنتهي بـ«${item.ending}»`);
           }
           tally(mode, item.level);
         }
 
         if (mode === 'auction') {
-          allowOnly(where, item, ['id', 'level', 'topic', 'items', 'domain', 'page']);
+          allowOnly(where, item, ['id', 'level', 'topic', 'items', 'sources', 'domain', 'page', 'note']);
           checkCommon(where, item, LEVELS);
+          checkNote(where, item);
+          checkSources(where, item.sources, 0);
           needText(where, item, 'topic');
           if (!Array.isArray(item.items) || item.items.length < 3) err(where, '«items» قائمة مرجعية كاملة (3 عناصر على الأقل)');
           else checkNames(where, item.items);
@@ -147,26 +174,19 @@ export function checkContent({ index, packs, wheel }) {
         }
 
         if (mode === 'ranking') {
-          allowOnly(where, item, ['id', 'level', 'title', 'asOf', 'items', 'sources', 'domain', 'page']);
+          allowOnly(where, item, ['id', 'level', 'title', 'asOf', 'items', 'sources', 'domain', 'page', 'note']);
           checkCommon(where, item, ['easy', 'hard']);
+          checkNote(where, item);
           needText(where, item, 'title');
           if (typeof item.asOf !== 'string' || !/^\d{4}(-\d{2})?$/.test(item.asOf)) err(where, '«asOf» تاريخ القائمة بصيغة 2026 أو 2026-05');
-          else if (!String(item.title).includes(item.asOf.slice(0, 4))) err(where, `العنوان يجب أن يذكر سنة القائمة ${item.asOf.slice(0, 4)}`);
+          // الوثيقة (6.4) تشترط التاريخ في العنوان للقائمة المرتبطة بزمن، فغيابه تنبيه يقرّره الكاتب.
+          else if (!String(item.title).includes(item.asOf.slice(0, 4))) warn(where, `العنوان لا يذكر سنة القائمة ${item.asOf.slice(0, 4)}، وهو لازم إن كانت القائمة مرتبطة بزمن`);
           if (!Array.isArray(item.items) || item.items.length !== 13) err(where, '«items» 13 عنصراً بالضبط (10 ظاهرة و3 فخاخ)');
           else {
             item.items.forEach((it, r) => { if (it?.rank !== r + 1) err(`${where} · العنصر ${r + 1}`, `«rank» يجب أن يكون ${r + 1}`); });
             checkNames(where, item.items);
           }
-          const sources = item.sources;
-          if (!Array.isArray(sources) || sources.length < 2) err(where, '«sources» مصدران على الأقل');
-          else sources.forEach((s, k) => {
-            const at = `${where} · المصدر ${k + 1}`;
-            allowOnly(at, s, ['title', 'url', 'accessed']);
-            needText(at, s, 'title');
-            if (typeof s?.url !== 'string' || !/^https?:\/\//.test(s.url)) err(at, '«url» رابط كامل');
-            if (typeof s?.accessed !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s.accessed)) err(at, '«accessed» تاريخ الاطلاع بصيغة 2026-10-23');
-          });
-          if (Array.isArray(sources) && new Set(sources.map(s => s?.url)).size < sources.length) err(where, 'المصدران متطابقا الرابط');
+          checkSources(where, item.sources, 2);
           tally(mode, item.level);
         }
       });
@@ -180,7 +200,8 @@ export function checkContent({ index, packs, wheel }) {
   if (!Array.isArray(wheel?.challenges) || !wheel.challenges.length) err('wheel.json', '«challenges» قائمة التحديات');
   else wheel.challenges.forEach((c, i) => {
     const at = `wheel.json · ${c?.id ?? `تحدٍّ ${i + 1}`}`;
-    allowOnly(at, c, ['id', 'text']);
+    allowOnly(at, c, ['id', 'text', 'note']);
+    if (c) checkNote(at, c);
     if (typeof c?.id !== 'string' || !/^[a-z0-9-]+$/.test(c.id)) err(at, '«id» بحروف إنجليزية صغيرة وأرقام وشرطات');
     else if (ids.has(c.id)) err(at, '«id» مكرر'); else ids.set(c.id, 'wheel.json');
     needText(at, c, 'text');
