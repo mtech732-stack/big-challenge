@@ -1,14 +1,18 @@
-// قياس 60/30/10 (design/system.md 2.1): نسبة كل دور لوني من مساحة صورة شاشة 1920×1080.
+// قياس 60/30/10 (design/system.md 15.12، من 1.3): نسبة كل دور لوني من مساحة صورة شاشة 1920×1080.
 // الاستعمال: node design/ratio.cjs صورة1.png صورة2.png ...
-// يعدّ كل نقطة في الصورة في دور من ثلاثة:
-//   المسيطر: الأزرق بدرجاته (المسرح، والصفيحة، والعدّاد، ونص البطاقة الداكن، والرقم العملاق الأول).
-//   المساند: الأبيض وما قاربه (البطاقة، ولوحة الفريق الثاني، والشارات البيضاء، والأزرار).
-//   التركيز: الأحمر والأصفر (لوحة الفريق الأول، والحرف، والعدّاد، وشارة النمط، ومؤشر الدور).
-// والمطلوب: المسيطر 55–75 · المساند 20–35 · التركيز 12 حداً أقصى.
+// يعدّ كل نقطة في الصورة في لون من خمسة:
+//   الأحمر والأزرق: طرفا الفريقين (ولوحة الآخر على لسانه، والصفيحة).
+//   الأبيض وما قاربه: البطاقة، والنص، والرقم الكبير، والشارات البيضاء، ومربع الإعلان، والأزرار.
+//   الأصفر: الحرف، وإطار الوقت والعدّاد، وشارة النمط، ومؤشر الدور.
+//   وما سواها (حبر النص المحايد، والحواف الملساء) خارج الحساب.
+// الحقل (الستون):
+//   - دور: إن غلب لون على الآخر (ثلاثة أرباع الطرفين فأكثر) فالحقل لون صاحب الدور وحده.
+//   - محايد: وإلا فالطرفان معاً، مناصفة تقريباً.
+// والمطلوب: الحقل 55–75 · الأبيض 20–35 · الأصفر 10 سقفاً لا هدفاً.
 const { chromium } = require('playwright');
 const fs = require('fs');
 
-const LIMITS = { blue: [55, 75], white: [20, 35], accent: [0, 12] };
+const LIMITS = { field: [55, 75], white: [20, 35], yellow: [0, 10] };
 
 (async () => {
   const files = process.argv.slice(2);
@@ -23,19 +27,23 @@ const LIMITS = { blue: [55, 75], white: [20, 35], accent: [0, 12] };
       const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
       const x = c.getContext('2d'); x.drawImage(img, 0, 0);
       const px = x.getImageData(0, 0, c.width, c.height).data;
-      let blue = 0, white = 0, accent = 0;
+      let red = 0, blue = 0, white = 0, yellow = 0;
       for (let i = 0; i < px.length; i += 4) {
         const R = px[i], G = px[i + 1], B = px[i + 2];
         if (R > 200 && G > 200 && B > 200) white++;
-        else if (R > 170 && R > B + 60) accent++;          // الأحمر والأصفر
-        else blue++;
+        else if (R > 200 && G > 140 && B < 90) yellow++;
+        else if (R > G + 40 && R > B + 30) red++;
+        else if (B > R + 30) blue++;
       }
       const n = px.length / 4, p = v => Math.round(v / n * 1000) / 10;
-      return { blue: p(blue), white: p(white), accent: p(accent) };
+      return { red: p(red), blue: p(blue), white: p(white), yellow: p(yellow) };
     }, data);
+    const top = Math.max(r.red, r.blue), turn = top >= .75 * (r.red + r.blue);
+    r.field = Math.round((turn ? top : r.red + r.blue) * 10) / 10;
     const ok = Object.entries(LIMITS).every(([k, [a, b]]) => r[k] >= a && r[k] <= b);
     if (!ok) bad++;
-    console.log(`${ok ? '✓' : '✗'} ${f.split('/').pop()} · المسيطر ${r.blue}% · المساند ${r.white}% · التركيز ${r.accent}%`);
+    const mode = turn ? `دور ${r.red > r.blue ? 'الأول' : 'الثاني'}` : 'محايد';
+    console.log(`${ok ? '✓' : '✗'} ${f.split('/').pop()} · ${mode} · الحقل ${r.field}% (أحمر ${r.red} · أزرق ${r.blue}) · الأبيض ${r.white}% · الأصفر ${r.yellow}%`);
   }
   await browser.close();
   process.exitCode = bad ? 1 : 0;
