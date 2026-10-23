@@ -200,6 +200,27 @@
 .v4 .ansbox .aline { font-size: 48px; line-height: 1.1; }
 .v4 .ansbox .aline .lbl { display: none; }
 
+/* ===== 8. النموذج د5: ملاحظتا المالك على د4 (2026-10-23 17:02) =====
+   1. عدّاد الثواني داخل لوحة الاسم، في طرفها المقابل للاسم: مربع أزرق داكن مائل وثوانٍ صفراء (شكل العدّاد نفسه في اللوحتين)،
+      في لوحة صاحب الدور وحدها، والإطار الأصفر يتآكل حول اللوحة كما في د4. فعادت اللوحة 646 (خمسة أعمدة: الأول 8–12، والثاني 1–5)
+      لتتسع لاسم 18 حرفاً (385) والعدّاد معاً. والرقم المائي في مكانه: الأول ينتهي 1094، والثاني يبدأ 826.
+   2. خط السؤال والإجابة بلون محايد مستقل عن الفريقين: --text #2F3138 (فحمي، تباينه على الأبيض 13:1)، لا أحمر ولا أزرق ولا أسود صريح.
+      والحرف في مربعه كما هو: أصفر على الأزرق الداكن. */
+:root { --text: #2F3138; }
+.v5 .team { width: 646px; }
+.pcnt { display: none; }
+.v5 .pcnt { display: flex; visibility: hidden; position: relative; margin-right: auto; margin-left: 0; width: 112px; height: 88px; align-items: center; justify-content: center;
+  font-size: 64px; font-weight: 900; line-height: 1; color: var(--hl); direction: ltr; }
+.pcnt > i { position: absolute; inset: 0; background: var(--stage-3); transform: skewX(calc(-1 * var(--lean))); }
+.team.t1 .pcnt > i { box-shadow: 0 0 0 3px rgba(255,255,255,.85); }
+.pcnt > span { position: relative; }
+.v5.running .team.on .pcnt { visibility: visible; }
+.v5.meta-danger .team.on .pcnt > i { animation: cntpulse 1s ease-in-out infinite; }
+.v5 .cnt { display: none !important; }
+.v5 .question, .v5 .ansbox .aline { color: var(--text); }
+.v5 .ansbox .aline .lbl { display: inline; font-weight: 700; }
+.v5 .ansbox .aline { font-size: 44px; }
+
 @media (prefers-reduced-motion: reduce) {
   .beam, .plane.a, .glow, .flash, .dim, .backdrop { animation: none !important; }
   .beam { display: none; }
