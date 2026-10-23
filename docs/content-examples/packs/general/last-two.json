@@ -1,0 +1,29 @@
+{
+  "mode": "last-two",
+  "questions": [
+    {
+      "id": "general-last-two-001",
+      "level": "easy",
+      "ending": "ان",
+      "prompt": "صغير الحجم، لكنه يُكرَم به الضيف في كل بيت كويتي",
+      "answer": "فنجان",
+      "domain": "kuwait-gulf"
+    },
+    {
+      "id": "general-last-two-002",
+      "level": "medium",
+      "ending": "ان",
+      "prompt": "لا يتكلم، لكنه يفضح ما أكلتَه في العيد",
+      "answer": "ميزان",
+      "domain": "daily-life"
+    },
+    {
+      "id": "general-last-two-003",
+      "level": "hard",
+      "ending": "وت",
+      "prompt": "بيت لا يُبنى بطين ولا حجر، ووصفه القرآن بأنه أوهن البيوت",
+      "answer": "عنكبوت",
+      "domain": "religion"
+    }
+  ]
+}

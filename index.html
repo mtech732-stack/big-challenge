@@ -84,8 +84,10 @@
     $('enter').disabled = true;
     $('pin-error').hidden = true;
     const pin = $('pin').value;
-    const { record } = await fetchPinRecord();
-    if (!record) {
+    const { record, bad } = await fetchPinRecord();
+    if (bad) {
+      showError('ملف الرقم السري فيه خطأ. أعد لصقه من صفحة التغيير.');
+    } else if (!record) {
       showError('تعذّر التحقق: لا اتصال بالإنترنت. اتصل ثم أعد المحاولة.');
     } else if (await checkPin(pin, record)) {
       unlock(pin);
