@@ -141,7 +141,8 @@ const { usePin, unlock, reporter, testPinRecord } = require('./helpers.cjs');
   check(`الجمهور: المسار (${track})`, track === 'الجولة 1 المزاد | الجولة 2 الحرف المعيّن | عجلة البونص | الجولة 3 آخر حرفين | عجلة البونص | الجولة 4 الترتيب');
   check('الجمهور: «الفائز بالقرعة» والرصيد 0 والمؤشر حول الفائز', (await text(audience, '#faceHead')) === `الفائز بالقرعة: ${names[W]}` && (await text(audience, '#s1')) === '0' && (await text(audience, '#s2')) === '0' && (await audience.evaluate(() => document.querySelector('.team.on')?.id)) === `p${W}`);
   check('المقدّم: ملخص المباراة 6 أسطر', (await presenter.$$('#plan li')).length === 6);
-  check('«ابدأ الجولة 1» معطّل حتى ش2', await presenter.isDisabled('#startRound'));
+  // من ش2: الجولة الأولى هنا «المزاد» ولم يُبنَ بعد، فيُعرض تخطّيها في التجربة مع موعده (الشريحة 4).
+  check('الجولة 1 لنمط لم يُبنَ: «تخطَّ الجولة 1» وموعده', (await text(presenter, '#startRound')) === 'تخطَّ الجولة 1' && (await text(presenter, '#faceHint')).includes('الشريحة 4'));
   await audience.screenshot({ path: `${shots}/s1-face.png` });
 
   // 5. الحفظ: إعادة تحميل نافذة الجمهور ثم نافذة المقدّم.

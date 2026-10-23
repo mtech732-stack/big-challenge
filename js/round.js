@@ -43,16 +43,21 @@ const snapshot = round => ({ state: round.state, scores: round.scores, timer: ro
 // الفعل المُهمل لا يغيّر شيئاً، وأحداثه فارغة، فلا يُعاد إرسال أمر عدّاد قديم (نقرتان سريعتان على «ابدأ» مثلاً).
 const ignored = round => ({ ...round, events: [] });
 
+// تبادل الصدارة (قرار المالك): إن صار فريق متقدماً بعد أن كان متأخراً أو متعادلاً، أضاف المشغّل لحظة «lead».
+const leader = s => (s[1] > s[2] ? 1 : s[2] > s[1] ? 2 : 0);
+
 export function act(mode, round, action, timerId) {
   if (mode.finished(round.state)) return ignored(round);
   if (action === 'timeout' ? !round.timer || round.timer.id !== timerId : !mode.actions(round.state).some(a => a.id === action)) return ignored(round);
   const { state, events = [] } = mode.act(round.state, action);
+  const scores = applyEvents(round.scores, events);
+  const lead = leader(scores) && leader(scores) !== leader(round.scores) ? [{ type: 'moment', name: 'lead', team: leader(scores) }] : [];
   return {
     ...round,
     state,
-    scores: applyEvents(round.scores, events),
+    scores,
     history: [...round.history, snapshot(round)],
-    ...withTimer(round, events),
+    ...withTimer(round, [...events, ...lead]),
   };
 }
 

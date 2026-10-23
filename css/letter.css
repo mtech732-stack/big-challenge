@@ -1,0 +1,64 @@
+/* شاشة الجمهور في الجولة (ش2 · الحرف المعيّن)، منقولة من design/letter.html بقياساتها (design/letter.md، القسمان 2 و6).
+   الهيكل من css/stage.css كما هو، ويضاف إليه: شارة السرقة، والحكم مكان العدّاد، وافتتاح الجولة ونهايتها، ولمعة السرقة. */
+
+/* قبل أول سؤال في المباراة: لا شريط فارق ولا رقم عملاق (قرار ش1). */
+.fresh .strip, .fresh .giant { display: none; }
+
+/* شارة السرقة بلون لوحة السارق، ومعها علامته، كي لا تشبه شارة المستوى البيضاء */
+.badge.steal { gap: 16px; font-weight: 900; color: var(--ink); }
+.badge.steal > i { position: absolute; inset: 0; }
+.badge.steal > span, .badge .mk { position: relative; }
+.badge.steal.t1 { color: var(--on-stage); }
+.badge.steal.t1 > i { background: var(--team-1); }
+.badge.steal.t2 > i { background: var(--team-2); }
+.badge .mk { width: 24px; height: 32px; transform: skewX(calc(-1 * var(--lean))); }
+.badge.steal.t1 .mk { background: var(--on-stage); }
+.badge.steal.t2 .mk { background: var(--team-2-ink); }
+
+/* الحكم: يحلّ محل العدّاد بمقاسه وموضعه. بلون الفريق الكاسب، أو داكناً حين لا نقاط */
+.verdict { top: 306px; left: 108px; height: 80px; min-width: 216px; padding: 0 40px; display: flex; align-items: center; justify-content: center;
+  font-size: 48px; font-weight: 900; line-height: 1; white-space: nowrap; color: var(--on-stage); }
+.verdict > i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); background: var(--stage-3); transform-origin: right; }
+.verdict > span { position: relative; }
+.verdict.t1 > i { background: var(--team-1); }
+.verdict.t2 { color: var(--team-2-ink); }
+.verdict.t2 > i { background: var(--team-2); }
+
+/* افتتاح الجولة */
+.scr.intro { flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; }
+.scr.intro .rule { font-size: var(--fs-question); font-weight: 700; line-height: 1.4; }
+.scr.intro .sub { font-size: 40px; font-weight: 700; line-height: 1; }
+.scr.intro .head { font-size: 48px; font-weight: 700; line-height: 1.2; white-space: nowrap; }
+
+/* نهاية الجولة: حصيلة كل فريق في عمود */
+.scr.end { flex-direction: column; align-items: stretch; justify-content: center; gap: 24px; }
+.scr.end .cols { display: flex; justify-content: center; gap: 96px; }
+.scr.end .col { display: flex; flex-direction: column; align-items: center; gap: 16px; min-width: 560px; }
+.scr.end .who { font-size: 48px; font-weight: 700; line-height: 1.2; white-space: nowrap; display: flex; align-items: center; gap: 16px; }
+.scr.end .who i { width: 24px; height: 32px; transform: skewX(calc(-1 * var(--lean))); }
+.scr.end .who.t1 i { background: var(--team-1); }
+.scr.end .who.t2 i { background: var(--team-2-ink); }
+.scr.end .pts { font-size: 128px; font-weight: 900; line-height: 1; direction: ltr; }
+.scr.end .next { font-size: 40px; font-weight: 700; line-height: 1; text-align: center; white-space: nowrap; }
+
+/* لمعة السرقة: شريط ضوء مائل يعبر الشاشة مرة. شفاف، لا نص فيه، فلا يحجب شيئاً */
+.shine { left: -900px; top: -200px; width: 520px; height: 1480px; pointer-events: none; opacity: 0;
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.28), rgba(255,255,255,0)); transform: skewX(calc(-1 * var(--lean))); }
+
+/* لحظات الحركة (design/letter.md، القسم 6) */
+.anim .verdict:not([hidden]) > i { animation: vwipe .2s ease-out both; }
+.anim .verdict:not([hidden]) > span { animation: in .15s ease-out .12s both; }
+@keyframes vwipe { from { transform: skewX(calc(-1 * var(--lean))) scaleX(0); } }
+.giant.gain { animation: gain .6s ease-out; }
+@keyframes gain { 40% { opacity: .6; scale: 1.08; } }
+.giant.lead { animation: lead .8s ease-in-out; }
+@keyframes lead { 25%, 75% { opacity: .6; } 50% { opacity: .32; } }
+.giant.lose { animation: lose .8s ease-in-out; }
+@keyframes lose { 50% { opacity: .08; } }
+.card-wrap.shake { animation: shake .24s linear; }
+@keyframes shake { 25% { translate: 8px 0; } 50% { translate: -8px 0; } 75% { translate: 8px 0; } }
+.shine.go { animation: shine .6s ease-in-out; }
+@keyframes shine { 0% { opacity: 1; translate: 0 0; } 100% { opacity: 1; translate: 3700px 0; } }
+.badge.pop > i { animation: vwipe .2s ease-out both; }
+.timer.reset > span { animation: in .2s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .shine, .giant, .card-wrap, .badge > i, .verdict > *, .timer > span { animation: none !important; } }

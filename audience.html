@@ -9,9 +9,10 @@
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/stage.css">
 <link rel="stylesheet" href="css/start.css">
+<link rel="stylesheet" href="css/letter.css">
 <style>
   /* اللعبة مغلقة أو بانتظار المقدّم: لا يبقى على الشاشة إلا الخلفية والبطاقة. */
-  .locked .team, .locked .strip, .locked .badge, .locked .timer, .locked .giant { display: none; }
+  .locked .team, .locked .strip, .locked .badge, .locked .timer, .locked .giant, .locked .verdict { display: none; }
   /* أعلى اليسار، حيث لا شيء من الهيكل، ويختفي في ملء الشاشة وفي النافذة الواحدة. */
   #fs { position: fixed; top: 24px; left: 24px; font-size: 32px; }
   :fullscreen #fs, .embed #fs { display: none; }
@@ -35,12 +36,27 @@
     <div class="badge mode" data-hud="شارة النمط"><i></i><span id="mode">اختبار العرض</span></div>
     <div class="badge plain off" id="b1" data-hud="الشارة الأولى"><i></i><span></span></div>
     <div class="badge plain off" id="b2" data-hud="الشارة الثانية"><i></i><span></span></div>
-    <div class="timer" data-hud="العدّاد"><i></i><span id="timer">0:10</span></div>
+    <div class="badge steal off" id="b4" data-hud="شارة السرقة"><i></i><b class="mk"></b><span>سرقة</span></div>
+    <div class="timer" id="timerBox" data-hud="العدّاد"><i></i><span id="timer">0:10</span></div>
+    <div class="verdict" id="verdict" data-hud="الحكم" hidden><i></i><span id="vtext"></span></div>
 
-    <div class="card-wrap" data-hud="البطاقة">
+    <div class="card-wrap" id="cardWrap" data-hud="البطاقة">
       <div class="plate"></div>
       <div class="card">
-        <div class="scr q show" data-s="q"><div class="letter" id="letter"></div><p class="question" id="label">نافذة الجمهور · بانتظار المقدّم</p></div>
+        <div class="scr q show" data-s="q"><div class="letter" id="letter"></div><p class="question" id="label" data-fit="السؤال">نافذة الجمهور · بانتظار المقدّم</p></div>
+        <!-- الجولة (ش2): افتتاحها ونهايتها. والسؤال في القسم الأول نفسه -->
+        <div class="scr intro" data-s="intro">
+          <p class="rule" id="rule"></p>
+          <p class="sub" id="ruleSub"></p>
+          <p class="head" id="starter" data-fit="سطر البدء"></p>
+        </div>
+        <div class="scr end" data-s="end">
+          <div class="cols">
+            <div class="col"><p class="who t1" data-fit="اسم الفريق الأول"><i></i><span id="e1"></span></p><p class="pts tn t1" id="r1"></p></div>
+            <div class="col"><p class="who t2" data-fit="اسم الفريق الثاني"><i></i><span id="e2"></span></p><p class="pts tn t2" id="r2"></p></div>
+          </div>
+          <p class="next" id="next" data-fit="سطر التالي"></p>
+        </div>
         <div class="scr title" data-s="title">
           <p class="big">التحدي الكبير</p>
           <p class="sub">المباراة تبدأ بعد قليل</p>
@@ -70,6 +86,7 @@
     </section>
     <div class="strip t2" data-hud="شريط الفارق الثاني"><i></i><span id="d2">تعادل</span></div>
 
+    <div class="shine" id="shine"></div>
     <div class="danger"></div>
   </div>
 </div>
@@ -79,6 +96,7 @@
   import './js/offline.js';
   import { createLink } from './js/sync.js';
   import { plan, chooser, picksDone, METHODS, other } from './js/match.js';
+  import { play as sound, setMuted } from './js/sound.js';
 
   const $ = id => document.getElementById(id);
   const canvas = $('canvas');
@@ -105,34 +123,45 @@
 
   const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const num = s => esc(s).replace(/(\d+)/g, '<span class="ltr">$1</span>');
+  // الأرقام معزولة من اليسار، ومعها علامة + إن سبقتها، فلا تنقلب «+2» إلى «2+» (design/letter.md 2.2).
+  const num = s => esc(s).replace(/(\+?\d+)/g, '<span class="ltr">$1</span>');
   const setLocked = on => canvas.classList.toggle('locked', on);
   const setDanger = on => canvas.classList.toggle('meta-danger', on);
   const showScreen = name => document.querySelectorAll('.card .scr').forEach(s => s.classList.toggle('show', s.dataset.s === name));
   const setTurn = team => { $('p1').classList.toggle('on', team === 1); $('p2').classList.toggle('on', team === 2); };
-  const bump = team => { const p = $('p' + team); p.classList.remove('won'); void p.offsetWidth; p.classList.add('won'); };
+  const replay = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
+  const bump = team => replay($('p' + team), 'won');
 
-  // الشارة الثانية تلي الأولى بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (كما في design/start.html).
-  function setBadges(a, b) {
+  // صف الشارات من اليمين بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (design/start.html وdesign/letter.html):
+  // شارة النمط (في الجولة)، ثم الأولى، ثم الثانية، ثم السرقة.
+  function setBadges(a, b, steal = 0) {
     for (const [el, t] of [[$('b1'), a], [$('b2'), b]]) { el.classList.toggle('off', !t); el.querySelector('span').innerHTML = t ? num(t) : ''; }
+    $('b4').className = `badge steal t${steal}${steal ? '' : ' off'}`;
     const lean = Math.tan(14 * Math.PI / 180) * 64;
-    $('b1').style.right = '108px';
-    $('b2').style.right = (108 + $('b1').offsetWidth + 24 + lean) + 'px';
+    let right = 108;
+    for (const el of [document.querySelector('.badge.mode'), $('b1'), $('b2'), $('b4')]) {
+      if (!el.getClientRects().length) continue;
+      el.style.right = right + 'px';
+      right += el.offsetWidth + 24 + lean;
+    }
   }
 
-  // ===== عرض حالة المباراة (ما يرسله المقدّم: الحالة، وأسماء الأنماط، واسم الحزمة) =====
+  // ===== عرض حالة المباراة (ما يرسله المقدّم: الحالة، وأسماء الأنماط، واسم الحزمة، وما يُعرض من الجولة) =====
   let view = null, shownPicks = -1, busy = false;
   const methodText = m => m === 'full' ? 'مباراة كاملة · 4 جولات' : 'مباراة قصيرة · جولتان';
+  const name = t => view.match.teams[t] || (t === 1 ? 'الفريق الأول' : 'الفريق الثاني');
+  const tn = t => `<b class="tn t${t}">${esc(name(t))}</b>`;
 
   function render() {
     if (!view || busy) return;
+    if (view.match.step === 'play' && view.play) return renderPlay(view.play);
     const { match: m, modes, packName } = view;
     const modeName = id => modes.find(x => x.id === id)?.name ?? id;
-    const name = t => m.teams[t] || (t === 1 ? 'الفريق الأول' : 'الفريق الثاني');
-    const tn = t => `<b class="tn t${t}">${esc(name(t))}</b>`;
     const total = METHODS[m.method].rounds;
     canvas.classList.add('pre');
+    canvas.classList.remove('fresh');
     canvas.classList.toggle('short', m.method === 'short');
+    $('verdict').hidden = true; $('timerBox').hidden = false;
     $('n1').textContent = name(1); $('n2').textContent = name(2);
     const showScores = m.step === 'face';
     $('s1').textContent = showScores ? m.scores[1] : '';
@@ -188,7 +217,49 @@
     setTurn(turn);
   }
 
-  // ===== لحظات الحركة (design/start.md، القسم 6). النتيجة محسومة قبلها، والحركة عرض فقط =====
+  // ===== الجولة (design/letter.md، القسم 2): ما تعيده audience() من وحدة النمط، ولا إجابة فيه أبداً =====
+  const gap = (a, b) => a === b ? 'تعادل' : `${a > b ? 'يتقدّم' : 'يتأخر'} بفارق <span class="ltr">${Math.abs(a - b)}</span>`;
+  function renderPlay(p) {
+    const a = p.a, sc = p.scores;
+    canvas.classList.remove('pre');
+    canvas.classList.toggle('fresh', !!p.fresh);
+    $('n1').textContent = name(1); $('n2').textContent = name(2);
+    $('s1').textContent = $('g1').textContent = sc[1];
+    $('s2').textContent = $('g2').textContent = sc[2];
+    $('d1').innerHTML = gap(sc[1], sc[2]); $('d2').innerHTML = gap(sc[2], sc[1]);
+    $('mode').textContent = p.modeName;
+
+    if (a.screen === 'intro') {
+      showScreen('intro');
+      $('rule').textContent = a.rule; $('ruleSub').innerHTML = num(a.sub);
+      $('starter').innerHTML = `يبدأ ${tn(a.turn)}`;
+      setBadges(`الجولة ${p.n} من ${p.total}`);
+    } else if (a.screen === 'end') {
+      showScreen('end');
+      $('e1').textContent = name(1); $('e2').textContent = name(2);
+      $('r1').textContent = '+' + a.totals[1]; $('r2').textContent = '+' + a.totals[2];
+      $('next').innerHTML = num(p.next);
+      setBadges(`انتهت الجولة ${p.n}`);
+    } else {
+      showScreen('q');
+      $('letter').textContent = a.letter;
+      $('label').textContent = a.question;
+      setBadges(a.levelText, `السؤال ${a.n} من ${a.count}`, a.steal?.team ?? 0);
+    }
+
+    // العدّاد ظاهر في كل سؤال: ثابتاً بوقته قبل «ابدأ»، ثم يعدّ. والحكم يحلّ محله بعد انتهاء السؤال.
+    const v = a.screen === 'ask' ? a.verdict : null;
+    $('verdict').hidden = !v;
+    $('timerBox').hidden = a.screen !== 'ask' || !!v;
+    if (v) {
+      $('verdict').className = `verdict${v.team ? ' t' + v.team : ''}`;
+      $('vtext').innerHTML = num(v.team ? `صحيحة · +${v.points}` : 'لا نقاط');
+    }
+    syncTimer(p.timer, a);
+    setTurn(a.turn);
+  }
+
+  // ===== لحظات الحركة (design/start.md وdesign/letter.md، القسم 6). الحالة محسومة قبلها، والحركة عرض فقط =====
   let timers = [];
   const later = (ms, f) => timers.push(setTimeout(f, ms));
   const DRAW_STEPS = [90, 90, 100, 110, 120, 140, 160, 190, 230, 280, 340, 420];
@@ -212,24 +283,70 @@
     }
   }
 
-  // ===== العدّاد التجريبي (من ش0): نافذة الجمهور هي التي تعدّ الثواني بنفسها =====
-  let endAt = 0, timer = 0, lastText = '';
+  // لحظات الجولة: تصل مع الحالة الجديدة بعد كل فعل. prev: الحالة قبلها (للرصيد قبل الزيادة).
+  let shownKey = '';
+  function roundMoments(moments, prev) {
+    const p = view.play, a = p.a;
+    const key = `${p.n}/${a.screen}/${a.n ?? ''}`;
+    const changed = key !== shownKey;
+    shownKey = key;
+    for (const m of moments) if (m.name === 'right') sound('right'); else if (m.name === 'steal' && m.reason === 'wrong') sound('wrong');
+    if (still() || (!moments.length && !changed)) return;
+    canvas.classList.remove('anim'); void canvas.offsetWidth; canvas.classList.add('anim');
+    for (const m of moments) {
+      if (m.name === 'right' && prev) {
+        // صحيحة: الحكم يُمسح من اليمين، وبعد 250ms يزيد الرقم وتنبض لوحة الكاسب ورقمه العملاق.
+        const w = m.team, to = p.scores[w];
+        $('s' + w).textContent = $('g' + w).textContent = prev.scores[w];
+        later(250, () => { $('s' + w).textContent = $('g' + w).textContent = to; bump(w); replay($('g' + w), 'gain'); });
+      }
+      if (m.name === 'lead') later(700, () => { replay($('g' + m.team), 'lead'); replay($('g' + other(m.team)), 'lose'); });
+      if (m.name === 'steal') {
+        // السرقة: البطاقة تهتز إن كانت خاطئة، ثم لمعة، والمؤشر يقفز إلى الخصم، وشارة السرقة تظهر. العدّاد لا ينتظر الحركة.
+        const go = () => { replay($('shine'), 'go'); bump(m.team); replay($('b4'), 'pop'); replay($('timerBox'), 'reset'); setTurn(m.team); };
+        if (m.reason === 'wrong') { replay($('cardWrap'), 'shake'); setTurn(0); later(240, go); } else go();
+      }
+    }
+    // نهاية الجولة: رقم المتقدّم العملاق يضيء، ولا يتحرك شيء إن تعادلا.
+    if (changed && a.screen === 'end' && a.totals) {
+      const s = p.scores, lead = s[1] > s[2] ? 1 : s[2] > s[1] ? 2 : 0;
+      if (lead) { replay($('g' + lead), 'lead'); replay($('g' + other(lead)), 'lose'); }
+    }
+  }
+
+  // ===== العدّاد: نافذة الجمهور هي التي تعدّ الثواني بنفسها بعد أمر «ابدأ» =====
+  // count: { id, endAt } لعدّاد الجولة (endAt بساعة الجهاز نفسه، فيعود صحيحاً بعد إعادة التحميل)، أو { test } لعدّاد ش0 التجريبي.
+  let count = null, ticker = 0, lastText = '', lastLeft = -1, expired = 0;
   const format = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const show = seconds => {
     const text = format(seconds);
     $('timer').textContent = text;
     if (text !== lastText) { lastText = text; link.send('tick', { text }); }
   };
-  const stop = () => { clearInterval(timer); timer = 0; setDanger(false); };
+  const stop = () => { clearInterval(ticker); ticker = 0; count = null; lastLeft = -1; setDanger(false); };
   const run = () => {
-    const left = Math.max(0, Math.ceil((endAt - performance.now()) / 1000));
+    const left = Math.max(0, Math.ceil((count.endAt - Date.now()) / 1000));
     show(left);
     setDanger(left > 0 && left <= 3);
-    if (left === 0) { stop(); $('label').textContent = 'انتهى الوقت'; }
+    if (left !== lastLeft && left > 0 && left <= 3) sound('tick');
+    lastLeft = left;
+    if (left > 0) return;
+    const done = count;
+    stop();
+    if (done.test) $('label').textContent = 'انتهى الوقت';
+    else { expired = done.id; link.send('timeout', { id: done.id }); }
   };
-  const waiting = () => { setLocked(true); canvas.classList.add('pre'); setTurn(0); showScreen('q'); $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم'; };
+  const begin = c => { stop(); count = c; run(); if (count) ticker = setInterval(run, 100); };
+  function syncTimer(t, a) {
+    if (t && t.id !== count?.id && t.id !== expired) return begin({ id: t.id, endAt: t.at + t.seconds * 1000 });
+    if (!t && count && !count.test) stop();
+    if (!count) show(a?.clock ?? 0);
+  }
+
+  const waiting = () => { stop(); setLocked(true); canvas.classList.add('pre'); setTurn(0); showScreen('q'); $('letter').textContent = ''; $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم'; };
   const ready = () => {
-    stop(); setLocked(false); show(10);
+    if (count) stop();
+    setLocked(false); show(10);
     if (view) render();
     else { canvas.classList.add('pre'); showScreen('q'); $('label').textContent = 'نافذة الجمهور · متصلة'; }
   };
@@ -238,25 +355,32 @@
   const checking = query.has('check');
   const link = createLink('audience', (type, data) => {
     if (checking) return;
-    if (type === 'view') { view = data; if (!timer) { setLocked(false); render(); } }
-    if (type === 'anim') { if (data.view) view = data.view; if (!timer) { setLocked(false); animate(data.name); } }
+    if (type === 'view') {
+      const prev = view?.play;
+      view = data;
+      setMuted(data.muted);
+      if (count?.test) return;
+      // في الجولة: كل حالة جديدة تقطع ما بقي من حركة سابقة (المواجهة مثلاً)، فتظهر فوراً.
+      if (data.play && data.match.step === 'play') { timers.forEach(clearTimeout); timers = []; busy = false; canvas.classList.remove('enter'); }
+      setLocked(false); render();
+      if (data.play && data.match.step === 'play') roundMoments(data.moments ?? [], prev);
+    }
+    if (type === 'anim') { if (data.view) view = data.view; if (!count?.test) { setLocked(false); animate(data.name); } }
     if (type === 'start') {
-      stop();
       setLocked(false);
-      canvas.classList.remove('pre'); setTurn(0); showScreen('q'); setBadges();
-      endAt = performance.now() + data.seconds * 1000;
+      canvas.classList.remove('pre', 'fresh'); setTurn(0); showScreen('q'); setBadges();
+      $('verdict').hidden = true; $('timerBox').hidden = false;
       $('label').textContent = 'العدّاد يعمل';
-      run();
-      timer = setInterval(run, 100);
+      begin({ test: true, endAt: Date.now() + data.seconds * 1000 });
     }
     // أُغلقت اللعبة لتغيّر الرقم السري: لا يبقى على شاشة الجمهور شيء من اللعب.
-    if (type === 'lock') { stop(); view = null; waiting(); }
+    if (type === 'lock') { view = null; waiting(); }
     if (type === 'unlock' || type === 'reset') ready();
   });
   link.onStatus(on => {
     if (checking) return;
-    if (!timer && on) ready();
-    if (!timer && !on) waiting();
+    if (!count && on) ready();
+    if (!count && !on) waiting();
     // اتصلت (أو عادت بعد إعادة تحميل): تطلب حالة المباراة، ولو كانت نافذة جمهور أخرى متصلة قبلها.
     if (on) { link.send('tick', { text: $('timer').textContent }); link.send('need-view'); }
   });
@@ -280,7 +404,7 @@
   window.__stageCheck = async () => {
     const { layoutCheck } = await import('./js/stage-check.js');
     await document.fonts.ready;
-    return layoutCheck({ canvas, layer: null });
+    return layoutCheck({ canvas, layer: null, lines: [{ el: $('label'), max: 3 }] });
   };
 </script>
 </body>

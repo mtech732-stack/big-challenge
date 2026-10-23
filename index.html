@@ -88,11 +88,45 @@
   .plan .wheel { font-weight: 700; padding-inline-start: 5.75rem; }
 
   /* تعديل الرصيد: يُفتح من الرأس في أي وقت */
-  .scores { position: fixed; z-index: 4; top: 50%; left: 50%; translate: -50% -50%; width: 36rem; box-shadow: 0.375rem 0.375rem 0 var(--stage-3), 0 0 0 100vmax rgba(5,14,46,.6); }
+  .scores { position: fixed; z-index: 7; top: 50%; left: 50%; translate: -50% -50%; width: 36rem; box-shadow: 0.375rem 0.375rem 0 var(--stage-3), 0 0 0 100vmax rgba(5,14,46,.6); }
   .scores .line { display: grid; grid-template-columns: 1fr auto 3rem auto; gap: 0.75rem; align-items: center; }
   .scores .tn { font-weight: 800; }
   .scores .line button { font-size: 1.5rem; }
   .scores .val { font-size: 1.5rem; font-weight: 900; text-align: center; direction: ltr; }
+
+  /* الجولة (design/letter.md، القسم 4): الرأس بشارة الجولة ومسار أسئلتها، والسؤال والإجابة، والدور والحكم */
+  .chip { position: relative; min-height: 2rem; padding: 0 1rem; display: flex; align-items: center; font-weight: 700; white-space: nowrap; color: var(--ink); }
+  .chip i { position: absolute; inset: 0; background: var(--card); transform: skewX(calc(-1 * var(--lean))); }
+  .chip span { position: relative; }
+  .pips { display: flex; gap: 0.375rem; margin-inline-end: auto; align-items: center; }
+  .pip { width: 1.25rem; height: 1.25rem; transform: skewX(calc(-1 * var(--lean))); box-shadow: inset 0 0 0 3px var(--c); }
+  .pip.t1 { --c: var(--team-1); }
+  .pip.t2 { --c: var(--team-2); }
+  .pip.now { height: 2rem; }
+  .pip.won1 { background: var(--team-1); box-shadow: none; }
+  .pip.won2 { background: var(--team-2); box-shadow: none; }
+  .pip.none { background: var(--stage-3); box-shadow: none; }
+  .lost { display: flex; gap: 0.75rem; margin-inline-end: auto; }
+  .lost .warn { background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); display: flex; align-items: center; gap: 0.375rem; }
+  .lost .warn::before { content: ""; width: 0.5rem; height: 0.5rem; background: var(--team-1); }
+  .top.playing h1 { margin-inline-end: 0; }
+  .q { grid-template-columns: auto 1fr; align-items: center; gap: 0.5rem 1.25rem; }
+  .q .letter { width: 3.5rem; height: 3.5rem; padding: 0 0.5rem; background: var(--ink); color: var(--hl); display: flex; align-items: center; justify-content: center;
+    font-size: 2.25rem; font-weight: 800; line-height: 1; }
+  .q .prompt { font-size: 1rem; font-weight: 700; line-height: 1.4; }
+  .q .meta { font-weight: 700; }
+  .answer { grid-column: 1 / -1; border-inline-start: 0.5rem solid var(--ink); padding-inline-start: 1rem; }
+  .answer .label { font-weight: 700; }
+  .answer .word { font-size: 2rem; font-weight: 900; line-height: 1.2; }
+  .who { font-size: 1.25rem; font-weight: 800; line-height: 1.3; display: flex; align-items: center; gap: 0.5rem; padding-inline-start: 0.25rem; }
+  .state { font-weight: 700; }
+  .judge { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0.75rem; }
+  .judge button { min-height: 3rem; font-size: 1.25rem; }
+  .judge .no { background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
+  .done { font-size: 1.25rem; font-weight: 800; }
+  .sum { display: grid; grid-template-columns: 1fr auto auto; gap: 0.25rem 1.5rem; align-items: center; padding-inline-start: 0.25rem; }
+  .sum .tn { font-weight: 800; }
+  .sum .pts { font-size: 1.5rem; font-weight: 900; direction: ltr; text-align: end; }
 
   /* الرقم السري: بطاقة بيضاء مستقيمة بظل صلب */
   #gate { min-height: 100vh; display: grid; place-items: center; }
@@ -111,6 +145,8 @@
   .band .tag { font-size: 32px; font-weight: 700; color: var(--on-stage); white-space: nowrap; margin-inline-end: auto; background: none; height: 72px; padding: 0 24px; outline: 3px solid rgba(255,255,255,.45); outline-offset: -3px; }
   .band button:not(.tag) { font-size: 32px; font-weight: 700; height: 72px; min-height: 72px; padding: 0 32px; background: var(--card); color: var(--ink); white-space: nowrap; }
   .band button.alt { background: transparent; color: var(--on-stage); box-shadow: none; outline: 3px solid var(--card); outline-offset: -3px; }
+  .band button.no { background: transparent; color: var(--on-stage); box-shadow: none; outline: 3px solid var(--team-1); outline-offset: -3px; }
+  .band .gap { width: 24px; flex: none; }
   body.one { overflow: hidden; }
 </style>
 </head>
@@ -126,8 +162,12 @@
 </section>
 
 <main id="app" hidden>
-  <header class="top">
+  <header class="top" id="top">
     <h1>التحدي الكبير</h1>
+    <span class="chip" id="roundChip" hidden><i></i><span></span></span>
+    <span class="pips" id="pips" aria-label="أسئلة الجولة" hidden></span>
+    <!-- إن انقطعت نافذة الجمهور أثناء الجولة: يحلّ هذا محل مسار الأسئلة في الرأس -->
+    <span class="lost" id="lost" hidden><button class="warn" id="lostOpen">افتح نافذة الجمهور</button><button class="on-stage alt" id="lostSingle">نافذة واحدة</button></span>
     <ol class="steps" id="steps">
       <li data-k="setup"><i></i><span><span class="ltr">1</span> الإعداد</span></li>
       <li data-k="draw"><i></i><span><span class="ltr">2</span> القرعة</span></li>
@@ -135,6 +175,7 @@
       <li data-k="face"><i></i><span><span class="ltr">4</span> المواجهة</span></li>
     </ol>
     <button class="on-stage alt" id="newMatch">مباراة جديدة</button>
+    <button class="on-stage alt" id="mute" hidden>الصوت</button>
     <button class="on-stage alt" id="openScores">الرصيد</button>
   </header>
 
@@ -216,8 +257,62 @@
     <ol class="plan" id="plan"></ol>
     <div class="row">
       <button class="alt" id="replay">أعد عرض المواجهة</button>
-      <span class="grow">الجولات تُبنى من الشريحة <span class="ltr">2</span>.</span>
-      <button class="big" id="startRound" disabled>ابدأ الجولة <span class="ltr">1</span></button>
+      <span class="grow" id="faceHint"></span>
+      <button class="big" id="startRound">ابدأ الجولة <span class="ltr">1</span></button>
+    </div>
+  </section>
+
+  <!-- 5. الجولة (design/letter.md، القسم 4): افتتاحها، ثم السؤال والإجابة والحكم، ثم نهايتها -->
+  <section class="panel" data-step="play" data-part="intro" hidden>
+    <h2 id="introHead"></h2>
+    <p id="introWho"></p>
+    <p id="introBrief"></p>
+    <div class="row"><button class="alt" data-new>مباراة جديدة</button><button class="big grow" id="showQ"></button></div>
+  </section>
+
+  <!-- السؤال، وتحته الإجابة النموذجية (لا تظهر إلا هنا) -->
+  <section class="panel q" data-step="play" data-part="q" hidden>
+    <div class="letter" id="qLetter"></div>
+    <div>
+      <p class="prompt" id="qPrompt"></p>
+      <p class="meta" id="qMeta"></p>
+    </div>
+    <div class="answer">
+      <p class="label">الإجابة النموذجية</p>
+      <p class="word" id="qAnswer"></p>
+      <p id="qAlts"></p>
+      <p id="qAccept"></p>
+    </div>
+  </section>
+
+  <!-- الدور والحكم -->
+  <section class="panel" data-step="play" data-part="q" hidden>
+    <div class="row">
+      <p class="who" id="who"></p>
+      <p class="state grow" id="qState"></p>
+      <button class="alt" id="undo">تراجع عن آخر حكم</button>
+    </div>
+    <div class="judge" id="judge">
+      <button class="alt" id="startTimer" data-act="start">ابدأ العدّاد</button>
+      <button id="yes" data-act="correct"></button>
+      <button class="no" id="no" data-act="wrong">خاطئة</button>
+    </div>
+    <div class="row" id="after">
+      <p class="done" id="qDone"></p>
+      <button class="big grow" id="nextQ" data-act="next"></button>
+    </div>
+  </section>
+
+  <!-- نهاية الجولة -->
+  <section class="panel" data-step="play" data-part="end" hidden>
+    <h2 id="endHead"></h2>
+    <div class="sum" id="sum"></div>
+    <p>شاشة الجمهور تعرض حصيلة الجولة الآن.</p>
+    <p id="endHint" hidden></p>
+    <div class="row">
+      <button class="alt" id="endUndo">تراجع عن آخر حكم</button>
+      <button class="alt" data-new>مباراة جديدة</button>
+      <button class="big grow" id="endNext"></button>
     </div>
   </section>
 
@@ -252,15 +347,20 @@
   import { createLink } from './js/sync.js';
   import { fetchPinRecord, checkPin, watchPin } from './js/pin.js';
   import { loadPacks } from './js/content.js';
-  import { matchModes } from './js/modes/index.js';
+  import { matchModes, MODES } from './js/modes/index.js';
   import * as M from './js/match.js';
+  import * as P from './js/play.js';
 
   const $ = id => document.getElementById(id);
   const AUDIENCE = 'big-challenge-audience';
   const SAVE_KEY = 'big-challenge.match';
+  const SEEN_KEY = 'big-challenge.seen';   // ذاكرة الأسئلة المستعملة على هذا الجهاز (docs/decisions.md)
+  const MUTE_KEY = 'big-challenge.muted';
   const DRAW_MS = 2690; // مدة حركة القرعة على شاشة الجمهور (design/start.md، القسم 6)
   const query = new URLSearchParams(location.search);
   let link = null, watcher = null, packs = [], match = null, drawing = 0;
+  let muted = false;
+  try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch {}
 
   // ===== الرقم السري: لا يبدأ شيء قبله، ولا تُنشأ قناة التزامن قبله =====
   const showError = text => { $('pin-error').textContent = text; $('pin-error').hidden = false; };
@@ -323,14 +423,28 @@
   const modes = () => (pack() ? matchModes({ pack: pack(), files: pack().files }) : []);
   const modeName = id => modes().find(m => m.id === id)?.name ?? id;
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const num = s => esc(s).replace(/(\d+)/g, '<span class="ltr">$1</span>');
+  const num = s => esc(s).replace(/(\+?\d+)/g, '<span class="ltr">$1</span>');
   const tn = t => `<b class="tn t${t}">${esc(match.teams[t])}</b>`;
 
-  // ما تعرضه شاشة الجمهور: حالة المباراة وأسماء الأنماط واسم الحزمة. لا شيء غيرها.
-  const view = () => {
-    const { history, ...pub } = match;
-    return { match: pub, modes: modes().map(({ id, name }) => ({ id, name })), packName: pack()?.name ?? '' };
+  // ما تعرضه شاشة الجمهور: حالة المباراة وأسماء الأنماط واسم الحزمة، ومن الجولة ما تعيده audience() وحدها.
+  // الجولة نفسها (وفيها الإجابات) لا تُرسل أبداً.
+  const view = (moments = []) => {
+    const { history, round, ...pub } = match;
+    return { match: pub, modes: modes().map(({ id, name }) => ({ id, name })), packName: pack()?.name ?? '', play: playView(), muted, moments };
   };
+  const roundMode = () => match.round && P.modeOf(MODES, match.round.mode);
+  function playView() {
+    const mode = match.step === 'play' && roundMode();
+    if (!mode) return null;
+    const a = mode.audience(match.round.state);
+    return {
+      n: match.round.n, total: M.rounds(match), modeName: modeName(mode.id), a, scores: match.round.scores,
+      // العدّاد الجاري ووقت بدئه بساعة الجهاز، فتعدّه نافذة الجمهور صحيحاً ولو أُعيد تحميلها.
+      timer: match.round.timer ? { ...match.round.timer, at: match.timerAt } : null,
+      next: P.nextText(match, modeName),
+      fresh: a.screen === 'intro' && match.played === 1,
+    };
+  }
   function update(next, anim) {
     if (next === match && !anim) return;
     match = next;
@@ -338,6 +452,39 @@
     if (anim) link.send('anim', { name: anim, view: view() });
     else link.send('view', view());
     render();
+  }
+
+  // بعد كل فعل في الجولة: يُحفظ وقت بدء العدّاد إن بدأ، وتُرسل الحالة ومعها لحظاتها الانفعالية.
+  function roundUpdate(next) {
+    if (next === match || (next.round === match.round)) return;
+    const events = next.round?.events ?? [];
+    if (events.length === 0 && next.round?.state === match.round?.state && next.scores === match.scores) { match = next; return; }
+    match = events.some(e => e.type === 'timer') ? { ...next, timerAt: Date.now() } : next;
+    save();
+    link.send('view', view(events.filter(e => e.type === 'moment')));
+    render();
+  }
+  const roundAct = action => roundUpdate(P.act(match, MODES, action));
+
+  // ذاكرة الأسئلة: ما ظهر لا يتكرر حتى يُستنفد البنك.
+  const seen = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY)) ?? []; } catch { return []; } };
+  function startNext() {
+    const next = P.startNext(match, { modes: MODES, content: pack().files, seen: seen() });
+    if (next === match) return;
+    const mode = P.modeOf(MODES, next.round.mode);
+    try { localStorage.setItem(SEEN_KEY, JSON.stringify([...new Set([...seen(), ...mode.used(next.round.state)])])); } catch {}
+    roundUpdate(next);
+  }
+  const skipNext = () => update(P.skipNext(match, MODES));
+  // ما لم يُبنَ بعد يُتخطى في التجربة، ويُذكر موعده (القسم 11 من الوثيقة).
+  const LATER = { 'last-two': 3, auction: 4, ranking: 5 };
+  function nextButton() {
+    const kind = P.nextKind(match, MODES), item = P.upcoming(match);
+    if (kind === 'final') return { label: 'إلى النتيجة النهائية', short: 'إلى النتيجة النهائية', off: true, hint: 'النتيجة النهائية وإعلان الفائز تُبنى في الشريحة <span class="ltr">7</span>.' };
+    if (kind === 'start') return { label: num(`ابدأ الجولة ${item.n}`), short: num(`ابدأ الجولة ${item.n}`), act: 'startNext' };
+    if (item.kind === 'wheel') return { label: 'تخطَّ عجلة البونص', short: 'تخطَّ العجلة', act: 'skipNext', hint: 'عجلة البونص تُبنى في الشريحة <span class="ltr">6</span>، فتُتخطى الآن في التجربة.' };
+    return { label: num(`تخطَّ الجولة ${item.n}`), short: num(`تخطَّ الجولة ${item.n}`), act: 'skipNext',
+      hint: `«${esc(modeName(item.mode))}» يُبنى في الشريحة <span class="ltr">${LATER[item.mode] ?? ''}</span>، فتُتخطى جولته الآن في التجربة.` };
   }
 
   // ===== الخطوات =====
@@ -369,8 +516,16 @@
       const i = order.indexOf(li.dataset.k), now = order.indexOf(step);
       li.className = i < now ? 'done' : i === now ? 'now' : '';
     });
-    document.querySelectorAll('[data-step]').forEach(s => s.hidden = s.dataset.step !== step);
+    document.querySelectorAll('[data-step]:not([data-part])').forEach(s => s.hidden = s.dataset.step !== step);
     $('notice').hidden = link?.connected || step !== 'setup';
+    // أثناء الجولة: لا لوحة شاشة، ولا خطوات بدء المباراة، والرأس بشارة الجولة ومسار أسئلتها (design/letter.md 4.1).
+    const playing = step === 'play';
+    $('screenPanel').hidden = playing;
+    $('steps').hidden = $('newMatch').hidden = playing;
+    $('mute').hidden = !playing;
+    $('mute').textContent = muted ? 'مكتوم' : 'الصوت';
+    $('top').classList.toggle('playing', playing);
+    renderPlay();
     $('testPanel').hidden = !query.has('test');
 
     // الإعداد
@@ -427,6 +582,10 @@
 
     // المواجهة
     if (step === 'face') {
+      const nb = nextButton();
+      $('startRound').innerHTML = nb.label;
+      $('startRound').disabled = !!nb.off;
+      $('faceHint').innerHTML = nb.hint ?? '';
       $('faceWho').innerHTML = `الفائز بالقرعة: ${tn(match.winner)}. شاشة المواجهة معروضة الآن على الجمهور.`;
       $('plan').innerHTML = M.plan(match).map(s => s.kind === 'wheel'
         ? '<li class="wheel">عجلة البونص</li>'
@@ -438,9 +597,69 @@
       $('sn' + k).textContent = match.teams[k] || (k === 1 ? 'الفريق الأول' : 'الفريق الثاني');
       $('sv' + k).textContent = match.scores[k];
     }
-    $('undoScore').disabled = !match.history.length;
+    $('undoScore').disabled = playing ? !match.round?.history.length : !match.history.length;
 
     renderSingle();
+  }
+
+  // ===== الجولة: من presenter() و actions() في وحدة النمط (design/letter.md، القسم 4) =====
+  const mk = t => `<i class="mark t${t}"></i>`;
+  const STATE_TEXT = { ready: 'لم يبدأ العدّاد', ask: 'العدّاد يعدّ على الشاشة', decided: 'انتهى السؤال' };
+  function renderPlay() {
+    const mode = match.step === 'play' && roundMode();
+    $('roundChip').hidden = !mode;
+    $('pips').hidden = !mode || !link?.connected || match.single;
+    $('lost').hidden = !mode || link?.connected || match.single;
+    document.querySelectorAll('[data-part]').forEach(s => s.hidden = true);
+    if (!mode) return;
+    const st = match.round.state, pr = mode.presenter(st), acts = mode.actions(st);
+    const label = id => acts.find(a => a.id === id)?.label;
+    const part = pr.screen === 'intro' ? 'intro' : pr.screen === 'end' ? 'end' : 'q';
+    document.querySelectorAll(`[data-part="${part}"]`).forEach(s => s.hidden = false);
+    const n = match.round.n, title = `الجولة ${n} · ${mode.name}`;
+    $('roundChip').querySelector('span').innerHTML = num(`الجولة ${n} من ${M.rounds(match)} · ${mode.name}`);
+    $('pips').innerHTML = pr.track.map(x => `<i class="pip t${x.owner}${x.result === null ? '' : x.result ? ' won' + x.result : ' none'}${x.now ? ' now' : ''}"></i>`).join('');
+
+    if (part === 'intro') {
+      $('introHead').innerHTML = num(title);
+      $('introWho').innerHTML = `${mk(pr.turn)} يبدأ ${tn(pr.turn)} (اختير عشوائياً). الافتتاح معروض الآن على الجمهور.`;
+      $('introBrief').innerHTML = num(pr.brief);
+      $('showQ').innerHTML = num(label('show') ?? '');
+    }
+    if (part === 'q') {
+      $('qLetter').textContent = pr.letter;
+      $('qPrompt').textContent = pr.question;
+      $('qMeta').innerHTML = num(`${pr.levelText} · السؤال ${pr.n} من ${pr.count}`);
+      $('qAnswer').textContent = pr.answer;
+      $('qAlts').hidden = !pr.alts.length;
+      $('qAlts').textContent = 'ويُقبل أيضاً: ' + pr.alts.join('، ');
+      $('qAccept').textContent = pr.accept;
+      $('who').innerHTML = pr.steal ? `${mk(pr.turn)} سرقة: ${tn(pr.turn)}` : `${mk(pr.turn)} دور ${tn(pr.turn)}`;
+      $('qState').innerHTML = pr.phase === 'steal'
+        ? `${pr.steal.reason === 'timeout' ? 'بعد انتهاء الوقت' : 'بعد الخطأ'} · <span class="ltr">5</span> ثوانٍ`
+        : STATE_TEXT[pr.phase] ?? '';
+      const decided = pr.phase === 'decided';
+      $('judge').hidden = decided;
+      $('after').hidden = !decided;
+      $('startTimer').hidden = !label('start');
+      $('yes').innerHTML = num(label('correct') ?? '');
+      if (decided) {
+        const v = pr.verdict;
+        $('qDone').innerHTML = v.team ? `صحيحة · <span class="ltr">+${v.points}</span> لـ${tn(v.team)}` : 'لا نقاط في هذا السؤال.';
+        $('nextQ').innerHTML = num(label('next') ?? '');
+      }
+      $('undo').disabled = !match.round.history.length;
+    }
+    if (part === 'end') {
+      $('endHead').innerHTML = num(`انتهت ${title}`);
+      $('sum').innerHTML = [1, 2].map(k => `<span>${mk(k)} ${tn(k)}</span><span class="pts">+${pr.totals[k]}</span><span>${num('الرصيد ' + match.round.scores[k])}</span>`).join('');
+      const nb = nextButton();
+      $('endNext').innerHTML = nb.label;
+      $('endNext').disabled = !!nb.off;
+      $('endHint').hidden = !nb.hint;
+      $('endHint').innerHTML = nb.hint ?? '';
+      $('endUndo').disabled = !match.round.history.length;
+    }
   }
 
   // ===== النافذة الواحدة: الإعداد صفحة المقدّم كما هي، وما بعده اللوحة والشريط =====
@@ -458,7 +677,7 @@
     }
     fitSingle();
     const step = match.step, done = M.picksDone(match);
-    let html = '<button class="tag" id="leaveSingle" title="العودة إلى نافذتين">نافذة واحدة</button>';
+    let html = '<button class="tag" id="leaveSingle" title="العودة إلى نافذتين">نافذة واحدة · <span class="ltr">Esc</span> للخروج</button>';
     if (step === 'draw') html += match.winner && !drawing ? '<button data-do="toPick">التالي: اختيار الأنماط</button>'
       : match.winner ? '<button disabled>القرعة جارية…</button>' : '<button data-do="draw">ابدأ القرعة</button>';
     if (step === 'pick') {
@@ -466,7 +685,22 @@
       html += `<button class="alt" data-do="undoPick"${match.picks.length ? '' : ' disabled'}>تراجع</button>`;
       if (done) html += '<button data-do="toFace">إلى المواجهة</button>';
     }
-    if (step === 'face') html += '<button class="alt" data-do="replay">أعد عرض المواجهة</button><button disabled>ابدأ الجولة <span class="ltr">1</span></button>';
+    const nb = (step === 'face' || step === 'play') && nextButton();
+    const nextHtml = () => `<button data-do="${nb.act ?? ''}"${nb.off ? ' disabled' : ''}>${nb.short}</button>`;
+    if (step === 'face') html += '<button class="alt" data-do="replay">أعد عرض المواجهة</button>' + nextHtml();
+    // الجولة (design/letter.md، القسم 3): الانتقال والحكم و«الرصيد» وحدها، ولا إجابة أبداً.
+    const mode = step === 'play' && roundMode();
+    if (mode) {
+      const st = match.round.state, acts = mode.actions(st), screen = mode.audience(st).screen;
+      const has = id => acts.some(a => a.id === id);
+      if (has('show')) html += '<button data-act="show">اعرض السؤال <span class="ltr">1</span></button>';
+      if (has('start')) html += '<button data-act="start">ابدأ العدّاد</button><span class="gap"></span>';
+      if (has('correct')) html += '<button data-act="correct">صحيحة</button><button class="no" data-act="wrong">خاطئة</button>';
+      if (has('next')) html += `<button data-act="next">${st.index === st.questions.length - 1 ? 'إنهاء الجولة' : 'السؤال التالي'}</button>`;
+      if (screen === 'end') html += nextHtml();
+      if (screen !== 'intro') html += `<button class="alt" data-do="undo"${match.round.history.length ? '' : ' disabled'}>تراجع</button>`;
+      html += '<button class="alt" data-do="scores">الرصيد</button>';
+    }
     $('band').innerHTML = html;
   }
   const fitSingle = () => document.documentElement.style.setProperty('--scale', Math.min(innerWidth / 1920, innerHeight / 1216));
@@ -484,11 +718,17 @@
     undoPick: () => update(M.undoPick(match)),
     toFace: () => update(M.toFace(match), 'face'),
     replay: () => link.send('anim', { name: 'face', view: view() }),
+    startNext,
+    skipNext,
+    undo: () => roundUpdate(P.undo(match)),
+    scores: () => { $('scores').hidden = !$('scores').hidden; },
   };
 
   function startPresenter() {
     link = createLink('presenter', (type, data) => {
       if (type === 'tick') $('mirror').textContent = data.text;
+      // انتهى عدّاد في نافذة الجمهور: يُطبَّق إن طابق رقمه العدّاد الجاري، وإلا أُهمل (عقد الوحدة 5).
+      if (type === 'timeout' && match && $('gate').hidden) roundUpdate(P.act(match, MODES, 'timeout', data.id));
       if (type === 'need-view') $('gate').hidden && match ? link.send('view', view()) : link.send('lock');
     });
 
@@ -521,6 +761,7 @@
       if (!b || b.disabled) return;
       if (b.id === 'leaveSingle') return leaveSingle(), render();
       if (b.dataset.mode) return update(M.pick(match, b.dataset.mode, modes()));
+      if (b.dataset.act) return roundAct(b.dataset.act);
       actions[b.dataset.do]?.();
     };
     addEventListener('keydown', e => { if (e.key === 'Escape' && !$('single').hidden) leaveSingle(), render(); });
@@ -545,6 +786,20 @@
     $('undoPick').onclick = actions.undoPick;
     $('toFace').onclick = actions.toFace;
     $('replay').onclick = actions.replay;
+    $('startRound').onclick = () => actions[nextButton().act]?.();
+    $('endNext').onclick = () => actions[nextButton().act]?.();
+    $('showQ').onclick = () => roundAct('show');
+    document.querySelectorAll('#judge [data-act], #nextQ').forEach(b => b.onclick = () => roundAct(b.dataset.act));
+    $('undo').onclick = $('endUndo').onclick = actions.undo;
+    $('lostOpen').onclick = () => $('open').click();
+    $('lostSingle').onclick = () => $('singleBtn').click();
+    $('mute').onclick = () => {
+      muted = !muted;
+      try { localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); } catch {}
+      link.send('view', view());
+      render();
+    };
+    document.querySelectorAll('[data-new]').forEach(b => b.onclick = () => $('newMatch').onclick());
     $('newMatch').onclick = () => {
       if (match.step !== 'setup' && !confirm('تبدأ مباراة جديدة ويُمحى ما سبق. أتتابع؟')) return;
       clearTimeout(drawing); drawing = 0;
@@ -554,8 +809,15 @@
 
     $('openScores').onclick = () => { $('scores').hidden = !$('scores').hidden; };
     $('closeScores').onclick = () => { $('scores').hidden = true; };
-    $('scores').onclick = e => { const b = e.target.closest('[data-team]'); if (b) update(M.adjustScore(match, +b.dataset.team, +b.dataset.d)); };
-    $('undoScore').onclick = () => update(M.undoScore(match));
+    // أثناء الجولة يُعدَّل الرصيد عبر مشغّل الجولة، فيُتراجع عنه كأي حكم (عقد الوحدة 5).
+    $('scores').onclick = e => {
+      const b = e.target.closest('[data-team]');
+      if (!b) return;
+      const team = +b.dataset.team;
+      if (match.step === 'play') roundUpdate(P.setScore(match, team, match.scores[team] + +b.dataset.d));
+      else update(M.adjustScore(match, team, +b.dataset.d));
+    };
+    $('undoScore').onclick = () => (match.step === 'play' ? actions.undo() : update(M.undoScore(match)));
 
     $('start').onclick = () => link.send('start', { seconds: 10 });
     $('reset').onclick = () => { link.send('reset'); link.send('view', view()); };

@@ -12,6 +12,10 @@ export const TEAM_NAME_MAX = 18;
 // حدود ش1 (design/start.md، القسم 2.5): اسم النمط في خانة المسار الأضيق، واسم الحزمة مع شارة الطريقة في صف واحد.
 export const MODE_NAME_MAX = 13;
 export const PACK_NAME_MAX = 30;
+// حدّا ش2 (design/letter.md، القسم 2.6): ما يتسع في نافذة المقدّم على حاسوب 1366×768 دون تمرير. تنبيهان لا خطآن.
+export const ANSWER_MAX = 20;
+export const ALTS_MAX = 50;
+export const altsText = alts => (alts ?? []).join('، ');
 const length = text => [...String(text)].length;
 
 // أحجام البنك المطلوبة (القسم 6.2 من الوثيقة)، للعرض لا للمنع.
@@ -159,6 +163,8 @@ export function checkContent({ index, packs, wheel }) {
           if (ARABIC_LETTER.test(item.letter ?? '')) for (const a of answers) {
             if (!stripArticle(a).startsWith(fold(item.letter))) warn(where, `الإجابة «${a}» لا تبدأ بالحرف «${item.letter}»`);
           }
+          if (typeof item.answer === 'string' && length(item.answer) > ANSWER_MAX) warn(where, `الإجابة النموذجية ${length(item.answer)} حرفاً، والحد ${ANSWER_MAX} (سطر واحد في نافذة المقدّم)`);
+          if (Array.isArray(item.alts) && length(altsText(item.alts)) > ALTS_MAX) warn(where, `البدائل ${length(altsText(item.alts))} حرفاً مجتمعة بالفواصل، والحد ${ALTS_MAX} (سطر واحد في نافذة المقدّم)`);
           if (item.tiebreak !== undefined && item.tiebreak !== true) err(where, '«tiebreak» إما true وإما يُحذف');
           if (item.tiebreak && item.level !== 'hard') err(where, 'أسئلة كسر التعادل صعبة فقط');
           tally(mode, item.tiebreak ? 'tiebreak' : item.level);
