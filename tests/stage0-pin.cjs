@@ -30,6 +30,10 @@ const { TEST_PIN, testPinRecord, usePin, unlock, reporter } = require('./helpers
   check('لا شيء من نافذة المقدّم ظاهر قبل الرقم', !(await page.innerText('body')).includes('اختبار النافذتين'));
   await page.screenshot({ path: `${shots}/pin-gate.png` });
 
+  // ملاحظة المعاين 8: الخانة الفارغة تطلب الرقم، ولا تقول إنه خاطئ.
+  await page.click('#enter');
+  await page.waitForSelector('#pin-error:not([hidden])');
+  check('الخانة فارغة: «أدخل الرقم»', (await page.textContent('#pin-error')) === 'أدخل الرقم' && await page.isHidden('#app'));
   await page.fill('#pin', '000000');
   await page.click('#enter');
   await page.waitForSelector('#pin-error:not([hidden])');
