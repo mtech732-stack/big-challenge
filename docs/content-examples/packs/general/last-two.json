@@ -7,23 +7,50 @@
       "ending": "ان",
       "prompt": "صغير الحجم، لكنه يُكرَم به الضيف في كل بيت كويتي",
       "answer": "فنجان",
-      "domain": "kuwait-gulf"
+      "domain": "kuwait-gulf",
+      "note": "عيّنة معتمدة في الوثيقة 6.5"
     },
     {
       "id": "general-last-two-002",
+      "level": "easy",
+      "ending": "ان",
+      "prompt": "يركبه الفارس في سباق الخيل، وبقوّته تُقاس محركات السيارات",
+      "answer": "حصان",
+      "domain": "sports"
+    },
+    {
+      "id": "general-last-two-003",
       "level": "medium",
       "ending": "ان",
       "prompt": "لا يتكلم، لكنه يفضح ما أكلتَه في العيد",
       "answer": "ميزان",
-      "domain": "daily-life"
+      "domain": "daily-life",
+      "note": "عيّنة معتمدة في الوثيقة 6.5"
     },
     {
-      "id": "general-last-two-003",
+      "id": "general-last-two-004",
+      "level": "medium",
+      "ending": "ان",
+      "prompt": "جبل غاضب يقذف من فمه ناراً سائلة تُسمّى الحِمَم",
+      "answer": "بركان",
+      "domain": "science"
+    },
+    {
+      "id": "general-last-two-005",
       "level": "hard",
-      "ending": "وت",
-      "prompt": "بيت لا يُبنى بطين ولا حجر، ووصفه القرآن بأنه أوهن البيوت",
-      "answer": "عنكبوت",
-      "domain": "religion"
+      "ending": "ان",
+      "prompt": "أغلى بهار في العالم، وكل زهرة منه لا تعطي إلا 3 خيوط حمراء",
+      "answer": "زعفران",
+      "domain": "daily-life",
+      "note": "الزعفران مياسم زهرة الزعفران (Crocus sativus)، ثلاثة في كل زهرة تُجنى باليد، ولذلك هو أغلى التوابل وزناً"
+    },
+    {
+      "id": "general-last-two-006",
+      "level": "hard",
+      "ending": "ان",
+      "prompt": "لقب حاكم عُمان، ويحمله كذلك حاكم بروناي",
+      "answer": "سلطان",
+      "domain": "kuwait-gulf"
     }
   ]
 }

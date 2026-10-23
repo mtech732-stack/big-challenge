@@ -1,8 +1,8 @@
-// اختبار آلي لجولة «آخر حرفين» بالنافذتين وبالنافذة الواحدة (ش3): الافتتاح بـ 20 ثانية، ومربع الحرفين بالتطويل،
-// والسؤال والعدّاد، والحكم والنقاط، والسرقة، والتراجع، وإعادة التحميل، والنهاية ثم جولة «الحرف المعيّن» بعدها،
-// وأعرض الحرفين في الخط يُصغَّران ولا يفيضان، ولا إجابة على شاشة الجمهور، وفحص التداخل والقياسات في كل حالة.
+// اختبار آلي لجولة «آخر حرفين» بالنافذتين وبالنافذة الواحدة (ش3، الوثيقة 1.1): الافتتاح بنهاية الجولة، ومربع الحرفين بالتطويل،
+// والسؤال والعدّاد، والحكم والنقاط، وانتقال الإجابة للخصم، والتراجع، وإعادة التحميل، والنهاية ثم جولة «الحرف المعيّن» بعدها،
+// والجولة كلها بنهاية واحدة، وأعرض الحرفين يُصغَّران ولا يفيضان، والإجابة بعد كل سؤال، وفحص التداخل والقياسات في كل حالة.
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/';
@@ -20,16 +20,17 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
     p.on('pageerror', e => errors.push(e.message));
     p.on('console', m => m.type() === 'error' && !/content\/packs\/.+\.json/.test(m.location().url) && errors.push(m.text()));
   });
-  const presenter = await context.newPage();
-  await presenter.goto(base);
-  await presenter.evaluate(() => localStorage.clear());
-  await unlock(presenter);
+  // الشاشة المشتركة على التلفاز (الوثيقة 1.1)، ومنها تُفتح نافذة المقدّم عند «ابدأ المباراة».
+  const stage = await context.newPage();
+  await stage.setViewportSize({ width: 1920, height: 1080 });
+  await stage.goto(base);
+  await stage.evaluate(() => localStorage.clear());
+  await stage.reload();
+  await unlock(stage);
+  let audience = await stageFrame(stage);
+  let presenter = null;
   const text = (page, sel) => page.textContent(sel).then(t => t.replace(/\s+/g, ' ').trim());
   const visible = (page, sel) => page.isVisible(sel);
-  const [audience] = await Promise.all([context.waitForEvent('page'), presenter.click('#open')]);
-  await audience.waitForLoadState();
-  await audience.setViewportSize({ width: 1920, height: 1080 });
-  await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 5000 });
 
   // فحوص كل حالة: التداخل على شاشة الجمهور، وقياسات نافذة المقدّم (design/presenter-letter.html)، ولا إجابة على الجمهور.
   let layoutOk = true, presenterOk = true, leak = false;
@@ -39,9 +40,13 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
     if (!r.ok) { layoutOk = false; fails.push(`${label}: ${r.problems.join('، ')}`); }
     // إجابة السؤال المعروض وبدائلها، في نص الشاشة كله دون السؤال نفسه واسمَي الفريقين
     // (فـ«ذهب» جزء من «فريق النخبة الذهبي» وليست تسريباً).
-    const q = await presenter.evaluate(() => { const r = JSON.parse(localStorage.getItem('big-challenge.match')).round; return r?.state.questions[r.state.index] ?? null; });
+    // وبعد الحكم الأخير تظهر الإجابة النموذجية وحدها في سطرها (الوثيقة 1.1)، فيُستثنى السطر.
+    const q = await stage.evaluate(() => { const r = JSON.parse(localStorage.getItem('big-challenge.match')).round; return r && !['intro', 'end'].includes(r.state.phase) ? r.state.questions[r.state.index] : null; });
     if (!q) return;
-    const body = await page.evaluate(names => { let t = document.body.innerText.replace(document.getElementById('label').textContent, ''); for (const n of names) t = t.split(n).join(''); return t; }, LONG);
+    const body = await page.evaluate(names => { let t = document.body.innerText.replace(document.getElementById('label').textContent, '');
+      const rev = document.getElementById('reveal'); if (rev.getClientRects().length) t = t.replace(rev.innerText, '');
+      for (const n of names) t = t.split(n).join(''); return t; }, LONG);
+    if (/سرقة|سهل|متوسط|صعب|بفارق/.test(body)) { leak = true; fails.push(`${label}: نص قواعد ممنوع على الجمهور`); }
     if ([q.answer, ...q.alts].some(a => body.includes(a))) { leak = true; fails.push(`${label}: إجابة على شاشة الجمهور («${q.answer}»)`); }
   };
   const presenterCheck = async label => {
@@ -70,7 +75,7 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
     if (!r.ok) { presenterOk = false; fails.push(`المقدّم ${label}: ${r.problems.join('، ')}`); }
   };
   const both = async label => { await wait(900); await audienceCheck(audience, label); await presenterCheck(label); };
-  const st = () => presenter.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).round.state);
+  const st = () => stage.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).round.state);
   const box = page => page.$eval('#letter', e => { const r = e.getBoundingClientRect(), s = getComputedStyle(e), tw = e.querySelector('.tw'), lt = e.querySelector('.lt');
     return { tw: tw?.textContent, lt: lt?.textContent, w: e.offsetWidth, h: e.offsetHeight, fs: parseFloat(s.fontSize), fits: (e.querySelector('.end') ?? e).offsetWidth <= e.clientWidth - 64 + 1,
       tf: [tw, lt].every(x => x && getComputedStyle(x).transform === 'none' && getComputedStyle(x).display === 'inline'),
@@ -78,29 +83,22 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
       joined: (() => { const end = e.querySelector('.end'); if (!end) return false; const p = document.createElement('span'); p.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap';
         p.style.font = s.font; p.textContent = end.textContent; document.body.append(p); const ok = Math.abs(p.getBoundingClientRect().width - end.getBoundingClientRect().width) < 0.5; p.remove(); return ok; })() }; });
 
-  // إلى المواجهة: أطول اسمين، والطريقة القصيرة، و«آخر حرفين» نمط الجولة الأولى و«الحرف المعيّن» الثانية.
+  // إلى المواجهة على الشاشة المشتركة بأطول اسمين، ثم «ابدأ المباراة»: الجولة 1 تبدأ وتُفتح نافذة المقدّم.
   const toFace = async (first, second) => {
-    await presenter.fill('#t1', LONG[0]);
-    await presenter.fill('#t2', LONG[1]);
-    await presenter.click('#method [data-m="short"]');
-    await presenter.click('#toDraw');
-    await presenter.click('#drawBtn');
-    await presenter.waitForSelector('#toPick:not([hidden])', { timeout: 6000 });
-    await presenter.click('#toPick');
-    await presenter.click(`#modes [data-mode="${first}"]`);
-    await presenter.click(`#modes [data-mode="${second}"]`);
-    await presenter.click('#toFace');
-    await wait(2500);
+    await audience.waitForSelector('[data-cmd="draw"]', { timeout: 6000 });
+    await sharedToFace(audience, { names: LONG, picks: [first, second] });
+    await wait(2700);
   };
   await toFace('last-two', 'letter');
-  check('المواجهة: «ابدأ الجولة 1» مفعّل لآخر حرفين', (await text(presenter, '#startRound')) === 'ابدأ الجولة 1' && !(await presenter.isDisabled('#startRound')));
+  presenter = await beginTwo(context, audience);
+  await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 6000 });
 
   // 1. الافتتاح
-  await presenter.click('#startRound');
   await audience.waitForSelector('.scr.show[data-s="intro"]', { timeout: 5000 });
   const starter = (await st()).first;
   const other = t => (t === 1 ? 2 : 1);
-  check('الجمهور: «أجب بكلمة تنتهي بالحرفين» و«6 أسئلة · 20 ثانية للسؤال · والسرقة في 5 ثوانٍ»', (await text(audience, '#rule')) === 'أجب بكلمة تنتهي بالحرفين' && (await text(audience, '#ruleSub')) === '6 أسئلة · 20 ثانية للسؤال · والسرقة في 5 ثوانٍ');
+  const ending = (await st()).questions[0].box;
+  check(`الجمهور: «كل إجابات الجولة تنتهي بـ «ـ${ending}»» ولا سطر تفاصيل`, (await text(audience, '#rule')) === `كل إجابات الجولة تنتهي بـ «ـ${ending}»` && !(await audience.$('#ruleSub')));
   check('الجمهور: شارة النمط «آخر حرفين» و«الجولة 1 من 2» و«يبدأ [الاسم]»', (await text(audience, '#mode')) === 'آخر حرفين' && (await text(audience, '#b1')) === 'الجولة 1 من 2' && (await text(audience, '#starter')) === `يبدأ ${LONG[starter - 1]}`);
   check('المقدّم: «الجولة 1 من 2 · آخر حرفين» والافتتاح «الجولة 1 · آخر حرفين» وسطر القاعدة بـ 20 ثانية', (await text(presenter, '#roundChip')) === 'الجولة 1 من 2 · آخر حرفين'
     && (await text(presenter, '#introHead')) === 'الجولة 1 · آخر حرفين' && (await text(presenter, '#introBrief')).includes('20 ثانية للسؤال'));
@@ -119,12 +117,12 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
     const [a, c] = [e.querySelector('.tw'), e.querySelector('.lt')].map(x => getComputedStyle(x));
     return e.classList.contains('in') && a.animationName === 'in' && c.animationName === 'in' && c.animationDelay === '0.15s'; }));
   check('الجمهور: العدّاد ثابت على 0:20 قبل «ابدأ»', (await text(audience, '#timer')) === '0:20' && (await wait(1200), (await text(audience, '#timer')) === '0:20'));
-  check('الجمهور: «سهل · نقطة» و«السؤال 1 من 6»', (await text(audience, '#b1')) === 'سهل · نقطة' && (await text(audience, '#b2')) === 'السؤال 1 من 6');
+  check('الجمهور: «السؤال 1 من 6» بلا مستوى', (await text(audience, '#b1')) === 'السؤال 1 من 6' && !(await visible(audience, '#b2')));
   check('المقدّم: «ـ» والحرفان، والإجابة النموذجية، وسطر القبول', (await text(presenter, '#qLetter')) === 'ـ' + q.box && (await text(presenter, '#qAnswer')) === q.answer
     && (await text(presenter, '#qAccept')) === `وتُقبل أي كلمة أخرى تنتهي بـ «ـ${q.box}» وتنطبق على الوصف.`);
   check('المقدّم: مربع الحرفين يتسع بعرضهما ولا يفيض', await presenter.$eval('#qLetter', e => e.scrollWidth <= e.clientWidth + 1 && e.offsetWidth >= e.offsetHeight - 1));
   await both('السؤال قبل ابدأ');
-  await audience.screenshot({ path: `${shots}/s3-ready.png` });
+  await stage.screenshot({ path: `${shots}/s3-ready.png` });
   await presenter.screenshot({ path: `${shots}/s3-presenter-ready.png` });
 
   // 3. العدّاد يعدّ ثم صحيحة
@@ -134,24 +132,24 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   await wait(400);
   await presenter.click('#yes');
   await wait(600);
-  check('صحيحة · +1: الحكم مكان العدّاد بلون الفريق، والرصيد يزيد', (await text(audience, '#vtext')) === 'صحيحة · +1' && await audience.$eval('#verdict', (e, t) => e.classList.contains('t' + t), starter)
+  check('صحيحة · +1: الحكم مكان العدّاد بلون الفريق، والرصيد يزيد', (await text(audience, '#vtext')) === `${LONG[starter - 1]} · +1` && (await text(audience, '#reveal')) === `الإجابة: ${q.answer}` && await audience.$eval('#verdict', (e, t) => e.classList.contains('t' + t), starter)
     && !(await visible(audience, '#timerBox')) && (await text(audience, '#s' + starter)) === '1');
   await both('صحيحة');
 
-  // 4. السؤال 2: خاطئة ← سرقة ← يتركها تنتهي ← لا نقاط
+  // 4. السؤال 2: خاطئة ← تنتقل الإجابة ← يتركها تنتهي ← لا نقاط
   await wait(800);
   await presenter.click('#nextQ');
   await wait(800);
   s = await st();
-  check('السؤال 2: للخصم، والحرفان غير حرفَي السؤال 1', s.questions[1].owner === other(starter) && s.questions[1].box !== s.questions[0].box && (await text(audience, '#letter')) === 'ـ' + s.questions[1].box);
+  check('السؤال 2: للخصم، والحرفان نفسهما (الجولة كلها بنهاية واحدة)', s.questions[1].owner === other(starter) && s.questions[1].box === s.questions[0].box && (await text(audience, '#letter')) === 'ـ' + s.questions[1].box);
   await presenter.click('#no');
   await wait(600);
-  check('خاطئة: شارة «سرقة» بلون السارق، والعدّاد 0:05 أو أقل', await visible(audience, '#b4') && await audience.$eval('#b4', (e, t) => e.classList.contains('t' + t), starter)
+  check('خاطئة: تنتقل الإجابة إلى الخصم بلا شارة، والعدّاد 0:05 أو أقل', !(await audience.$('#b4')) && await audience.$eval(`#p${starter}`, e => e.classList.contains('on'))
     && ['0:05', '0:04'].includes(await text(audience, '#timer')));
-  await both('السرقة');
+  await both('انتقال الإجابة');
   await audience.waitForSelector('#verdict:not([hidden])', { timeout: 8000 });
   await wait(300);
-  check('انتهى وقت السرقة: «لا نقاط»', (await text(audience, '#vtext')) === 'لا نقاط');
+  check('انتهى الوقت بعد الانتقال: «لا نقاط» والإجابة تحت السؤال', (await text(audience, '#vtext')) === 'لا نقاط' && (await text(audience, '#reveal')) === `الإجابة: ${s.questions[1].answer}`);
 
   // 5. السؤال 3: يترك العدّاد 20 ثانية ← السرقة بعد انتهاء الوقت ← صحيحة بالنقاط نفسها (+2) ← تراجع
   await wait(800);
@@ -160,7 +158,8 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   await presenter.click('#startTimer');
   // F5 على نافذة الجمهور والعدّاد يعدّ: يكمل من حيث كان.
   await wait(3200);
-  await audience.reload();
+  await stage.reload();
+  audience = await stageFrame(stage);
   await audience.waitForSelector('.scr.show[data-s="q"]', { timeout: 6000 });
   await wait(500);
   const after = await text(audience, '#timer');
@@ -169,22 +168,22 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   await presenter.waitForFunction(() => document.getElementById('qState').textContent.includes('بعد انتهاء الوقت'), null, { timeout: 22000 });
   await wait(800);
   const sc = JSON.parse(await presenter.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('big-challenge.match')).round.scores)));
-  check('السؤال 3 متوسط: «صحيحة · +2» للسارق', (await text(presenter, '#yes')) === 'صحيحة · +2');
+  check('السؤال 3 متوسط: «صحيحة · +2» للخصم', (await text(presenter, '#yes')) === 'صحيحة · +2');
   await presenter.click('#yes');
   await wait(800);
   const thief = other(starter);
   const sc2 = (await presenter.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).round.scores));
-  check('السرقة بعد انتهاء الوقت: +2 للسارق', sc2[thief] === sc[thief] + 2);
+  check('بعد انتهاء الوقت وانتقال الإجابة: +2 للخصم', sc2[thief] === sc[thief] + 2);
   await presenter.click('#undo');
   await wait(800);
   const s3 = await st();
-  check('تراجع عن آخر حكم: تعود السرقة والرصيد كما كان', s3.phase === 'steal' && (await presenter.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).round.scores))[thief] === sc[thief]);
+  check('تراجع عن آخر حكم: تعود الإجابة للخصم والرصيد كما كان', s3.phase === 'steal' && (await presenter.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).round.scores))[thief] === sc[thief]);
   await presenter.click('#yes');
   await wait(800);
 
   // 6. F5 على المقدّم: الجولة كما هي
   await presenter.reload();
-  await unlock(presenter);
+  await presenter.waitForSelector('#app:not([hidden])', { timeout: 10000 });
   await wait(800);
   check('إعادة تحميل المقدّم: الجولة كما هي', (await text(presenter, '#qState')) === 'انتهى السؤال' && (await text(presenter, '#qLetter')) === 'ـ' + s3.questions[2].box);
 
@@ -192,7 +191,7 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   for (let i = 3; i < 6; i++) { await wait(800); await presenter.click('#nextQ'); await wait(800); await presenter.click('#yes'); }
   await wait(800);
   s = await st();
-  check('الأسئلة الستة: الحرفان لا يتكرران في الجولة', new Set(s.questions.map(x => x.box)).size === 6);
+  check('الأسئلة الستة بنهاية واحدة', new Set(s.questions.map(x => x.box)).size === 1);
   check('صعب: «صحيحة · +3» كان الزر الأخير', s.results[5] !== null);
   check('بعد السادس: «إنهاء الجولة»', (await text(presenter, '#nextQ')) === 'إنهاء الجولة');
   await presenter.click('#nextQ');
@@ -208,7 +207,7 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   check('بعد تخطّي العجلة: «ابدأ الجولة 2»', (await text(presenter, '#endNext')) === 'ابدأ الجولة 2');
   await presenter.click('#endNext');
   await audience.waitForSelector('.scr.show[data-s="intro"]');
-  check('الجولة 2: «أجب بكلمة تبدأ بالحرف المعيّن» و15 ثانية', (await text(audience, '#rule')) === 'أجب بكلمة تبدأ بالحرف المعيّن' && (await text(audience, '#ruleSub')).includes('15 ثانية'));
+  check('الجولة 2: «أجب بكلمة تبدأ بالحرف المعيّن»، ونافذة المقدّم بـ15 ثانية', (await text(audience, '#rule')) === 'أجب بكلمة تبدأ بالحرف المعيّن' && (await text(presenter, '#introBrief')).includes('15 ثانية'));
   await wait(900);
   await presenter.click('#showQ');
   await audience.waitForSelector('.scr.show[data-s="q"]');
@@ -222,52 +221,59 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
     l2[0] === lq.box && !l2[1] && l2[2] === 220 && l2[3] === '0:15' && l2[4] === lq.box);
   await both('الحرف المعيّن بعد آخر حرفين');
 
-  // 9. النافذة الواحدة بأزرار الجولة في جولة آخر حرفين، وأعرض الحرفين في الخط مع أطول وصف في التصميم (مباراة ثانية ببنك تجريبي)
+  // 9. النافذة الواحدة في جولة آخر حرفين، بأعرض حرفين في الخط مع أطول وصف (مباراة ثانية ببنك تجريبي من مجموعة واحدة)
   const wide = { mode: 'last-two', questions: ['easy', 'easy', 'medium', 'medium', 'hard', 'hard'].map((level, i) => ({
-    id: `test-last-two-${i}`, level, ending: ['سش', 'وس', 'مش', 'ان', 'ين', 'اء'][i], prompt: 'كتاب لا تقرؤه من أوله إلى آخره، بل تفتحه حين تجهل معنى كلمة، وأشهره المحيط للفيروزآبادي',
+    id: `test-last-two-${i}`, level, ending: 'سش', prompt: 'كتاب لا تقرؤه من أوله إلى آخره، بل تفتحه حين تجهل معنى كلمة، وأشهره المحيط للفيروزآبادي',
     answer: `كلمة${i}`, domain: 'daily-life' })) };
   await context.route('**/content/packs/general/last-two.json*', route => route.fulfill({ json: wide }));
-  await presenter.reload();
-  await unlock(presenter);
+  await stage.evaluate(() => localStorage.removeItem('big-challenge.seen'));
   presenter.once('dialog', d => d.accept());
-  await presenter.evaluate(() => { localStorage.removeItem('big-challenge.seen'); document.getElementById('newMatch').onclick(); });
-  await wait(300);
+  // مباراة جديدة: تعود إلى الشاشة المشتركة وتُغلق نافذة المقدّم. ويُعاد تحميل الشاشة كي تقرأ البنك التجريبي.
+  const closed = presenter.waitForEvent('close', { timeout: 6000 }).then(() => true, () => false);
+  // «مباراة جديدة» في الافتتاح والنهاية وحدهما؛ والجولة هنا في سؤالها، فيُنقر الزر برمجياً.
+  await presenter.evaluate(() => document.querySelector('[data-new]').click());
+  check('مباراة جديدة من نافذة المقدّم: تُغلق، وتعود الشاشة المشتركة', await closed);
+  await stage.reload();
+  await unlock(stage);
+  audience = await stageFrame(stage);
   await toFace('last-two', 'letter');
-  await presenter.click('#singleBtn');
-  await presenter.waitForSelector('#band [data-do="startNext"]', { timeout: 6000 });
-  await presenter.click('#band [data-do="startNext"]');
-  await presenter.waitForSelector('#single:not([hidden]) iframe', { timeout: 6000 });
-  const frame = await (await presenter.$('#single iframe')).contentFrame();
+  await cmd(audience, 'single');
+  const frame = audience;
   await frame.waitForSelector('.scr.show[data-s="intro"]', { timeout: 6000 });
-  const bandText = () => presenter.$$eval('#band button', x => x.map(y => y.textContent.replace(/\s+/g, ' ').trim()).join(' | '));
-  check('الشريط: «اعرض السؤال 1» و«الرصيد»', (await bandText()) === 'نافذة واحدة · Esc للخروج | اعرض السؤال 1 | الرصيد');
-  const widths = {};
-  await presenter.click('#band [data-act="show"]');
+  const near = () => frame.$$eval('#near .cbtn, .scr.show .ctl .cbtn', x => x.map(y => y.textContent.replace(/\s+/g, ' ').trim()).join(' | '));
+  await wait(300);
+  check('النافذة الواحدة: «اعرض السؤال 1» في البطاقة، ولا شريط', (await near()) === 'اعرض السؤال 1' && !(await stage.$('#band')));
+  check('النافذة الواحدة: «كل إجابات الجولة تنتهي بـ «ـسش»»', (await text(frame, '#rule')) === 'كل إجابات الجولة تنتهي بـ «ـسش»');
+  let widest = null;
+  await cmd(frame, 'act:show');
   for (let i = 0; i < 6; i++) {
     await frame.waitForSelector('.scr.show[data-s="q"]');
     await wait(900);
     const cur = (await st()).questions[i];
     const bx = await box(frame);
-    widths[cur.box] = bx;
-    if ((await bandText()).includes(cur.answer)) leak = true;
-    await audienceCheck(frame, `نافذة واحدة · ${cur.box}`);
-    await presenterCheck(`نافذة واحدة · ${cur.box}`);
-    if (i === 0) await presenter.screenshot({ path: `${shots}/s3-single.png` });
-    await presenter.click('#band [data-act="correct"]');
+    widest ??= bx;
+    widest.joined &&= bx.joined;
+    if ((await near()).includes(cur.answer)) leak = true;
+    await audienceCheck(frame, `نافذة واحدة · ${i + 1}`);
+    if (i === 0) await stage.screenshot({ path: `${shots}/s3-single.png` });
+    await cmd(frame, 'act:correct');
     await wait(900);
-    await presenter.click('#band [data-act="next"]');
+    check(`السؤال ${i + 1}: الإجابة تحت السؤال بعد الحكم`, (await text(frame, '#reveal')) === `الإجابة: ${cur.answer}`);
+    if (i === 0) await stage.screenshot({ path: `${shots}/s3-single-decided.png` });
+    await audienceCheck(frame, `نافذة واحدة · بعد الحكم ${i + 1}`);
+    await cmd(frame, 'act:next');
   }
-  check(`أعرض الحرفين «سش»: المربع 456 والخط مصغّر بين 128 و150 (${widths['سش']?.w} · ${widths['سش']?.fs})`, widths['سش']?.w <= 456 && widths['سش'].fs >= 128 && widths['سش'].fs < 150 && widths['سش'].fits);
-  check('الوصل لا ينقطع في الحرفين الستة', Object.values(widths).length === 6 && Object.values(widths).every(x => x.joined));
-  check('«وس» و«مش» داخل المربع دون فيض', ['وس', 'مش'].every(k => widths[k]?.fits && widths[k].w <= 456));
-  check('«ان» و«ين» و«اء» بحجمها الكامل 150', ['ان', 'ين', 'اء'].every(k => widths[k]?.fs === 150 && widths[k].w >= 220));
-  check('الشريط لا يعرض الإجابة', !leak);
+  check(`أعرض الحرفين «سش»: المربع 456 والخط مصغّر بين 128 و150 (${widest?.w} · ${widest?.fs})`, widest?.w <= 456 && widest.fs >= 128 && widest.fs < 150 && widest.fits);
+  check('الوصل لا ينقطع في الأسئلة الستة', widest?.joined);
+  check('الأزرار لا تعرض الإجابة', !leak);
+  await frame.waitForSelector('.scr.show[data-s="end"]', { timeout: 6000 });
+  check('نهاية الجولة بنافذة واحدة: «تخطَّ عجلة البونص» في البطاقة', (await near()) === 'تخطَّ عجلة البونص');
+  await audienceCheck(frame, 'نافذة واحدة · النهاية');
 
-  await presenter.setViewportSize({ width: 1920, height: 1080 });
-  await presenterCheck('1920');
+  // نافذة المقدّم الأخيرة أُغلقت مع المباراة الجديدة: فحص 1920 لا يلزم هنا.
   check(`فحص التداخل على شاشة الجمهور في كل حالة${fails.length ? ': ' + fails.slice(0, 3).join(' | ') : ''}`, layoutOk);
   check('نافذة المقدّم: لا نص أصغر من 32، ولا زر أقصر من 64، ولا تمرير، ولا أرقام هندية، ولا ميل', presenterOk);
-  check('لا إجابة على شاشة الجمهور في أي حالة', !leak);
+  check('لا إجابة على شاشة الجمهور قبل الحكم الأخير، ولا نص قواعد', !leak);
   check(`لا أخطاء في الصفحتين${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`, !errors.length);
   await browser.close();
   process.exit(finish() ? 0 : 1);

@@ -1,7 +1,7 @@
 // النمط الأول: «الحرف المعيّن» (القسم 5.3 من الوثيقة، وتصميمه design/letter.md). وحدة تلتزم «عقد الوحدة».
 // جولته جولة الكلمة (js/modes/word.js): حرف واحد في المربع، و15 ثانية للسؤال.
 import { wordMode } from './word.js';
-export { STEAL_SECONDS, POINTS, LEVEL_TEXT } from './word.js';
+export { STEAL_SECONDS, POINTS } from './word.js';
 
 export const SECONDS = 15;
 

@@ -1,4 +1,5 @@
-// بدء المباراة (القسم 5.2 من الوثيقة): الأسماء والحزمة وطريقة اللعب، ثم القرعة، ثم اختيار الأنماط، ثم المواجهة.
+// بدء المباراة (القسم 5.2 من الوثيقة 1.1): الاسمان وعدد الأنماط (2 أو 4)، ثم القرعة، ثم اختيار الأنماط، ثم المواجهة.
+// والحزمة تُختار تلقائياً ولا تظهر. «short» و«full» اسمان داخليان لمباراة النمطين والأربعة، لا يُكتبان على الشاشات.
 // دوال خالصة على حالة بيانات (JSON)، فتُحفظ المباراة وتعود بعد إعادة التحميل (docs/decisions.md).
 import { TEAM_NAME_MAX } from './content-check.js';
 
@@ -17,6 +18,7 @@ export const englishDigits = text => String(text ?? '')
   .replace(/[٠-٩]/g, d => d.charCodeAt(0) - 0x0660)
   .replace(/[۰-۹]/g, d => d.charCodeAt(0) - 0x06F0);
 
+// single: المباراة تُلعب بنافذة واحدة (الشاشة المشتركة بأزرارها). وقبل «ابدأ المباراة» الشاشة مشتركة دائماً.
 export function newMatch({ pack = null, method = 'full' } = {}) {
   return { v: 1, step: 'setup', teams: { 1: '', 2: '' }, pack, method, winner: null, picks: [], scores: { 1: 0, 2: 0 }, history: [], single: false };
 }
@@ -31,12 +33,12 @@ export function setupErrors(match, available) {
   if ([...b].length > TEAM_NAME_MAX) return [{ field: 2, text: `اسم الفريق الثاني أطول من ${TEAM_NAME_MAX} حرفاً` }];
   if (a === b) return [{ field: 2, text: 'الاسمان متطابقان. غيّر أحدهما.' }];
   if (!match.pack) return [{ field: 'pack', text: 'اختر الحزمة' }];
-  if (!METHODS[match.method]) return [{ field: 'method', text: 'اختر طريقة اللعب' }];
+  if (!METHODS[match.method]) return [{ field: 'method', text: 'اختر عدد الأنماط' }];
   if (available && METHODS[match.method].rounds > available.length) {
     const n = available.length;
     return [{ field: 'method', text: match.method === 'full'
-      ? `الطريقة الكاملة تحتاج 4 أنماط، والمتاح في هذه الحزمة ${n}. اختر «قصيرة».`
-      : `المباراة تحتاج نمطين على الأقل، والمتاح في هذه الحزمة ${n}.` }];
+      ? `المتاح ${n} أنماط فقط. اختر 2.`
+      : `المباراة تحتاج نمطين على الأقل، والمتاح ${n}.` }];
   }
   return [];
 }

@@ -10,9 +10,10 @@
 <link rel="stylesheet" href="css/stage.css">
 <link rel="stylesheet" href="css/start.css">
 <link rel="stylesheet" href="css/letter.css">
+<link rel="stylesheet" href="css/shared.css">
 <style>
   /* اللعبة مغلقة أو بانتظار المقدّم: لا يبقى على الشاشة إلا الخلفية والبطاقة. */
-  .locked .team, .locked .strip, .locked .badge, .locked .timer, .locked .giant, .locked .verdict { display: none; }
+  .locked .team, .locked .badge, .locked .timer, .locked .giant, .locked .verdict, .locked .ctl-near, .locked .ctl-corner { display: none; }
   /* أعلى اليسار، حيث لا شيء من الهيكل، ويختفي في ملء الشاشة وفي النافذة الواحدة. */
   #fs { position: fixed; top: 24px; left: 24px; font-size: 32px; }
   :fullscreen #fs, .embed #fs, .filled #fs, .idle #fs { display: none; }
@@ -29,37 +30,37 @@
 
     <section class="team t1" id="p1" data-hud="لوحة الفريق الأول">
       <div class="shape"></div><div class="turn"></div>
-      <div class="row" data-fit="لوحة الفريق الأول"><span class="name" id="n1">الفريق الأول</span><span class="score" id="s1"></span></div>
+      <div class="row" data-fit="لوحة الفريق الأول"><span class="name" id="n1">الفريق الأول</span><input class="name-in" id="i1" maxlength="18" autocomplete="off" placeholder="اكتب اسم الفريق الأول" aria-label="اسم الفريق الأول"><span class="score" id="s1"></span></div>
     </section>
-    <div class="strip t1" data-hud="شريط الفارق الأول"><i></i><span id="d1">تعادل</span></div>
 
     <div class="badge mode" data-hud="شارة النمط"><i></i><span id="mode">اختبار العرض</span></div>
     <div class="badge plain off" id="b1" data-hud="الشارة الأولى"><i></i><span></span></div>
     <div class="badge plain off" id="b2" data-hud="الشارة الثانية"><i></i><span></span></div>
-    <div class="badge steal off" id="b4" data-hud="شارة السرقة"><i></i><b class="mk"></b><span>سرقة</span></div>
     <div class="timer" id="timerBox" data-hud="العدّاد"><i></i><span id="timer">0:10</span></div>
     <div class="verdict" id="verdict" data-hud="الحكم" hidden><i></i><span id="vtext"></span></div>
 
     <div class="card-wrap" id="cardWrap" data-hud="البطاقة">
       <div class="plate"></div>
       <div class="card">
-        <div class="scr q show" data-s="q"><div class="letter" id="letter"></div><p class="question" id="label" data-fit="السؤال">نافذة الجمهور · بانتظار المقدّم</p></div>
+        <!-- السؤال، وتحته الإجابة النموذجية بعد الحكم الأخير وحده (الوثيقة 1.1، 7.1) -->
+        <div class="scr q show" data-s="q"><div class="letter" id="letter"></div><div class="qcol"><p class="question" id="label" data-fit="السؤال">نافذة الجمهور · بانتظار المقدّم</p><p class="reveal" id="reveal" data-fit="سطر الإجابة" hidden>الإجابة: <b id="answer"></b></p></div></div>
         <!-- الجولة (ش2): افتتاحها ونهايتها. والسؤال في القسم الأول نفسه -->
         <div class="scr intro" data-s="intro">
           <p class="rule" id="rule"></p>
-          <p class="sub" id="ruleSub"></p>
-          <p class="head" id="starter" data-fit="سطر البدء"></p>
+          <div class="crow"><p class="head" id="starter" data-fit="سطر البدء"></p><div class="ctl"></div></div>
         </div>
         <div class="scr end" data-s="end">
           <div class="cols">
             <div class="col"><p class="who t1" data-fit="اسم الفريق الأول"><i></i><span id="e1"></span></p><p class="pts tn t1" id="r1"></p></div>
             <div class="col"><p class="who t2" data-fit="اسم الفريق الثاني"><i></i><span id="e2"></span></p><p class="pts tn t2" id="r2"></p></div>
           </div>
-          <p class="next" id="next" data-fit="سطر التالي"></p>
+          <div class="crow"><p class="next" id="next" data-fit="سطر التالي"></p><div class="ctl"></div></div>
         </div>
+        <!-- الانتظار، وفي الشاشة المشتركة: عدد الأنماط و«ابدأ القرعة» (design/shared.md 4) -->
         <div class="scr title" data-s="title">
           <p class="big">التحدي الكبير</p>
           <p class="sub">المباراة تبدأ بعد قليل</p>
+          <div class="crow setup"><div class="count" id="count"></div><p class="err" id="err" hidden></p><div class="ctl"></div></div>
         </div>
         <div class="scr draw" data-s="spin">
           <p class="ask">من يختار نمط الجولة الأولى؟</p>
@@ -67,24 +68,30 @@
         <div class="scr draw" data-s="result">
           <p class="sub">الفائز بالقرعة</p>
           <p class="winner" id="winner" data-fit="اسم الفائز"></p>
-          <p class="sub">يختار نمط الجولة الأولى</p>
+          <div class="crow"><p class="sub">يختار نمط الجولة الأولى</p><div class="ctl"></div></div>
         </div>
         <div class="scr pick" data-s="pick">
-          <p class="head" id="pickHead" data-fit="سطر الاختيار"></p>
+          <div class="crow head-row"><p class="head" id="pickHead" data-fit="سطر الاختيار"></p><div class="ctl"></div></div>
           <div class="tiles" id="tiles"></div>
         </div>
         <div class="scr face" data-s="face">
           <p class="head" id="faceHead"></p>
           <div class="track" id="track"></div>
+          <p class="err" id="faceErr" hidden></p>
+          <div class="crow"><div class="ctl"></div></div>
         </div>
       </div>
     </div>
 
     <section class="team t2" id="p2" data-hud="لوحة الفريق الثاني">
       <div class="shape"></div><div class="turn"></div>
-      <div class="row" data-fit="لوحة الفريق الثاني"><span class="name" id="n2">الفريق الثاني</span><span class="score" id="s2"></span></div>
+      <div class="row" data-fit="لوحة الفريق الثاني"><span class="name" id="n2">الفريق الثاني</span><input class="name-in" id="i2" maxlength="18" autocomplete="off" placeholder="اكتب اسم الفريق الثاني" aria-label="اسم الفريق الثاني"><span class="score" id="s2"></span></div>
     </section>
-    <div class="strip t2" data-hud="شريط الفارق الثاني"><i></i><span id="d2">تعادل</span></div>
+
+    <!-- أزرار الشاشة المشتركة، بجانب ما تتحكم فيه (design/shared.md 3.2). فارغة في نافذة الجمهور وحدها -->
+    <div class="ctl-near" id="near" data-hud="أزرار العدّاد"></div>
+    <div class="ctl-corner a" id="cornerA" data-hud="أزرار الزاوية العليا"></div>
+    <div class="ctl-corner b" id="cornerB" data-hud="أزرار الزاوية السفلى"></div>
 
     <div class="shine" id="shine"></div>
     <div class="danger"></div>
@@ -101,7 +108,8 @@
   const $ = id => document.getElementById(id);
   const canvas = $('canvas');
   const query = new URLSearchParams(location.search);
-  if (query.has('embed')) document.body.classList.add('embed');
+  const embed = query.has('embed');
+  if (embed) document.body.classList.add('embed');
   const fit = () => document.documentElement.style.setProperty(
     '--scale', Math.min(innerWidth / 1920, innerHeight / 1080));
   addEventListener('resize', fit);
@@ -133,29 +141,27 @@
   const bump = team => replay($('p' + team), 'won');
 
   // صف الشارات من اليمين بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (design/start.html وdesign/letter.html):
-  // شارة النمط (في الجولة)، ثم الأولى، ثم الثانية، ثم السرقة.
-  function setBadges(a, b, steal = 0) {
+  // شارة النمط (في الجولة)، ثم الأولى، ثم الثانية. ولا شارة للحزمة ولا للطريقة ولا للمستوى ولا «سرقة» (design/shared.md 1).
+  function setBadges(a, b) {
     for (const [el, t] of [[$('b1'), a], [$('b2'), b]]) { el.classList.toggle('off', !t); el.querySelector('span').innerHTML = t ? num(t) : ''; }
-    $('b4').className = `badge steal t${steal}${steal ? '' : ' off'}`;
     const lean = Math.tan(14 * Math.PI / 180) * 64;
     let right = 108;
-    for (const el of [document.querySelector('.badge.mode'), $('b1'), $('b2'), $('b4')]) {
+    for (const el of [document.querySelector('.badge.mode'), $('b1'), $('b2')]) {
       if (!el.getClientRects().length) continue;
       el.style.right = right + 'px';
       right += el.offsetWidth + 24 + lean;
     }
   }
 
-  // ===== عرض حالة المباراة (ما يرسله المقدّم: الحالة، وأسماء الأنماط، واسم الحزمة، وما يُعرض من الجولة) =====
+  // ===== عرض حالة المباراة (ما يرسله المقدّم: الحالة، وأسماء الأنماط، وما يُعرض من الجولة) =====
   let view = null, shownPicks = -1, busy = false;
-  const methodText = m => m === 'full' ? 'مباراة كاملة · 4 جولات' : 'مباراة قصيرة · جولتان';
   const name = t => view.match.teams[t] || (t === 1 ? 'الفريق الأول' : 'الفريق الثاني');
   const tn = t => `<b class="tn t${t}">${esc(name(t))}</b>`;
 
   function render() {
     if (!view || busy) return;
     if (view.match.step === 'play' && view.play) return renderPlay(view.play);
-    const { match: m, modes, packName } = view;
+    const { match: m, modes } = view;
     const modeName = id => modes.find(x => x.id === id)?.name ?? id;
     const total = METHODS[m.method].rounds;
     canvas.classList.add('pre');
@@ -170,7 +176,7 @@
 
     if (m.step === 'setup') {
       showScreen('title');
-      setBadges(packName, packName && methodText(m.method));
+      setBadges();
     }
     if (m.step === 'draw') {
       setBadges('القرعة');
@@ -183,7 +189,7 @@
       if (done) {
         const auto = m.picks.find(p => p.by === 0);
         $('pickHead').innerHTML = auto ? `الجولة <span class="ltr">4</span> للنمط المتبقي: ${esc(modeName(auto.mode))}` : 'اكتمل اختيار الأنماط';
-        setBadges('اختيار الأنماط', methodText(m.method));
+        setBadges('اختيار الأنماط');
       } else {
         turn = chooser(m);
         const k = m.picks.length;
@@ -206,7 +212,7 @@
     shownPicks = m.step === 'pick' ? m.picks.length : -1;
     if (m.step === 'face') {
       showScreen('face');
-      setBadges('المواجهة', methodText(m.method));
+      setBadges('المواجهة');
       $('faceHead').innerHTML = `الفائز بالقرعة: ${tn(m.winner)}`;
       let n = 0;
       $('track').innerHTML = plan(m).map(s => s.kind === 'wheel'
@@ -215,6 +221,7 @@
       turn = m.winner;
     }
     setTurn(turn);
+    renderCtl();
   }
 
   // مربع الحرف أو الحرفين. في «آخر حرفين» التطويل والحرفان في عنصرين للحركة وحدها، والوصل لا ينقطع (design/last-two.md 2.1).
@@ -241,8 +248,7 @@
     if (w > inner) el.style.fontSize = Math.max(128, Math.floor(150 * inner / w)) + 'px';
   }
 
-  // ===== الجولة (design/letter.md، القسم 2): ما تعيده audience() من وحدة النمط، ولا إجابة فيه أبداً =====
-  const gap = (a, b) => a === b ? 'تعادل' : `${a > b ? 'يتقدّم' : 'يتأخر'} بفارق <span class="ltr">${Math.abs(a - b)}</span>`;
+  // ===== الجولة (design/letter.md 2 وdesign/shared.md 4): ما تعيده audience() من وحدة النمط، ولا إجابة فيه قبل الحكم الأخير =====
   function renderPlay(p) {
     const a = p.a, sc = p.scores;
     canvas.classList.remove('pre');
@@ -250,12 +256,11 @@
     $('n1').textContent = name(1); $('n2').textContent = name(2);
     $('s1').textContent = $('g1').textContent = sc[1];
     $('s2').textContent = $('g2').textContent = sc[2];
-    $('d1').innerHTML = gap(sc[1], sc[2]); $('d2').innerHTML = gap(sc[2], sc[1]);
     $('mode').textContent = p.modeName;
 
     if (a.screen === 'intro') {
       showScreen('intro');
-      $('rule').textContent = a.rule; $('ruleSub').innerHTML = num(a.sub);
+      $('rule').textContent = a.rule;
       $('starter').innerHTML = `يبدأ ${tn(a.turn)}`;
       setBadges(`الجولة ${p.n} من ${p.total}`);
     } else if (a.screen === 'end') {
@@ -268,7 +273,9 @@
       showScreen('q');
       setBox(a);
       $('label').textContent = a.question;
-      setBadges(a.levelText, `السؤال ${a.n} من ${a.count}`, a.steal?.team ?? 0);
+      $('reveal').hidden = !a.answer;
+      $('answer').textContent = a.answer ?? '';
+      setBadges(`السؤال ${a.n} من ${a.count}`);
     }
 
     // العدّاد ظاهر في كل سؤال: ثابتاً بوقته قبل «ابدأ»، ثم يعدّ. والحكم يحلّ محله بعد انتهاء السؤال.
@@ -277,10 +284,69 @@
     $('timerBox').hidden = a.screen !== 'ask' || !!v;
     if (v) {
       $('verdict').className = `verdict${v.team ? ' t' + v.team : ''}`;
-      $('vtext').innerHTML = num(v.team ? `صحيحة · +${v.points}` : 'لا نقاط');
+      // الفريق الذي أخذ النقاط باسمه (الوثيقة 1.1، 7.1).
+      $('vtext').innerHTML = v.team ? `${esc(name(v.team))} · ${num('+' + v.points)}` : 'لا نقاط';
     }
     syncTimer(p.timer, a);
     setTurn(a.turn);
+    renderCtl();
+  }
+
+  // ===== أزرار الشاشة المشتركة (design/shared.md 3): المقدّم يقرر ما يظهر (ctl)، وهنا موضعه =====
+  // ctl: { card, near, a, b: أزرار · count: خانتا العدد · names: اللوحتان حقلان · pick: الخانات تُنقر · scores · error }
+  // والزر { cmd, label, kind: '' | 'alt' | 'no', off }. يصل من النافذة التي تحتوي هذه الشاشة وحدها، فلا يظهر في نافذة الجمهور.
+  let ctl = null;
+  const button = b => `<button class="cbtn${b.kind ? ' ' + b.kind : ''}${b.off ? ' off' : ''}" data-cmd="${esc(b.cmd)}">${b.html ?? num(b.label)}</button>`;
+  const rows = list => (list ?? []).map(r => `<div class="ctl">${r.map(button).join('')}</div>`).join('');
+  function renderCtl() {
+    const c = embed && view ? ctl : null;
+    canvas.classList.toggle('editing', !!c?.names);
+    // أزرار البطاقة في الشاشة الظاهرة وحدها.
+    document.querySelectorAll('.card .ctl').forEach(el => { el.innerHTML = el.closest('.scr').classList.contains('show') ? (c?.card ?? []).map(button).join('') : ''; });
+    $('near').innerHTML = (c?.near ?? []).map(button).join('');
+    $('cornerA').innerHTML = rows(c?.a);
+    $('cornerB').innerHTML = rows(c?.b);
+    $('count').innerHTML = c?.count ? '<span class="lbl">عدد الأنماط</span>' + [['short', 2], ['full', 4]].map(([m, k]) =>
+      `<button class="ctile${c.count.value === m ? ' sel' : ''}${k === 4 && !c.count.four ? ' off' : ''}" data-cmd="count:${m}"><span class="ltr">${k}</span></button>`).join('') : '';
+    for (const id of ['err', 'faceErr']) { $(id).hidden = !c?.error; $(id).textContent = c?.error ?? ''; }
+    document.querySelector('.scr.title .sub').hidden = !!c;
+    $('tiles').querySelectorAll('.tile').forEach(t => { if (c?.pick && !t.classList.contains('by1') && !t.classList.contains('by2') && !t.classList.contains('auto') && !t.classList.contains('left')) t.dataset.cmd = 'pick:' + t.dataset.mode; else delete t.dataset.cmd; });
+    for (const k of [1, 2]) {
+      if (c?.scores) $('s' + k).dataset.cmd = 'scores'; else delete $('s' + k).dataset.cmd;
+      // الحقل الذي يُكتب فيه لا يُستبدل بما يعود من المقدّم، فلا يضيع حرف في الكتابة السريعة.
+      const input = $('i' + k), value = view?.match.teams[k] ?? '';
+      if (c?.names && input.value !== value && document.activeElement !== input) input.value = value;
+    }
+    placeNear();
+  }
+  // أزرار العدّاد يمينه (أي بعده في القراءة من اليسار) بفراغ 24 عند طرفه المائل (ارتفاع 80 × ظل 14° ÷ 2 = 10).
+  function placeNear() {
+    const at = [$('timerBox'), $('verdict')].find(el => el.getClientRects().length);
+    if (at) $('near').style.left = (at.offsetLeft + at.offsetWidth + 10 + 24) + 'px';
+  }
+  const send = (cmd, data = {}) => parent.postMessage({ bc: 'cmd', cmd, ...data }, location.origin);
+  if (embed) {
+    addEventListener('message', e => {
+      if (e.origin !== location.origin || e.source !== parent || e.data?.bc !== 'ctl') return;
+      ctl = e.data.ctl;
+      renderCtl();
+    });
+    document.addEventListener('click', e => {
+      const b = e.target.closest('[data-cmd]');
+      if (!b || b.classList.contains('off') || !ctl) return;
+      send(b.dataset.cmd);
+    });
+    // الاسمان يُكتبان في اللوحتين. Enter في الأول ينقل إلى الثاني، وفي الثاني = «ابدأ القرعة».
+    for (const k of [1, 2]) {
+      // الأرقام الهندية تصير إنجليزية في الحقل نفسه وهو يُكتب (القاعدة: أرقام إنجليزية في كل شاشة).
+      $('i' + k).addEventListener('input', e => {
+        const el = e.target, v = el.value.replace(/[\u0660-\u0669]/g, d => d.charCodeAt(0) - 0x0660).replace(/[\u06F0-\u06F9]/g, d => d.charCodeAt(0) - 0x06F0);
+        if (v !== el.value) { const at = el.selectionStart; el.value = v; el.setSelectionRange(at, at); }
+        send('teams', { a: $('i1').value, b: $('i2').value });
+      });
+      $('i' + k).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); k === 1 ? $('i2').focus() : send('draw'); } });
+    }
+    parent.postMessage({ bc: 'need-ctl' }, location.origin);
   }
 
   // ===== لحظات الحركة (design/start.md وdesign/letter.md، القسم 6). الحالة محسومة قبلها، والحركة عرض فقط =====
@@ -326,8 +392,8 @@
       }
       if (m.name === 'lead') later(700, () => { replay($('g' + m.team), 'lead'); replay($('g' + other(m.team)), 'lose'); });
       if (m.name === 'steal') {
-        // السرقة: البطاقة تهتز إن كانت خاطئة، ثم لمعة، والمؤشر يقفز إلى الخصم، وشارة السرقة تظهر. العدّاد لا ينتظر الحركة.
-        const go = () => { replay($('shine'), 'go'); bump(m.team); replay($('b4'), 'pop'); replay($('timerBox'), 'reset'); setTurn(m.team); };
+        // انتقال الإجابة (السرقة): البطاقة تهتز إن كانت خاطئة، ثم لمعة، والمؤشر يقفز إلى الخصم. لا شارة ولا كلمة «سرقة». العدّاد لا ينتظر الحركة.
+        const go = () => { replay($('shine'), 'go'); bump(m.team); replay($('timerBox'), 'reset'); setTurn(m.team); };
         if (m.reason === 'wrong') { replay($('cardWrap'), 'shake'); setTurn(0); later(240, go); } else go();
       }
     }
@@ -391,7 +457,7 @@
     }
     if (type === 'anim') { if (data.view) view = data.view; if (!count?.test) { setLocked(false); animate(data.name); } }
     if (type === 'start') {
-      setLocked(false);
+      setLocked(false); ctl = null; renderCtl();
       canvas.classList.remove('pre', 'fresh'); setTurn(0); showScreen('q'); setBadges();
       $('verdict').hidden = true; $('timerBox').hidden = false;
       $('label').textContent = 'العدّاد يعمل';

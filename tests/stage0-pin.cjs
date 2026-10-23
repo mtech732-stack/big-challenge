@@ -47,7 +47,7 @@ const { TEST_PIN, testPinRecord, usePin, unlock, reporter } = require('./helpers
   await page.fill('#pin', arabic);
   await page.press('#pin', 'Enter');
   await page.waitForSelector('#app:not([hidden])', { timeout: 10000 });
-  check('الرقم الصحيح (بأرقام عربية وزر Enter): تظهر نافذة المقدّم', await page.isVisible('#open'));
+  check('الرقم الصحيح (بأرقام عربية وزر Enter): تظهر الشاشة المشتركة', await page.isVisible('#single'));
   check('شاشة الرقم تختفي بعد الدخول', await page.isHidden('#gate'));
 
   // «مع كل فتح»: إعادة التحميل تطلب الرقم من جديد.
@@ -68,7 +68,7 @@ const { TEST_PIN, testPinRecord, usePin, unlock, reporter } = require('./helpers
   await page.reload();
   await context.setOffline(true);
   await unlock(page);
-  check('بلا إنترنت بعد دخول سابق: يُقبل الرقم بآخر صورة محفوظة', await page.isVisible('#open'));
+  check('بلا إنترنت بعد دخول سابق: يُقبل الرقم بآخر صورة محفوظة', await page.isVisible('#single'));
   await context.setOffline(false);
 
   // جهاز جديد بلا إنترنت ولا صورة محفوظة: رسالة واضحة، ولا يفتح.
@@ -104,7 +104,7 @@ const { TEST_PIN, testPinRecord, usePin, unlock, reporter } = require('./helpers
   await page.waitForSelector('#pin-error:not([hidden])');
   check('بعد تغيير الملف: الرقم القديم يُرفض', await page.isHidden('#app'));
   await unlock(page, '246802');
-  check('بعد تغيير الملف: الرقم الجديد يُقبل', await page.isVisible('#open'));
+  check('بعد تغيير الملف: الرقم الجديد يُقبل', await page.isVisible('#single'));
 
   // صفحة تغيير الرقم تولّد ملفاً صحيحاً.
   const tool = await context.newPage();
@@ -127,7 +127,7 @@ const { TEST_PIN, testPinRecord, usePin, unlock, reporter } = require('./helpers
   await usePin(context, made);
   await page.reload();
   await unlock(page, '864209');
-  check('الملف المولّد يفتح اللعبة بالرقم الجديد', await page.isVisible('#open'));
+  check('الملف المولّد يفتح اللعبة بالرقم الجديد', await page.isVisible('#single'));
 
   for (const p of [page, tool]) {
     check('لا أرقام هندية ولا ميل', !/[٠-٩۰-۹]/.test(await p.textContent('body')) &&

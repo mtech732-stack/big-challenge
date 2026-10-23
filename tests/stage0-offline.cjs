@@ -79,7 +79,7 @@ function referenced() {
   check('بلا إنترنت: الخط المرفق محمّل', await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('700 32px Kufi'); }));
   await unlock(page).catch(() => {});
   check('بلا إنترنت: يُقبل الرقم بآخر صورة محفوظة وتُفتح اللعبة', await page.isVisible('#open'));
-  check('بلا إنترنت: الحزمة تظهر في الإعداد (حُفظت من أول فتح)', (await page.textContent('#packs')).includes('الحزمة الثقافية العامة'));
+  check('بلا إنترنت: ملف الحزمة يُقرأ (حُفظ من أول فتح)', await page.evaluate(async () => (await (await fetch('content/packs/general/pack.json')).json()).name === 'الحزمة الثقافية العامة'));
 
   // نافذة الجمهور تُفتح بلا إنترنت وتتزامن.
   const [aud] = await Promise.all([context.waitForEvent('page'), page.click('#open')]);

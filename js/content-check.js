@@ -16,6 +16,8 @@ export const PACK_NAME_MAX = 30;
 export const ANSWER_MAX = 20;
 export const ALTS_MAX = 50;
 export const altsText = alts => (alts ?? []).join('، ');
+// أسئلة كل مستوى في الجولة لكل فريق سؤال (5.3 و5.4)، فسؤالان من كل مستوى في جولة «آخر حرفين» بنهاية واحدة.
+export const ROUND_PER_LEVEL = 2;
 const length = text => [...String(text)].length;
 
 // أحجام البنك المطلوبة (القسم 6.2 من الوثيقة)، للعرض لا للمنع.
@@ -214,6 +216,15 @@ export function checkContent({ index, packs, wheel }) {
           tally(mode, item.level);
         }
       });
+      // «آخر حرفين» بنهاية واحدة للجولة كلها (الوثيقة 1.1، 5.4 و6.2): البنك مجموعات، كل نهاية فيها سؤالان
+      // على الأقل من كل مستوى، فتكفي جولة كاملة. والنهاية الناقصة لا تُلعب، فتُرفض.
+      if (mode === 'last-two') {
+        const groups = {};
+        for (const q of list) if (typeof q?.ending === 'string' && LEVELS.includes(q.level)) (groups[q.ending] ??= { easy: 0, medium: 0, hard: 0 })[q.level]++;
+        for (const [ending, c] of Object.entries(groups)) {
+          if (LEVELS.some(l => c[l] < ROUND_PER_LEVEL)) err(`${file} · «${ending}»`, `مجموعة ناقصة: كل نهاية تحتاج ${ROUND_PER_LEVEL} من كل مستوى لتكفي جولة (الموجود: سهل ${c.easy} · متوسط ${c.medium} · صعب ${c.hard})`);
+        }
+      }
     }
   }
   for (const id of index?.packs ?? []) if (!packs[id]) err('packs/index.json', `الحزمة «${id}» مذكورة ولا مجلد لها`);

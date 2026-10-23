@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="css/base.css">
 <style>
   /* نافذة المقدّم بالرموز نفسها. كل المقاسات بوحدة rem، و1rem = 32 على شاشة عرضها 1920،
-     فأصغر نص 32 على أساس 1920×1080 كما في design/system.md (القسم 9). والقياسات من design/start.md (القسم 4). */
+     فأصغر نص 32 على أساس 1920×1080 كما في design/system.md (القسم 9). والقياسات من design/letter.md (القسم 4) وdesign/shared.md (القسم 6). */
   html { font-size: calc(100vw / 60); }
   body { font-size: 1rem; line-height: 1.5; }
   p, h1, h2, ol { margin: 0; }
@@ -21,16 +21,9 @@
 
   main { max-width: 52rem; margin: 0 auto; padding: 0.75rem 0; display: grid; gap: 0.75rem; }
 
-  /* الرأس: اسم اللعبة، وخطوات بدء المباراة، وزرّا المباراة الجديدة والرصيد */
+  /* الرأس: اسم اللعبة، وشارة الجولة ومسار أسئلتها، والصوت والرصيد */
   .top { display: flex; align-items: center; gap: 0.75rem; min-height: 2rem; }
   .top h1 { font-size: 1.25rem; font-weight: 900; margin-inline-end: auto; white-space: nowrap; }
-  .steps { list-style: none; padding: 0; display: flex; gap: 0.375rem; }
-  .steps li { position: relative; min-height: 2rem; padding: 0 1rem; display: flex; align-items: center; gap: 0.375rem; font-weight: 700; white-space: nowrap; color: var(--card); }
-  .steps li i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); box-shadow: inset 0 0 0 3px rgba(255,255,255,.55); }
-  .steps li span { position: relative; }
-  .steps li.done i { background: var(--stage-3); box-shadow: none; }
-  .steps li.now { color: var(--ink); }
-  .steps li.now i { background: var(--card); box-shadow: none; }
 
   /* لوحة: بطاقة بيضاء مستقيمة بظل صلب */
   .panel { background: var(--card); color: var(--ink); padding: 0.75rem 1.5rem; box-shadow: 0.375rem 0.375rem 0 var(--stage-3); display: grid; gap: 0.75rem; }
@@ -50,42 +43,6 @@
   .status[data-on="true"]::before { background: #1F9D55; }
   .notice { border-inline-start: 0.25rem solid var(--ink); padding-inline-start: 0.75rem; }
   .notice p { white-space: nowrap; }
-
-  /* الإعداد */
-  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1.5rem; }
-  .field { display: grid; gap: 0.25rem; align-content: start; }
-  .field > label, .legend { font-weight: 700; display: flex; align-items: center; gap: 0.375rem; }
-  .input { position: relative; }
-  .input input { box-sizing: border-box; width: 100%; height: 2.5rem; font: inherit; font-size: 1.25rem; font-weight: 700; color: var(--ink);
-    border: 3px solid var(--ink); border-radius: 0; padding: 0 0.75rem 0 4.5rem; background: var(--card); }
-  .input input.bad { border-color: var(--team-1); }
-  .input .count { position: absolute; left: 0.75rem; top: 50%; translate: 0 -50%; font-weight: 700; direction: ltr; }
-  .input .count.full { color: var(--team-1); }
-  .choices { display: flex; gap: 0.75rem; }
-  .choice { position: relative; flex: 1 1 0; min-height: 3rem; padding: 0.375rem 1rem; box-shadow: inset 0 0 0 3px var(--ink); cursor: pointer; display: grid; align-content: center; line-height: 1.25; }
-  .choice b { font-weight: 800; }
-  .choice.sel { background: var(--ink); color: var(--card); }
-  .choice.off { opacity: .45; cursor: default; }
-  .choice.bad { box-shadow: inset 0 0 0 3px var(--team-1); }
-  .choice input { position: absolute; opacity: 0; pointer-events: none; }
-
-  /* القرعة */
-  .result { display: grid; gap: 0.25rem; padding: 0.75rem 1rem; box-shadow: inset 0 0 0 3px var(--ink); }
-  .result .who { font-size: 1.5rem; font-weight: 900; line-height: 1.3; }
-
-  /* الأنماط: زر لكل نمط، وما اختير يبقى ظاهراً بلون من اختاره */
-  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-  .mode { min-height: 3rem; display: grid; align-content: center; justify-items: start; line-height: 1.25; padding: 0.375rem 1rem; text-align: start; }
-  .mode small { font-size: 1rem; font-weight: 700; }
-  .mode.by1 { background: var(--team-1); color: var(--card); opacity: 1; }
-  .mode.by2 { background: var(--team-2-ink); color: var(--card); opacity: 1; }
-  .mode.auto { background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink); opacity: 1; }
-
-  /* المواجهة: ملخص المباراة */
-  .plan { list-style: none; padding: 0; display: grid; gap: 0.25rem; }
-  .plan li { display: flex; gap: 0.75rem; align-items: center; }
-  .plan .rn { min-width: 5rem; font-weight: 800; }
-  .plan .wheel { font-weight: 700; padding-inline-start: 5.75rem; }
 
   /* تعديل الرصيد: يُفتح من الرأس في أي وقت */
   .scores { position: fixed; z-index: 7; top: 50%; left: 50%; translate: -50% -50%; width: 36rem; box-shadow: 0.375rem 0.375rem 0 var(--stage-3), 0 0 0 100vmax rgba(5,14,46,.6); }
@@ -137,17 +94,12 @@
   #gate .alert { margin: 0; color: var(--team-1); background: var(--card); padding: 0.25rem 0.5rem; border: 2px solid var(--team-1); }
   #mirror { font-size: 1.5rem; font-weight: 900; }
 
-  /* النافذة الواحدة (design/start.md، القسم 3): اللوحة كاملة، وتحتها شريط التحكم، والإطار 1920×1216 يُكبَّر معاً */
-  #single { position: fixed; inset: 0; z-index: 6; overflow: hidden; background: #050E2E; }
-  .frame { position: absolute; top: 50%; left: 50%; width: 1920px; height: 1216px; transform: translate(-50%, -50%) scale(var(--scale, 1)); }
+  /* الشاشة المشتركة (design/shared.md 2): لوحة الجمهور 1920×1080 تملأ النافذة، وأزرارها فيها. لا شريط تحتها */
+  #single { position: fixed; inset: 0; z-index: 6; overflow: clip; background: #050E2E; }
+  .frame { position: absolute; top: 50%; left: 50%; width: 1920px; height: 1080px; transform: translate(-50%, -50%) scale(var(--scale, 1)); }
   .frame iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; display: block; }
-  .band { position: absolute; left: 0; top: 1080px; width: 1920px; height: 136px; display: flex;
-    align-items: center; gap: 24px; padding: 0 48px; background: #050E2E; border-top: 4px solid var(--stage-3); }
-  .band .tag { font-size: 32px; font-weight: 700; color: var(--on-stage); white-space: nowrap; margin-inline-end: auto; background: none; height: 72px; padding: 0 24px; outline: 3px solid rgba(255,255,255,.45); outline-offset: -3px; }
-  .band button:not(.tag) { font-size: 32px; font-weight: 700; height: 72px; min-height: 72px; padding: 0 32px; background: var(--card); color: var(--ink); white-space: nowrap; }
-  .band button.alt { background: transparent; color: var(--on-stage); box-shadow: none; outline: 3px solid var(--card); outline-offset: -3px; }
-  .band button.no { background: transparent; color: var(--on-stage); box-shadow: none; outline: 3px solid var(--team-1); outline-offset: -3px; }
-  .band .gap { width: 24px; flex: none; }
+  /* بعد تسليم المباراة لنافذة المقدّم: إن أُغلقت تلك النافذة، تُتابَع المباراة من هنا */
+  #resume { position: fixed; z-index: 8; bottom: 1rem; right: 1rem; }
   body.one { overflow: hidden; }
 </style>
 </head>
@@ -163,107 +115,30 @@
 </section>
 
 <main id="app" hidden>
-  <header class="top" id="top">
+  <header class="top playing" id="top">
     <h1>التحدي الكبير</h1>
     <span class="chip" id="roundChip" hidden><i></i><span></span></span>
     <span class="pips" id="pips" aria-label="أسئلة الجولة" hidden></span>
     <!-- إن انقطعت نافذة الجمهور أثناء الجولة: يحلّ هذا محل مسار الأسئلة في الرأس -->
     <span class="lost" id="lost" hidden><button class="warn" id="lostOpen">افتح نافذة الجمهور</button><button class="on-stage alt" id="lostSingle">نافذة واحدة</button></span>
-    <ol class="steps" id="steps">
-      <li data-k="setup"><i></i><span><span class="ltr">1</span> الإعداد</span></li>
-      <li data-k="draw"><i></i><span><span class="ltr">2</span> القرعة</span></li>
-      <li data-k="pick"><i></i><span><span class="ltr">3</span> الأنماط</span></li>
-      <li data-k="face"><i></i><span><span class="ltr">4</span> المواجهة</span></li>
-    </ol>
-    <button class="on-stage alt" id="newMatch">مباراة جديدة</button>
     <button class="on-stage alt" id="mute" hidden>الصوت</button>
     <button class="on-stage alt" id="openScores">الرصيد</button>
   </header>
 
-  <!-- الشاشة: دائماً في الأعلى. التنبيه في سطرين يظهر في خطوة الإعداد ما دامت نافذة الجمهور غير متصلة -->
-  <section class="panel" id="screenPanel">
+  <!-- لوحة الشاشة: تظهر في «?test» وحده (اختبار النافذتين من ش0). وفي اللعب تُفتح نافذة الجمهور من «افتح نافذة الجمهور» في الرأس -->
+  <section class="panel" id="screenPanel" hidden>
     <div class="row">
       <span class="status" id="status" data-on="false">نافذة الجمهور غير متصلة</span>
       <button class="grow" id="open">افتح نافذة الجمهور</button>
-      <button class="alt" id="singleBtn">نافذة واحدة</button>
     </div>
     <div class="notice" id="notice">
       <p>اجعل الشاشة <b>«ممتدة»</b> لا «مطابقة» (<span class="ltr">Windows + P</span>، أو إعدادات الشاشات في Mac).</p>
-      <p>افتح نافذة الجمهور واسحبها إلى التلفاز ثم «ملء الشاشة». وإن تعذّر ذلك فاختر «نافذة واحدة».</p>
+      <p>افتح نافذة الجمهور واسحبها إلى التلفاز ثم «ملء الشاشة».</p>
     </div>
     <p id="blocked" class="alert" hidden>منع المتصفح فتح النافذة. اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد المحاولة.</p>
   </section>
 
-  <!-- 1. الإعداد -->
-  <section class="panel" data-step="setup">
-    <div class="cols">
-      <div class="field">
-        <label for="t1"><i class="mark t1"></i>الفريق الأول</label>
-        <div class="input"><input id="t1" maxlength="18" autocomplete="off"><span class="count" id="c1"></span></div>
-      </div>
-      <div class="field">
-        <label for="t2"><i class="mark t2"></i>الفريق الثاني</label>
-        <div class="input"><input id="t2" maxlength="18" autocomplete="off"><span class="count" id="c2"></span></div>
-      </div>
-      <div class="field">
-        <span class="legend">الحزمة</span>
-        <div class="choices" id="packs"></div>
-      </div>
-      <div class="field">
-        <span class="legend">طريقة اللعب</span>
-        <div class="choices" id="method">
-          <label class="choice" data-m="short"><input type="radio" name="method" value="short"><b>قصيرة</b><span>جولتان · عجلة واحدة</span></label>
-          <label class="choice" data-m="full"><input type="radio" name="method" value="full"><b>كاملة</b><span><span class="ltr">4</span> جولات · عجلتان</span></label>
-        </div>
-      </div>
-    </div>
-    <div class="row">
-      <button class="big" id="toDraw">إلى القرعة</button>
-      <span id="setupHint">يُتحقق من الرقم السري عند الضغط.</span>
-      <span class="alert" id="setupErr" hidden></span>
-    </div>
-  </section>
-
-  <!-- 2. القرعة -->
-  <section class="panel" data-step="draw" hidden>
-    <h2>القرعة</h2>
-    <p>الفائز بالقرعة يختار نمط الجولة الأولى. تظهر القرعة على شاشة الجمهور.</p>
-    <div class="result" id="drawResult" hidden>
-      <span>الفائز بالقرعة</span>
-      <span class="who" id="drawWho"></span>
-      <span>يختار نمط الجولة الأولى</span>
-    </div>
-    <div class="row">
-      <button class="alt" id="backSetup">رجوع إلى الإعداد</button>
-      <button class="big" id="drawBtn">ابدأ القرعة</button>
-      <button class="big" id="toPick" hidden>التالي: اختيار الأنماط</button>
-    </div>
-  </section>
-
-  <!-- 3. الأنماط -->
-  <section class="panel" data-step="pick" hidden>
-    <h2>اختيار الأنماط</h2>
-    <p id="pickWho"></p>
-    <div class="modes" id="modes"></div>
-    <div class="row">
-      <button class="alt" id="undoPick">تراجع عن آخر اختيار</button>
-      <button class="big grow" id="toFace">إلى شاشة المواجهة</button>
-    </div>
-  </section>
-
-  <!-- 4. المواجهة -->
-  <section class="panel" data-step="face" hidden>
-    <h2>شاشة المواجهة</h2>
-    <p id="faceWho"></p>
-    <ol class="plan" id="plan"></ol>
-    <div class="row">
-      <button class="alt" id="replay">أعد عرض المواجهة</button>
-      <span class="grow" id="faceHint"></span>
-      <button class="big" id="startRound">ابدأ الجولة <span class="ltr">1</span></button>
-    </div>
-  </section>
-
-  <!-- 5. الجولة (design/letter.md، القسم 4): افتتاحها، ثم السؤال والإجابة والحكم، ثم نهايتها -->
+  <!-- الجولة في نافذة المقدّم (design/letter.md 4 وdesign/shared.md 6): افتتاحها، ثم السؤال والإجابة والحكم، ثم نهايتها -->
   <section class="panel" data-step="play" data-part="intro" hidden>
     <h2 id="introHead"></h2>
     <p id="introWho"></p>
@@ -271,7 +146,7 @@
     <div class="row"><button class="alt" data-new>مباراة جديدة</button><button class="big grow" id="showQ"></button></div>
   </section>
 
-  <!-- السؤال، وتحته الإجابة النموذجية (لا تظهر إلا هنا) -->
+  <!-- السؤال، وتحته الإجابة النموذجية (يراها المقدّم من أول السؤال، والجمهور بعد الحكم الأخير) -->
   <section class="panel q" data-step="play" data-part="q" hidden>
     <div class="letter" id="qLetter"></div>
     <div>
@@ -327,7 +202,7 @@
     </div>
   </section>
 
-  <!-- تعديل الرصيد: طبقة فوق الخطوة، تُفتح من الرأس في أي وقت (خارج الجولة أيضاً)، ويُتراجع عنها -->
+  <!-- تعديل الرصيد: طبقة فوق الخطوة، تُفتح من «الرصيد» أو من رقم الفريق في الشاشة المشتركة، ويُتراجع عنها -->
   <section class="panel scores" id="scores" hidden>
     <h2>تعديل الرصيد</h2>
     <div class="line"><span class="tn t1" id="sn1"></span><button class="alt" data-team="1" data-d="-1">−</button><span class="val" id="sv1">0</span><button class="alt" data-team="1" data-d="1">+</button></div>
@@ -336,12 +211,12 @@
   </section>
 </main>
 
-<!-- النافذة الواحدة: شاشة الجمهور نفسها، وتحتها شريط فيه أزرار الانتقال وحدها، ولا شيء مما يُخفى عن الجمهور -->
+<!-- الشاشة المشتركة (design/shared.md): شاشة الجمهور نفسها بأزرارها، من الإعداد حتى «ابدأ المباراة»، وفي اللعب بنافذة واحدة.
+     وبعد تسليم المباراة لنافذة المقدّم تبقى هنا شاشةَ جمهور بلا أزرار -->
 <div id="single" hidden>
-  <div class="frame" id="frame">
-    <div class="band" id="band" aria-label="تحكم المقدّم في النافذة الواحدة"></div>
-  </div>
+  <div class="frame" id="frame"></div>
 </div>
+<button class="on-stage" id="resume" hidden>أُغلقت نافذة المقدّم · تابع بنافذة واحدة</button>
 
 <script type="module">
   import './js/offline.js';
@@ -354,14 +229,31 @@
 
   const $ = id => document.getElementById(id);
   const AUDIENCE = 'big-challenge-audience';
+  const PRESENTER = 'big-challenge-presenter';
   const SAVE_KEY = 'big-challenge.match';
   const SEEN_KEY = 'big-challenge.seen';   // ذاكرة الأسئلة المستعملة على هذا الجهاز (docs/decisions.md)
   const MUTE_KEY = 'big-challenge.muted';
+  // في ذاكرة هذا التبويب وحده (sessionStorage)، وتُنسخ إلى النافذة التي يفتحها: الرقم المُدخل، فتفتح نافذة المقدّم
+  // دون إعادة إدخاله، ودور النافذة بعد تسليم المباراة ('stage')، فإن أُعيد تحميلها بقيت شاشة جمهور (docs/decisions.md).
+  const PIN_KEY = 'big-challenge.pin';
+  const ROLE_KEY = 'big-challenge.role';
   const DRAW_MS = 2690; // مدة حركة القرعة على شاشة الجمهور (design/start.md، القسم 6)
   const query = new URLSearchParams(location.search);
-  let link = null, watcher = null, packs = [], match = null, drawing = 0;
+  const TEST = query.has('test');   // صفحة اختبار النافذتين من ش0: لوحة الشاشة والعدّاد التجريبي وحدهما
+  const HOST = query.has('host');   // نافذة المقدّم التي تفتحها «ابدأ المباراة»
+  const session = {
+    get: k => { try { return sessionStorage.getItem(k); } catch { return null; } },
+    set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} },
+  };
+  let link = null, watcher = null, packs = [], match = null, drawing = 0, pin = '', faceError = '';
   let muted = false;
   try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch {}
+  // presenter: هذه النافذة تملك المباراة · stage: سلّمتها لنافذة المقدّم، وبقيت شاشة جمهور.
+  let role = 'presenter', closing = false;
+  // handing: لحظة التسليم نفسها، فلا تُزال شاشة الجمهور من هذه النافذة ثم تُعاد.
+  let handing = false;
+  // تسليم المباراة بين النوافذ (الشاشة المشتركة ونافذة المقدّم) في المتصفح نفسه.
+  const roles = new BroadcastChannel('big-challenge-roles');
 
   // ===== الرقم السري: لا يبدأ شيء قبله، ولا تُنشأ قناة التزامن قبله =====
   const showError = text => { $('pin-error').textContent = text; $('pin-error').hidden = false; };
@@ -369,58 +261,73 @@
     event.preventDefault();
     $('enter').disabled = true;
     $('pin-error').hidden = true;
-    const pin = $('pin').value;
+    const value = $('pin').value;
     const { record, bad } = await fetchPinRecord();
     if (bad) {
       showError('ملف الرقم السري فيه خطأ. أعد لصقه من صفحة التغيير.');
     } else if (!record) {
       showError('تعذّر التحقق: لا اتصال بالإنترنت. اتصل ثم أعد المحاولة.');
-    } else if (await checkPin(pin, record)) {
-      await unlock(pin);
+    } else if (await checkPin(value, record)) {
+      await unlock(value);
     } else {
       showError('الرقم غير صحيح');
       $('pin').select();
     }
     $('enter').disabled = false;
   };
+  // الرقم المحفوظ في هذا التبويب: يُتحقق منه كما لو أُدخل، وإلا طُلب.
+  async function unlockStored() {
+    const stored = session.get(PIN_KEY);
+    if (!stored) return false;
+    const { record } = await fetchPinRecord();
+    if (!record || !(await checkPin(stored, record))) return false;
+    await unlock(stored);
+    return true;
+  }
 
-  async function unlock(pin) {
+  async function unlock(value) {
+    pin = value;
+    session.set(PIN_KEY, value);
     $('pin').value = '';
     if (!packs.length) packs = await loadPacks();
-    let reset = false;
-    if (!match) { const saved = restore(); match = fitSaved(saved); reset = match !== saved && match.step !== saved.step; match = fitMethod(match); }
+    const saved = restore();
+    match = fitMethod(fitSaved(saved));
+    const reset = match.step !== saved.step;
     $('gate').hidden = true;
     $('app').hidden = false;
-    if (!link) startPresenter();
+    if (!link) startLink();
     link.send('unlock');
     link.send('view', view());
+    watcher?.stop();
     watcher = watchPin(pin, lock);
-    render(reset ? { field: null, text: 'عادت المباراة إلى الإعداد لأنها بدأت في رابط المعاينة. الاسمان كما هما.' } : undefined);
+    if (HOST) roles.postMessage({ type: 'alive' });
+    render(reset ? { text: 'عادت المباراة إلى البداية.' } : undefined);
   }
 
   // تغيّر الرقم في المستودع: تُغلق اللعبة فوراً في النافذتين، ويُطلب الرقم الجديد.
   function lock() {
     watcher?.stop();
     link?.send('lock');
-    leaveSingle();
     $('app').hidden = true;
     $('gate').hidden = false;
+    render();
     showError('تغيّر الرقم السري. أدخل الرقم الجديد.');
     $('pin').focus();
   }
 
-  // التحقق من الرقم الآن (يُستدعى أيضاً عند «إلى القرعة»، أي عند بدء كل مباراة جديدة).
+  // التحقق من الرقم الآن (يُستدعى أيضاً عند «ابدأ القرعة»، أي عند بدء كل مباراة جديدة).
   window.verifyPinNow = () => watcher?.checkNow();
 
   // ===== حفظ المباراة: إن أُعيد تحميل المتصفح عادت من حيث توقفت (docs/decisions.md) =====
   function restore() {
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch {}
-    if (M.isMatch(saved) && (!saved.pack || packs.some(p => p.id === saved.pack))) return saved;
+    if (M.isMatch(saved) && (!saved.pack || packs.some(p => p.id === saved.pack))) return saved.pack ? saved : { ...saved, pack: packs[0]?.id ?? null };
     return M.newMatch({ pack: packs[0]?.id ?? null });
   }
   const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(match)); } catch {} };
 
+  // الحزمة تُختار تلقائياً ولا تظهر (الوثيقة 1.1، 4.5): الحزمة الأولى في الفهرس.
   const pack = () => packs.find(p => p.id === match.pack);
   // الأنماط التي يختار منها الفريقان: المبنية وحدها، ولها ملف أسئلة في الحزمة، وما لم تستثنه (ملاحظة تدقيق ش1، البند 6).
   // و«?preview» في الرابط يضيف إليها معاينة ما لم يُبنَ بعد، للتجربة أثناء البناء وحدها، لا في مباراة تُلعب.
@@ -428,26 +335,26 @@
   const modesOf = p => (!p ? [] : PREVIEW ? matchModes({ pack: p, files: p.files }) : pickableModes({ pack: p, files: p.files }));
   const modes = () => modesOf(pack());
   const modeName = id => (pack() ? matchModes({ pack: pack(), files: pack().files }) : []).find(m => m.id === id)?.name ?? id;
-  // طريقة جولاتها أكثر من أنماط الحزمة لا تُختار: تصير «قصيرة» في الإعداد، فلا تعلق المباراة في اختيار الأنماط.
+  // عدد أنماط أكبر مما في الحزمة لا يُختار: يصير 2 في الإعداد، فلا تعلق المباراة في اختيار الأنماط.
   // مباراة محفوظة بدأت في رابط المعاينة ثم فُتح الرابط العادي، ولم تبدأ مواجهتها: إن كان فيها نمط لا يُختار هنا،
-  // أو طريقتها أكبر من أنماط الحزمة، عادت إلى الإعداد بالاسمين، كي لا يقف الاختيار بلا زر (تقرير المعاين ش3).
+  // أو عدد أنماطها أكبر مما في الحزمة، عادت إلى الإعداد بالاسمين، كي لا يقف الاختيار (تقرير المعاين ش3).
   // وإن بلغت المواجهة فلا تعلق: الجولة التي لم يُبنَ نمطها يُتخطى بزر «تخطَّ».
   function fitSaved(m) {
     if (PREVIEW || !['draw', 'pick'].includes(m.step)) return m;
     const available = modesOf(packs.find(p => p.id === m.pack));
     const bad = m.picks.some(p => !available.some(x => x.id === p.mode)) || M.METHODS[m.method].rounds > available.length;
-    return bad ? { ...M.newMatch({ pack: m.pack, method: 'short' }), teams: m.teams, single: m.single } : m;
+    return bad ? { ...M.newMatch({ pack: m.pack, method: 'short' }), teams: m.teams } : m;
   }
   const fitMethod = m => (m?.step === 'setup' && M.METHODS[m.method].rounds > modesOf(packs.find(p => p.id === m.pack)).length ? { ...m, method: 'short' } : m);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const num = s => esc(s).replace(/(\+?\d+)/g, '<span class="ltr">$1</span>');
   const tn = t => `<b class="tn t${t}">${esc(match.teams[t])}</b>`;
 
-  // ما تعرضه شاشة الجمهور: حالة المباراة وأسماء الأنماط واسم الحزمة، ومن الجولة ما تعيده audience() وحدها.
+  // ما تعرضه شاشة الجمهور: حالة المباراة وأسماء الأنماط، ومن الجولة ما تعيده audience() وحدها.
   // الجولة نفسها (وفيها الإجابات) لا تُرسل أبداً.
   const view = (moments = []) => {
     const { history, round, ...pub } = match;
-    return { match: pub, modes: modes().map(({ id, name }) => ({ id, name })), packName: pack()?.name ?? '', play: playView(), muted, moments };
+    return { match: pub, modes: modes().map(({ id, name }) => ({ id, name })), play: playView(), muted, moments };
   };
   const roundMode = () => match.round && P.modeOf(MODES, match.round.mode);
   function playView() {
@@ -465,10 +372,11 @@
   function update(next, anim) {
     next = fitMethod(next);
     if (next === match && !anim) return;
+    if (next.step !== match.step) faceError = '';
     match = next;
     save();
-    if (anim) link.send('anim', { name: anim, view: view() });
-    else link.send('view', view());
+    if (anim) link?.send('anim', { name: anim, view: view() });
+    else link?.send('view', view());
     render();
   }
 
@@ -480,7 +388,7 @@
     const changed = next.round?.state !== match.round?.state;
     match = events.some(e => e.type === 'timer') ? { ...next, timerAt: Date.now() } : next;
     save();
-    link.send('view', view(events.filter(e => e.type === 'moment')));
+    link?.send('view', view(events.filter(e => e.type === 'moment')));
     if (changed) hold();
     render();
   }
@@ -508,147 +416,141 @@
   }
   // نقرتان على «تخطَّ…» لا تتخطيان عنصرين.
   const skipNext = () => { if (held()) return; const next = P.skipNext(match, MODES); if (next !== match) hold(); update(next); };
-  // ما لم يُبنَ بعد يُتخطى في التجربة، ويُذكر موعده (القسم 11 من الوثيقة).
+  // ما لم يُبنَ بعد يُتخطى في التجربة، ويُذكر موعده (القسم 11 من الوثيقة). text: نص الزر بلا ترميز.
   const LATER = { 'last-two': 3, auction: 4, ranking: 5 };
   function nextButton() {
     const kind = P.nextKind(match, MODES), item = P.upcoming(match);
-    if (kind === 'final') return { label: 'إلى النتيجة النهائية', short: 'إلى النتيجة النهائية', off: true, hint: 'النتيجة النهائية وإعلان الفائز تُبنى في الشريحة <span class="ltr">7</span>.' };
-    if (kind === 'start') return { label: num(`ابدأ الجولة ${item.n}`), short: num(`ابدأ الجولة ${item.n}`), act: 'startNext' };
-    if (item.kind === 'wheel') return { label: 'تخطَّ عجلة البونص', short: 'تخطَّ العجلة', act: 'skipNext', hint: 'عجلة البونص تُبنى في الشريحة <span class="ltr">6</span>، فتُتخطى الآن في التجربة.' };
-    return { label: num(`تخطَّ الجولة ${item.n}`), short: num(`تخطَّ الجولة ${item.n}`), act: 'skipNext',
-      hint: `«${esc(modeName(item.mode))}» يُبنى في الشريحة <span class="ltr">${LATER[item.mode] ?? ''}</span>، فتُتخطى جولته الآن في التجربة.` };
+    const make = (text, rest) => ({ text, label: num(text), ...rest });
+    if (kind === 'final') return make('إلى النتيجة النهائية', { off: true, hint: 'النتيجة النهائية وإعلان الفائز تُبنى في الشريحة <span class="ltr">7</span>.' });
+    if (kind === 'start') return make(`ابدأ الجولة ${item.n}`, { act: 'startNext' });
+    if (item.kind === 'wheel') return make('تخطَّ عجلة البونص', { act: 'skipNext', hint: 'عجلة البونص تُبنى في الشريحة <span class="ltr">6</span>، فتُتخطى الآن في التجربة.' });
+    return make(`تخطَّ الجولة ${item.n}`, { act: 'skipNext',
+      hint: `«${esc(modeName(item.mode))}» يُبنى في الشريحة <span class="ltr">${LATER[item.mode] ?? ''}</span>، فتُتخطى جولته الآن في التجربة.` });
   }
 
-  // ===== الخطوات =====
+  // ===== البداية على الشاشة المشتركة (design/shared.md 4) =====
   async function goDraw() {
+    if (match.step !== 'setup') return;
     const errors = M.setupErrors(match, modes());
     if (errors.length) return render(errors[0]);
     // التحقق من الرقم السري عند بدء كل مباراة جديدة (4.3): إن تأكد تغيّره أُغلقت اللعبة.
-    $('toDraw').disabled = true;
     const result = await watcher?.checkNow();
-    $('toDraw').disabled = false;
     if (result === 'changed') return;
     update(M.toDraw(match));
-    if (match.single) startDraw();
+    startDraw();
   }
 
   function startDraw() {
     if (match.step !== 'draw' || match.winner) return;
     update(M.draw(match), 'draw');
-    // النتيجة محسومة ومحفوظة، وتظهر للمقدّم حين تقف حركتها أمام الجمهور.
+    // النتيجة محسومة ومحفوظة، وتظهر أزرارها حين تقف حركتها أمام الجمهور.
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     drawing = reduced ? 0 : setTimeout(() => { drawing = 0; render(); }, DRAW_MS);
     render();
   }
 
+  // «ابدأ المباراة» من المواجهة: بنافذتين تُفتح نافذة المقدّم وتبقى هذه شاشة الجمهور، أو بنافذة واحدة بأزرارها.
+  // النافذة تُفتح أولاً في النقرة نفسها، ثم تُحفظ الجولة الأولى قبل أن تقرأها (النافذتان في المتصفح نفسه).
+  function begin(single) {
+    if (held()) return;
+    const nb = nextButton();
+    if (nb.act !== 'startNext') return actions[nb.act]?.();
+    if (!single && !openPresenter()) return;
+    handing = !single;
+    match = { ...match, single };
+    startNext();
+    if (!single) becomeStage();
+  }
+  // نافذة المقدّم: تُفتح من نقرة على الشاشة المشتركة. إن منعها المتصفح بقيت المشتركة وظهر السبب في البطاقة.
+  function openPresenter() {
+    const win = window.open('index.html?host', PRESENTER, 'popup,width=1280,height=800');
+    faceError = win ? '' : 'منع المتصفح نافذة المقدّم. اسمح بالنوافذ المنبثقة أو ابدأ بنافذة واحدة.';
+    if (!win) render();
+    return !!win;
+  }
+  // في الجولة بنافذة واحدة: «افتح نافذة المقدّم» يسلّمها كما هي.
+  function toPresenter() {
+    if (!openPresenter()) return;
+    handing = true;
+    update({ ...match, single: false });
+    becomeStage();
+  }
+
+  // ===== تسليم المباراة بين النوافذ =====
+  // هذه النافذة تصير شاشة جمهور: تُغلق قناتها دون «bye»، وتبقى شاشتها كما هي، ونافذة المقدّم تكمل المباراة.
+  function becomeStage() {
+    role = 'stage';
+    handing = false;
+    session.set(ROLE_KEY, 'stage');
+    watcher?.stop(); watcher = null;
+    link?.close(); link = null;
+    $('scores').hidden = true;
+    $('app').hidden = true;
+    $('gate').hidden = true;
+    render();
+  }
+  // تعود المباراة إلى هذه النافذة (مباراة جديدة من نافذة المقدّم، أو «تابع بنافذة واحدة» بعد إغلاقها).
+  async function takeOver(single) {
+    role = 'presenter';
+    session.set(ROLE_KEY, 'presenter');
+    $('resume').hidden = true;
+    // شاشة الجمهور تبقى كما هي أثناء التسليم، فلا تومض على التلفاز.
+    handing = true;
+    const ok = await unlockStored();
+    handing = false;
+    if (!ok) { $('gate').hidden = false; $('app').hidden = true; render(); return; }
+    if (single && match.step === 'play' && !match.single) update({ ...match, single: true });
+    else render();
+    roles.postMessage({ type: 'taken' });
+  }
+  // من نافذة المقدّم: تُعطى المباراة للشاشة المشتركة إن كانت مفتوحة، فتُغلق هذه نفسها. وإلا بقيت هنا.
+  const giveBack = () => roles.postMessage({ type: 'take' });
+  roles.onmessage = ({ data }) => {
+    if (role === 'stage' && data?.type === 'take') takeOver(false);
+    if (role === 'stage' && data?.type === 'gone') { $('resume').hidden = false; }
+    if (role === 'stage' && data?.type === 'alive') { $('resume').hidden = true; }
+    if (role === 'presenter' && HOST && data?.type === 'taken') { closing = true; watcher?.stop(); link?.close(); link = null; window.close(); }
+  };
+  addEventListener('pagehide', () => { if (HOST && role === 'presenter' && !closing) roles.postMessage({ type: 'gone' }); });
+  $('resume').onclick = () => takeOver(true);
+
+  function newMatch() {
+    if (match.step !== 'setup' && !confirm('تبدأ مباراة جديدة ويُمحى ما سبق. أتتابع؟')) return;
+    clearTimeout(drawing); drawing = 0;
+    update(M.newMatch({ pack: match.pack, method: match.method }));
+    if (HOST) giveBack();
+  }
+
+  // ===== العرض =====
+  // الشاشة المشتركة ظاهرة: قبل «ابدأ المباراة» دائماً، وفي اللعب بنافذة واحدة، وفي هذه النافذة بعد تسليمها.
+  const shared = () => !TEST && role === 'presenter' && !$('app').hidden && (match.step !== 'play' || match.single);
   function render(error) {
     if (!match) return;
-    const step = match.step, order = M.STEPS;
-    document.querySelectorAll('#steps li').forEach(li => {
-      const i = order.indexOf(li.dataset.k), now = order.indexOf(step);
-      li.className = i < now ? 'done' : i === now ? 'now' : '';
-    });
-    document.querySelectorAll('[data-step]:not([data-part])').forEach(s => s.hidden = s.dataset.step !== step);
-    $('notice').hidden = link?.connected || step !== 'setup';
-    // أثناء الجولة: لا لوحة شاشة، ولا خطوات بدء المباراة، والرأس بشارة الجولة ومسار أسئلتها (design/letter.md 4.1).
-    const playing = step === 'play';
-    $('screenPanel').hidden = playing;
-    $('steps').hidden = $('newMatch').hidden = playing;
+    const playing = match.step === 'play';
+    $('screenPanel').hidden = !TEST;
+    $('notice').hidden = !!link?.connected;
+    $('testPanel').hidden = !TEST;
     $('mute').hidden = !playing;
     $('mute').textContent = muted ? 'مكتوم' : 'الصوت';
-    $('top').classList.toggle('playing', playing);
     renderPlay();
-    $('testPanel').hidden = !query.has('test');
-
-    // الإعداد
-    for (const k of [1, 2]) {
-      const input = $('t' + k);
-      if (input.value !== match.teams[k]) {
-        // تحويل الأرقام لا يغيّر الطول، فيبقى المؤشر في موضعه.
-        const [a, b] = [input.selectionStart, input.selectionEnd];
-        input.value = match.teams[k];
-        if (document.activeElement === input) input.setSelectionRange(a, b);
-      }
-      const n = [...input.value].length;
-      $('c' + k).textContent = `${n} / 18`;
-      $('c' + k).classList.toggle('full', n >= 18);
-      input.classList.toggle('bad', error?.field === k);
-    }
-    const available = modes();
-    $('packs').innerHTML = packs.length
-      ? packs.map(p => `<label class="choice${p.id === match.pack ? ' sel' : ''}${error?.field === 'pack' ? ' bad' : ''}" data-p="${esc(p.id)}"><input type="radio" name="pack"${p.id === match.pack ? ' checked' : ''}><b>${esc(p.name)}</b><span>${esc(p.description)}</span></label>`).join('')
-      : '<span class="alert">تعذّر تحميل الحزم. اتصل بالإنترنت ثم أعد فتح الصفحة.</span>';
-    document.querySelectorAll('#method .choice').forEach(c => {
-      const need = M.METHODS[c.dataset.m].rounds;
-      c.classList.toggle('sel', c.dataset.m === match.method);
-      c.classList.toggle('off', available.length < need);
-      // سبب تعطيل «كاملة» ظاهر في خانتها، لا في رسالة بعد النقر.
-      if (c.dataset.m === 'full') c.querySelector('span').innerHTML = available.length < need
-        ? `المتاح <span class="ltr">${available.length}</span> من <span class="ltr">${need}</span> أنماط`
-        : '<span class="ltr">4</span> جولات · عجلتان';
-      c.querySelector('input').checked = c.dataset.m === match.method;
-    });
-    $('setupErr').hidden = !error;
-    $('setupErr').textContent = error?.text ?? '';
-    $('setupHint').hidden = !!error;
-
-    // القرعة
-    const shown = match.winner && !drawing;
-    $('drawResult').hidden = !shown;
-    if (match.winner) $('drawWho').innerHTML = tn(match.winner);
-    $('drawBtn').hidden = !!shown;
-    $('drawBtn').disabled = !!match.winner;
-    $('drawBtn').textContent = match.winner ? 'القرعة جارية…' : 'ابدأ القرعة';
-    $('toPick').hidden = !shown;
-    $('backSetup').hidden = !!match.winner;
-
-    // الأنماط
-    const done = M.picksDone(match), who = M.chooser(match), total = M.rounds(match);
-    $('pickWho').innerHTML = done
-      ? (match.picks.some(p => p.by === 0) ? 'اكتمل الاختيار. الجولة <span class="ltr">4</span> للنمط المتبقي تلقائياً.' : 'اكتمل الاختيار.')
-      : `<i class="mark t${who}"></i> ${tn(who)} يختار نمط الجولة <span class="ltr">${match.picks.length + 1}</span> من <span class="ltr">${total}</span>`;
-    $('modes').innerHTML = available.map(m => {
-      const i = match.picks.findIndex(p => p.mode === m.id), p = match.picks[i];
-      if (!p) return `<button class="mode alt" data-mode="${esc(m.id)}"${done ? ' disabled' : ''}>${esc(m.name)}</button>`;
-      const by = p.by ? esc(match.teams[p.by]) : 'تلقائياً';
-      return `<button class="mode ${p.by ? 'by' + p.by : 'auto'}" disabled>${esc(m.name)}<small>${num('الجولة ' + (i + 1))} · ${by}</small></button>`;
-    }).join('');
-    $('undoPick').disabled = !match.picks.length;
-    $('toFace').disabled = !done;
-
-    // المواجهة
-    if (step === 'face') {
-      const nb = nextButton();
-      $('startRound').innerHTML = nb.label;
-      $('startRound').disabled = !!nb.off;
-      $('faceHint').innerHTML = nb.hint ?? '';
-      $('faceWho').innerHTML = `الفائز بالقرعة: ${tn(match.winner)}. شاشة المواجهة معروضة الآن على الجمهور.`;
-      $('plan').innerHTML = M.plan(match).map(s => s.kind === 'wheel'
-        ? '<li class="wheel">عجلة البونص</li>'
-        : `<li><span class="rn">${num('الجولة ' + s.n)}</span><span>${esc(modeName(s.mode))}</span><span>${s.by ? '· ' + tn(s.by) : '· تلقائياً'}</span></li>`).join('');
-    }
-
-    // الرصيد
     for (const k of [1, 2]) {
       $('sn' + k).textContent = match.teams[k] || (k === 1 ? 'الفريق الأول' : 'الفريق الثاني');
       $('sv' + k).textContent = match.scores[k];
     }
     $('undoScore').disabled = playing ? !match.round?.history.length : !match.history.length;
-
-    renderSingle();
+    renderStage(error);
     const wait = held();
-    document.querySelectorAll('[data-step="play"] button, #startRound, #band [data-act], #band [data-do="undo"], #band [data-do="startNext"], #band [data-do="skipNext"]')
-      .forEach(b => b.classList.toggle('held', wait));
+    document.querySelectorAll('[data-step="play"] button').forEach(b => b.classList.toggle('held', wait));
   }
 
-  // ===== الجولة: من presenter() و actions() في وحدة النمط (design/letter.md، القسم 4) =====
+  // ===== الجولة في نافذة المقدّم: من presenter() و actions() في وحدة النمط (design/letter.md 4 وdesign/shared.md 6) =====
   const mk = t => `<i class="mark t${t}"></i>`;
   const STATE_TEXT = { ready: 'لم يبدأ العدّاد', ask: 'العدّاد يعدّ على الشاشة', decided: 'انتهى السؤال' };
   function renderPlay() {
-    const mode = match.step === 'play' && roundMode();
+    const mode = !TEST && match.step === 'play' && !match.single && roundMode();
     $('roundChip').hidden = !mode;
-    $('pips').hidden = !mode || !link?.connected || match.single;
-    $('lost').hidden = !mode || link?.connected || match.single;
+    $('pips').hidden = !mode || !link?.connected;
+    $('lost').hidden = !mode || !!link?.connected;
     document.querySelectorAll('[data-part]').forEach(s => s.hidden = true);
     if (!mode) return;
     const st = match.round.state, pr = mode.presenter(st), acts = mode.actions(st);
@@ -668,14 +570,15 @@
     if (part === 'q') {
       $('qLetter').textContent = (pr.tatweel ? 'ـ' : '') + pr.letter;
       $('qPrompt').textContent = pr.question;
-      $('qMeta').innerHTML = num(`${pr.levelText} · السؤال ${pr.n} من ${pr.count}`);
+      // لا مستوى ولا «سرقة» في النصوص (الوثيقة 1.1، 7.3): نقاط السؤال على زر «صحيحة».
+      $('qMeta').innerHTML = num(`السؤال ${pr.n} من ${pr.count}`);
       $('qAnswer').textContent = pr.answer;
       $('qAlts').hidden = !pr.alts.length;
       $('qAlts').textContent = 'ويُقبل أيضاً: ' + pr.alts.join('، ');
       $('qAccept').textContent = pr.accept;
-      $('who').innerHTML = pr.steal ? `${mk(pr.turn)} سرقة: ${tn(pr.turn)}` : `${mk(pr.turn)} دور ${tn(pr.turn)}`;
+      $('who').innerHTML = `${mk(pr.turn)} دور ${tn(pr.turn)}`;
       $('qState').innerHTML = pr.phase === 'steal'
-        ? `${pr.steal.reason === 'timeout' ? 'بعد انتهاء الوقت' : 'بعد الخطأ'} · <span class="ltr">5</span> ثوانٍ`
+        ? `انتقلت الإجابة ${pr.steal.reason === 'timeout' ? 'بعد انتهاء الوقت' : 'بعد الخطأ'} · <span class="ltr">5</span> ثوانٍ`
         : STATE_TEXT[pr.phase] ?? '';
       const decided = pr.phase === 'decided';
       $('judge').hidden = decided;
@@ -702,76 +605,132 @@
     }
   }
 
-  // ===== النافذة الواحدة: الإعداد صفحة المقدّم كما هي، وما بعده اللوحة والشريط =====
-  function renderSingle() {
-    const on = !!match?.single && match.step !== 'setup' && !$('app').hidden;
+  // ===== الشاشة المشتركة: شاشة الجمهور في هذه النافذة، وأزرارها (design/shared.md 3 و4) =====
+  function renderStage(error) {
+    const on = role === 'stage' || handing || shared();
     $('single').hidden = !on;
     document.body.classList.toggle('one', on);
-    $('singleBtn').textContent = match?.single ? 'نافذتان' : 'نافذة واحدة';
-    if (!match?.single) return;
-    if (!$('frame').querySelector('iframe')) {
-      const frame = document.createElement('iframe');
+    let frame = $('frame').querySelector('iframe');
+    if (on && !frame) {
+      frame = document.createElement('iframe');
       frame.src = 'audience.html?embed';
       frame.title = 'شاشة الجمهور';
-      $('frame').prepend(frame);
+      $('frame').append(frame);
     }
-    fitSingle();
-    const step = match.step, done = M.picksDone(match);
-    let html = '<button class="tag" id="leaveSingle" title="العودة إلى نافذتين">نافذة واحدة · <span class="ltr">Esc</span> للخروج</button>';
-    if (step === 'draw') html += match.winner && !drawing ? '<button data-do="toPick">التالي: اختيار الأنماط</button>'
-      : match.winner ? '<button disabled>القرعة جارية…</button>' : '<button data-do="draw">ابدأ القرعة</button>';
+    if (!on && frame) frame.remove();
+    fitStage();
+    if (on) sendCtl(error);
+  }
+  const fitStage = () => document.documentElement.style.setProperty('--scale', Math.min(innerWidth / 1920, innerHeight / 1080));
+  addEventListener('resize', fitStage);
+  document.addEventListener('fullscreenchange', () => render());
+
+  // الأزرار التي تظهر على الشاشة المشتركة الآن، بمواضعها: card في البطاقة · near بجانب العدّاد · a وb صفوف الزاويتين.
+  // لا شيء منها يحمل الإجابة: نصوص الانتقال والحكم وحدها.
+  let lastError = null;
+  function controls(error) {
+    if (role !== 'presenter' || handing || !shared()) return null;
+    if (error !== undefined) lastError = error;
+    if (match.step !== 'setup') lastError = null;
+    const step = match.step, wait = held();
+    const c = { card: [], near: [], a: [], b: [] };
+    const fs = document.fullscreenElement ? [] : [{ cmd: 'fullscreen', label: 'ملء الشاشة', kind: 'alt' }];
+    const fresh = { cmd: 'new', label: 'مباراة جديدة', kind: 'alt' };
+    if (step === 'setup') {
+      c.names = true;
+      c.count = { value: match.method, four: modes().length >= M.METHODS.full.rounds };
+      c.card = [{ cmd: 'draw', label: 'ابدأ القرعة' }];
+      c.error = lastError?.text ?? '';
+      c.b = [fs];
+    }
+    if (step === 'draw') {
+      if (match.winner && !drawing) c.card = [{ cmd: 'toPick', label: 'اختيار الأنماط' }];
+      c.b = [[fresh], fs];
+    }
     if (step === 'pick') {
-      if (!done) html += modes().filter(m => !match.picks.some(p => p.mode === m.id)).map(m => `<button data-mode="${esc(m.id)}">${esc(m.name)}</button>`).join('');
-      html += `<button class="alt" data-do="undoPick"${match.picks.length ? '' : ' disabled'}>تراجع</button>`;
-      if (done) html += '<button data-do="toFace">إلى المواجهة</button>';
+      const done = M.picksDone(match);
+      c.pick = !done;
+      if (match.picks.length) c.card.push({ cmd: 'undoPick', label: 'تراجع', kind: 'alt' });
+      if (done) c.card.push({ cmd: 'toFace', label: 'إلى المواجهة' });
+      c.b = [[fresh], fs];
     }
-    const nb = (step === 'face' || step === 'play') && nextButton();
-    const nextHtml = () => `<button data-do="${nb.act ?? ''}"${nb.off ? ' disabled' : ''}>${nb.short}</button>`;
-    if (step === 'face') html += '<button class="alt" data-do="replay">أعد عرض المواجهة</button>' + nextHtml();
-    // الجولة (design/letter.md، القسم 3): الانتقال والحكم و«الرصيد» وحدها، ولا إجابة أبداً.
+    if (step === 'face') {
+      const nb = nextButton();
+      c.card = nb.act === 'startNext'
+        ? [{ cmd: 'begin', label: 'ابدأ المباراة' }, { cmd: 'single', label: 'بنافذة واحدة', kind: 'alt' }]
+        : [{ cmd: 'next', label: nb.text, off: !!nb.off }];
+      c.card.push({ cmd: 'replay', label: 'أعد العرض', kind: 'alt' });
+      c.error = faceError;
+      c.b = [[fresh], fs];
+    }
     const mode = step === 'play' && roundMode();
     if (mode) {
       const st = match.round.state, acts = mode.actions(st), screen = mode.audience(st).screen;
-      const has = id => acts.some(a => a.id === id);
-      if (has('show')) html += '<button data-act="show">اعرض السؤال <span class="ltr">1</span></button>';
-      if (has('start')) html += '<button data-act="start">ابدأ العدّاد</button><span class="gap"></span>';
-      if (has('correct')) html += '<button data-act="correct">صحيحة</button><button class="no" data-act="wrong">خاطئة</button>';
-      if (has('next')) html += `<button data-act="next">${st.index === st.questions.length - 1 ? 'إنهاء الجولة' : 'السؤال التالي'}</button>`;
-      if (screen === 'end') html += nextHtml();
-      if (screen !== 'intro') html += `<button class="alt" data-do="undo"${match.round.history.length ? '' : ' disabled'}>تراجع</button>`;
-      html += '<button class="alt" data-do="scores">الرصيد</button>';
+      const act = (id, label, kind) => acts.some(a => a.id === id) ? [{ cmd: 'act:' + id, label: label ?? acts.find(a => a.id === id).label, kind, off: wait }] : [];
+      if (screen === 'intro') c.card = act('show');
+      const last = st.index === st.questions.length - 1;
+      if (screen === 'ask') c.near = [...act('start', 'ابدأ'), ...act('correct'), ...act('wrong', null, 'no'), ...act('next', last ? 'إنهاء الجولة' : 'السؤال التالي')];
+      if (screen === 'end') { const nb = nextButton(); c.card = [{ cmd: 'next', label: nb.text, off: !!nb.off || wait }]; }
+      c.scores = true;
+      c.a = [[...(screen !== 'intro' ? [{ cmd: 'undo', label: 'تراجع', kind: 'alt', off: !match.round.history.length || wait }] : []), { cmd: 'mute', label: muted ? 'مكتوم' : 'الصوت', kind: 'alt' }],
+        [{ cmd: 'presenter', label: 'افتح نافذة المقدّم', kind: 'alt' }]];
+      c.b = [[{ cmd: 'scores', label: 'الرصيد', kind: 'alt' }, fresh], fs];
     }
-    $('band').innerHTML = html;
+    c.a = c.a.filter(r => r.length);
+    c.b = c.b.filter(r => r.length);
+    return c;
   }
-  const fitSingle = () => document.documentElement.style.setProperty('--scale', Math.min(innerWidth / 1920, innerHeight / 1216));
-  addEventListener('resize', fitSingle);
-  function leaveSingle() {
-    $('frame').querySelector('iframe')?.remove();
-    if (match?.single) { match = { ...match, single: false }; save(); }
-    $('single').hidden = true;
-    document.body.classList.remove('one');
+  function sendCtl(error) {
+    const frame = $('frame').querySelector('iframe');
+    frame?.contentWindow?.postMessage({ bc: 'ctl', ctl: controls(error) }, location.origin);
   }
 
+  const toggleMute = () => {
+    muted = !muted;
+    try { localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); } catch {}
+    link?.send('view', view());
+    render();
+  };
   const actions = {
-    draw: startDraw,
     toPick: () => update(M.toPick(match)),
     undoPick: () => update(M.undoPick(match)),
     toFace: () => update(M.toFace(match), 'face'),
-    replay: () => link.send('anim', { name: 'face', view: view() }),
+    replay: () => link?.send('anim', { name: 'face', view: view() }),
     startNext,
     skipNext,
     undo: () => { if (!held()) roundUpdate(P.undo(match)); },
     scores: () => { $('scores').hidden = !$('scores').hidden; },
   };
 
-  function startPresenter() {
+  // نقرات الشاشة المشتركة: تصل من شاشة الجمهور التي في هذه النافذة وحدها.
+  addEventListener('message', e => {
+    const frame = $('frame').querySelector('iframe');
+    if (!frame || e.source !== frame.contentWindow || e.origin !== location.origin || !match) return;
+    if (e.data?.bc === 'need-ctl') return sendCtl();
+    if (e.data?.bc !== 'cmd' || role !== 'presenter' || !shared()) return;
+    const [cmd, arg] = String(e.data.cmd).split(':');
+    if (cmd === 'teams' && match.step === 'setup') update(M.setTeams(match, String(e.data.a ?? ''), String(e.data.b ?? '')));
+    if (cmd === 'count' && match.step === 'setup' && M.METHODS[arg]?.rounds <= modes().length) update(M.setMethod(match, arg));
+    if (cmd === 'draw') match.step === 'setup' ? goDraw() : startDraw();
+    if (cmd === 'pick') update(M.pick(match, arg, modes()));
+    if (cmd === 'begin') begin(false);
+    if (cmd === 'single') begin(true);
+    if (cmd === 'act') roundAct(arg);
+    if (cmd === 'next') actions[nextButton().act]?.();
+    if (cmd === 'mute') toggleMute();
+    if (cmd === 'presenter') toPresenter();
+    if (cmd === 'new') newMatch();
+    if (cmd === 'fullscreen') document.documentElement.requestFullscreen?.().catch(() => {});
+    if (['toPick', 'undoPick', 'toFace', 'replay', 'undo', 'scores'].includes(cmd)) actions[cmd]();
+  });
+
+  function startLink() {
     link = createLink('presenter', (type, data) => {
       if (type === 'tick') $('mirror').textContent = data.text;
       // انتهى عدّاد في نافذة الجمهور: يُطبَّق إن طابق رقمه العدّاد الجاري، وإلا أُهمل (عقد الوحدة 5).
       if (type === 'timeout' && match && $('gate').hidden) roundUpdate(P.act(match, MODES, 'timeout', data.id));
       if (type === 'need-view') $('gate').hidden && match ? link.send('view', view()) : link.send('lock');
     });
-
     link.onStatus(on => {
       $('status').dataset.on = on;
       $('status').textContent = on ? 'نافذة الجمهور متصلة' : 'نافذة الجمهور غير متصلة';
@@ -781,87 +740,52 @@
       if (on && !$('gate').hidden) link.send('lock');
       render();
     });
+  }
 
-    // إن كانت نافذة الجمهور مفتوحة يُكتفى بإظهارها، فلا يُعاد تحميلها ولا تخرج من ملء الشاشة.
-    $('open').onclick = () => {
-      const win = window.open('', AUDIENCE, 'popup,width=1280,height=720');
-      $('blocked').hidden = !!win;
-      if (!win) return;
-      let fresh = true;
-      try { fresh = win.location.href === 'about:blank'; } catch {}
-      if (fresh) win.location.href = 'audience.html';
-      win.focus();
-    };
-    $('singleBtn').onclick = () => {
-      if (match.single) return leaveSingle(), render();
-      update({ ...match, single: true });
-    };
-    $('band').onclick = e => {
-      const b = e.target.closest('button');
-      if (!b || b.disabled) return;
-      if (b.id === 'leaveSingle') return leaveSingle(), render();
-      if (b.dataset.mode) return update(M.pick(match, b.dataset.mode, modes()));
-      if (b.dataset.act) return roundAct(b.dataset.act);
-      actions[b.dataset.do]?.();
-    };
-    addEventListener('keydown', e => { if (e.key === 'Escape' && !$('single').hidden) leaveSingle(), render(); });
+  // إن كانت نافذة الجمهور مفتوحة يُكتفى بإظهارها، فلا يُعاد تحميلها ولا تخرج من ملء الشاشة.
+  $('open').onclick = () => {
+    const win = window.open('', AUDIENCE, 'popup,width=1280,height=720');
+    $('blocked').hidden = !!win;
+    if (!win) return;
+    let fresh = true;
+    try { fresh = win.location.href === 'about:blank'; } catch {}
+    if (fresh) win.location.href = 'audience.html';
+    win.focus();
+  };
+  $('lostOpen').onclick = () => $('open').click();
+  // انقطعت نافذة الجمهور في اللعب: تُكمل المباراة في هذه النافذة بنافذة واحدة.
+  $('lostSingle').onclick = () => update({ ...match, single: true });
+  $('showQ').onclick = () => roundAct('show');
+  document.querySelectorAll('#judge [data-act], #nextQ').forEach(b => b.onclick = () => roundAct(b.dataset.act));
+  $('undo').onclick = $('endUndo').onclick = actions.undo;
+  $('endNext').onclick = () => actions[nextButton().act]?.();
+  $('mute').onclick = toggleMute;
+  document.querySelectorAll('[data-new]').forEach(b => b.onclick = newMatch);
+  $('openScores').onclick = actions.scores;
+  $('closeScores').onclick = () => { $('scores').hidden = true; };
+  // أثناء الجولة يُعدَّل الرصيد عبر مشغّل الجولة، فيُتراجع عنه كأي حكم (عقد الوحدة 5).
+  $('scores').onclick = e => {
+    const b = e.target.closest('[data-team]');
+    if (!b) return;
+    const team = +b.dataset.team;
+    if (match.step === 'play') roundUpdate(P.setScore(match, team, match.scores[team] + +b.dataset.d));
+    else update(M.adjustScore(match, team, +b.dataset.d));
+  };
+  // «تراجع» في طبقة الرصيد لا تقع عليه نقرة من زر آخر، فلا يُمهل.
+  $('undoScore').onclick = () => (match.step === 'play' ? roundUpdate(P.undo(match)) : update(M.undoScore(match)));
+  $('start').onclick = () => link?.send('start', { seconds: 10 });
+  $('reset').onclick = () => { link?.send('reset'); link?.send('view', view()); };
 
-    for (const k of [1, 2]) {
-      $('t' + k).oninput = () => update(M.setTeams(match, $('t1').value, $('t2').value));
-      // Enter في الحقل الأول ينقل إلى الثاني، وفي الثاني = «إلى القرعة».
-      $('t' + k).onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); k === 1 ? $('t2').focus() : goDraw(); } };
-    }
-    $('packs').onclick = e => { const c = e.target.closest('[data-p]'); if (c) { e.preventDefault(); update(M.setPack(match, c.dataset.p)); } };
-    $('method').onclick = e => {
-      const c = e.target.closest('[data-m]');
-      if (!c) return;
-      e.preventDefault();
-      if (!c.classList.contains('off')) update(M.setMethod(match, c.dataset.m));
-    };
-    $('toDraw').onclick = goDraw;
-    $('drawBtn').onclick = startDraw;
-    $('backSetup').onclick = () => update(M.backToSetup(match));
-    $('toPick').onclick = actions.toPick;
-    $('modes').onclick = e => { const b = e.target.closest('[data-mode]'); if (b && !b.disabled) update(M.pick(match, b.dataset.mode, modes())); };
-    $('undoPick').onclick = actions.undoPick;
-    $('toFace').onclick = actions.toFace;
-    $('replay').onclick = actions.replay;
-    $('startRound').onclick = () => actions[nextButton().act]?.();
-    $('endNext').onclick = () => actions[nextButton().act]?.();
-    $('showQ').onclick = () => roundAct('show');
-    document.querySelectorAll('#judge [data-act], #nextQ').forEach(b => b.onclick = () => roundAct(b.dataset.act));
-    $('undo').onclick = $('endUndo').onclick = actions.undo;
-    $('lostOpen').onclick = () => $('open').click();
-    $('lostSingle').onclick = () => $('singleBtn').click();
-    $('mute').onclick = () => {
-      muted = !muted;
-      try { localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); } catch {}
-      link.send('view', view());
-      render();
-    };
-    document.querySelectorAll('[data-new]').forEach(b => b.onclick = () => $('newMatch').onclick());
-    $('newMatch').onclick = () => {
-      if (match.step !== 'setup' && !confirm('تبدأ مباراة جديدة ويُمحى ما سبق. أتتابع؟')) return;
-      clearTimeout(drawing); drawing = 0;
-      const single = match.single;
-      update({ ...M.newMatch({ pack: match.pack, method: match.method }), single });
-    };
-
-    $('openScores').onclick = () => { $('scores').hidden = !$('scores').hidden; };
-    $('closeScores').onclick = () => { $('scores').hidden = true; };
-    // أثناء الجولة يُعدَّل الرصيد عبر مشغّل الجولة، فيُتراجع عنه كأي حكم (عقد الوحدة 5).
-    $('scores').onclick = e => {
-      const b = e.target.closest('[data-team]');
-      if (!b) return;
-      const team = +b.dataset.team;
-      if (match.step === 'play') roundUpdate(P.setScore(match, team, match.scores[team] + +b.dataset.d));
-      else update(M.adjustScore(match, team, +b.dataset.d));
-    };
-    // «تراجع» في طبقة الرصيد لا تقع عليه نقرة من زر آخر، فلا يُمهل.
-    $('undoScore').onclick = () => (match.step === 'play' ? roundUpdate(P.undo(match)) : update(M.undoScore(match)));
-
-    $('start').onclick = () => link.send('start', { seconds: 10 });
-    $('reset').onclick = () => { link.send('reset'); link.send('view', view()); };
+  // ===== عند الفتح =====
+  // نافذة المقدّم تفتح بالرقم الذي أُدخل في الشاشة المشتركة. والشاشة المشتركة بعد تسليمها تبقى شاشة جمهور بعد إعادة التحميل.
+  if (HOST) session.set(ROLE_KEY, 'presenter');
+  if (!HOST && !TEST && session.get(ROLE_KEY) === 'stage') {
+    role = 'stage';
+    $('gate').hidden = true;
+    match = M.newMatch();
+    renderStage();
+  } else if (HOST) {
+    unlockStored();
   }
 </script>
 </body>

@@ -29,15 +29,18 @@ export function createLink(role, onMessage) {
     onMessage(msg.type, msg.data);
   };
 
-  setInterval(() => {
+  const beat = setInterval(() => {
     send('ping');
     if (connected && performance.now() - lastSeen > LOST_AFTER_MS) setConnected(false);
   }, HEARTBEAT_MS);
-  addEventListener('pagehide', () => send('bye'));
+  const bye = () => send('bye');
+  addEventListener('pagehide', bye);
   send('hello');
 
   return {
     send,
+    // إغلاق القناة دون «bye»: حين تُسلَّم المباراة إلى نافذة مقدّم أخرى، فلا ترى نافذة الجمهور انقطاعاً.
+    close() { clearInterval(beat); removeEventListener('pagehide', bye); channel.close(); },
     onStatus(fn) { statusListeners.push(fn); fn(connected); },
     get connected() { return connected; },
   };

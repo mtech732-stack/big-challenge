@@ -35,4 +35,32 @@ function reporter() {
   };
 }
 
-module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter };
+// الشاشة المشتركة (الوثيقة 1.1، design/shared.md): شاشة الجمهور في إطار داخل الصفحة، وأزرارها فيها.
+async function stageFrame(page) {
+  await page.waitForSelector('#single:not([hidden]) iframe', { timeout: 10000 });
+  const frame = await (await page.$('#single iframe')).contentFrame();
+  await frame.waitForSelector('.scr.show', { timeout: 10000 });
+  return frame;
+}
+const cmd = (frame, c) => frame.click(`[data-cmd="${c}"]`, { timeout: 8000 });
+
+// من الإعداد إلى المواجهة بالنقر على الشاشة المشتركة. picks: الأنماط بترتيب اختيارها.
+async function sharedToFace(frame, { names, count = 'short', picks }) {
+  await frame.fill('#i1', names[0]);
+  await frame.fill('#i2', names[1]);
+  await cmd(frame, 'count:' + count);
+  await cmd(frame, 'draw');
+  await cmd(frame, 'toPick');
+  for (const id of picks) await cmd(frame, 'pick:' + id);
+  await cmd(frame, 'toFace');
+  await frame.waitForSelector('.scr.show[data-s="face"]');
+}
+
+// «ابدأ المباراة»: تُفتح نافذة المقدّم بالرقم نفسه، وتبقى هذه شاشة الجمهور.
+async function beginTwo(context, frame) {
+  const [host] = await Promise.all([context.waitForEvent('page'), cmd(frame, 'begin')]);
+  await host.waitForSelector('#app:not([hidden])', { timeout: 10000 });
+  return host;
+}
+
+module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo };
