@@ -96,6 +96,7 @@
     <button data-m="split v2 v4 ambient moments">د4</button>
     <button data-m="split v2 v4 ringcnt ambient moments">د4ب</button>
     <button data-m="split v2 v4 v5 ambient moments">د5</button>
+    <button data-m="split v2 v4 v5 v6 ambient moments">د6</button>
     <span class="sep"></span>
     <button data-a="auto" id="autoBtn">إيقاف</button>
     <button data-a="manual" id="manualBtn">تحكم يدوي</button>
@@ -243,15 +244,23 @@
   }));
   // النماذج: الحالية (دون إضافة) · أ الطبقات الثلاث · ب الأضواء والحالة · ج اللحظات فقط
   const models = document.querySelectorAll('.tools [data-m]');
+  // الإطار المتآكل يُرسم على قياس اللوحة الفعلي، بانحرافها 14°، فينطبق على حافتها في كل نموذج
+  const fitRings = () => requestAnimationFrame(() => document.querySelectorAll('.team > .ring').forEach(svg => {
+    const t = svg.parentElement, pad = -parseFloat(getComputedStyle(svg).left) || 0,
+      w = t.offsetWidth + 2 * pad, h = t.offsetHeight + 2 * pad, o = Math.tan(14 * Math.PI / 180) * h / 2;
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    svg.querySelector('polygon').setAttribute('points', `${o},0 ${w + o},0 ${w - o},${h} ${-o},${h}`);
+  }));
   const pick = b => {
-    canvas.classList.remove('ambient', 'moments', 'split', 'wedge-on', 'v2', 'v4', 'ringcnt', 'v5');
+    canvas.classList.remove('ambient', 'moments', 'split', 'wedge-on', 'v2', 'v4', 'ringcnt', 'v5', 'v6');
+    fitRings();
     b.dataset.m.split(' ').filter(Boolean).forEach(c => canvas.classList.add(c));
     models.forEach(x => x.classList.toggle('on', x === b));
   };
   models.forEach(b => b.addEventListener('click', () => pick(b)));
   // في ملء الشاشة تختفي الأزرار: المفاتيح 0 و1 و2 و3 تبدّل النموذج
-  addEventListener('keydown', e => { const i = '0123456789'.indexOf(e.key); if (i >= 0) pick(models[i]); });
-  const first = { a: 1, b: 2, c: 3, d: 4, e: 5, d2: 6, d4: 7, d4b: 8, d5: 9, now: 0 }[location.hash.slice(1)];
+  addEventListener('keydown', e => { const i = '0123456789-'.indexOf(e.key); if (i >= 0) pick(models[i]); });
+  const first = { a: 1, b: 2, c: 3, d: 4, e: 5, d2: 6, d4: 7, d4b: 8, d5: 9, d6: 10, now: 0 }[location.hash.slice(1)];
   if (first !== undefined) pick(models[first]);
   // تبدأ الصفحة بالتشغيل التلقائي، فيُرى النموذج دون نقر
   fit(); act.read(); if (!still) step(0); else $('autoBtn').textContent = 'تشغيل';

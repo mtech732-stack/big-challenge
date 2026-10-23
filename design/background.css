@@ -221,6 +221,29 @@
 .v5 .ansbox .aline .lbl { display: inline; font-weight: 700; }
 .v5 .ansbox .aline { font-size: 44px; }
 
+/* ===== 9. النموذج د6: لوحة الاسم بلون طرفها، يحددها إطار أبيض (ملاحظة المالك 2026-10-23 17:19) =====
+   1. لا تعبئة مختلفة: اللوحة زجاج من لون طرفها نفسه، أغمق قليلاً (أحمر داكن 22% على الأحمر، كحلي 24% على الأزرق)
+      ليثبت الاسم فوق خطوط الخلفية، ولا يُقرأ لوناً ثالثاً. والفريقان يتميزان بلون الطرف وحده.
+   2. الإطار أبيض 4 مائل بانحراف اللوحات، يُرى من آخر القاعة. والاسم أبيض.
+   3. صاحب الدور: الإطار الأصفر يُرسم فوق الأبيض نفسه لا حوله، فيتآكل ليكشف الأبيض تحته كمجرى. فلا إطار مزدوج، ولا تتحرك حافة اللوحة.
+      وداخل لوحته يضيء قليلاً (أبيض 8%).
+   4. العدّاد بلا مربع: ثوانٍ صفراء 64 يفصلها عن الاسم خط أبيض مائل. الأصفر لون الوقت في الإطار والرقم معاً، فلا كتلة بارزة ثالثة.
+      وآخر 3 ثوانٍ: الرقم ينبض بين الأصفر والأبيض. */
+.v6 .team .shape, .v6.split .team.t1 .shape { box-shadow: inset 0 0 0 4px #FFFFFF; transition: background .5s ease; }
+.v6 .team.t1 .shape { background: rgba(60,6,16,.22); }
+.v6 .team.t2 .shape { background: rgba(6,20,80,.24); }
+.v6 .team.t1.on .shape { background: linear-gradient(rgba(255,255,255,.1), rgba(255,255,255,.06)), rgba(60,6,16,.22); }
+.v6 .team.t2.on .shape { background: linear-gradient(rgba(255,255,255,.1), rgba(255,255,255,.06)), rgba(6,20,80,.24); }
+.v6 .team .row { color: #FFFFFF; }
+.v6 .team .name { font-weight: 800; }
+.v6 .team > .ring { inset: 0; width: 100%; height: 100%; }
+.v6 .team > .ring polygon { stroke-width: 8; }
+.v6 .pcnt > i { display: none; }
+.v6 .pcnt { width: 120px; justify-content: flex-start; padding-left: 8px; }
+.v6 .pcnt::before { content: ""; position: absolute; right: 0; top: 16px; bottom: 16px; width: 3px; background: rgba(255,255,255,.6); transform: skewX(calc(-1 * var(--lean))); }
+.v6.meta-danger .team.on .pcnt > span { animation: numpulse 1s ease-in-out infinite; }
+@keyframes numpulse { 50% { color: #FFFFFF; } }
+
 @media (prefers-reduced-motion: reduce) {
   .beam, .plane.a, .glow, .flash, .dim, .backdrop { animation: none !important; }
   .beam { display: none; }
