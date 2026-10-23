@@ -74,6 +74,18 @@ const { reporter } = require('./helpers.cjs');
   const h = checkContent(hamza);
   check('«ألماس» لحرف «أ» دون تنبيه، و«ألبانيا» غير «بانيا»', h.errors.length === 0 && h.warnings.length === 0);
 
+  // حد 85 حرفاً للسؤال وموضوع المزاد (نظام التصميم، القسم 7).
+  const long = examples();
+  long.packs.general['letter.json'].questions[0].prompt = 'ش'.repeat(85);
+  long.packs.general['auction.json'].topics[0].topic = 'م'.repeat(85);
+  check('السؤال والموضوع بـ85 حرفاً: مقبولان', checkContent(long).errors.length === 0);
+  long.packs.general['letter.json'].questions[0].prompt = 'ش'.repeat(86);
+  long.packs.general['last-two.json'].questions[0].prompt = 'ن'.repeat(80) + 'ُ'.repeat(6);
+  long.packs.general['auction.json'].topics[0].topic = 'م'.repeat(86);
+  const le = checkContent(long).errors;
+  check('86 حرفاً (والتشكيل يُعدّ): خطأ في السؤال وآخر حرفين والموضوع',
+    le.filter(e => e.includes('والحد 85')).length === 3);
+
   // تنبيهات لا تمنع: يراجعها الكاتب بعينه.
   const soft = examples();
   soft.packs.general['letter.json'].questions[0].answer = 'هاتف';
