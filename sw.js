@@ -7,7 +7,7 @@ const APP_FILES = [
   './', 'index.html', 'audience.html', 'tools/pin.html',
   'css/tokens.css', 'css/base.css', 'css/stage.css',
   'css/fonts/NotoKufiArabic-arabic.woff2', 'css/fonts/NotoKufiArabic-latin.woff2',
-  'js/sync.js', 'js/pin.js', 'js/content-check.js', 'js/layout-check.js',
+  'js/offline.js', 'js/sync.js', 'js/pin.js', 'js/content-check.js', 'js/layout-check.js',
 ];
 
 self.addEventListener('install', event => {

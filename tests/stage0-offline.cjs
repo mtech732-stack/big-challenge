@@ -1,11 +1,46 @@
-// اختبار آلي للعمل دون إنترنت عند إعادة الفتح: يفتح اللعبة مرة بإنترنت، ثم يقطعه ويعيد فتح كل شيء.
+// اختبار آلي للعمل دون إنترنت عند إعادة الفتح.
+// يشغّل خادمه بنفسه، و«انقطاع الإنترنت» إيقاف الخادم حقاً: قطع Playwright (setOffline) لا يقطع عامل الحفظ،
+// فلا يثبت شيئاً. والخادم يمنع نسخة المتصفح المؤقتة العادية، فلا يُخدم إلا ما حفظه عامل الحفظ.
 const { chromium } = require('playwright');
 const fs = require('fs');
+const http = require('http');
 const path = require('path');
 const { usePin, unlock, reporter } = require('./helpers.cjs');
 
+const root = path.join(__dirname, '..');
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.txt': 'text/plain' };
+
+// كل ملف تطلبه الصفحات: ما تستورده وما تربطه، وما تستورده ملفات الكود، وخطوط التنسيق.
+function referenced() {
+  const seen = new Set(), queue = ['index.html', 'audience.html', 'tools/pin.html'];
+  while (queue.length) {
+    const file = queue.shift();
+    if (seen.has(file)) continue;
+    seen.add(file);
+    const text = fs.readFileSync(path.join(root, file), 'utf8');
+    const refs = [...text.matchAll(/(?:import\s*\(?\s*|from\s+|href=|src=|url\()\s*['"]?([^'")\s]+\.(?:js|css|woff2|html))['"]?/g)].map(m => m[1]);
+    for (const ref of refs) {
+      if (/^(https?:|data:)/.test(ref)) continue;
+      const rel = path.posix.normalize(path.posix.join(path.posix.dirname(file), ref));
+      if (fs.existsSync(path.join(root, rel))) queue.push(rel);
+    }
+  }
+  return [...seen];
+}
+
 (async () => {
-  const base = process.argv[2] || 'http://localhost:8000/';
+  let down = false;
+  const server = http.createServer((req, res) => {
+    if (down) return req.socket.destroy();
+    let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    if (p.endsWith('/')) p += 'index.html';
+    const file = path.join(root, p);
+    if (!file.startsWith(root) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end(); }
+    res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+    res.end(fs.readFileSync(file));
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${server.address().port}/`;
   const shots = process.argv[3] || '.';
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   const { check, finish } = reporter();
@@ -15,26 +50,34 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   await usePin(context);
   context.on('page', p => {
     p.on('pageerror', e => errors.push(e.message));
-    p.on('console', m => m.type() === 'error' && !/ERR_INTERNET_DISCONNECTED|Failed to load resource|pin\.json/.test(m.text()) && errors.push(m.text()));
+    p.on('console', m => m.type() === 'error' && !/ERR_|Failed to load resource|pin\.json/.test(m.text()) && errors.push(m.text()));
   });
 
-  // أول فتح بإنترنت: يُسجَّل عامل الحفظ ويحفظ الملفات، ويُحفظ آخر رقم.
+  // كل ملف تطلبه الصفحات في قائمة المحفوظ، فلا يُنسى ملف جديد.
+  const appFiles = [...fs.readFileSync(path.join(root, 'sw.js'), 'utf8').match(/APP_FILES = \[([^\]]*)\]/)[1].matchAll(/'([^']+)'/g)].map(m => m[1]);
+  const missing = referenced().filter(f => !appFiles.includes(f));
+  check(`كل ملف تطلبه الصفحات في قائمة المحفوظ${missing.length ? ': ينقص ' + missing.join('، ') : ''}`, !missing.length);
+
+  // أول فتح بإنترنت، مرة واحدة دون إعادة تحميل: إدخال الرقم فقط ثم الإغلاق.
+  const first = await context.newPage();
+  await first.goto(base);
+  await first.evaluate(() => navigator.serviceWorker.ready);
+  const cached = await first.evaluate(async () => (await (await caches.open('big-challenge-v1')).keys()).map(r => new URL(r.url).pathname));
+  const notCached = appFiles.filter(f => !cached.includes('/' + (f === './' ? '' : f)));
+  check(`بعد فتح واحد: كل الملفات محفوظة (${cached.length})${notCached.length ? ': ينقص ' + notCached.join('، ') : ''}`, !notCached.length);
+  await unlock(first);
+  await first.close();
+
+  // انقطع الإنترنت حقاً: الخادم لا يجيب.
+  down = true;
+  await context.unroute('**/pin.json*');
   const page = await context.newPage();
   await page.goto(base);
-  await page.evaluate(() => navigator.serviceWorker.ready);
-  await page.reload();
-  check('عامل الحفظ مسجّل ويتحكم في الصفحة', await page.evaluate(() => !!navigator.serviceWorker.controller));
-  const cached = await page.evaluate(async () => (await (await caches.open('big-challenge-v1')).keys()).length);
-  check(`الملفات محفوظة في المتصفح (${cached} ملفاً)`, cached >= 13);
-  await unlock(page);
-
-  // انقطع الإنترنت: إعادة فتح نافذة المقدّم.
-  await context.setOffline(true);
-  await page.reload();
+  check('بلا إنترنت: الخادم لا يجيب حقاً (ملف غير محفوظ يفشل)', await page.evaluate(() => fetch('README.md').then(() => false, () => true)));
   check('بلا إنترنت: تُفتح نافذة المقدّم من جديد وتطلب الرقم', await page.isVisible('#pin'));
   check('بلا إنترنت: الخط المرفق محمّل', await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('700 32px Kufi'); }));
-  await unlock(page);
-  check('بلا إنترنت: يُقبل الرقم بآخر صورة محفوظة', await page.isVisible('#open'));
+  await unlock(page).catch(() => {});
+  check('بلا إنترنت: يُقبل الرقم بآخر صورة محفوظة وتُفتح اللعبة', await page.isVisible('#open'));
 
   // نافذة الجمهور تُفتح بلا إنترنت وتتزامن.
   const [aud] = await Promise.all([context.waitForEvent('page'), page.click('#open')]);
@@ -58,16 +101,21 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
     await p.close();
     return ok;
   })());
+  check('بلا إنترنت: صفحة تغيير الرقم تُفتح', await (async () => {
+    const p = await context.newPage();
+    await p.goto(base + 'tools/pin.html');
+    const ok = await p.evaluate(async () => { await document.fonts.ready; return document.fonts.check('700 32px Kufi'); });
+    await p.close();
+    return ok;
+  })());
 
   // الرقم السري لا يُخدم من النسخة المحفوظة: التحقق المستمر يعرف أن الإنترنت منقطع، فلا يُغلق اللعبة.
   const pinCached = await page.evaluate(async () => (await (await caches.open('big-challenge-v1')).keys()).some(r => r.url.includes('pin.json')));
   check('ملف الرقم السري لا يُحفظ في نسخة المتصفح', !pinCached);
-  await context.unroute('**/pin.json*');
-  await context.route('**/pin.json*', route => route.abort('internetdisconnected'));
   check('بلا إنترنت: التحقق المستمر يقول «offline» ولا يُغلق', (await page.evaluate(() => window.verifyPinNow())) === 'offline' && await page.isVisible('#open'));
-  await context.setOffline(false);
 
   // بإنترنت: الشبكة أولاً، فيصل كل تحديث منشور فوراً لا النسخة المحفوظة.
+  down = false;
   const probe = path.join(__dirname, '_fresh.txt');
   const read = () => page.evaluate(async () => (await fetch('tests/_fresh.txt')).text());
   try {
@@ -75,14 +123,14 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
     check('بإنترنت: يُقرأ الملف', (await read()) === 'old');
     fs.writeFileSync(probe, 'new');
     check('بإنترنت: يصل التحديث فوراً لا النسخة المحفوظة', (await read()) === 'new');
-    await context.setOffline(true);
+    down = true;
     check('بلا إنترنت: تُخدم آخر نسخة وصلت', (await read()) === 'new');
-    await context.setOffline(false);
   } finally {
     fs.rmSync(probe, { force: true });
   }
 
   check('لا أخطاء في الصفحات', errors.length === 0);
   await browser.close();
+  server.close();
   process.exit(finish(errors) ? 0 : 1);
 })().catch(e => { console.error(e); process.exit(1); });
