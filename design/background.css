@@ -157,7 +157,7 @@
 .logo .l2 > b { position: relative; font-size: 104px; font-weight: 900; line-height: 1; color: var(--ink); }
 
 /* ===== 7. النموذج د4: ملاحظات المالك على د2 (2026-10-23 16:55) =====
-   1. النتيجة هي الرقم المائي الكبير وحده، في مكانه، ولا تتكرر في اللوحة ولا تختفي أبداً. ورُفعت شفافيته إلى 40% ليُقرأ من آخر القاعة.
+   1. النتيجة هي الرقم المائي الكبير وحده، في مكانه، ولا تتكرر في اللوحة ولا تختفي أبداً. وهو أبيض 65% للأول و70% للثاني (تباين 4.8 و5.6، طلب مشرف المصمّمين 3:1 حداً أدنى) ليُقرأ من آخر القاعة.
    2. اللوحة أقصر بالاسم وحده: 500 (امتدادها 4 أعمدة: الأول 9–12، والثاني 1–4). اسم 18 حرفاً (385) يتسع بحشوة 48.
    3. التوقيت: مربع عدّاد بجانب لوحة صاحب الدور، على عمود واحد بين اللوحة والرقم المائي (الأول العمود 8، والثاني العمود 5)،
       ارتفاعه 96 في منتصف ارتفاع اللوحة، والثواني صفراء 64 على الأزرق الداكن. وإطار الدور الأصفر يتآكل مع الوقت حول اللوحة
@@ -167,9 +167,9 @@
 .v4 .team { width: 500px; }
 .v4 .team .score, .v4 .team .tbar, .v4 .team .secs { display: none !important; }
 .v4 .team .row { justify-content: flex-start; }
-.v4 .giant.t1, .v4.split .giant.t1 { color: #FFFFFF; opacity: .4; }
-.v4 .giant.t2 { color: #FFFFFF; opacity: .4; }
-.v4.answered .giant.t2 { opacity: .4; }
+.v4 .giant.t1, .v4.split .giant.t1 { color: #FFFFFF; opacity: .65; }   /* تباين 4.8:1 على #871A29 */
+.v4 .giant.t2 { color: #FFFFFF; opacity: .7; }   /* تباين 5.6:1 على #1238A8، و4.3:1 على أفتح الأزرق #1A4BD1 */
+.v4.answered .giant.t2 { opacity: .7; }
 
 /* مربع العدّاد */
 .cnt { display: none; top: 20px; width: 98px; height: 96px; align-items: center; justify-content: center;
