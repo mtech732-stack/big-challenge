@@ -1,6 +1,6 @@
 // «عقد الوحدة»: ما يلتزمه كل نمط ليكون وحدة مستقلة (docs/module-contract.md).
 // checkMode تفحص شكل الوحدة، فلا تدخل القائمة وحدة ناقصة.
-import { MODES as CONTENT_MODES } from '../content-check.js';
+import { MODES as CONTENT_MODES, MODE_NAME_MAX } from '../content-check.js';
 
 export const REQUIRED = {
   id: 'string', name: 'string', order: 'number', contentKey: 'string',
@@ -14,6 +14,9 @@ export function checkMode(mod) {
   if (!mod || typeof mod !== 'object') return [`${where}: الوحدة يجب أن تصدّر كائناً`];
   for (const [key, type] of Object.entries(REQUIRED)) {
     if (typeof mod[key] !== type) errors.push(`${where}: «${key}» مطلوب (${type})`);
+  }
+  if (typeof mod.name === 'string' && [...mod.name].length > MODE_NAME_MAX) {
+    errors.push(`${where}: «name» أطول من ${MODE_NAME_MAX} حرفاً (خانة المسار في شاشة المواجهة)`);
   }
   if (typeof mod.id === 'string' && !CONTENT_MODES.includes(mod.id)) {
     errors.push(`${where}: لا ملف أسئلة له في صيغة المحتوى (المعروف: ${CONTENT_MODES.join(' · ')})`);

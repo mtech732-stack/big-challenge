@@ -54,6 +54,7 @@ function referenced() {
   });
 
   // كل ملف تطلبه الصفحات في قائمة المحفوظ، فلا يُنسى ملف جديد.
+  const CACHE = fs.readFileSync(path.join(root, 'sw.js'), 'utf8').match(/const CACHE = '([^']+)'/)[1];
   const appFiles = [...fs.readFileSync(path.join(root, 'sw.js'), 'utf8').match(/APP_FILES = \[([^\]]*)\]/)[1].matchAll(/'([^']+)'/g)].map(m => m[1]);
   const missing = referenced().filter(f => !appFiles.includes(f));
   check(`كل ملف تطلبه الصفحات في قائمة المحفوظ${missing.length ? ': ينقص ' + missing.join('، ') : ''}`, !missing.length);
@@ -62,7 +63,7 @@ function referenced() {
   const first = await context.newPage();
   await first.goto(base);
   await first.evaluate(() => navigator.serviceWorker.ready);
-  const cached = await first.evaluate(async () => (await (await caches.open('big-challenge-v1')).keys()).map(r => new URL(r.url).pathname));
+  const cached = await first.evaluate(async CACHE => (await (await caches.open(CACHE)).keys()).map(r => new URL(r.url).pathname), CACHE);
   const notCached = appFiles.filter(f => !cached.includes('/' + (f === './' ? '' : f)));
   check(`بعد فتح واحد: كل الملفات محفوظة (${cached.length})${notCached.length ? ': ينقص ' + notCached.join('، ') : ''}`, !notCached.length);
   await unlock(first);
@@ -72,12 +73,13 @@ function referenced() {
   down = true;
   await context.unroute('**/pin.json*');
   const page = await context.newPage();
-  await page.goto(base);
+  await page.goto(base + '?test');
   check('بلا إنترنت: الخادم لا يجيب حقاً (ملف غير محفوظ يفشل)', await page.evaluate(() => fetch('README.md').then(() => false, () => true)));
   check('بلا إنترنت: تُفتح نافذة المقدّم من جديد وتطلب الرقم', await page.isVisible('#pin'));
   check('بلا إنترنت: الخط المرفق محمّل', await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('700 32px Kufi'); }));
   await unlock(page).catch(() => {});
   check('بلا إنترنت: يُقبل الرقم بآخر صورة محفوظة وتُفتح اللعبة', await page.isVisible('#open'));
+  check('بلا إنترنت: الحزمة تظهر في الإعداد (حُفظت من أول فتح)', (await page.textContent('#packs')).includes('الحزمة الثقافية العامة'));
 
   // نافذة الجمهور تُفتح بلا إنترنت وتتزامن.
   const [aud] = await Promise.all([context.waitForEvent('page'), page.click('#open')]);
@@ -93,7 +95,7 @@ function referenced() {
   // إعادة تحميل نافذة الجمهور نفسها بلا إنترنت (ما يحدث لو ضُغط F5 على التلفاز).
   await aud.reload();
   await page.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 6000 });
-  check('بلا إنترنت: إعادة تحميل نافذة الجمهور تعيدها متصلة', await aud.isVisible('.timer'));
+  check('بلا إنترنت: إعادة تحميل نافذة الجمهور تعيدها متصلة', await aud.isVisible('.team.t1'));
   check('بلا إنترنت: رابط الفحص ?check يُخدم من النسخة المحفوظة', await (async () => {
     const p = await context.newPage();
     await p.goto(base + 'audience.html?check');
@@ -110,7 +112,7 @@ function referenced() {
   })());
 
   // الرقم السري لا يُخدم من النسخة المحفوظة: التحقق المستمر يعرف أن الإنترنت منقطع، فلا يُغلق اللعبة.
-  const pinCached = await page.evaluate(async () => (await (await caches.open('big-challenge-v1')).keys()).some(r => r.url.includes('pin.json')));
+  const pinCached = await page.evaluate(async CACHE => (await (await caches.open(CACHE)).keys()).some(r => r.url.includes('pin.json')), CACHE);
   check('ملف الرقم السري لا يُحفظ في نسخة المتصفح', !pinCached);
   check('بلا إنترنت: التحقق المستمر يقول «offline» ولا يُغلق', (await page.evaluate(() => window.verifyPinNow())) === 'offline' && await page.isVisible('#open'));
 

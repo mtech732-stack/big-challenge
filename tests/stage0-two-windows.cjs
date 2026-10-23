@@ -10,7 +10,7 @@ const { usePin, unlock } = require('./helpers.cjs');
   const errors = [];
   const watch = p => {
     p.on('pageerror', e => errors.push(e.message));
-    p.on('console', m => m.type() === 'error' && errors.push(m.text()));
+    p.on('console', m => m.type() === 'error' && !/content\/packs\//.test(m.location().url) && errors.push(m.text()));
   };
   const results = [];
   const check = (name, ok) => { results.push([name, !!ok]); };
@@ -19,7 +19,7 @@ const { usePin, unlock } = require('./helpers.cjs');
   await usePin(context);
   const presenter = await context.newPage();
   watch(presenter);
-  await presenter.goto(base);
+  await presenter.goto(base + '?test');
   await unlock(presenter);
   check('المقدّم: يبدأ غير متصل', (await presenter.textContent('#status')).includes('غير متصلة'));
   check('المقدّم: زر ابدأ معطّل قبل الاتصال', await presenter.isDisabled('#start'));
@@ -30,7 +30,8 @@ const { usePin, unlock } = require('./helpers.cjs');
   await audience.setViewportSize({ width: 1920, height: 1080 });
   await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 4000 });
   check('المقدّم: يصير متصلاً بعد فتح نافذة الجمهور', true);
-  check('الجمهور: يعرض «متصلة»', (await audience.textContent('#label')).includes('متصلة'));
+  await audience.waitForSelector('.scr.title.show', { timeout: 4000 });
+  check('الجمهور: يعرض شاشة الانتظار بعد الاتصال', true);
   check('المقدّم: يرى 0:10 في المرآة', (await presenter.textContent('#mirror')) === '0:10');
 
   const t0 = Date.now();

@@ -28,7 +28,7 @@ const { TEST_PIN, testPinRecord, unlock, reporter } = require('./helpers.cjs');
   await context.clock.install();
 
   const presenter = await context.newPage();
-  await presenter.goto(base);
+  await presenter.goto(base + '?test');
   await unlock(presenter);
   const [audience] = await Promise.all([context.waitForEvent('page'), presenter.click('#open')]);
   await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 5000 });
@@ -82,7 +82,7 @@ const { TEST_PIN, testPinRecord, unlock, reporter } = require('./helpers.cjs');
   await unlock(presenter, '975310');
   await wait(1500);
   check('الرقم الجديد يعيد فتحها دون إعادة تحميل', await isOpen() && (await presenter.getAttribute('#status', 'data-on')) === 'true');
-  check('شاشة الجمهور تعود بعد الفتح', await audience.isVisible('#timer') && (await audience.textContent('#label')).includes('متصلة'));
+  check('شاشة الجمهور تعود بعد الفتح', await audience.isVisible('.team.t1') && await audience.isVisible('.scr.title'));
 
   // التحقق عند بدء كل مباراة جديدة: فوري دون انتظار المدة.
   served = { kind: 'record', record: testPinRecord('112233') };

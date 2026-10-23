@@ -1,0 +1,74 @@
+/* شاشات الجمهور في ش1 (بدء المباراة)، منقولة من design/start.html بقياساتها (design/start.md، القسمان 2 و6).
+   محتوى البطاقة أقسام (.scr) يظهر واحد منها في كل مرة، والبطاقة نفسها لا يتغير مقاسها. */
+
+/* قبل أول سؤال: لا عدّاد ولا شريط فارق ولا رقم عملاق ولا مربع حرف ولا شارة نمط. */
+.pre .timer, .pre .strip, .pre .giant, .pre .badge.mode { display: none; }
+.badge.plain { color: var(--ink); }
+.badge.plain > i { position: absolute; inset: 0; background: var(--card); }
+.badge.plain > span { position: relative; }
+.badge.off { display: none; }
+
+.card .scr { position: absolute; inset: 0 var(--pad-card); display: none; }
+.card .scr.show { display: flex; }
+.card .scr.q { align-items: center; gap: 48px; }
+.scr p { margin: 0; }
+.tn.t1 { color: var(--team-1); }
+.tn.t2 { color: var(--team-2-ink); }
+
+/* الانتظار: اسم اللعبة وحده */
+.scr.title { flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
+.scr.title .big { font-size: 128px; font-weight: 900; line-height: 1.45; }
+.scr.title .sub { font-size: 40px; font-weight: 700; line-height: 1; }
+
+/* القرعة: سؤال أثناء الدوران، ثم الفائز */
+.scr.draw { flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; }
+.scr.draw .ask { font-size: var(--fs-question); font-weight: 700; line-height: 1.4; }
+.scr.draw .sub { font-size: 40px; font-weight: 700; line-height: 1; }
+.scr.draw .winner { font-size: 96px; font-weight: 900; line-height: 1.3; white-space: nowrap; }
+
+/* اختيار الأنماط: سطر لمن يختار، ثم خانات الأنماط 2×2 */
+.scr.pick { flex-direction: column; padding-top: 40px; gap: 24px; }
+.scr .head { font-size: 48px; font-weight: 700; line-height: 1; white-space: nowrap; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 88px; gap: 24px; }
+.tile { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  padding: 0 32px; border: 4px solid var(--ink); color: var(--ink); }
+.tile .fill { position: absolute; inset: -4px; transform-origin: right; transform: scaleX(0); }
+.tile > span { position: relative; white-space: nowrap; line-height: 1; }
+.tile .mname { font-size: 48px; font-weight: 800; }
+.tile .chip { font-size: 32px; font-weight: 700; }
+.tile.by1, .tile.by2 { color: var(--on-stage); }
+.tile.by1 .fill { background: var(--team-1); transform: scaleX(1); }
+.tile.by2 .fill { background: var(--team-2-ink); transform: scaleX(1); }
+.tile.auto .chip { background: var(--ink); color: var(--on-stage); padding: 8px 16px; }
+.tile.left { border-style: dashed; }
+
+/* المواجهة: الفائز بالقرعة، ثم مسار المباراة من اليمين */
+.scr.face { flex-direction: column; align-items: stretch; justify-content: center; gap: 40px; }
+.scr.face .head { text-align: center; }
+.track { display: flex; gap: 24px; height: 136px; }
+.seg { position: relative; flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  padding: 0 16px; border: 4px solid var(--ink); color: var(--ink); text-align: center; }
+.seg > span { position: relative; white-space: nowrap; line-height: 1; font-size: 32px; font-weight: 700; }
+.seg .mname { font-weight: 800; }
+.seg.by1 { background: var(--team-1); border-color: var(--team-1); color: var(--on-stage); }
+.seg.by2 { background: var(--team-2-ink); color: var(--on-stage); }
+.seg.wheel { flex: 0 0 136px; border-style: dashed; }
+.short .seg .mname { font-size: 40px; }
+
+/* لحظات الحركة (design/start.md، القسم 6) */
+.anim .scr.show { animation: in .2s ease-out both; }
+@keyframes in { from { opacity: 0; } }
+.team.won { animation: bump .45s ease-out; }
+@keyframes bump { 40% { scale: 1.06; } }
+.tile.flash .fill { animation: wipe .28s ease-out both; }
+@keyframes wipe { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.enter .team.t1 { animation: from1 .4s cubic-bezier(.2,.8,.2,1) both; }
+.enter .team.t2 { animation: from2 .4s cubic-bezier(.2,.8,.2,1) .15s both; }
+@keyframes from1 { from { translate: 420px -300px; opacity: 0; } }
+@keyframes from2 { from { translate: -420px 300px; opacity: 0; } }
+.enter .badge { animation: in .25s ease-out .45s both; }
+.enter .card-wrap .plate { animation: rise1 .3s ease-out .55s both; }
+.enter .card-wrap .card { animation: rise1 .3s ease-out .7s both; }
+@keyframes rise1 { from { translate: 0 48px; opacity: 0; } }
+.enter .seg { animation: in .2s ease-out both; animation-delay: calc(1s + var(--i) * .12s); }
+@media (prefers-reduced-motion: reduce) { .anim *, .enter *, .team.won, .tile.flash .fill { animation: none !important; } }
