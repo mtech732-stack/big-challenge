@@ -124,6 +124,7 @@
   .judge button { min-height: 3rem; font-size: 1.25rem; }
   .judge .no { background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
   .done { font-size: 1.25rem; font-weight: 800; }
+  button.held { opacity: .45; cursor: default; pointer-events: none; }
   .sum { display: grid; grid-template-columns: 1fr auto auto; gap: 0.25rem 1.5rem; align-items: center; padding-inline-start: 0.25rem; }
   .sum .tn { font-weight: 800; }
   .sum .pts { font-size: 1.5rem; font-weight: 900; direction: ltr; text-align: end; }
@@ -459,23 +460,37 @@
     if (next === match || (next.round === match.round)) return;
     const events = next.round?.events ?? [];
     if (events.length === 0 && next.round?.state === match.round?.state && next.scores === match.scores) { match = next; return; }
+    const changed = next.round?.state !== match.round?.state;
     match = events.some(e => e.type === 'timer') ? { ...next, timerAt: Date.now() } : next;
     save();
     link.send('view', view(events.filter(e => e.type === 'moment')));
+    if (changed) hold();
     render();
   }
-  const roundAct = action => roundUpdate(P.act(match, MODES, action));
+  // النقرة المزدوجة أو المتأخرة (تقرير المعاين ش2، التعثّر 1): بعد كل تغيّر في حالة السؤال يأتي زر آخر مكان المنقور،
+  // فتُهمل نقرات أزرار الجولة 0.7 ثانية، وتظهر معطّلة حتى يراها المقدّم. ومنها تغيّرها بانتهاء الوقت.
+  const HOLD_MS = 700;
+  let heldUntil = 0, holdTimer = 0;
+  const held = () => performance.now() < heldUntil;
+  function hold() {
+    heldUntil = performance.now() + HOLD_MS;
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(render, HOLD_MS + 20);
+  }
+  const roundAct = action => { if (!held()) roundUpdate(P.act(match, MODES, action)); };
 
   // ذاكرة الأسئلة: ما ظهر لا يتكرر حتى يُستنفد البنك.
   const seen = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY)) ?? []; } catch { return []; } };
   function startNext() {
+    if (held()) return;
     const next = P.startNext(match, { modes: MODES, content: pack().files, seen: seen() });
     if (next === match) return;
     const mode = P.modeOf(MODES, next.round.mode);
     try { localStorage.setItem(SEEN_KEY, JSON.stringify([...new Set([...seen(), ...mode.used(next.round.state)])])); } catch {}
     roundUpdate(next);
   }
-  const skipNext = () => update(P.skipNext(match, MODES));
+  // نقرتان على «تخطَّ…» لا تتخطيان عنصرين.
+  const skipNext = () => { if (held()) return; const next = P.skipNext(match, MODES); if (next !== match) hold(); update(next); };
   // ما لم يُبنَ بعد يُتخطى في التجربة، ويُذكر موعده (القسم 11 من الوثيقة).
   const LATER = { 'last-two': 3, auction: 4, ranking: 5 };
   function nextButton() {
@@ -600,6 +615,9 @@
     $('undoScore').disabled = playing ? !match.round?.history.length : !match.history.length;
 
     renderSingle();
+    const wait = held();
+    document.querySelectorAll('[data-step="play"] button, #startRound, #band [data-act], #band [data-do="undo"], #band [data-do="startNext"], #band [data-do="skipNext"]')
+      .forEach(b => b.classList.toggle('held', wait));
   }
 
   // ===== الجولة: من presenter() و actions() في وحدة النمط (design/letter.md، القسم 4) =====
@@ -641,7 +659,8 @@
       const decided = pr.phase === 'decided';
       $('judge').hidden = decided;
       $('after').hidden = !decided;
-      $('startTimer').hidden = !label('start');
+      // «ابدأ العدّاد» يُخفى ويبقى مكانه، فلا يتمدد «صحيحة» تحت المؤشر (تقرير المعاين ش2).
+      $('startTimer').style.visibility = label('start') ? '' : 'hidden';
       $('yes').innerHTML = num(label('correct') ?? '');
       if (decided) {
         const v = pr.verdict;
@@ -720,7 +739,7 @@
     replay: () => link.send('anim', { name: 'face', view: view() }),
     startNext,
     skipNext,
-    undo: () => roundUpdate(P.undo(match)),
+    undo: () => { if (!held()) roundUpdate(P.undo(match)); },
     scores: () => { $('scores').hidden = !$('scores').hidden; },
   };
 
@@ -817,7 +836,8 @@
       if (match.step === 'play') roundUpdate(P.setScore(match, team, match.scores[team] + +b.dataset.d));
       else update(M.adjustScore(match, team, +b.dataset.d));
     };
-    $('undoScore').onclick = () => (match.step === 'play' ? actions.undo() : update(M.undoScore(match)));
+    // «تراجع» في طبقة الرصيد لا تقع عليه نقرة من زر آخر، فلا يُمهل.
+    $('undoScore').onclick = () => (match.step === 'play' ? roundUpdate(P.undo(match)) : update(M.undoScore(match)));
 
     $('start').onclick = () => link.send('start', { seconds: 10 });
     $('reset').onclick = () => { link.send('reset'); link.send('view', view()); };
