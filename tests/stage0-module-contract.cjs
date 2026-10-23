@@ -38,10 +38,12 @@ const { reporter } = require('./helpers.cjs');
 
   // تشغيل جولة.
   const P = { easy: 1, medium: 2, hard: 3 };
+  // فعل مُهمل: لا تتغير الحالة ولا الرصيد ولا العدّاد، وأحداثه فارغة.
+  const same = (a, b) => JSON.stringify([a.state, a.scores, a.timer, a.history.length]) === JSON.stringify([b.state, b.scores, b.timer, b.history.length]) && a.events.length === 0;
   const has = (r, type, extra = {}) => r.events.some(e => e.type === type && Object.entries(extra).every(([k, v]) => e[k] === v));
   let r = R.startRound(sample, { content: files, first: 1, rng });
   const q1 = r.state.questions[0];
-  check('الجولة تبدأ بالفريق المختار، ولا عدّاد قبل «ابدأ»', r.state.team === 1 && r.first === 1 && !r.timer && R.act(sample, r, 'correct') === r);
+  check('الجولة تبدأ بالفريق المختار، ولا عدّاد قبل «ابدأ»', r.state.team === 1 && r.first === 1 && !r.timer && same(R.act(sample, r, 'correct'), r));
   const aud = JSON.stringify(sample.audience(r.state));
   check('نافذة الجمهور لا تحمل الإجابة', !aud.includes(q1.answer) && sample.presenter(r.state).answer === q1.answer);
   r = R.act(sample, r, 'start');
@@ -51,11 +53,11 @@ const { reporter } = require('./helpers.cjs');
   const p1 = P[q1.level];
   check(`إجابة صحيحة: +${p1} للأول، ويتوقف العدّاد، والسؤال التالي للثاني ينتظر «ابدأ»`, r.scores[1] === p1 && has(r, 'stop-timer') && !r.timer && r.state.team === 2 && r.state.phase === 'ready');
   // الملاحظة 1: «انتهى الوقت» من عدّاد السؤال الأول يصل بعد الحكم.
-  check('«انتهى الوقت» متأخر من عدّاد سابق يُهمل (لا سرقة خاطئة)', R.act(sample, r, 'timeout', t1) === r);
-  check('«انتهى الوقت» بلا رقم ولا عدّاد جارٍ يُهمل (لا يُتخطى السؤال)', R.act(sample, r, 'timeout') === r && R.act(sample, r, 'timeout', undefined) === r);
+  check('«انتهى الوقت» متأخر من عدّاد سابق يُهمل (لا سرقة خاطئة)', same(R.act(sample, r, 'timeout', t1), r));
+  check('«انتهى الوقت» بلا رقم ولا عدّاد جارٍ يُهمل (لا يُتخطى السؤال)', same(R.act(sample, r, 'timeout'), r) && same(R.act(sample, r, 'timeout', undefined), r));
   r = R.act(sample, r, 'start');
   const t2 = r.timer.id;
-  check('«انتهى الوقت» برقم عدّاد قديم يُهمل أثناء عدّاد جديد', R.act(sample, r, 'timeout', t1) === r);
+  check('«انتهى الوقت» برقم عدّاد قديم يُهمل أثناء عدّاد جديد', same(R.act(sample, r, 'timeout', t1), r));
   const live = r;
   const saved = JSON.parse(JSON.stringify(r));
   r = R.act(sample, r, 'wrong');
@@ -65,7 +67,7 @@ const { reporter } = require('./helpers.cjs');
   r = R.undo(r);
   check('التراجع يعيد الحالة والرصيد كما كانا', JSON.stringify({ s: r.state, c: r.scores }) === JSON.stringify({ s: saved.state, c: saved.scores }));
   check('التراجع يوقف عدّاد السرقة ويعيد عدّاد صاحب السؤال كاملاً (15)', has(r, 'timer', { seconds: 15 }) && r.timer.seconds === 15 && r.timer.id !== t3);
-  check('«انتهى الوقت» من عدّاد السرقة الملغى يُهمل', R.act(sample, r, 'timeout', t3) === r);
+  check('«انتهى الوقت» من عدّاد السرقة الملغى يُهمل', same(R.act(sample, r, 'timeout', t3), r));
   check('الحالة بعد الحفظ والاستعادة (JSON) تكمل كما هي', JSON.stringify(R.act(sample, saved, 'timeout', t2)) === JSON.stringify(R.act(sample, live, 'timeout', t2)) && R.act(sample, saved, 'timeout', t2).state.phase === 'steal');
   r = R.act(sample, r, 'timeout', r.timer.id);
   check('انتهاء الوقت الحالي: سرقة', r.state.phase === 'steal' && r.state.team === 1);
@@ -73,8 +75,13 @@ const { reporter } = require('./helpers.cjs');
   const p2 = P[r.history.at(-1).state.questions[1].level];
   check(`السرقة الصحيحة تعطي النقاط نفسها (+${p2}) للسارق`, r.scores[1] === p1 + p2 && r.scores[2] === 0);
   check('الجولة انتهت ولا أزرار بعدها ولا عدّاد', sample.finished(r.state) && sample.actions(r.state).length === 0 && !r.timer);
-  check('لا فعل بعد نهاية الجولة', R.act(sample, r, 'correct') === r);
-  check('فعل غير موجود في الأزرار يُهمل', (() => { const s = R.startRound(sample, { content: files, first: 2, rng }); return R.act(sample, s, 'jump') === s; })());
+  check('لا فعل بعد نهاية الجولة', same(R.act(sample, r, 'correct'), r));
+  check('نقرتان سريعتان على «ابدأ»: الثانية مُهملة بلا أحداث، فلا يُعاد العدّاد', (() => {
+    const once = R.act(sample, R.startRound(sample, { content: files, first: 1, rng }), 'start');
+    const twice = R.act(sample, once, 'start');
+    return has(once, 'timer') && same(twice, once) && twice.timer.id === once.timer.id;
+  })());
+  check('فعل غير موجود في الأزرار يُهمل', (() => { const s = R.startRound(sample, { content: files, first: 2, rng }); return same(R.act(sample, s, 'jump'), s); })());
 
   // الرصيد.
   check('لا ينزل الرصيد تحت الصفر', R.applyEvents({ 1: 2, 2: 0 }, [{ type: 'score', team: 1, points: -3 }])[1] === 0);

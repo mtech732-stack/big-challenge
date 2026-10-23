@@ -40,9 +40,12 @@ function withTimer(round, events) {
 const snapshot = round => ({ state: round.state, scores: round.scores, timer: round.timer });
 
 // timerId: مع 'timeout' وحده، رقم العدّاد الذي انتهى.
+// الفعل المُهمل لا يغيّر شيئاً، وأحداثه فارغة، فلا يُعاد إرسال أمر عدّاد قديم (نقرتان سريعتان على «ابدأ» مثلاً).
+const ignored = round => ({ ...round, events: [] });
+
 export function act(mode, round, action, timerId) {
-  if (mode.finished(round.state)) return round;
-  if (action === 'timeout' ? !round.timer || round.timer.id !== timerId : !mode.actions(round.state).some(a => a.id === action)) return round;
+  if (mode.finished(round.state)) return ignored(round);
+  if (action === 'timeout' ? !round.timer || round.timer.id !== timerId : !mode.actions(round.state).some(a => a.id === action)) return ignored(round);
   const { state, events = [] } = mode.act(round.state, action);
   return {
     ...round,
@@ -56,7 +59,7 @@ export function act(mode, round, action, timerId) {
 // التراجع عن آخر حكم أو نقطة: يعيد الحالة والرصيد كما كانا، ويوقف العدّاد الجاري،
 // فإن كان للحالة المستعادة عدّاد بدأ من جديد بوقته كاملاً.
 export function undo(round) {
-  if (!round.history.length) return round;
+  if (!round.history.length) return ignored(round);
   const last = round.history[round.history.length - 1];
   const back = { ...round, state: last.state, scores: last.scores, history: round.history.slice(0, -1) };
   // التراجع عن تعديل يدوي للرصيد لا يمس عدّاداً جارياً.
