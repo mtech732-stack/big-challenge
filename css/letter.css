@@ -20,6 +20,9 @@
 /* نهاية الجولة: «التالي» نص أبيض على الطرف بلا مربع، في موضعه وبمقاسه (15.4) */
 .box.bare > i { display: none; }
 .box.bare .line { color: var(--on-stage); }
+/* الملاحظة 27: إن ضاق المربع عن «الإجابة: …» انكسر سطرين (2 × 48)، وصعدت شارة الحكم فوقه لساناً على 828–872، يميناً على 48 */
+.box.wrap .line { white-space: normal; line-height: 48px; max-width: 100%; }
+.box.wrap .chip { position: absolute; top: -52px; right: 48px; }
 
 /* افتتاح الجولة */
 .scr.intro { flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; }

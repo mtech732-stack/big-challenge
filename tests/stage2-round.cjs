@@ -45,6 +45,27 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   // فحوص كل حالة: التداخل على شاشة الجمهور، وقياسات نافذة المقدّم، ولا إجابة قبل الحكم الأخير، ولا تفاصيل قواعد.
   let layoutOk = true, presenterOk = true, leak = false;
   const fails = [], words = [];
+  // الملاحظة 27: أسوأ حالة لمربع الإعلان: اسم الثاني 18 حرفاً عريضاً ورصيده 188، وإجابة 20 حرفاً. المربع يضيق بعد لوحته بفراغ 24،
+  // وحافته اليمنى 1794، والإجابة سطران داخله، والشارة لسان فوقه على 828–872. ثم يعود كل شيء، والحالة العادية بلا تغيير.
+  const worstBox = async fr => {
+    const normal = await fr.evaluate(() => { const b = document.getElementById('box'); return { l: b.offsetLeft, w: b.offsetWidth, wrap: b.classList.contains('wrap') }; });
+    const r = await fr.evaluate(async () => {
+      const $ = id => document.getElementById(id), keep = ['n2', 's2', 'answer'].map(id => $(id).textContent), three = $('s2').classList.contains('three');
+      $('n2').textContent = 'مممممممممممممممممم'; $('s2').textContent = '188'; $('s2').classList.add('three'); $('answer').textContent = 'عبدالرحمن بن عوف رضي';
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const b = $('box'), p2 = $('p2'), ln = $('reveal'), ch = $('verdict'), k = 1920 / document.getElementById('canvas').getBoundingClientRect().width;
+      const R = e => { const r = e.getBoundingClientRect(), c = document.getElementById('canvas').getBoundingClientRect(); return { l: (r.left - c.left) * k, t: (r.top - c.top) * k, r: (r.right - c.left) * k, b: (r.bottom - c.top) * k }; };
+      const out = { left: b.offsetLeft, right: b.offsetLeft + b.offsetWidth, gap: b.offsetLeft - 17 - (p2.offsetLeft + p2.offsetWidth + 17), wrap: b.classList.contains('wrap'),
+        lines: Math.round(ln.getBoundingClientRect().height * k / 48), over: ln.scrollWidth > ln.clientWidth + 1, line: R(ln), box: R(b), chip: R(ch), check: (await window.__stageCheck()).problems };
+      ['n2', 's2', 'answer'].forEach((id, i) => { $(id).textContent = keep[i]; }); $('s2').classList.toggle('three', three);
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      out.back = { l: b.offsetLeft, w: b.offsetWidth, wrap: b.classList.contains('wrap') };
+      return out;
+    });
+    const ok = r.right === 1794 && r.gap >= 24 && r.wrap && r.lines === 2 && !r.over && r.line.l >= r.box.l + 24 && r.line.r <= r.box.r - 24 && r.line.t >= r.box.t && r.line.b <= r.box.b
+      && Math.round(r.chip.t) === 828 && Math.round(r.chip.b) === 872 && !r.check.length && r.back.l === normal.l && r.back.w === normal.w && r.back.wrap === normal.wrap;
+    return { ok, txt: `المربع ${r.left}–${r.right}، فراغ ${r.gap}، سطران ${r.lines}، الشارة ${Math.round(r.chip.t)}–${Math.round(r.chip.b)}${r.check.length ? '، ' + r.check.join('، ') : ''}`, normal };
+  };
   const audienceCheck = async (page, label) => {
     const r = await page.evaluate(() => window.__stageCheck());
     if (!r.ok) { layoutOk = false; fails.push(`${label}: ${r.problems.join('، ')}`); }
@@ -160,6 +181,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('المقدّم: المسار يمتلئ بلون الكاسب', await presenter.$eval('#pips .pip', (e, s) => e.classList.contains('won' + s), starter));
   await both('صحيحة');
   await stage.screenshot({ path: `${shots}/s2-right.png` });
+  { const w = await worstBox(audience);
+    check(`الجمهور: الحالة العادية: المربع 1135–1794 بسطر واحد (الملاحظة 27)`, w.normal.l === 1135 && w.normal.w === 659 && !w.normal.wrap);
+    check(`الملاحظة 27 بنافذتين: أسوأ حالة لا تُدخل لوحة الثاني تحت المربع، ولا يفيض النص (${w.txt})`, w.ok); }
 
   // 4. السؤال 2 للخصم: خاطئة قبل «ابدأ» ← تنتقل الإجابة، ثم ينتهي وقتها ← لا نقاط، والإجابة تظهر
   await presenter.click('#nextQ');
@@ -362,6 +386,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
     && LONG.some(n => n === LONG[0] || n === LONG[1]) && (await text(frame, '#vtext')).startsWith(LONG[qs.owner === 1 ? 1 : 0]));
   await audienceCheck(frame, 'نافذة واحدة · بعد الحكم');
   await presenter.screenshot({ path: `${shots}/s2-single-decided.png` });
+  { const w = await worstBox(frame); check(`الملاحظة 27 بنافذة واحدة: أسوأ حالة بلا تداخل ولا فيض (${w.txt})`, w.ok); }
   await cmd(frame, 'act:next');
   await wait(800);
   check('السؤال 3: «ابدأ» «صحيحة · +2» «خاطئة» بجانب العدّاد', (await near()) === 'ابدأ | صحيحة · +2 | خاطئة');
