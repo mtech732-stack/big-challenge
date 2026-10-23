@@ -111,7 +111,7 @@
   .lost .warn::before { content: ""; width: 0.5rem; height: 0.5rem; background: var(--team-1); }
   .top.playing h1 { margin-inline-end: 0; }
   .q { grid-template-columns: auto 1fr; align-items: center; gap: 0.5rem 1.25rem; }
-  .q .letter { width: 3.5rem; height: 3.5rem; padding: 0 0.5rem; background: var(--ink); color: var(--hl); display: flex; align-items: center; justify-content: center;
+  .q .letter { min-width: 3.5rem; height: 3.5rem; padding: 0 0.5rem; white-space: nowrap; background: var(--ink); color: var(--hl); display: flex; align-items: center; justify-content: center;
     font-size: 2.25rem; font-weight: 800; line-height: 1; }
   .q .prompt { font-size: 1rem; font-weight: 700; line-height: 1.4; }
   .q .meta { font-weight: 700; }
@@ -645,7 +645,7 @@
       $('showQ').innerHTML = num(label('show') ?? '');
     }
     if (part === 'q') {
-      $('qLetter').textContent = pr.letter;
+      $('qLetter').textContent = (pr.tatweel ? 'ـ' : '') + pr.letter;
       $('qPrompt').textContent = pr.question;
       $('qMeta').innerHTML = num(`${pr.levelText} · السؤال ${pr.n} من ${pr.count}`);
       $('qAnswer').textContent = pr.answer;
