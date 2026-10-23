@@ -49,6 +49,23 @@
 .moments .glow.jump { animation: jump .7s ease-out; }
 @keyframes jump { 0% { filter: brightness(2.4); } 100% { filter: brightness(1); } }
 
+/* ===== 4. النموذج د: طرفان بلونَي الفريقين (طلب المالك) =====
+   الشاشة تنقسم بخط مائل 14° يمر بالوسط: الطرف الأيمن (جهة الفريق الأول، أعلى اليمين) أحمر داكن،
+   والأيسر (جهة الفريق الثاني) يبقى أزرق المسرح، لأن لوحة الثاني بيضاء ونصها أزرق، والخلفية البيضاء تُذهب البطاقة.
+   والأحمر داكن (#7A1622 ← #4A0B14) كي تبقى لوحة الأول الحمراء الزاهية بارزة فوقه.
+   والخط الفاصل يتحرك نحو الفريق الآخر 160 حين يبدأ عدّاد صاحب الدور، فيبدو طرفه كأنه يتقدّم. */
+.side, .seam { display: none; }
+.split .side, .split .seam { display: block; }
+.side.t1 { top: -100px; height: 1280px; left: 960px; width: 1400px;
+  background: linear-gradient(200deg, #8E1B28 0%, #6A111D 45%, #3E0A12 100%);
+  transform: skewX(calc(-1 * var(--lean))); transition: translate .9s cubic-bezier(.2,.8,.2,1); }
+.seam { top: -100px; height: 1280px; left: 957px; width: 6px; background: rgba(255,255,255,.55);
+  transform: skewX(calc(-1 * var(--lean))); transition: translate .9s cubic-bezier(.2,.8,.2,1); }
+.split.turn-1 .side.t1, .split.turn-1 .seam { translate: -160px 0; }
+.split.turn-2 .side.t1, .split.turn-2 .seam { translate: 160px 0; }
+/* في هذا النموذج ضوء الدور أبيض للطرفين كما في أ، والرقم العملاق الأول أبيض 16% كالثاني، لأن الأزرق الداكن يغيب في الأحمر */
+.split .giant.t1 { color: #FFFFFF; opacity: .16; }
+
 @media (prefers-reduced-motion: reduce) {
   .beam, .plane.a, .glow, .flash, .dim, .backdrop { animation: none !important; }
   .beam { display: none; }
