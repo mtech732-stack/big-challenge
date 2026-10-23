@@ -58,6 +58,10 @@ const { usePin, unlock, reporter, testPinRecord } = require('./helpers.cjs');
   check('خطأ: «الاسمان متطابقان. غيّر أحدهما.»', (await text(presenter, '#setupErr')) === 'الاسمان متطابقان. غيّر أحدهما.');
   await presenter.fill('#t2', 'أبعد من ثمانية عشر حرفاً بكثير');
   check('الحقل لا يتجاوز 18 حرفاً، والعدّاد «18 / 18» أحمر', [...await presenter.inputValue('#t2')].length === 18 && (await text(presenter, '#c2')) === '18 / 18' && await presenter.$eval('#c2', e => e.classList.contains('full')));
+  await presenter.fill('#t2', '');
+  await presenter.type('#t2', 'فريق ٣');
+  await wait(200);
+  check('الأرقام الهندية في الاسم تصير إنجليزية عند الكتابة، وعلى الجمهور', (await presenter.inputValue('#t2')) === 'فريق 3' && (await text(audience, '#n2')) === 'فريق 3');
   await presenter.fill('#t2', 'النجوم');
   check('العدّاد «6 / 18»', (await text(presenter, '#c2')) === '6 / 18');
   await wait(200);
@@ -73,6 +77,13 @@ const { usePin, unlock, reporter, testPinRecord } = require('./helpers.cjs');
   await presenter.waitForSelector('[data-step="draw"]:not([hidden])');
   check('«إلى القرعة» يتحقق من الرقم السري', pinFetches > before);
   check('المقدّم: الخطوة الحالية «القرعة»، و«الإعداد» مضت', (await text(presenter, '#steps li.now')).includes('القرعة') && (await text(presenter, '#steps li.done')).includes('الإعداد'));
+  await wait(200);
+  await presenter.click('#backSetup');
+  await presenter.waitForSelector('[data-step="setup"]:not([hidden])');
+  check('«رجوع إلى الإعداد» قبل القرعة يبقي الاسمين', (await presenter.inputValue('#t1')) === 'الصقور' && (await presenter.inputValue('#t2')) === 'النجوم');
+  await presenter.press('#t2', 'Enter');
+  await presenter.waitForSelector('[data-step="draw"]:not([hidden])');
+  check('Enter في الحقل الثاني = «إلى القرعة»', true);
   await wait(200);
   check('الجمهور: «من يختار نمط الجولة الأولى؟» وشارة «القرعة»', (await text(audience, '.scr.show')).includes('من يختار نمط الجولة الأولى؟') && (await text(audience, '#b1')) === 'القرعة' && !(await visible(audience, '#b2')));
 
@@ -90,7 +101,7 @@ const { usePin, unlock, reporter, testPinRecord } = require('./helpers.cjs');
   check('الجمهور: «الفائز بالقرعة» واسمه بلون فريقه', (await text(audience, '#winner')) === names[W] && !!(await audience.$(`#winner .tn.t${W}`)));
   check('الجمهور: المؤشر حول لوحة الفائز', (await audience.evaluate(() => [...document.querySelectorAll('.team.on')].map(e => e.id).join())) === `p${W}`);
   check('المقدّم: النتيجة نفسها', (await text(presenter, '#drawWho')) === names[W]);
-  check('لا زر لإعادة القرعة', !(await visible(presenter, '#drawBtn')));
+  check('لا زر لإعادة القرعة، ولا رجوع إلى الإعداد بعدها', !(await visible(presenter, '#drawBtn')) && !(await visible(presenter, '#backSetup')));
   await audience.screenshot({ path: `${shots}/s1-draw.png` });
 
   // 3. اختيار الأنماط: الفائز ثم الآخر ثم الفائز، والرابعة تلقائياً.
