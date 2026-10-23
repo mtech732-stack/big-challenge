@@ -99,6 +99,7 @@
     <button data-m="split v2 v4 v5 v6 ambient moments">د6</button>
     <button data-m="split v2 v4 v5 v6 v7 ambient moments">د7</button>
     <button data-m="split v2 v4 v5 v6 v7 v8 ambient moments">د8</button>
+    <button data-m="split v2 v4 v5 v6 v7 v8 v9 ambient moments">د9</button>
     <span class="sep"></span>
     <button data-a="auto" id="autoBtn">إيقاف</button>
     <button data-a="manual" id="manualBtn">تحكم يدوي</button>
@@ -257,15 +258,15 @@
     svg.querySelector('polygon').setAttribute('points', `${o},0 ${w + o},0 ${w - o},${h} ${-o},${h}`);
   }));
   const pick = b => {
-    canvas.classList.remove('ambient', 'moments', 'split', 'wedge-on', 'v2', 'v4', 'ringcnt', 'v5', 'v6', 'v7', 'v8');
+    canvas.classList.remove('ambient', 'moments', 'split', 'wedge-on', 'v2', 'v4', 'ringcnt', 'v5', 'v6', 'v7', 'v8', 'v9');
     fitRings();
     b.dataset.m.split(' ').filter(Boolean).forEach(c => canvas.classList.add(c));
     models.forEach(x => x.classList.toggle('on', x === b));
   };
   models.forEach(b => b.addEventListener('click', () => pick(b)));
   // في ملء الشاشة تختفي الأزرار: المفاتيح 0 و1 و2 و3 تبدّل النموذج
-  addEventListener('keydown', e => { const i = '0123456789-=]'.indexOf(e.key); if (i >= 0) pick(models[i]); });
-  const first = { a: 1, b: 2, c: 3, d: 4, e: 5, d2: 6, d4: 7, d4b: 8, d5: 9, d6: 10, d7: 11, d8: 12, now: 0 }[location.hash.slice(1)];
+  addEventListener('keydown', e => { const i = '0123456789-=][\\'.indexOf(e.key); if (i >= 0) pick(models[i]); });
+  const first = { a: 1, b: 2, c: 3, d: 4, e: 5, d2: 6, d4: 7, d4b: 8, d5: 9, d6: 10, d7: 11, d8: 12, d9: 13, now: 0 }[location.hash.slice(1)];
   if (first !== undefined) pick(models[first]);
   // تبدأ الصفحة بالتشغيل التلقائي، فيُرى النموذج دون نقر
   fit(); act.read(); if (!still) step(0); else $('autoBtn').textContent = 'تشغيل';
