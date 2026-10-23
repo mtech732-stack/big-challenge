@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>التحدي الكبير · بدء المباراة · شاشة الجمهور</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  /* الصفحة المرجعية لشاشات الجمهور في ش1: الانتظار، والقرعة، واختيار الأنماط، والمواجهة،
+     ومعها شريط التحكم في وضع النافذة الواحدة. القياسات على لوحة 1920×1080، وملاحظاتها في design/start.md. */
+  html, body { margin: 0; height: 100%; background: #050E2E; font-family: var(--font); color: var(--on-stage); }
+  .screen { position: fixed; inset: 0 0 var(--tools, 112px) 0; overflow: hidden; }
+  :fullscreen .screen, .clean .screen { bottom: 0; }
+
+  /* الإطار: اللوحة 1920×1080، وتحتها شريط النافذة الواحدة (136) حين يكون مفعّلاً. */
+  .frame {
+    position: absolute; top: 50%; left: 50%; width: 1920px; height: 1080px;
+    transform: translate(-50%, -50%) scale(var(--scale, 1));
+  }
+  .single .frame { height: 1216px; }
+  .canvas {
+    position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; overflow: hidden;
+    background: linear-gradient(135deg, var(--stage-1) 0%, var(--stage-2) 55%, var(--stage-3) 100%);
+  }
+  .canvas > *, .team > *, .card-wrap > *, .particles > *, .check-layer > * { position: absolute; }
+
+  /* ===== الهيكل: كما في design/main.html دون تغيير ===== */
+  .plane { width: 2600px; transform: rotate(calc(-1 * var(--tilt))); transform-origin: center; }
+  .plane.a { height: 520px; left: -340px; top: -330px; background: linear-gradient(90deg, rgba(255,255,255,.07), rgba(255,255,255,0)); }
+  .plane.b { height: 300px; left: -340px; top: 470px; background: linear-gradient(270deg, rgba(14,44,134,.55), rgba(14,44,134,0)); }
+  .plane.c { height: 420px; left: -340px; top: 860px; background: linear-gradient(90deg, rgba(14,44,134,.6), rgba(14,44,134,.15)); }
+  .particles span { width: 10px; height: 10px; background: rgba(255,255,255,.22); transform: skewX(calc(-1 * var(--lean))); animation: rise linear infinite; }
+  @keyframes rise { from { translate: 0 0; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } to { translate: 0 -420px; opacity: 0; } }
+
+  .team { width: 600px; height: 136px; }
+  .team.t1 { top: 64px; right: 126px; }
+  .team.t2 { top: 808px; left: 126px; }
+  .team .shape { inset: 0; transform: skewX(calc(-1 * var(--lean))); }
+  .team.t1 .shape { background: var(--team-1); }
+  .team.t2 .shape { background: var(--team-2); }
+  .team .turn { inset: -10px; border: 6px solid var(--hl); transform: skewX(calc(-1 * var(--lean))); visibility: hidden; }
+  .team.on .turn { visibility: visible; }
+  .team .row { inset: 0; padding: 0 48px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+  .team .name { font-size: var(--fs-name); font-weight: 700; line-height: 1; white-space: nowrap; }
+  .team .score { font-size: var(--fs-score); font-weight: 900; line-height: 1; direction: ltr; }
+  .team.t1 .row { color: var(--on-stage); }
+  .team.t2 .row { color: var(--team-2-ink); }
+
+  .badge { height: 64px; padding: 0 40px; display: flex; align-items: center; white-space: nowrap;
+    font-size: var(--fs-badge); font-weight: 800; line-height: 1; top: 314px; color: var(--ink); }
+  .badge > i { position: absolute; inset: 0; background: var(--card); transform: skewX(calc(-1 * var(--lean))); }
+  .badge > span { position: relative; }
+  .badge:empty, .badge.off { display: none; }
+  .ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+
+  .card-wrap { left: 160px; top: 410px; width: 1600px; height: 352px; }
+  .card-wrap .plate { inset: 12px -12px -12px -12px; background: var(--stage-3); transform: skewX(calc(-1 * var(--tilt))); }
+  .card { inset: 0; background: var(--card); color: var(--ink); padding: 0 var(--pad-card); overflow: hidden; }
+
+  /* ===== محتوى البطاقة في شاشات ش1 ===== */
+  .scr { position: absolute; inset: 0 var(--pad-card); display: none; }
+  .scr.show { display: flex; }
+  .scr p { margin: 0; }
+  .tn.t1 { color: var(--team-1); }
+  .tn.t2 { color: var(--team-2-ink); }
+
+  /* الانتظار: اسم اللعبة وحده */
+  .title { flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
+  .title .big { font-size: 128px; font-weight: 900; line-height: 1.45; }
+  .title .sub { font-size: 40px; font-weight: 700; line-height: 1; }
+
+  /* القرعة: سؤال أثناء الدوران، ثم الفائز */
+  .draw { flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; }
+  .draw .ask { font-size: var(--fs-question); font-weight: 700; line-height: 1.4; }
+  .draw .sub { font-size: 40px; font-weight: 700; line-height: 1; }
+  .draw .winner { font-size: 96px; font-weight: 900; line-height: 1.3; white-space: nowrap; }
+
+  /* اختيار الأنماط: سطر لمن يختار، ثم خانات الأنماط 2×2 */
+  .pick { flex-direction: column; padding-top: 40px; gap: 24px; }
+  .head { font-size: 48px; font-weight: 700; line-height: 1; white-space: nowrap; }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 88px; gap: 24px; }
+  .tile { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 24px;
+    padding: 0 32px; border: 4px solid var(--ink); color: var(--ink); }
+  .tile .fill { position: absolute; inset: -4px; transform-origin: right; transform: scaleX(0); }
+  .tile > span { position: relative; white-space: nowrap; line-height: 1; }
+  .tile .mname { font-size: 48px; font-weight: 800; }
+  .tile .chip { font-size: 32px; font-weight: 700; }
+  .tile.by1, .tile.by2 { color: var(--on-stage); }
+  .tile.by1 .fill { background: var(--team-1); transform: scaleX(1); }
+  .tile.by2 .fill { background: var(--team-2-ink); transform: scaleX(1); }
+  .tile.auto .chip { background: var(--ink); color: var(--on-stage); padding: 8px 16px; }
+  .tile.left { border-style: dashed; }
+
+  /* المواجهة: الفائز بالقرعة، ثم مسار المباراة من اليمين */
+  .face { flex-direction: column; align-items: stretch; justify-content: center; gap: 40px; }
+  .face .head { text-align: center; }
+  .track { display: flex; gap: 24px; height: 136px; }
+  .seg { position: relative; flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    padding: 0 16px; border: 4px solid var(--ink); color: var(--ink); text-align: center; }
+  .seg > span { position: relative; white-space: nowrap; line-height: 1; font-size: 32px; font-weight: 700; }
+  .seg .rn { font-weight: 700; }
+  .seg .mname { font-weight: 800; }
+  .seg.by1 { background: var(--team-1); border-color: var(--team-1); color: var(--on-stage); }
+  .seg.by2 { background: var(--team-2-ink); color: var(--on-stage); }
+  .seg.wheel { flex: 0 0 136px; border-style: dashed; }
+  .short .seg .mname { font-size: 40px; }
+
+  /* ===== شريط النافذة الواحدة: تحت اللوحة، أزرار الانتقال وحدها، ولا إجابة فيه أبداً ===== */
+  .band { position: absolute; left: 0; top: 1080px; width: 1920px; height: 136px; display: none;
+    align-items: center; gap: 24px; padding: 0 48px; background: #050E2E; border-top: 4px solid var(--stage-3); }
+  .single .band { display: flex; }
+  .band .tag { font-size: 32px; font-weight: 700; color: var(--on-stage); white-space: nowrap; margin-inline-end: auto; }
+  .band button { font: inherit; font-size: 32px; font-weight: 700; height: 72px; padding: 0 32px; border: 0; border-radius: 0;
+    background: var(--card); color: var(--ink); white-space: nowrap; cursor: pointer; }
+  .band button:disabled { opacity: .45; cursor: default; }
+  .band button.alt { background: transparent; color: var(--on-stage); outline: 3px solid var(--card); outline-offset: -3px; }
+
+  /* ===== لحظات الحركة (design/start.md، القسم 6) ===== */
+  .anim .scr.show { animation: in .2s ease-out both; }
+  @keyframes in { from { opacity: 0; } }
+  .team.won { animation: bump .45s ease-out; }
+  @keyframes bump { 40% { scale: 1.06; } }
+  .tile.flash .fill { animation: wipe .28s ease-out both; }
+  @keyframes wipe { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  .enter .team.t1 { animation: from1 .4s cubic-bezier(.2,.8,.2,1) both; }
+  .enter .team.t2 { animation: from2 .4s cubic-bezier(.2,.8,.2,1) .15s both; }
+  @keyframes from1 { from { translate: 420px -300px; opacity: 0; } }
+  @keyframes from2 { from { translate: -420px 300px; opacity: 0; } }
+  .enter .badge { animation: in .25s ease-out .45s both; }
+  .enter .card-wrap .plate { animation: rise1 .3s ease-out .55s both; }
+  .enter .card-wrap .card { animation: rise1 .3s ease-out .7s both; }
+  @keyframes rise1 { from { translate: 0 48px; opacity: 0; } }
+  .enter .seg { animation: in .2s ease-out both; animation-delay: calc(1s + var(--i) * .12s); }
+  @media (prefers-reduced-motion: reduce) { .particles span, .anim *, .enter * { animation: none !important; } }
+
+  /* الفحص */
+  .check-layer { inset: 0; pointer-events: none; display: none; z-index: 10; }
+  .checking .check-layer { display: block; }
+  .check-layer .safe { left: 96px; top: 54px; width: 1728px; height: 972px; outline: 2px dashed rgba(255,255,255,.7); }
+  .check-layer .box { outline: 2px solid #3ddc84; }
+  .check-layer .box.bad { outline: 4px solid #ff2d55; background: rgba(255,45,85,.15); }
+
+  /* أدوات المعاينة: خارج اللوحة، وليست من التصميم */
+  .tools { position: fixed; left: 0; right: 0; bottom: 0; height: var(--tools, 112px); padding: 6px 16px; box-sizing: border-box;
+    display: flex; gap: 6px; align-items: center; align-content: center; flex-wrap: wrap; background: #050E2E; font-size: 16px; }
+  :fullscreen .tools, .clean .tools { display: none; }
+  .tools button { font: inherit; font-size: 16px; padding: 5px 12px; border: 0; background: #fff; color: var(--ink); cursor: pointer; }
+  .tools button[aria-pressed="true"] { background: var(--hl); }
+  .tools .sep { width: 12px; }
+  .tools output { margin-inline-start: auto; font-size: 16px; }
+  .tools output.bad { color: #ff6b81; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="screen">
+ <div class="frame" id="frame">
+  <div class="canvas" id="canvas">
+    <div class="plane a"></div><div class="plane b"></div><div class="plane c"></div>
+    <div class="particles" id="particles"></div>
+
+    <section class="team t1" id="p1" data-hud="لوحة الفريق الأول">
+      <div class="shape"></div><div class="turn"></div>
+      <div class="row" data-fit="لوحة الفريق الأول"><span class="name" id="n1"></span><span class="score" id="s1"></span></div>
+    </section>
+
+    <div class="badge" id="b1" data-hud="الشارة الأولى"><i></i><span></span></div>
+    <div class="badge" id="b2" data-hud="الشارة الثانية"><i></i><span></span></div>
+
+    <div class="card-wrap" data-hud="البطاقة">
+      <div class="plate"></div>
+      <div class="card">
+        <div class="scr title" data-s="title">
+          <p class="big">التحدي الكبير</p>
+          <p class="sub">المباراة تبدأ بعد قليل</p>
+        </div>
+        <div class="scr draw" data-s="spin">
+          <p class="ask">من يختار نمط الجولة الأولى؟</p>
+        </div>
+        <div class="scr draw" data-s="result">
+          <p class="sub">الفائز بالقرعة</p>
+          <p class="winner" id="winner" data-fit="اسم الفائز"></p>
+          <p class="sub">يختار نمط الجولة الأولى</p>
+        </div>
+        <div class="scr pick" data-s="pick">
+          <p class="head" id="pickHead" data-fit="سطر الاختيار"></p>
+          <div class="tiles" id="tiles"></div>
+        </div>
+        <div class="scr face" data-s="face">
+          <p class="head" id="faceHead"></p>
+          <div class="track" id="track"></div>
+        </div>
+      </div>
+    </div>
+
+    <section class="team t2" id="p2" data-hud="لوحة الفريق الثاني">
+      <div class="shape"></div><div class="turn"></div>
+      <div class="row" data-fit="لوحة الفريق الثاني"><span class="name" id="n2"></span><span class="score" id="s2"></span></div>
+    </section>
+
+    <div class="check-layer" id="checkLayer"><div class="safe"></div></div>
+  </div>
+
+  <div class="band" id="band" aria-label="تحكم المقدّم في النافذة الواحدة"></div>
+ </div>
+</div>
+
+<nav class="tools" aria-label="أدوات المعاينة">
+  <button data-go="wait">الانتظار</button>
+  <button data-go="title">بعد الإعداد</button>
+  <button data-go="spin">القرعة</button>
+  <button data-go="result">نتيجة القرعة</button>
+  <button data-go="pick0">الاختيار 1</button>
+  <button data-go="pick1">الاختيار 2</button>
+  <button data-go="pick2">الاختيار 3</button>
+  <button data-go="done">اكتمل الاختيار</button>
+  <button data-go="face">المواجهة</button>
+  <span class="sep"></span>
+  <button id="method">الطريقة: كاملة</button>
+  <button id="win">الفائز بالقرعة: الأول</button>
+  <button id="long" aria-pressed="false">أطول اسمين</button>
+  <button id="single" aria-pressed="false">نافذة واحدة</button>
+  <button id="play">شغّل الحركة</button>
+  <button id="check" aria-pressed="false">فحص التداخل</button>
+  <button id="all">فحص كل الحالات</button>
+  <button id="fs">ملء الشاشة</button>
+  <output id="report"></output>
+</nav>
+
+<script src="check.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const num = s => String(s).replace(/(\d+)/g, '<span class="ltr">$1</span>');
+
+  // المحتوى: الأنماط الأربعة بترتيبها (القسم 5 من الوثيقة)، واسمان عاديان وأطول اسمين يسمح بهما الحد (18 حرفاً).
+  const MODES = ['الحرف المعيّن', 'آخر حرفين', 'المزاد', 'الترتيب'];
+  const NAMES = { normal: ['الصقور', 'النجوم'], long: ['فريق النخبة الذهبي', 'نجوم المستقبل معاً'] };
+  const PACK = 'الحزمة الثقافية العامة';
+  // اختيارات المثال بالتناوب: الفائز بالقرعة، ثم الآخر، ثم الفائز، والرابعة للمتبقي (5.2).
+  const PICKS = ['المزاد', 'الحرف المعيّن', 'الترتيب'];
+  const ROUND_WORD = ['الأولى', 'الثانية', 'الثالثة', 'الرابعة'];
+
+  const st = { go: 'wait', full: true, winner: 1, long: false, single: false };
+  const total = () => st.full ? 4 : 2;
+  const methodText = () => st.full ? 'مباراة كاملة · 4 جولات' : 'مباراة قصيرة · جولتان';
+  const names = () => NAMES[st.long ? 'long' : 'normal'];
+  const other = t => t === 1 ? 2 : 1;
+  const tn = t => `<b class="tn t${t}">${names()[t - 1]}</b>`;
+
+  // من اختار كل جولة، حتى الخطوة k (عدد ما اختير). الجولة الرابعة في الكاملة تلقائية.
+  function rounds(k) {
+    const list = [];
+    for (let i = 0; i < Math.min(k, total()); i++) {
+      if (st.full && i === 3) list.push({ mode: MODES.find(m => !PICKS.includes(m)), by: 0 });
+      else list.push({ mode: PICKS[i], by: i % 2 === 0 ? st.winner : other(st.winner) });
+    }
+    return list;
+  }
+
+  function setBadges(a, b) {
+    for (const [el, t] of [[$('b1'), a], [$('b2'), b]]) { el.classList.toggle('off', !t); el.querySelector('span').innerHTML = t ? num(t) : ''; }
+  }
+
+  function render() {
+    const [a, b] = names(), go = st.go;
+    const screenOf = { wait: 'title', title: 'title', spin: 'spin', result: 'result', face: 'face' }[go] || 'pick';
+    document.querySelectorAll('.scr').forEach(s => s.classList.toggle('show', s.dataset.s === screenOf));
+    document.body.classList.toggle('short', !st.full);
+
+    $('n1').textContent = go === 'wait' ? 'الفريق الأول' : a;
+    $('n2').textContent = go === 'wait' ? 'الفريق الثاني' : b;
+    $('s1').textContent = $('s2').textContent = go === 'face' ? '0' : '';
+    let turn = 0;
+
+    if (go === 'wait') setBadges();
+    if (go === 'title') setBadges(PACK, methodText());
+    if (go === 'spin') setBadges('القرعة');
+    if (go === 'result') { setBadges('القرعة'); $('winner').innerHTML = tn(st.winner); turn = st.winner; }
+
+    if (screenOf === 'pick') {
+      const k = go === 'done' ? total() : Math.min(+go.slice(4), total() - 1);
+      const made = rounds(go === 'done' ? total() : k);
+      const finished = made.length === total();
+      if (finished) {
+        const auto = made.find(r => r.by === 0);
+        $('pickHead').innerHTML = auto ? `الجولة <span class="ltr">4</span> للنمط المتبقي: ${auto.mode}` : 'اكتمل اختيار الأنماط';
+        setBadges('اختيار الأنماط', methodText());
+      } else {
+        turn = k % 2 === 0 ? st.winner : other(st.winner);
+        $('pickHead').innerHTML = `${tn(turn)} يختار نمط الجولة <span class="ltr">${k + 1}</span>`;
+        setBadges('اختيار الأنماط', `الجولة ${k + 1} من ${total()}`);
+      }
+      $('tiles').innerHTML = MODES.map(m => {
+        const i = made.findIndex(r => r.mode === m), r = made[i];
+        const cls = r ? (r.by ? `by${r.by}` : 'auto') : (finished ? 'left' : '');
+        return `<div class="tile ${cls}" data-fit="خانة النمط"><i class="fill"></i><span class="mname">${m}</span>` +
+          (r ? `<span class="chip">${num('الجولة ' + (i + 1))}</span>` : '') + '</div>';
+      }).join('');
+    }
+
+    if (go === 'face') {
+      setBadges('المواجهة', methodText());
+      $('faceHead').innerHTML = `الفائز بالقرعة: ${tn(st.winner)}`;
+      const made = rounds(total()), wheelsAfter = st.full ? [1, 2] : [0];
+      let html = '', n = 0;
+      made.forEach((r, i) => {
+        html += `<div class="seg ${r.by ? 'by' + r.by : ''}" style="--i:${n++}" data-fit="خانة الجولة"><span class="rn">${num('الجولة ' + (i + 1))}</span><span class="mname">${r.mode}</span></div>`;
+        if (wheelsAfter.includes(i)) html += `<div class="seg wheel" style="--i:${n++}" data-fit="خانة العجلة"><span>عجلة</span><span>البونص</span></div>`;
+      });
+      $('track').innerHTML = html;
+      turn = st.winner;
+    }
+
+    $('p1').classList.toggle('on', turn === 1);
+    $('p2').classList.toggle('on', turn === 2);
+    renderBand(screenOf, turn);
+    document.querySelectorAll('[data-go]').forEach(x => x.setAttribute('aria-pressed', x.dataset.go === go));
+    $('method').textContent = `الطريقة: ${st.full ? 'كاملة' : 'قصيرة'}`;
+    $('win').textContent = `الفائز بالقرعة: ${st.winner === 1 ? 'الأول' : 'الثاني'}`;
+    place();
+  }
+
+  // شريط النافذة الواحدة: ما يحتاجه المقدّم للانتقال في كل شاشة، ولا شيء مما يُخفى عن الجمهور.
+  function renderBand(screenOf, turn) {
+    let html = '<span class="tag">نافذة واحدة</span>';
+    if (st.go === 'wait' || st.go === 'title') html += '<button>إلى القرعة</button>';
+    if (screenOf === 'spin') html += '<button disabled>القرعة جارية…</button>';
+    if (screenOf === 'result') html += '<button>التالي: اختيار الأنماط</button>';
+    if (screenOf === 'pick') {
+      const made = st.go === 'done' ? rounds(total()) : rounds(+st.go.slice(4) || 0);
+      if (st.go !== 'done' && made.length < total()) html += MODES.filter(m => !made.some(r => r.mode === m)).map(m => `<button>${m}</button>`).join('');
+      html += `<button class="alt"${made.length ? '' : ' disabled'}>تراجع</button>`;
+      if (st.go === 'done') html += '<button>إلى المواجهة</button>';
+    }
+    if (screenOf === 'face') html += '<button class="alt">أعد عرض المواجهة</button><button>ابدأ الجولة <span class="ltr">1</span></button>';
+    $('band').innerHTML = html;
+  }
+
+  // الشارة الثانية تلي الأولى بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (كما في main.html).
+  function place() {
+    const lean = Math.tan(14 * Math.PI / 180) * 64;
+    $('b1').style.right = '108px';
+    $('b2').style.right = (108 + $('b1').offsetWidth + 24 + lean) + 'px';
+    if (document.body.classList.contains('checking')) runCheck();
+  }
+
+  function runCheck() {
+    const res = layoutCheck({ canvas: $('canvas'), layer: $('checkLayer'), scope: [$('canvas'), $('band')] });
+    // الشريط: أزراره داخل عرضه، ولا يفيض.
+    const band = $('band');
+    if (st.single && band.scrollWidth > band.clientWidth + 1) res.problems.push('أزرار الشريط تفيض عن عرضه'), res.ok = false;
+    const out = $('report');
+    out.textContent = res.ok ? `✓ لا تداخل · أدنى فراغ ${Math.round(res.minGap)}` : `✗ ${res.problems.join(' · ')}`;
+    out.className = res.ok ? '' : 'bad';
+    return res;
+  }
+
+  // كل الحالات: الشاشات × الطريقتين × الفائزين × الاسمين × النافذة الواحدة.
+  window.checkAll = function () {
+    const saved = { ...st }, fails = []; let n = 0, minGap = Infinity;
+    for (const go of ['wait', 'title', 'spin', 'result', 'pick0', 'pick1', 'pick2', 'done', 'face'])
+      for (const full of [true, false]) for (const winner of [1, 2]) for (const long of [false, true]) for (const single of [false, true]) {
+        Object.assign(st, { go, full, winner, long, single });
+        document.body.classList.toggle('single', single); fit(); render();
+        const r = runCheck(); n++; minGap = Math.min(minGap, r.minGap);
+        if (!r.ok) fails.push(`${go}/${full ? 'كاملة' : 'قصيرة'}/${winner}/${long ? 'طويل' : 'عادي'}/${single ? 'واحدة' : 'نافذتان'}: ${r.problems.join('، ')}`);
+      }
+    Object.assign(st, saved); document.body.classList.toggle('single', st.single); fit(); render();
+    const res = { total: n, failed: fails.length, minGap, fails };
+    $('report').textContent = fails.length ? `✗ ${fails.length} من ${n}: ${fails[0]}` : `✓ ${n} من ${n} سليمة · أدنى فراغ ${Math.round(minGap)}`;
+    $('report').className = fails.length ? 'bad' : '';
+    return res;
+  };
+
+  // الحركة (design/start.md، القسم 6).
+  let timers = [];
+  const later = (ms, f) => timers.push(setTimeout(f, ms));
+  function play() {
+    timers.forEach(clearTimeout); timers = [];
+    const c = $('canvas');
+    c.classList.remove('enter', 'anim'); void c.offsetWidth; c.classList.add('anim');
+    if (st.go === 'spin' || st.go === 'result') {
+      // القرعة: مؤشر الدور يتنقل بين اللوحتين ويتباطأ، ثم يقف على الفائز.
+      st.go = 'spin'; render();
+      const steps = [90, 90, 100, 110, 120, 140, 160, 190, 230, 280, 340, 420];
+      let t = (steps.length % 2 === 0) ? other(st.winner) : st.winner, at = 0;
+      steps.forEach(ms => { at += ms; const who = t; later(at, () => { $('p1').classList.toggle('on', who === 1); $('p2').classList.toggle('on', who === 2); }); t = other(t); });
+      later(at + 420, () => { st.go = 'result'; render(); const p = $('p' + st.winner); p.classList.remove('won'); void p.offsetWidth; p.classList.add('won'); });
+    } else if (st.go.startsWith('pick') || st.go === 'done') {
+      // الاختيار: الخانة تمتلئ بلون الفريق، والمؤشر ينتقل إلى الآخر.
+      render();
+      const filled = [...document.querySelectorAll('.tile.by1, .tile.by2')].pop();
+      if (filled) { filled.classList.remove('flash'); void filled.offsetWidth; filled.classList.add('flash'); }
+    } else if (st.go === 'face') {
+      render(); c.classList.add('enter');
+      $('p1').classList.remove('on'); $('p2').classList.remove('on');
+      later(1000 + document.querySelectorAll('.seg').length * 120 + 200, () => { render(); const p = $('p' + st.winner); p.classList.add('won'); later(500, () => p.classList.remove('won')); });
+    } else render();
+  }
+
+  (function particles() {
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 22; i++) {
+      const s = document.createElement('span');
+      s.style.left = Math.round(rnd() * 1900) + 'px';
+      s.style.top = Math.round(500 + rnd() * 600) + 'px';
+      s.style.animationDuration = (14 + rnd() * 10).toFixed(1) + 's';
+      s.style.animationDelay = (-rnd() * 20).toFixed(1) + 's';
+      const k = 6 + Math.round(rnd() * 8); s.style.width = s.style.height = k + 'px';
+      $('particles').appendChild(s);
+    }
+  })();
+
+  const fit = () => {
+    const tools = document.fullscreenElement || document.body.classList.contains('clean') ? 0 : 112;
+    const h = st.single ? 1216 : 1080;
+    document.documentElement.style.setProperty('--scale', Math.min(innerWidth / 1920, (innerHeight - tools) / h));
+  };
+  addEventListener('resize', () => { fit(); place(); });
+  document.addEventListener('fullscreenchange', fit);
+
+  document.querySelectorAll('[data-go]').forEach(x => x.onclick = () => { st.go = x.dataset.go; render(); });
+  $('method').onclick = () => { st.full = !st.full; render(); };
+  $('win').onclick = () => { st.winner = other(st.winner); render(); };
+  $('long').onclick = e => { st.long = !st.long; e.target.setAttribute('aria-pressed', st.long); render(); };
+  $('single').onclick = e => { st.single = !st.single; e.target.setAttribute('aria-pressed', st.single); document.body.classList.toggle('single', st.single); fit(); render(); };
+  $('play').onclick = play;
+  $('check').onclick = e => { const on = document.body.classList.toggle('checking'); e.target.setAttribute('aria-pressed', on); if (on) runCheck(); else $('report').textContent = ''; };
+  $('all').onclick = () => checkAll();
+  $('fs').onclick = () => document.documentElement.requestFullscreen?.();
+
+  const q = new URLSearchParams(location.search);
+  if (q.has('clean')) document.body.classList.add('clean');
+  if (q.get('go')) st.go = q.get('go');
+  if (q.get('method') === 'short') st.full = false;
+  if (q.get('winner') === '2') st.winner = 2;
+  if (q.has('long')) st.long = true;
+  if (q.has('single')) { st.single = true; document.body.classList.add('single'); }
+  fit();
+  document.fonts.ready.then(() => { render(); if (q.has('check')) $('check').click(); });
+  document.fonts.addEventListener('loadingdone', place);
+</script>
+</body>
+</html>
