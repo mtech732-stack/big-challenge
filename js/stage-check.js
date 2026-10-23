@@ -8,15 +8,17 @@
  - [data-fit]: وعاء مستقيم لا يفيض عنه نصه أفقياً (اسم في لوحة، نمط في خانة، ...).
  - lines: { el, max } عنصر لا تتجاوز أسطره الحد.
  - كل نص ظاهر: لا أصغر من 32، ولا أرقام هندية.
- - grid: true (من الإصدار 1.2): كل حافة لمكوّن قرب حافتي الشاشة على الهامش (96 أو 1824)، فتبقى حافة واحدة في كل جانب.
+ - grid: true (من الإصدار 1.2): كل حافة لمكوّن قرب حافتي الشاشة على الهامش (96 أو 1824)، أو على حواف 1.3 المقصودة (109 و127 و1811).
  العناصر المخفية (display:none أو visibility:hidden) خارج الحساب. */
 const SAFE = { x1: 96, y1: 54, x2: 1824, y2: 1026 };
+const GRID = { left: [SAFE.x1, 109, 127], right: [SAFE.x2, 1811] };
 const visible = n => n.getClientRects().length && getComputedStyle(n).visibility !== 'hidden';
 
 function extent(el, scale, origin) {
   let r = null;
   for (const n of [el, ...el.querySelectorAll('*')]) {
-    if (n.closest('.check-layer') || !n.getClientRects().length) continue; // المؤشر المخفي يُحسب دائماً (system.md 6.2)
+    if (n.closest('.check-layer') || n.closest('.ring polygon') || !n.getClientRects().length) continue; // المؤشر المخفي يُحسب دائماً (system.md 6.2)
+    // إطار الوقت (1.3) يُرسم على حدود اللوحة نفسها، ويتبعها بعد تغيّر قياسها بإطار رسم واحد، فيُحسب بالـsvg لا بنقاط المضلع.
     const b = n.getBoundingClientRect(); if (!b.width && !b.height) continue;
     const x1 = (b.left - origin.left) / scale, y1 = (b.top - origin.top) / scale;
     const x2 = (b.right - origin.left) / scale, y2 = (b.bottom - origin.top) / scale;
@@ -92,7 +94,10 @@ export function layoutCheck({ canvas, layer, lines = [], scope = [canvas], grid 
     if (it.r.x2 > 1664) edges.right.add(Math.round(it.r.x2));
     if (it.r.x1 < 256) edges.left.add(Math.round(it.r.x1));
   }
-  const off = [...edges.right].filter(x => Math.abs(x - SAFE.x2) > 1.5).concat([...edges.left].filter(x => Math.abs(x - SAFE.x1) > 1.5));
+  // 1.3 (design/system.md 15.10): حواف المائل تُقاس كذلك عند منتصف ارتفاعه على وجه البطاقة (127)، فتُقبل معها حوافه البعيدة:
+  // 109 (لوحة الثاني) و127 (الشعار وأزرار الزاويتين) يساراً، و1811 (لوحة الأول ومربع الإعلان) يميناً.
+  const on = (x, list) => list.some(e => Math.abs(x - e) <= 1.5);
+  const off = [...edges.right].filter(x => !on(x, GRID.right)).concat([...edges.left].filter(x => !on(x, GRID.left)));
   if (grid && off.length) problems.push(`حواف خارج الشبكة: ${off.join('، ')}`);
 
   if (layer) for (const it of items) {

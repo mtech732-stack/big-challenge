@@ -1,50 +1,93 @@
-/* هيكل شاشة الجمهور، منقول من design/main.html بمواضعه وطبقاته (design/system.md، القسمان 4 و6).
-   ترتيب الطبقات من الأسفل: الخلفية والجسيمات ← الأرقام العملاقة ← اللوحات ← الشارات والعدّاد ← البطاقة ← حواف الخطر. */
+/* هيكل شاشة الجمهور، منقول من design/main.html بمواضعه وطبقاته (design/system.md، القسمان 4 و6)، وبالإصدار 1.3 (القسم 15).
+   ترتيب الطبقات من الأسفل: المسرح بطرفيه والحزم والجسيمات ← الشعار ← اللوحات ← الشارات ← البطاقة ← مربع الإعلان ← حواف الخطر. */
 .canvas { background: linear-gradient(135deg, var(--stage-1) 0%, var(--stage-2) 55%, var(--stage-3) 100%); }
 .canvas > *, .team > *, .card-wrap > *, .particles > *, .check-layer > * { position: absolute; }
 
-/* 1. الخلفية: مساحات قطرية بميل الإطار، وجسيمات تصعد ببطء */
-.plane { width: 2600px; transform: rotate(calc(-1 * var(--tilt))); transform-origin: center; }
-.plane.a { height: 520px; left: -340px; top: -330px; background: linear-gradient(90deg, rgba(255,255,255,.07), rgba(255,255,255,0)); }
-.plane.b { height: 300px; left: -340px; top: 470px; background: linear-gradient(270deg, rgba(14,44,134,.55), rgba(14,44,134,0)); }
-.plane.c { height: 420px; left: -340px; top: 860px; background: linear-gradient(90deg, rgba(14,44,134,.6), rgba(14,44,134,.15)); }
+/* 1. المسرح بطرفين بلوني الفريقين (1.3، design/system.md 15.1–15.2): الأعلى للأول والأسفل للثاني، والحدّ بينهما مائل 6°.
+   الحدّ عند وسط الشاشة على 586 خلف البطاقة، ويكتسح لصاحب الدور وقت العدّاد (وفي القرعة): الأول 1110، والثاني −30.
+   وأربع حزم ضوء تعبر من اليسار، وسرعتها من الكود بالحالة (playbackRate). وكل ما هنا شفاف لا نص فيه. */
+.stagebg { inset: 0; pointer-events: none; }
+.stagebg > * { position: absolute; }
+.stagebg .f { left: -240px; width: 2400px; height: 1800px; transform: rotate(calc(-1 * var(--tilt)));
+  transition: translate .76s cubic-bezier(.3,1.15,.4,1) .05s, filter .8s ease; }
+.stagebg .f1 { top: -1214px; background: linear-gradient(0deg, #661220 0%, #7A1622 22%, #8E1A28 60%); }
+.stagebg .f2 { top: 586px; background: linear-gradient(180deg, #0E2C86 0%, #1238A8 22%, #1A4BD1 60%); }
+.stagebg .e { left: -240px; width: 2400px; top: 584px; height: 4px; transform: rotate(calc(-1 * var(--tilt)));
+  background: rgba(255,255,255,.7); box-shadow: 0 4px 12px rgba(14,44,134,.6); transition: translate .76s cubic-bezier(.3,1.15,.4,1); }
+.stagebg .e::before { content: ""; position: absolute; left: 0; right: 0; top: -18px; height: 2px; background: rgba(255,90,102,.6); }
+.turn-1 .stagebg .f, .turn-1 .stagebg .e { translate: 0 524px; }
+.turn-2 .stagebg .f, .turn-2 .stagebg .e { translate: 0 -616px; }
+.turn-1 .stagebg .f1, .turn-2 .stagebg .f2 { filter: brightness(1.15); animation: arrive .7s ease-out .65s both; }
+/* الحافة تتسع وتتوهّج أثناء الاكتساح، وطرف صاحب الدور يومض عند الوصول ثم يستقر على 115% */
+.stagebg .e.sweep { animation: sweep2 .9s ease-out; }
+@keyframes sweep2 { 0%, 70% { background: #FFFFFF; height: 8px; box-shadow: 0 0 48px 16px rgba(255,255,255,.7), 0 0 120px 40px rgba(255,255,255,.25); } }
+@keyframes arrive { 0% { filter: brightness(1.15); } 25% { filter: brightness(1.55); } 100% { filter: brightness(1.15); } }
+.beam { top: -240px; height: 1560px; left: -480px; width: 320px;
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.10) 50%, rgba(255,255,255,0));
+  transform: skewX(calc(-1 * var(--tilt))); transition: opacity .4s ease; }
+.beam.w { width: 560px; background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.06) 50%, rgba(255,255,255,0)); }
+.running .beam { opacity: .45; }
 .particles span {
   width: 10px; height: 10px; background: rgba(255,255,255,.22);
   transform: skewX(calc(-1 * var(--lean)));
   animation: rise linear infinite;
 }
 @keyframes rise { from { translate: 0 0; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } to { translate: 0 -420px; opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .particles span { animation: none; } }
-
-/* 2. الرقم العملاق: على أربعة أعمدة بجوار لوحته (1.2، design/system.md 6.6). الأول ينتهي عند 1094، والثاني يبدأ من 826.
-   والأول بالأزرق الداكن لا بالأحمر الشفاف (كان يظهر بنفسجياً) */
-.giant {
-  height: 228px; line-height: 228px; font-size: var(--fs-giant); font-weight: 900;
-  direction: ltr; white-space: nowrap; transform: skewX(calc(-1 * var(--lean)));
+/* تقليل الحركة في الجهاز: لا حزم ولا اكتساح، والانتقال فوري يلطّفه تلاشٍ 300ms */
+@media (prefers-reduced-motion: reduce) {
+  .particles span { animation: none; }
+  .beam { display: none; }
+  .stagebg .f, .stagebg .e { transition: none; animation: none !important; }
+  .swap .stagebg .f, .swap .stagebg .e { animation: swapfade .3s ease-out !important; }
+  @keyframes swapfade { from { opacity: .4; } }
 }
-.giant.t1 { top: 60px; right: 855px; color: var(--stage-3); opacity: .5; }
-.giant.t2 { top: 805px; left: 855px; color: var(--team-2); opacity: .16; }
 
-/* 3. لوحة الفريق: الشكل مائل، والمحتوى مستقيم فوقه. على خمسة أعمدة: الأول 1118–1824، والثاني 96–802 (مع المؤشر والميل) */
-.team { width: 646px; height: 136px; }
+/* 2. الشعار أعلى اليسار في كل شاشة (15.7): «التحدي» أبيض 72، وتحته «الكبير» أزرق داكن 104 على صفيحة بيضاء مائلة.
+   ويحلّ محله في النافذة الواحدة صفّا أزرار الزاويتين (css/shared.css) */
+.logo { left: 127px; top: 58px; width: 383px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.logo .l1 { font-size: 72px; font-weight: 900; line-height: 1.3; color: var(--on-stage); padding: 0 24px; }
+/* الصفيحة 368 تنتهي يميناً عند 510، فيقع طرفها المائل الأيسر على 127 بالضبط، حافة الشبكة في 1.3 (design/system.md 15.10) */
+.logo .l2 { position: relative; width: 368px; height: 120px; display: flex; align-items: center; justify-content: center; }
+.logo .l2 > i { position: absolute; inset: 0; background: var(--card); transform: skewX(calc(-1 * var(--lean))); box-shadow: 10px 10px 0 var(--stage-3); }
+.logo .l2 > b { position: relative; font-size: 104px; font-weight: 900; line-height: 1; color: var(--ink); }
+.locked .logo, .has-a .logo { display: none; }
+
+/* 3. لوحة الفريق بلا شكل (15.3): الاسم ثم الرقم الكبير ثم العدّاد (لصاحب الدور)، بفراغ 32، واللوحة تتسع لمحتواها.
+   الأول 64–200 مرسى على اليمين، والثاني 880–1016 مرسى على اليسار (صفه معكوس). والاسم أبيض 40 وزن 800 على لون طرفه */
+.team { height: 136px; }
 .team.t1 { top: 64px; right: 126px; }
-.team.t2 { top: 808px; left: 126px; }
-.team .shape { inset: 0; transform: skewX(calc(-1 * var(--lean))); }
-.team.t1 .shape { background: var(--team-1); }
-.team.t2 .shape { background: var(--team-2); box-shadow: inset -24px 0 0 var(--team-2-ink); } /* شريط داكن على الحافة الداخلية، كي لا تُقرأ اللوحة جزءاً من البطاقة */
-.team .turn { inset: -10px; border: 6px solid var(--hl); transform: skewX(calc(-1 * var(--lean))); visibility: hidden; }
-.team.on .turn { visibility: visible; }
-.team .row { inset: 0; padding: 0 48px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
-.team .name { font-size: var(--fs-name); font-weight: 700; line-height: 1; white-space: nowrap; }
-.team .score { font-size: var(--fs-score); font-weight: 900; line-height: 1; direction: ltr; }
-.team.t1 .row { color: var(--on-stage); }
-.team.t2 .row { color: var(--team-2-ink); }
+.team.t2 { top: 880px; left: 126px; }
+.team .shape { inset: 0; transform: skewX(calc(-1 * var(--lean))); transition: background .4s ease .3s; }
+/* لسان الفريق الآخر: لوحته على لون خصمها، فتمتلئ بلونها هي بلا إطار (15.2) */
+.turn-1 .team.t2 .shape { background: linear-gradient(180deg, #0E2C86, #1238A8); }
+.turn-2 .team.t1 .shape { background: linear-gradient(0deg, #661220, #7A1622); }
+.team .row { position: relative; z-index: 1; height: 136px; padding: 0 48px; display: flex; align-items: center; justify-content: flex-start; gap: 32px; color: var(--on-stage); }
+.team.t2 .row { flex-direction: row-reverse; }
+.team .name { font-size: var(--fs-name); font-weight: 800; line-height: 1; white-space: nowrap; }
+/* الرقم الكبير هو النتيجة (15.5): 280 أبيض صريح مائل 14°، و236 بثلاث خانات. رسمه نحو 205 في سطر 136، فيكسر إطار الوقت أعلى وأسفل */
+.team .score { font-size: var(--fs-giant); line-height: 136px; height: 136px; font-weight: 900; margin: 0 8px; direction: ltr;
+  white-space: nowrap; transform: skewX(calc(-1 * var(--lean))); }
+.team .score.three { font-size: 236px; }
+.team .score:empty { display: none; }
+/* إطار الوقت: الإطار الوحيد، أصفر 8 مائل على قياس اللوحة الفعلي، ويتآكل مع العدّاد (pathLength 100). ويتنقل مع مؤشر القرعة */
+.ring { display: none; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.ring polygon { fill: none; stroke: var(--hl); stroke-width: 8; stroke-dasharray: 100 100; stroke-dashoffset: 0; vector-effect: non-scaling-stroke; }
+.running .team.on > .ring, .drawing .team.on > .ring { display: block; }
+/* عدّاد الثواني في لوحة صاحب الدور وحده: ثوانٍ صفراء 64 بلا مربع، يفصلها خط أبيض 60% مائل. وفي آخر 3 ثوانٍ ينبض */
+.team .cnt { display: none; align-items: center; height: 88px; padding: 0 8px 0 0; margin-inline-start: 8px;
+  font-size: var(--fs-timer); font-weight: 900; line-height: 1; color: var(--hl); direction: ltr; }
+.team .cnt::before { content: ""; width: 3px; height: 56px; margin-right: 32px; background: rgba(255,255,255,.6); transform: skewX(calc(-1 * var(--lean))); }
+.team.t2 .cnt { flex-direction: row-reverse; padding: 0 0 0 8px; }
+.team.t2 .cnt::before { margin-right: 0; margin-left: 32px; }
+.running .team.on .cnt { display: flex; }
+.meta-danger .team.on .cnt { animation: numpulse 1s ease-in-out infinite; }
+@keyframes numpulse { 50% { color: #FFFFFF; } }
 
-/* 4. شريط الفارق: أُلغي بملاحظة المالك (الوثيقة 1.1، 7.2) */
-.badge > i, .timer > i { position: absolute; inset: 0; }
-.badge > span, .timer > span { position: relative; }
+/* 4. شريط الفارق أُلغي (الوثيقة 1.1)، ومربع العدّاد المستقل أُلغي (1.3): الثواني في لوحة صاحب الدور */
+.badge > i { position: absolute; inset: 0; }
+.badge > span { position: relative; }
 
-/* 5. صف الشارات والعدّاد */
+/* 5. صف الشارات */
 .badge {
   height: 64px; padding: 0 40px; display: flex; align-items: center; white-space: nowrap;
   font-size: var(--fs-badge); font-weight: 800; line-height: 1; top: 314px;
@@ -54,13 +97,6 @@
 .badge.mode > i { background: var(--hl); }
 .badge.level { color: var(--ink); }
 .badge.level > i { background: var(--card); }
-.timer {
-  top: 306px; left: 106px; height: 80px; min-width: 216px; padding: 0 40px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: var(--fs-timer); font-weight: 900; line-height: 1; color: var(--hl); direction: ltr;
-}
-.timer > i { background: var(--stage-3); transform: skewX(calc(-1 * var(--lean))); }
-
 /* 6. البطاقة المستقيمة وصفيحتها المائلة، على الأعمدة 1–12: الوجه 127–1793، والامتداد بالصفيحة والميل 96–1824 */
 .card-wrap { left: 127px; top: 410px; width: 1666px; height: 352px; }
 .card-wrap .plate { inset: 12px -12px -12px -12px; background: var(--stage-3); transform: skewX(calc(-1 * var(--tilt))); }
@@ -74,7 +110,7 @@
   font-size: var(--fs-letter); font-weight: 800; line-height: 1;
 }
 .letter:empty { display: none; }
-.question { margin: 0; font-size: var(--fs-question); font-weight: 700; line-height: var(--lh-question); max-height: 264px; overflow: clip; }
+.question { color: var(--text); margin: 0; font-size: var(--fs-question); font-weight: 700; line-height: var(--lh-question); max-height: 264px; overflow: clip; }
 
 /* 7. لحظة انفعالية: آخر 3 ثوانٍ، حواف حمراء نابضة فوق كل شيء */
 .danger { inset: 0; pointer-events: none; box-shadow: inset 0 0 0 0 rgba(230,57,70,0); }
