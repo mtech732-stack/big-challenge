@@ -68,6 +68,9 @@
 .team .score { font-size: var(--fs-giant); line-height: 136px; height: 136px; font-weight: 900; margin: 0 8px; direction: ltr;
   white-space: nowrap; transform: skewX(calc(-1 * var(--lean))); }
 .team .score.three { font-size: 236px; }
+/* ما يُنقر من الرقم صندوقه وحده (136)، لا رسمه الذي يكسر السطر: الرسم بخط 280 يمتد تحته إلى صف الأزرار في النافذة الواحدة (الملاحظة 25) */
+.team .score { position: relative; pointer-events: none; }
+.team .score[data-cmd]::after { content: ""; position: absolute; inset: 0; pointer-events: auto; }
 .team .score:empty { display: none; }
 /* إطار الوقت: الإطار الوحيد، أصفر 8 مائل على قياس اللوحة الفعلي، ويتآكل مع العدّاد (pathLength 100). ويتنقل مع مؤشر القرعة */
 .ring { display: none; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }

@@ -305,6 +305,25 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('لا شريط سفلي', !(await presenter.$('#band')));
   check('بجانب العدّاد بعد انتقال الإجابة: «صحيحة · +1» «خاطئة»', (await near()) === 'صحيحة · +1 | خاطئة');
   check('الزاويتان: «تراجع» «الصوت» «افتح نافذة المقدّم» ثم «الرصيد» «مباراة جديدة» «ملء الشاشة»', (await corners()) === 'تراجع | الصوت | افتح نافذة المقدّم | الرصيد | مباراة جديدة | ملء الشاشة');
+  const coverFails = [];
+  // الملاحظة 25: كل زر ظاهر هو ما يستجيب في خمس نقاط منه (elementFromPoint)، بالاسمين الطويلين وبرقم من خانة وخانتين وثلاث للفريقين.
+  const covered = async label => {
+    for (const v of ['7', '10', '188']) {
+      const bad = await frame.evaluate(v => {
+        for (const k of [1, 2]) { const s = document.getElementById('s' + k); s.textContent = v; s.classList.toggle('three', v.length >= 3); }
+        const out = [];
+        for (const b of document.querySelectorAll('#near .cbtn, #cornerA .cbtn, #cornerB .cbtn, .card .scr.show .cbtn')) {
+          if (!b.getClientRects().length) continue;
+          const r = b.getBoundingClientRect();
+          const pts = [[.5, .5], [.1, .15], [.9, .15], [.1, .85], [.9, .85]].map(([x, y]) => [r.left + r.width * x, r.top + r.height * y]);
+          const n = pts.filter(([x, y]) => document.elementFromPoint(x, y)?.closest('button') !== b).length;
+          if (n) out.push(`«${b.textContent.trim()}» ${n}/5`);
+        }
+        return out;
+      }, v);
+      if (bad.length) { coverFails.push(`${label} بـ ${v}: ${bad.join('، ')}`); }
+    }
+  };
   const qs = (await st()).questions[1];
   check('الأزرار لا تعرض الإجابة', !(await near()).includes(qs.answer) && !(await corners()).includes(qs.answer));
   await audienceCheck(frame, 'نافذة واحدة · انتقال الإجابة');
@@ -319,11 +338,14 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await wait(800);
   check('السؤال 3: «ابدأ» «صحيحة · +2» «خاطئة» بجانب العدّاد', (await near()) === 'ابدأ | صحيحة · +2 | خاطئة');
   await audienceCheck(frame, 'نافذة واحدة · قبل ابدأ');
+  await covered('قبل ابدأ');
   await presenter.screenshot({ path: `${shots}/s2-single-ready.png` });
   await cmd(frame, 'act:start');
   await wait(1300);
   check('النافذة الواحدة: العدّاد يعدّ، و«ابدأ» يختفي', ['0:14', '0:13'].includes(await text(frame, '#timer')) && (await near()) === 'صحيحة · +2 | خاطئة');
   await audienceCheck(frame, 'نافذة واحدة · العدّاد يعدّ');
+  await covered('العدّاد يعدّ');
+  check(`النافذة الواحدة: لا يغطي شيءٌ أزرار التحكم بالاسمين الطويلين وأرقام من 1 و2 و3 خانات (الملاحظة 25)${coverFails.length ? ': ' + coverFails.slice(0, 3).join(' | ') : ''}`, !coverFails.length);
   await frame.click('#s1');
   const opened = await presenter.waitForSelector('#scores:not([hidden])', { timeout: 3000 }).then(() => true, () => false);
   check('النقر على رقم الفريق يفتح طبقة الرصيد فوق الشاشة', opened && await presenter.evaluate(() => {

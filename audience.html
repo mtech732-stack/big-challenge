@@ -587,6 +587,11 @@
   window.__stageCheck = async () => {
     const { layoutCheck } = await import('./js/stage-check.js');
     await document.fonts.ready;
+    // يُفحص ما يستقر على الشاشة لا لحظة عابرة: تنتظر الحركات القصيرة (نبضة اللوحة 450ms مثلاً، وهي تكبّرها 6%).
+    // وحركات المكوّنات وحدها: المسرح خارج الفحص، والحزم بلا نهاية، وتآكل إطار الوقت بطول العدّاد.
+    await Promise.all(canvas.getAnimations({ subtree: true })
+      .filter(a => a.effect?.getComputedTiming().iterations !== Infinity && a.effect?.target?.closest?.('[data-hud]') && a.effect.target.tagName !== 'polygon')
+      .map(a => a.finished.catch(() => {})));
     return layoutCheck({ canvas, layer: null, lines: [{ el: $('label'), max: 3 }], grid: true });
   };
 </script>

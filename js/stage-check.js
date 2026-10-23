@@ -11,7 +11,7 @@
  - grid: true (من الإصدار 1.2): كل حافة لمكوّن قرب حافتي الشاشة على الهامش (96 أو 1824)، أو على حواف 1.3 المقصودة (109 و127 و1811).
  العناصر المخفية (display:none أو visibility:hidden) خارج الحساب. */
 const SAFE = { x1: 96, y1: 54, x2: 1824, y2: 1026 };
-const GRID = { left: [SAFE.x1, 109, 127], right: [SAFE.x2, 1811] };
+const GRID = { left: [SAFE.x1, 109, 127], right: [SAFE.x2, 1811, 1793] };   // كما في design/check.js (PR #78)
 const visible = n => n.getClientRects().length && getComputedStyle(n).visibility !== 'hidden';
 
 function extent(el, scale, origin) {
