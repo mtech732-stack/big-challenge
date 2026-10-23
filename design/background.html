@@ -88,7 +88,7 @@
     <button data-a="wrong">خطأ</button>
     <button data-a="steal">انتقال</button>
   </div>
-  <p class="key">أ: الطبقات الثلاث · ب: الأضواء والحالة · ج: اللحظات فقط</p>
+  <p class="key">أ: الطبقات الثلاث · ب: الأضواء والحالة · ج: اللحظات فقط · وفي ملء الشاشة: المفاتيح 0 و1 و2 و3</p>
 </div>
 
 <script>
@@ -198,6 +198,8 @@
     models.forEach(x => x.classList.toggle('on', x === b));
   };
   models.forEach(b => b.addEventListener('click', () => pick(b)));
+  // في ملء الشاشة تختفي الأزرار: المفاتيح 0 و1 و2 و3 تبدّل النموذج
+  addEventListener('keydown', e => { const i = '0123'.indexOf(e.key); if (i >= 0) pick(models[i]); });
   const first = { a: 1, b: 2, c: 3, now: 0 }[location.hash.slice(1)];
   if (first !== undefined) pick(models[first]);
   // تبدأ الصفحة بالتشغيل التلقائي، فيُرى النموذج دون نقر
