@@ -12,8 +12,6 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   const errors = [];
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const LONG = ['فريق النخبة الذهبي', 'نجوم المستقبل معاً'];
-  const bank = require('../content/packs/general/letter.json').questions;
-  const answers = bank.flatMap(q => [q.answer, ...(q.alts ?? [])]);
 
   const context = await browser.newContext({ viewport: { width: 1366, height: 768 } });
   await usePin(context);
@@ -38,9 +36,12 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   const audienceCheck = async (page, label) => {
     const r = await page.evaluate(() => window.__stageCheck());
     if (!r.ok) { layoutOk = false; fails.push(`${label}: ${r.problems.join('، ')}`); }
-    const body = await page.evaluate(() => document.body.innerText + JSON.stringify(window.__lastView ?? ''));
-    const shown = await page.textContent('#label');
-    if (answers.some(a => body.includes(a) && !shown.includes(a))) { leak = true; fails.push(`${label}: إجابة على شاشة الجمهور`); }
+    // إجابة السؤال المعروض وبدائلها، في نص الشاشة كله دون السؤال نفسه واسمَي الفريقين
+    // (فـ«ذهب» جزء من «فريق النخبة الذهبي» وليست تسريباً).
+    const q = await presenter.evaluate(() => { const r = JSON.parse(localStorage.getItem('big-challenge.match')).round; return r?.state.questions[r.state.index] ?? null; });
+    if (!q) return;
+    const body = await page.evaluate(names => { let t = document.body.innerText.replace(document.getElementById('label').textContent, ''); for (const n of names) t = t.split(n).join(''); return t; }, LONG);
+    if ([q.answer, ...q.alts].some(a => body.includes(a))) { leak = true; fails.push(`${label}: إجابة على شاشة الجمهور («${q.answer}»)`); }
   };
   const presenterCheck = async label => {
     const r = await presenter.evaluate(() => {
