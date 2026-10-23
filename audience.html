@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>التحدي الكبير · نافذة الجمهور</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/base.css">
+<style>
+  .canvas { display: grid; place-items: center; text-align: center; }
+  #label { font-size: 48px; margin: 0 0 24px; }
+  #timer { font-size: 320px; font-weight: 800; line-height: 1; color: var(--hl); }
+  #fs { position: fixed; bottom: 24px; left: 24px; font-size: 32px; }
+  :fullscreen #fs { display: none; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="canvas">
+    <div>
+      <p id="label">نافذة الجمهور · بانتظار المقدّم</p>
+      <div id="timer" class="ltr">0:10</div>
+    </div>
+  </div>
+</div>
+<button id="fs">ملء الشاشة</button>
+
+<script type="module">
+  import { createLink } from './js/sync.js';
+
+  const $ = id => document.getElementById(id);
+  const fit = () => document.documentElement.style.setProperty(
+    '--scale', Math.min(innerWidth / 1920, innerHeight / 1080));
+  addEventListener('resize', fit);
+  fit();
+
+  // نافذة الجمهور هي التي تعدّ الثواني بنفسها، بموعد انتهاء ثابت لا بتراكم الفترات.
+  let endAt = 0, timer = 0, lastText = '';
+  const format = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const show = seconds => {
+    const text = format(seconds);
+    $('timer').textContent = text;
+    if (text !== lastText) { lastText = text; link.send('tick', { text }); }
+  };
+  const run = () => {
+    const left = Math.max(0, Math.ceil((endAt - performance.now()) / 1000));
+    show(left);
+    if (left === 0) { clearInterval(timer); $('label').textContent = 'انتهى الوقت'; }
+  };
+
+  const link = createLink('audience', (type, data) => {
+    if (type === 'start') {
+      clearInterval(timer);
+      endAt = performance.now() + data.seconds * 1000;
+      $('label').textContent = 'العدّاد يعمل';
+      run();
+      timer = setInterval(run, 100);
+    }
+    if (type === 'reset') {
+      clearInterval(timer);
+      $('label').textContent = 'نافذة الجمهور · متصلة';
+      show(10);
+    }
+  });
+  link.onStatus(on => {
+    if (!timer) $('label').textContent = on ? 'نافذة الجمهور · متصلة' : 'نافذة الجمهور · بانتظار المقدّم';
+    if (on) link.send('tick', { text: $('timer').textContent });
+  });
+
+  $('fs').onclick = () => document.documentElement.requestFullscreen?.();
+</script>
+</body>
+</html>
