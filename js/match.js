@@ -2,7 +2,8 @@
 // دوال خالصة على حالة بيانات (JSON)، فتُحفظ المباراة وتعود بعد إعادة التحميل (docs/decisions.md).
 import { TEAM_NAME_MAX } from './content-check.js';
 
-export const STEPS = ['setup', 'draw', 'pick', 'face'];
+// play: الجولات بعد المواجهة (js/play.js).
+export const STEPS = ['setup', 'draw', 'pick', 'face', 'play'];
 export const METHODS = {
   short: { rounds: 2, wheelsAfter: [1] },     // جولتان، وعجلة بينهما
   full: { rounds: 4, wheelsAfter: [2, 3] },   // أربع جولات، وعجلتان بعد الثانية وبعد الثالثة
