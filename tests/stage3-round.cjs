@@ -201,6 +201,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await wait(400);
   check('الجمهور: «انتهت الجولة 1» و«التالي: عجلة البونص»', (await text(audience, '#b1')) === 'انتهت الجولة 1' && (await text(audience, '#next')) === 'التالي: عجلة البونص');
   check('المقدّم: «انتهت الجولة 1 · آخر حرفين»', (await text(presenter, '#endHead')) === 'انتهت الجولة 1 · آخر حرفين');
+  await wait(900);
+  await stage.screenshot({ path: `${shots}/s3-end.png` });
   await both('النهاية');
 
   // 8. ما بعدها: تخطّي العجلة، ثم جولة «الحرف المعيّن» بوقتها 15 وحرف بلا تطويل
@@ -271,6 +273,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('الأزرار لا تعرض الإجابة', !leak);
   await frame.waitForSelector('.scr.show[data-s="end"]', { timeout: 6000 });
   check('نهاية الجولة بنافذة واحدة: «تخطَّ عجلة البونص» في البطاقة', (await near()) === 'تخطَّ عجلة البونص');
+  check('نهاية الجولة بنافذة واحدة: «التالي» نص أبيض بلا مربع (15.4)', await frame.$eval('#box', b => b.classList.contains('bare') && !b.querySelector(':scope > i').getClientRects().length && getComputedStyle(b.querySelector('#next')).color === 'rgb(255, 255, 255)'));
+  await wait(900);
+  await stage.screenshot({ path: `${shots}/s3-single-end.png` });
   await audienceCheck(frame, 'نافذة واحدة · النهاية');
 
   // نافذة المقدّم الأخيرة أُغلقت مع المباراة الجديدة: فحص 1920 لا يلزم هنا.

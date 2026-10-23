@@ -17,6 +17,9 @@
 .box .line { font-size: 44px; font-weight: 700; line-height: 1.1; }
 .box .line b { font-weight: 900; }
 .locked .box { display: none; }
+/* نهاية الجولة: «التالي» نص أبيض على الطرف بلا مربع، في موضعه وبمقاسه (15.4) */
+.box.bare > i { display: none; }
+.box.bare .line { color: var(--on-stage); }
 
 /* افتتاح الجولة */
 .scr.intro { flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; }

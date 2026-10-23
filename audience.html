@@ -206,6 +206,8 @@
     $('faceChip').hidden = $('faceWin').hidden = !face; $('faceWin').textContent = face ? name(face) : '';
     $('next').hidden = !next; $('next').innerHTML = next ? num(next) : '';
     $('box').hidden = !(v || answer || face || next);
+    // «التالي» في نهاية الجولة نص أبيض على الطرف بلا مربع، فلا يتجاوز الأبيض سقفه (15.4 و15.12).
+    $('box').classList.toggle('bare', !!next && !v && !answer && !face);
   }
 
   // صف الشارات من اليمين بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (design/start.html وdesign/letter.html):

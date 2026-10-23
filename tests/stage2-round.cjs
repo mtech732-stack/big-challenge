@@ -23,6 +23,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   });
   const text = (page, sel) => page.textContent(sel).then(t => t.replace(/\s+/g, ' ').trim());
   const visible = (page, sel) => page.isVisible(sel);
+  // لا عنصر ظاهر بهذا المحدِّد (isVisible يقرأ أول عنصر وحده، وإطار الفريق الأول أولاً).
+  const none = (page, sel) => page.$$eval(sel, es => es.every(e => !e.getClientRects().length));
 
   // الشاشة المشتركة على التلفاز، ثم «ابدأ المباراة» يفتح نافذة المقدّم. والجولة 1 «الحرف المعيّن».
   let stage = await context.newPage();
@@ -100,7 +102,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('الجمهور: الافتتاح بالقاعدة وحدها، بلا سطر تفاصيل', (await text(audience, '#rule')) === 'أجب بكلمة تبدأ بالحرف المعيّن' && !(await audience.$('#ruleSub')));
   check('الجمهور: «يبدأ [الاسم]» والمؤشر حوله', (await text(audience, '#starter')) === `يبدأ ${LONG[starter - 1]}` && await audience.$eval(`#p${starter}`, e => e.classList.contains('on')));
   check('الجمهور: شارة النمط «الحرف المعيّن» و«الجولة 1 من 2»', (await text(audience, '#mode')) === 'الحرف المعيّن' && await visible(audience, '.badge.mode') && (await text(audience, '#b1')) === 'الجولة 1 من 2');
-  check('الجمهور: قبل أول سؤال لا عدّاد ولا إطار وقت، والرقمان 0 بجوار الاسمين (1.3)', !(await visible(audience, '.team .cnt')) && !(await visible(audience, '.ring')) && (await text(audience, '#s1')) === '0' && await visible(audience, '#s1') && await visible(audience, '#s2'));
+  check('الجمهور: قبل أول سؤال لا عدّاد ولا إطار وقت، والرقمان 0 بجوار الاسمين (1.3)', (await none(audience, '.team .cnt')) && (await none(audience, '.ring')) && (await text(audience, '#s1')) === '0' && await visible(audience, '#s1') && await visible(audience, '#s2'));
   check('الجمهور: لا أزرار على شاشة الجمهور بالنافذتين', !(await audience.$('.cbtn')));
   check('المقدّم: الافتتاح «يبدأ … (اختير عشوائياً)» و«اعرض السؤال 1»', (await text(presenter, '#introWho')).includes('(اختير عشوائياً)') && (await text(presenter, '#showQ')) === 'اعرض السؤال 1');
   check('المقدّم: سطر القاعدة «انتقلت الإجابة إلى خصمه»، لا «سرقة»', (await text(presenter, '#introBrief')).includes('انتقلت الإجابة إلى خصمه في 5 ثوانٍ'));
@@ -117,7 +119,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('الجمهور: العدّاد ثابت على 0:15 قبل «ابدأ»', (await text(audience, '#timer')) === '0:15' && (await wait(1200), (await text(audience, '#timer')) === '0:15'));
   check('الجمهور: «السؤال 1 من 6» وحدها، بلا مستوى', (await text(audience, '#b1')) === 'السؤال 1 من 6' && !(await visible(audience, '#b2')));
   check('الجمهور: الرقم الكبير بجوار الاسم ولا رقم عملاق في المنتصف ولا شريط فارق، والحدّ لصاحب الدور من ظهور السؤال، بلا إطار وقت قبل «ابدأ» (1.3، المالك 20:39)', await visible(audience, '#s1') && !(await audience.$('.giant')) && !(await audience.$('.strip'))
-    && await audience.$eval('#canvas', (c, o) => c.classList.contains('turn-' + o) && !c.classList.contains('turn-' + (3 - o)) && !c.classList.contains('running'), starter) && !(await visible(audience, '.ring')));
+    && await audience.$eval('#canvas', (c, o) => c.classList.contains('turn-' + o) && !c.classList.contains('turn-' + (3 - o)) && !c.classList.contains('running'), starter) && (await none(audience, '.ring')));
   check('المقدّم: الإجابة النموذجية وسطر القبول، و«السؤال 1 من 6» بلا مستوى', (await text(presenter, '#qAnswer')) === q1[0].answer
     && (await text(presenter, '#qAccept')) === `وتُقبل أي كلمة أخرى تبدأ بـ «${q1[0].box}» وتنطبق على المطلوب.` && (await text(presenter, '#qMeta')) === 'السؤال 1 من 6');
   check('المقدّم: «لم يبدأ العدّاد»، و«ابدأ العدّاد» و«صحيحة · +1» و«خاطئة»', (await text(presenter, '#qState')) === 'لم يبدأ العدّاد' && await visible(presenter, '#startTimer') && (await text(presenter, '#yes')) === 'صحيحة · +1' && await visible(presenter, '#no'));
@@ -131,7 +133,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await audience.$eval('#edge', e => e.classList.remove('sweep'));
   await presenter.click('#startTimer');
   await wait(150);
-  check('الجمهور: «ابدأ» لا يحرّك الحدّ، ويظهر إطار الوقت وحده (1.3)', (await sweeps()) === 0 && await visible(audience, '.ring'));
+  check('الجمهور: «ابدأ» لا يحرّك الحدّ، ويظهر إطار الوقت وحده (1.3)', (await sweeps()) === 0 && await visible(audience, '.team.on .ring'));
   await wait(1450);
   const t = await text(audience, '#timer');
   check(`الجمهور: العدّاد يعدّ (${t})`, t === '0:14' || t === '0:13');
@@ -149,7 +151,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check(`الجمهور: لحظة الكسب على الرقم الكبير للكاسب (${gain})`, gain === 'gain');
   await wait(450);
   check('الجمهور: الحكم «[اسم الفريق] · +1» بلون الفريق في مربع الإعلان، والعدّاد وإطاره اختفيا، والحدّ يقف على الكاسب وجهته ومضت', (await text(audience, '#vtext')) === `${LONG[starter - 1]} · +1` && await audience.$eval('#verdict', (e, s) => e.classList.contains('t' + s), starter)
-    && await visible(audience, '#box #verdict') && !(await visible(audience, '.team .cnt')) && !(await visible(audience, '.ring'))
+    && await visible(audience, '#box #verdict') && (await none(audience, '.team .cnt')) && (await none(audience, '.ring'))
     && await audience.$eval('#canvas', (c, o) => c.classList.contains('turn-' + o) && !c.classList.contains('turn-' + (3 - o)) && c.querySelector('.stagebg .f' + o).classList.contains('blink'), starter));
   check('الجمهور: «الإجابة: …» تحت السؤال', (await text(audience, '#reveal')) === `الإجابة: ${q1[0].answer}`);
   check('الجمهور: الرصيد 1 في الرقم الكبير بجوار الاسم، ولا «يتقدّم بفارق»', (await text(audience, `#s${starter}`)) === '1' && !(await audience.$('#d1')));
@@ -243,10 +245,14 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const totals = (await match()).round.scores;
   check('الجمهور: «انتهت الجولة 1» وحصيلة كل فريق و«التالي: عجلة البونص» في مربع الإعلان', (await text(audience, '#b1')) === 'انتهت الجولة 1' && (await text(audience, '#next')) === 'التالي: عجلة البونص' && await visible(audience, '#box #next')
     && (await text(audience, '#r1')) === `+${totals[1]}` && (await text(audience, '#r2')) === `+${totals[2]}`);
-  check('الجمهور: لا مؤشر دور ولا عدّاد ولا حكم في النهاية', !(await audience.$('.team.on')) && !(await visible(audience, '.team .cnt')) && !(await visible(audience, '#verdict')));
+  check('الجمهور: لا مؤشر دور ولا عدّاد ولا حكم في النهاية', !(await audience.$('.team.on')) && (await none(audience, '.team .cnt')) && !(await visible(audience, '#verdict')));
   check('المقدّم: الحصيلة والرصيد، و«تخطَّ عجلة البونص» مع موعدها', (await text(presenter, '#sum')).includes(`الرصيد ${totals[1]}`) && (await text(presenter, '#endNext')) === 'تخطَّ عجلة البونص' && (await text(presenter, '#endHint')).includes('الشريحة 6'));
   await both('النهاية');
   await presenter.screenshot({ path: `${shots}/s2-presenter-end.png` });
+  // «التالي» نص أبيض على الطرف بلا مربع (15.4 و15.12، قرار المصمّم في PR #92).
+  check('الجمهور: «التالي» في النهاية نص أبيض بلا مربع، في موضع المربع (15.4)', await audience.$eval('#box', b => b.classList.contains('bare') && !b.querySelector(':scope > i').getClientRects().length
+    && getComputedStyle(b.querySelector('#next')).color === 'rgb(255, 255, 255)' && b.offsetLeft === 1135 && b.offsetTop === 880));
+  await wait(900);
   await stage.screenshot({ path: `${shots}/s2-end.png` });
   await presenter.click('#endNext');
   check('بعد تخطّي العجلة: «ابدأ الجولة 2» (آخر حرفين)', (await text(presenter, '#endNext')) === 'ابدأ الجولة 2' && !(await presenter.isDisabled('#endNext')));
