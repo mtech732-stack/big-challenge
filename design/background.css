@@ -321,6 +321,24 @@
 .v11 .team.t2 .pcnt { margin-right: 0; margin-left: auto; justify-content: flex-end; padding-left: 0; padding-right: 8px; }
 .v11 .team.t2 .pcnt::before { right: auto; left: 0; }
 
+/* ===== 15. النموذج د12: الرقم يكسر إطار الوقت (المالك 18:17) =====
+   على د11. الرقم المائي ينتقل من المنتصف إلى جوار اسم فريقه من جهة المنتصف، بحجمه نفسه (280، و236 بثلاث خانات)، وبلونه (أبيض 65% و70%).
+   اللوحة تتسع لمحتواها (الاسم ثم الرقم ثم العدّاد)، فإطار الوقت يحيط بها كلها بارتفاع اللوحة 136.
+   ورسم الرقم نحو 205 في ارتفاع 136، فيبرز نحو 35 أعلى الإطار وأسفله، ويُرسم فوق خط الإطار: يكسر حدوده عمداً.
+   الأول: رسمه نحو 30–235 (لا يُقص أعلى الشاشة، وبعيد عن شارة النمط 314) · الثاني: نحو 845–1050 (لا يُقص أسفلها، وبعيد عن صفيحة البطاقة 774).
+   القراءة وبعد الحكم: الرقم بجوار الاسم بلا إطار. والفريق غير صاحب الدور كذلك، وعلى لسانه حين يقع على لون خصمه. */
+.v12 .giant { display: none; }
+.v12 .team { width: auto; }
+.v12 .team .row { position: relative; inset: auto; height: 136px; justify-content: flex-start; gap: 32px; }
+.v12 .team .name { order: 0; }
+.v12 .team .row .score { display: block !important; order: 1; font-size: 280px; line-height: 136px; height: 136px; font-weight: 900;
+  color: #FFFFFF; opacity: .65; margin: 0 8px; white-space: nowrap; transform: skewX(calc(-1 * var(--lean))); transition: font-size .3s ease; }
+.v12 .team.t2 .row .score { opacity: .7; }
+.v12 .team .row .score.three { font-size: 236px; }
+.v12 .team .pcnt, .v12 .team.t2 .pcnt { order: 2; margin: 0; }
+.v12 .team:not(.on) .pcnt { display: none; }   /* اللوحة لا تحجز مكان العدّاد إلا لصاحب الدور، فلا يطول لسان الآخر */
+.v12 .team > .ring polygon { stroke-width: 8; }
+
 @media (prefers-reduced-motion: reduce) {
   .beam, .plane.a, .glow, .flash, .dim, .backdrop { animation: none !important; }
   .beam { display: none; }

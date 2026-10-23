@@ -103,6 +103,7 @@
     <button data-m="split v2 v4 v5 v6 v7 v8 v9 v10 v10a ambient moments">د10أ</button>
     <button data-m="split v2 v4 v5 v6 v7 v8 v9 v10 v10b ambient moments">د10ب</button>
     <button data-m="split v2 v4 v5 v6 v7 v8 v9 v10 v10b v11 ambient moments">د11</button>
+    <button data-m="split v2 v4 v5 v6 v7 v8 v9 v10 v10b v11 v12 ambient moments">د12</button>
     <span class="sep"></span>
     <button data-a="auto" id="autoBtn">إيقاف</button>
     <button data-a="manual" id="manualBtn">تحكم يدوي</button>
@@ -156,7 +157,11 @@
   const surge = () => { if (!canvas.classList.contains('moments')) return; beams.forEach(a => a.updatePlaybackRate(6)); setTimeout(() => speed(base), 500); };
 
   // الرقم المائي بثلاث خانات يصغر ليبقى في مكانه (أربعة أعمدة، 560)
-  const fitGiant = () => document.querySelectorAll('.giant span').forEach(g => { g.parentElement.style.fontSize = g.textContent.length >= 3 ? '236px' : ''; });
+  const fitGiant = () => {
+    document.querySelectorAll('.giant span').forEach(g => { g.parentElement.style.fontSize = g.textContent.length >= 3 ? '236px' : ''; });
+    document.querySelectorAll('.team .score').forEach(s => s.classList.toggle('three', s.textContent.length >= 3));
+    try { fitRings(); } catch (e) {}
+  };
   const replay = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
   let lastTurn = 0;
   const setTurn = t => {
@@ -187,6 +192,7 @@
   const drain = (t, secs) => {
     for (const id of ['r1', 'r2', 'rk1', 'rk2']) { const r = $(id); r.style.transition = 'none'; r.style.strokeDashoffset = 0; }
     if (!t) return;
+    fitRings();
     for (const id of ['r' + t, 'rk' + t]) {
       const r = $(id); void r.getBoundingClientRect();
       requestAnimationFrame(() => requestAnimationFrame(() => { r.style.transition = `stroke-dashoffset ${secs}s linear`; r.style.strokeDashoffset = 100; }));
@@ -261,15 +267,15 @@
     svg.querySelector('polygon').setAttribute('points', `${o},0 ${w + o},0 ${w - o},${h} ${-o},${h}`);
   }));
   const pick = b => {
-    canvas.classList.remove('ambient', 'moments', 'split', 'wedge-on', 'v2', 'v4', 'ringcnt', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v10a', 'v10b', 'v11');
+    canvas.classList.remove('ambient', 'moments', 'split', 'wedge-on', 'v2', 'v4', 'ringcnt', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v10a', 'v10b', 'v11', 'v12');
     fitRings();
     b.dataset.m.split(' ').filter(Boolean).forEach(c => canvas.classList.add(c));
     models.forEach(x => x.classList.toggle('on', x === b));
   };
   models.forEach(b => b.addEventListener('click', () => pick(b)));
   // في ملء الشاشة تختفي الأزرار: المفاتيح 0 و1 و2 و3 تبدّل النموذج
-  addEventListener('keydown', e => { const i = '0123456789-=][\\;/'.indexOf(e.key); if (i >= 0) pick(models[i]); });
-  const first = { a: 1, b: 2, c: 3, d: 4, e: 5, d2: 6, d4: 7, d4b: 8, d5: 9, d6: 10, d7: 11, d8: 12, d9: 13, d10a: 14, d10b: 15, d11: 16, now: 0 }[location.hash.slice(1)];
+  addEventListener('keydown', e => { const i = '0123456789-=][\\;/.'.indexOf(e.key); if (i >= 0) pick(models[i]); });
+  const first = { a: 1, b: 2, c: 3, d: 4, e: 5, d2: 6, d4: 7, d4b: 8, d5: 9, d6: 10, d7: 11, d8: 12, d9: 13, d10a: 14, d10b: 15, d11: 16, d12: 17, now: 0 }[location.hash.slice(1)];
   if (first !== undefined) pick(models[first]);
   // تبدأ الصفحة بالتشغيل التلقائي، فيُرى النموذج دون نقر
   fit(); act.read(); if (!still) step(0); else $('autoBtn').textContent = 'تشغيل';
