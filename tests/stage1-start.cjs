@@ -5,7 +5,7 @@ const { usePin, unlock, reporter, testPinRecord } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/';
-  const shots = process.argv[3] || '.';
+  const shots = process.argv[3] || require('os').tmpdir();
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   const { check, finish } = reporter();
   const errors = [];

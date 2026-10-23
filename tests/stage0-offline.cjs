@@ -41,7 +41,7 @@ function referenced() {
   });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${server.address().port}/`;
-  const shots = process.argv[3] || '.';
+  const shots = process.argv[3] || require('os').tmpdir();
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   const { check, finish } = reporter();
   const errors = [];
