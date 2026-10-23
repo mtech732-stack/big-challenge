@@ -252,7 +252,29 @@
 .v7 .team.t1 .shape, .v7 .team.t2 .shape { background: transparent; }
 .v7 .team.t1.on .shape, .v7 .team.t2.on .shape { background: linear-gradient(rgba(255,255,255,.1), rgba(255,255,255,.06)); }
 
+/* ===== 11. النموذج د8: الحدّ المائل يكتسح المسرح لصاحب الدور (طلب المالك 2026-10-23 17:51) =====
+   1. المواضع (الحدّ بميل 6°، فيُقاس عند وسط الشاشة x 960):
+      القراءة والحكم: 586، خلف البطاقة · دور الأول: 700، فيُرى الحدّ عند طرفَي البطاقة (يسار 787، يمين 600)
+      ويمر فوق لوحة الثاني (808) دون أن يقطعها، والأحمر يغطي كل ما فوق حافة البطاقة السفلى ·
+      دور الثاني: 320، بين لوحة الأول (200) وشارة النمط (314 عند x 1500)، وتحت الرقم المائي للأول، والأزرق نحو 70%.
+      لماذا 700 لا 786: بميل 6° ينخفض الحدّ 87 عند يسار الشاشة، فلو وقف عند 786 لقطع لوحة الثاني (808–944).
+   2. الحركة: دفعة واحدة 680ms بتسارع ثم تباطؤ وارتداد خفيف جداً (نحو 6)، والحافة تسبق الطرفين بـ 40ms وتشتد إضاءتها أثناء الاكتساح.
+      وعند انتقال الإجابة إلى الخصم يكتسح الحدّ إلى الجهة الأخرى بالحركة نفسها. ومع تقليل الحركة: انتقال فوري يلطّفه تلاشٍ 300ms.
+   3. لا لوحة ولا رقم مائي يقع على لون الخصم في أي موضع، فالتباين كما في د7.
+   4. الحزم تخفت إلى 45% وقت العدّاد، كي تبقى الثواني الصفراء واضحة. */
+.v8 .field { transition: translate .68s cubic-bezier(.34,1.18,.42,1) .04s, filter .8s ease; }
+.v8 .edge { transition: translate .68s cubic-bezier(.34,1.18,.42,1); }
+.v8.split.turn-1 .field, .v8.split.turn-1 .edge { translate: 0 114px; }
+.v8.split.turn-2 .field, .v8.split.turn-2 .edge { translate: 0 -266px; }
+.v8 .edge.sweep { animation: sweep .8s ease-out; }
+@keyframes sweep { 0%, 60% { background: #FFFFFF; box-shadow: 0 0 24px 6px rgba(255,255,255,.55), 0 4px 12px rgba(14,44,134,.6); } }
+.v8.running .beam { opacity: .45; transition: opacity .4s ease; }
+
 @media (prefers-reduced-motion: reduce) {
   .beam, .plane.a, .glow, .flash, .dim, .backdrop { animation: none !important; }
   .beam { display: none; }
+  .v8 .field, .v8 .edge { transition: none; }
+  .v8 .edge.sweep { animation: none; }
+  .v8.swap .field, .v8.swap .edge { animation: swapfade .3s ease-out; }
+  @keyframes swapfade { from { opacity: .4; } }
 }
