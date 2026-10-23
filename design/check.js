@@ -9,7 +9,8 @@
    - lines: { el, max } عنصر لا تتجاوز أسطره الحد.
    - كل نص ظاهر: لا أصغر من 32، ولا أرقام هندية.
    - grid: true (من الإصدار 1.2): يرسم الأعمدة الـ 12، ويعدّ حواف المكوّنات قرب حافتي الشاشة، فكل حافة ليست على
-     الهامش (96 أو 1824) خطأ. ويعيد edges: { right, left } بخطوط الحافة في كل جانب، والمطلوب خط واحد.
+     الهامش (96 أو 1824) ولا على حواف 1.3 (system.md 15.3: منتصف ارتفاع المائل على وجه البطاقة 127 و1793، فيقع
+     امتداده المائل على 109 و1811) خطأ. ويعيد edges: { right, left } بخطوط الحافة في كل جانب.
    العناصر المخفية (display:none أو visibility:hidden) خارج الحساب. */
 (function () {
   const SAFE = { x1: 96, y1: 54, x2: 1824, y2: 1026 };
@@ -95,7 +96,10 @@
       if (it.r.x2 > 1664) edges.right.add(Math.round(it.r.x2));
       if (it.r.x1 < 256) edges.left.add(Math.round(it.r.x1));
     }
-    const off = [...edges.right].filter(x => Math.abs(x - SAFE.x2) > 1.5).concat([...edges.left].filter(x => Math.abs(x - SAFE.x1) > 1.5));
+    // حواف 1.3 المقبولة (system.md 15.3) مع الهامش.
+    const OK = { right: [SAFE.x2, 1811, 1793], left: [SAFE.x1, 109, 127] };
+    const offSide = side => [...edges[side]].filter(x => !OK[side].some(e => Math.abs(x - e) <= 1.5));
+    const off = offSide('right').concat(offSide('left'));
     if (grid && off.length) problems.push(`حواف خارج الشبكة: ${off.join('، ')}`);
 
     if (layer && grid) for (let i = 0; i < 12; i++) {
