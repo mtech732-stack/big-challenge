@@ -16,14 +16,16 @@
 <style>
   /* صفحة تجربة للخلفية الحيّة (design/background.md): شاشة سؤال من ش2 بقيم 1.2، وتحتها أزرار تحاكي اللعب.
      الأزرار للتجربة وحدها، وتختفي في ملء الشاشة. */
-  .screen { bottom: var(--tools, 112px); }
+  .screen { bottom: var(--tools, 120px); }
   :fullscreen .screen { bottom: 0; }
-  .tools { position: fixed; inset: auto 0 0 0; min-height: 112px; display: flex; gap: 12px; align-items: center; justify-content: center;
-    flex-wrap: wrap; padding: 8px 16px; background: #050E2E; box-sizing: border-box; }
+  .tools { position: fixed; inset: auto 0 0 0; display: flex; flex-direction: column; gap: 8px; align-items: center;
+    padding: 12px 16px; background: #050E2E; box-sizing: border-box; }
   :fullscreen .tools { display: none; }
-  .tools button { min-height: 44px; padding: 0 20px; font-size: 18px; }
+  .tools .row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; }
+  .tools button { min-height: 40px; padding: 0 16px; font-size: 16px; }
   .tools button.on { background: var(--hl); }
-  .tools .sep { width: 1px; height: 36px; background: rgba(255,255,255,.25); }
+  .tools .sep { width: 1px; height: 28px; background: rgba(255,255,255,.25); }
+  .tools .key { margin: 0; font-size: 14px; color: rgba(255,255,255,.7); text-align: center; }
 </style>
 </head>
 <body>
@@ -67,30 +69,34 @@
   </div>
 </div>
 
-<div class="tools">
-  <button data-a="read">قراءة السؤال</button>
-  <button data-a="run1">العدّاد · الفريق الأول</button>
-  <button data-a="run2">العدّاد · الفريق الثاني</button>
-  <span class="sep"></span>
-  <button data-a="right">صحيح</button>
-  <button data-a="wrong">خطأ</button>
-  <button data-a="steal">انتقال الإجابة</button>
-  <span class="sep"></span>
-  <button data-a="auto" id="autoBtn">تشغيل تلقائي</button>
-  <span class="sep"></span>
-  <button data-m="" >الحالية</button>
-  <button data-m="ambient moments" class="on">أ · الطبقات الثلاث</button>
-  <button data-m="ambient">ب · الأضواء والحالة</button>
-  <button data-m="moments">ج · اللحظات فقط</button>
-  <span class="sep"></span>
-  <button data-a="fs">ملء الشاشة</button>
+<div class="tools" id="tools">
+  <div class="row">
+    <button data-m="">الحالية</button>
+    <button data-m="ambient moments" class="on">أ</button>
+    <button data-m="ambient">ب</button>
+    <button data-m="moments">ج</button>
+    <span class="sep"></span>
+    <button data-a="auto" id="autoBtn">إيقاف</button>
+    <button data-a="manual" id="manualBtn">تحكم يدوي</button>
+    <button data-a="fs">ملء الشاشة</button>
+  </div>
+  <div class="row" id="manual" hidden>
+    <button data-a="read">قراءة</button>
+    <button data-a="run1">عدّاد الأول</button>
+    <button data-a="run2">عدّاد الثاني</button>
+    <button data-a="right">صحيح</button>
+    <button data-a="wrong">خطأ</button>
+    <button data-a="steal">انتقال</button>
+  </div>
+  <p class="key">أ: الطبقات الثلاث · ب: الأضواء والحالة · ج: اللحظات فقط</p>
 </div>
 
 <script>
   const $ = id => document.getElementById(id);
   const canvas = $('canvas');
   const fit = () => {
-    const tools = document.fullscreenElement ? 0 : 112;
+    const tools = document.fullscreenElement ? 0 : $('tools').offsetHeight;
+    document.documentElement.style.setProperty('--tools', tools + 'px');
     document.documentElement.style.setProperty('--scale', Math.min(innerWidth / 1920, (innerHeight - tools) / 1080));
   };
   addEventListener('resize', fit); document.addEventListener('fullscreenchange', fit); fit();
@@ -162,9 +168,10 @@
     },
     fs() { document.documentElement.requestFullscreen?.(); },
     auto() {
-      if (auto) { clearTimeout(auto); auto = null; $('autoBtn').classList.remove('on'); act.read(); return; }
-      $('autoBtn').classList.add('on'); step(0);
+      if (auto) { clearTimeout(auto); auto = null; $('autoBtn').textContent = 'تشغيل'; act.read(); return; }
+      $('autoBtn').textContent = 'إيقاف'; step(0);
     },
+    manual() { $('manual').hidden = !$('manual').hidden; $('manualBtn').classList.toggle('on', !$('manual').hidden); fit(); },
   };
 
   // التشغيل التلقائي: قراءة ← عدّاد الأول ← صحيح ← قراءة ← عدّاد الأول ← خطأ وانتقال ← عدّاد الثاني حتى آخر 3 ← صحيح
@@ -179,7 +186,10 @@
     auto = setTimeout(() => step(i + 1), wait);
   };
 
-  document.querySelectorAll('.tools [data-a]').forEach(b => b.addEventListener('click', () => act[b.dataset.a]()));
+  document.querySelectorAll('.tools [data-a]').forEach(b => b.addEventListener('click', () => {
+    if (auto && $('manual').contains(b)) act.auto();   // التحكم اليدوي يوقف التشغيل التلقائي
+    act[b.dataset.a]();
+  }));
   // النماذج: الحالية (دون إضافة) · أ الطبقات الثلاث · ب الأضواء والحالة · ج اللحظات فقط
   const models = document.querySelectorAll('.tools [data-m]');
   const pick = b => {
@@ -190,7 +200,8 @@
   models.forEach(b => b.addEventListener('click', () => pick(b)));
   const first = { a: 1, b: 2, c: 3, now: 0 }[location.hash.slice(1)];
   if (first !== undefined) pick(models[first]);
-  act.read();
+  // تبدأ الصفحة بالتشغيل التلقائي، فيُرى النموذج دون نقر
+  fit(); act.read(); if (!still) step(0); else $('autoBtn').textContent = 'تشغيل';
 </script>
 </body>
 </html>
