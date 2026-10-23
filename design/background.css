@@ -1,0 +1,351 @@
+/* التحدي الكبير · الخلفية الحيّة (مقترح لملاحظة المالك: «الخلفية تفتقد لعنصر إثارة»)
+   المرجع: design/background.md. طبقة فوق الخلفية الحالية (design/system.md 6.7)، لا تمس البطاقة ولا اللوحات.
+   ثلاث طبقات: أضواء الاستوديو (دائماً) · وهج جهة الفريق صاحب الدور (مع العدّاد) · لحظات قصيرة عند الحكم.
+   النماذج: أ = .ambient .moments معاً · ب = .ambient وحده (الأضواء والحالة) · ج = .moments وحده (اللحظات).
+   كل ما هنا شفاف ولا نص فيه، وتحت الأرقام العملاقة في ترتيب الطبقات، فلا يدخل فحص فراغ الأمان. */
+
+.backdrop { inset: 0; pointer-events: none; }
+.backdrop > * { position: absolute; }
+
+/* ===== 1. أضواء الاستوديو: أربع حزم عريضة بميل الإطار 6° تعبر الشاشة من اليسار إلى اليمين =====
+   السرعة بالحالة (system: playbackRate من الكود): القراءة 1 · العدّاد 2.2 · آخر 3 ثوانٍ 3.5 · لحظة الحكم 6 لنصف ثانية */
+.beam {
+  top: -240px; height: 1560px; left: -480px; width: 320px; opacity: 0;
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.10) 50%, rgba(255,255,255,0));
+  transform: skewX(calc(-1 * var(--tilt)));
+}
+.beam.w { width: 560px; background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.06) 50%, rgba(255,255,255,0)); }
+.ambient .beam { opacity: 1; }
+
+/* المساحة القطرية العليا تتنفّس ببطء، فلا يبقى في الخلفية شيء ساكن تماماً */
+.ambient .plane.a { animation: drift 18s ease-in-out infinite alternate; }
+@keyframes drift { to { translate: -120px 24px; opacity: .6; } }
+
+/* ===== 2. وهج جهة الدور: يظهر مع العدّاد عند الفريق صاحب الدور =====
+   ضوء أبيض 18% في جهة الفريق: الأول أعلى اليمين، والثاني أسفل اليسار، يتلاشى نحو الوسط.
+   أبيض للفريقين لا أحمر: الأحمر الشفاف فوق الأزرق يُقرأ بنفسجياً (كما كان الرقم العملاق قبل 1.2)، ولون الفريق في لوحته.
+   مساحات مائلة مستقيمة الحواف، لا دوائر ولا أطر بيضوية */
+.glow { top: -120px; height: 1320px; width: 1100px; opacity: 0; transition: opacity .8s ease; transform: skewX(calc(-1 * var(--tilt))); }
+.glow.t1 { right: -200px; background: linear-gradient(270deg, rgba(255,255,255,.18), rgba(255,255,255,0)); }
+.glow.t2 { left: -200px; background: linear-gradient(90deg, rgba(255,255,255,.18), rgba(255,255,255,0)); }
+.ambient.turn-1 .glow.t1, .ambient.turn-2 .glow.t2 { opacity: 1; }
+.ambient.running .glow { animation: breathe 2s ease-in-out infinite; }
+.ambient.running.meta-danger .glow { animation-duration: 1s; }
+@keyframes breathe { 50% { filter: brightness(1.6); } }
+
+/* ===== 3. لحظات الحكم (أقل من ثانية، ثم تعود الخلفية إلى هدوئها) ===== */
+.flash, .dim { inset: 0; opacity: 0; pointer-events: none; }
+.flash { background: #FFFFFF; }
+.dim { background: #050E2E; }
+/* الصحيح: ومضة بيضاء خفيفة، ولمعة تعبر الشاشة (.shine من ش2)، والأضواء تندفع */
+.moments .flash.go { animation: flash .5s ease-out; }
+@keyframes flash { 0% { opacity: .22; } 100% { opacity: 0; } }
+/* الخطأ: إعتام سريع، وارتجاف الخلفية وحدها (البطاقة لها ارتجافها في ش2) */
+.moments .dim.go { animation: dim .9s ease-out; }
+@keyframes dim { 0% { opacity: 0; } 15% { opacity: .5; } 100% { opacity: 0; } }
+.moments .backdrop.shake { animation: bshake .3s linear; }
+@keyframes bshake { 20% { translate: 14px 0; } 40% { translate: -14px 0; } 60% { translate: 10px 0; } 80% { translate: -6px 0; } }
+/* انتقال الإجابة: الوهج يقفز إلى الجهة الأخرى بقوة، ثم يهدأ إلى مستواه */
+.moments .glow.jump { animation: jump .7s ease-out; }
+@keyframes jump { 0% { filter: brightness(2.4); } 100% { filter: brightness(1); } }
+
+/* ===== 4. النموذج د: طرفان بلونَي الفريقين (طلب المالك) =====
+   القصّ يتبع هيكل الشاشة لا منتصفها: الفريق الأول أعلى اليمين، والثاني أسفل اليسار، فالحد بينهما أفقي بميل الإطار 6°
+   ويمر بمركز البطاقة (y 586)، فتغطيه البطاقة وصفيحتها، ولا يظهر إلا في الهامشين كحافة مدروسة.
+   كل طرف بلون فريقه صريحاً، ويعمق قليلاً نحو الحد دون سواد (ملاحظة المالك: «الأسود لا»).
+   والأحمر داكن عند لوحة الأول كي تبقى اللوحة الزاهية بارزة. وعلى الطرفين خطوط دقيقة بميل 14° كشاشات الاستوديو. */
+.field, .edge { display: none; }
+.split .field, .split .edge { display: block; }
+.split .plane { display: none; }
+.field { left: -240px; width: 2400px; height: 1100px; transform: rotate(calc(-1 * var(--tilt)));
+  transition: translate 1s cubic-bezier(.2,.8,.2,1), filter .8s ease; }
+.field::after { content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(104deg, rgba(255,255,255,.035) 0 2px, rgba(255,255,255,0) 2px 26px); }
+.field.t1 { top: -514px;
+  background: linear-gradient(0deg, #661220 0%, #7A1622 40%, #8E1A28 100%); }   /* أغمق درجة لتبرز لوحة الأول (مشرف المصمّمين)، دون سواد */
+.field.t2 { top: 586px;
+  background: linear-gradient(180deg, #0E2C86 0%, #1238A8 40%, #1A4BD1 100%); }
+/* الحافة: خط ضوء رفيع على حد الطرف الأول، وتحته ظل، وخط صدى أحمر فاتح فوقه بـ 16، كحواف رسوم البث */
+.edge { left: -240px; width: 2400px; top: 584px; height: 4px; transform: rotate(calc(-1 * var(--tilt)));
+  background: rgba(255,255,255,.7); box-shadow: 0 4px 12px rgba(14,44,134,.6);
+  transition: translate 1s cubic-bezier(.2,.8,.2,1); }
+.edge::before { content: ""; position: absolute; left: 0; right: 0; top: -18px; height: 2px; background: rgba(255,90,102,.6); }
+/* الدور: طرف صاحب الدور يضيء، والحد يتزحزح 40 نحو الفريق الآخر */
+.split.turn-1 .field.t1 { filter: brightness(1.15); }
+.split.turn-2 .field.t2 { filter: brightness(1.15); }
+.split.turn-1 .field, .split.turn-1 .edge { translate: 0 40px; }
+.split.turn-2 .field, .split.turn-2 .edge { translate: 0 -40px; }
+.split .giant.t1 { color: #FFFFFF; opacity: .14; }
+/* حافة بيضاء رفيعة حول لوحة الأول، تفصلها عن الطرف الأحمر خلفها */
+.split .team.t1 .shape { box-shadow: 0 0 0 3px rgba(255,255,255,.85); }
+
+/* ===== 5. النموذج هـ: شريحتان من زاويتَي الفريقين (توصية مشرف المصمّمين) =====
+   الأزرق يبقى مسيطراً. لون كل فريق يدخل من زاويته شريحةً بنحو ربع الشاشة، حدّها السفلي بميل الإطار 6°،
+   وحدّها الداخلي بانحراف اللوحات 14°، وعليه خط ضوء رفيع.
+   الأول: أحمر داكن خلف لوحته (أعلى اليمين)، أغمق من اللوحة بوضوح فتبرز فوقه · الثاني: أزرق فاتح أبيض الميل (أسفل اليسار).
+   الشريحة تهدأ (إضاءة 88%، دون نقص في التشبّع كي لا يصير الأحمر بنياً) حين يكون الدور للآخر أو لا دور، وتشتد وتضيء حين يكون الدور لفريقها.
+   لا شفافية على الشريحة الحمراء: الأحمر الشفاف فوق الأزرق يصير بنفسجياً. ولا سواد. */
+.wedge { display: none; height: 620px; width: 1400px;
+  transition: filter .8s ease, translate 1s cubic-bezier(.2,.8,.2,1); filter: brightness(.88); }
+.wedge-on .wedge { display: block; }
+.wedge-on .plane, .wedge-on .glow { display: none; }
+.wedge > i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); }
+.wedge.t1 { top: -150px; right: -420px; transform: rotate(calc(-1 * var(--tilt))); transform-origin: top right; }
+.wedge.t1 > i { background: linear-gradient(200deg, #8E1A28 0%, #7A1622 55%, #6A1420 100%);
+  box-shadow: inset 4px 0 0 rgba(255,255,255,.55); }
+.wedge.t2 { bottom: -150px; left: -420px; transform: rotate(calc(-1 * var(--tilt))); transform-origin: bottom left; }
+.wedge.t2 > i { background: linear-gradient(20deg, #3F6BE8 0%, #3561DE 55%, #2E58D6 100%);
+  box-shadow: inset -4px 0 0 rgba(255,255,255,.55); }
+.wedge > i::after { content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(104deg, rgba(255,255,255,.04) 0 2px, rgba(255,255,255,0) 2px 26px); }
+.wedge-on.turn-1 .wedge.t1, .wedge-on.turn-2 .wedge.t2 { filter: brightness(1.12); }
+.wedge-on.turn-1 .wedge.t1 { translate: -60px 0; }
+.wedge-on.turn-2 .wedge.t2 { translate: 60px 0; }
+.wedge-on .giant.t1 { color: #FFFFFF; opacity: .14; }
+
+/* ===== 6. النموذج د2: «د» بتعديلات المالك الأربعة (صورته 2026-10-23 16:45) =====
+   1. الحافة الواحدة: كل مائل يُقاس بحافته في منتصف ارتفاعه (هي ما تراه العين)، لا بأبعد طرف.
+      الحافة اليمنى 1793 = وجه البطاقة الأيمن · واليسرى 127 = وجهها الأيسر. لوحتا الفريقين عليهما أصلاً (right/left 126)،
+      وشارة النمط كانت 1816 فصارت 1793. وأبعد الأطراف المائلة يبقى داخل 96–1824. */
+.v2 .badge.mode { right: 127px !important; }
+.v2 .timer, .v2 .verdict, .v2 .ctl-near { display: none !important; }
+
+/* 2. شريط الوقت داخل لوحة صاحب الدور، بين الاسم والرقم. أصفر (العدّاد من الأربعة الصفراء)، ينقص من جهة الاسم نحو الرقم،
+      ومكانه في لوحة الآخر فارغ. والثواني رقم 40 بجانب الاسم (لا بجانب الرصيد، كي لا يُقرأ رقمان متجاوران) يُقرأ من آخر القاعة. وآخر 3 ثوانٍ بحواف الخطر كما هي، والشريط ينبض معها. */
+.tbar, .secs { display: none; }
+.v2 .tbar { display: block; flex: 1 1 auto; min-width: 120px; height: 32px; position: relative; visibility: hidden; }
+.v2 .secs { display: block; flex: none; width: 56px; text-align: center; font-size: 40px; font-weight: 900; line-height: 1; direction: ltr; }
+.v2 .team.on .tbar { visibility: visible; }
+.tbar > i { position: absolute; inset: 0; background: var(--hl); transform-origin: right center;
+  transform: skewX(calc(-1 * var(--lean))) scaleX(0); transition: transform 1s linear; }
+.tbar::before { content: ""; position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); }
+.team.t1 .tbar::before { background: #7A1622; }          /* مجرى الشريط في اللوحة الحمراء: أحمر أغمق، لا أسود */
+.team.t2 .tbar::before { background: rgba(14,44,134,.16); }
+.team.t1 .secs { color: var(--hl); }
+.team.t2 .secs { color: var(--team-2-ink); }
+.v2.meta-danger .team.on .tbar > i { animation: barpulse 1s ease-in-out infinite; }
+@keyframes barpulse { 50% { filter: brightness(1.35); } }
+
+/* 3. مربع الإجابة والحكم أسفل اليمين: الأعمدة 7–12، y 798–1026، أبيض مائل 14° بحافة 1793 اليمنى.
+      فيه الحكم أولاً («[الفريق] +2» بلون لوحته، أو «لا نقاط» داكناً)، ثم الإجابة. والبطاقة تبقى للسؤال وحده.
+      والرقم العملاق الثاني (يبدأ من 826 ويمتد يميناً) يختفي ما دام المربع ظاهراً: الرصيد في اللوحة وفي الحكم. */
+.ansbox { left: 1000px; top: 798px; width: 793px; height: 228px; padding: 0 64px; box-sizing: border-box;
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 24px; color: var(--ink); }
+.ansbox > i { position: absolute; inset: 0; background: var(--card); transform: skewX(calc(-1 * var(--lean))); box-shadow: 12px 12px 0 var(--stage-3); }
+.ansbox > p { position: relative; margin: 0; white-space: nowrap; }
+.ansbox .vchip { height: 72px; padding: 0 32px; display: flex; align-items: center; font-size: 44px; font-weight: 900; color: var(--on-stage); }
+.ansbox .vchip > i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); background: var(--stage-3); }
+.ansbox .vchip > span { position: relative; }
+.ansbox .vchip.t1 > i { background: var(--team-1); box-shadow: 0 0 0 3px #FFFFFF; }
+.ansbox .vchip.t2 { color: var(--on-stage); }
+.ansbox .vchip.t2 > i { background: var(--team-2-ink); }
+.ansbox .aline { font-size: 48px; font-weight: 700; line-height: 1.2; }
+.ansbox .aline b { font-weight: 900; }
+.ansbox.in { animation: ansin .35s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes ansin { from { translate: 80px 0; opacity: 0; } }
+.v2 .giant.t2 { transition: opacity .3s ease; }
+.v2.answered .giant.t2 { opacity: 0; }
+
+/* 4. الشعار: «التحدي الكبير» نصاً بالخط نفسه، بلا ميل للحروف ولا أصفر. على الأعمدة 1–3 (127–510 بالحافة)، y 58–280،
+      فلا يلقى الرقم العملاق الأول (يبدأ من 545 بثلاث خانات). «التحدي» أبيض فوق، و«الكبير» أزرق داكن على صفيحة بيضاء مائلة 14°
+      وتحتها ظل صلب بالأزرق كصفيحة البطاقة، فيتكلم بلغة الإطار. */
+.logo { display: none; left: 127px; top: 58px; width: 383px; flex-direction: column; align-items: flex-start; gap: 8px; }
+.v2 .logo { display: flex; }
+.logo .l1 { font-size: 72px; font-weight: 900; line-height: 1.3; color: var(--on-stage); padding: 0 24px; }   /* 1.3 كي لا تقع نقطتا الياء على الصفيحة البيضاء فتختفيا */
+.logo .l2 { position: relative; height: 120px; padding: 0 32px; display: flex; align-items: center; }
+.logo .l2 > i { position: absolute; inset: 0; background: var(--card); transform: skewX(calc(-1 * var(--lean))); box-shadow: 10px 10px 0 var(--stage-3); }
+.logo .l2 > b { position: relative; font-size: 104px; font-weight: 900; line-height: 1; color: var(--ink); }
+
+/* ===== 7. النموذج د4: ملاحظات المالك على د2 (2026-10-23 16:55) =====
+   1. النتيجة هي الرقم المائي الكبير وحده، في مكانه، ولا تتكرر في اللوحة ولا تختفي أبداً. وهو أبيض 65% للأول و70% للثاني (تباين 4.8 و5.6، طلب مشرف المصمّمين 3:1 حداً أدنى) ليُقرأ من آخر القاعة.
+   2. اللوحة أقصر بالاسم وحده: 500 (امتدادها 4 أعمدة: الأول 9–12، والثاني 1–4). اسم 18 حرفاً (385) يتسع بحشوة 48.
+   3. التوقيت: مربع عدّاد بجانب لوحة صاحب الدور، على عمود واحد بين اللوحة والرقم المائي (الأول العمود 8، والثاني العمود 5)،
+      ارتفاعه 96 في منتصف ارتفاع اللوحة، والثواني صفراء 64 على الأزرق الداكن. وإطار الدور الأصفر يتآكل مع الوقت حول اللوحة
+      (د4ب: حول مربع العدّاد بدل اللوحة). آخر 3 ثوانٍ بحواف الخطر كما هي.
+   4. مربع الإجابة: الأعمدة 9–12، بارتفاع لوحة الثاني (136) وحافتها السفلى (944)، فلا يبلغ الرقم المائي للثاني (يبدأ 826، وبخانتين ينتهي قبل 1190).
+      وإن بلغ الرقم ثلاث خانات صغُر ليتسع في الأعمدة 6–8 (يطبّقه المهندس بالقياس). */
+.v4 .team { width: 500px; }
+.v4 .team .score, .v4 .team .tbar, .v4 .team .secs { display: none !important; }
+.v4 .team .row { justify-content: flex-start; }
+.v4 .giant.t1, .v4.split .giant.t1 { color: #FFFFFF; opacity: .65; }   /* تباين 4.8:1 على #871A29 */
+.v4 .giant.t2 { color: #FFFFFF; opacity: .7; }   /* تباين 5.6:1 على #1238A8، و4.3:1 على أفتح الأزرق #1A4BD1 */
+.v4.answered .giant.t2 { opacity: .7; }
+
+/* مربع العدّاد */
+.cnt { display: none; top: 20px; width: 98px; height: 96px; align-items: center; justify-content: center;
+  font-size: 64px; font-weight: 900; line-height: 1; color: var(--hl); direction: ltr; }
+.cnt > i { position: absolute; inset: 0; background: var(--stage-3); transform: skewX(calc(-1 * var(--lean))); }
+.cnt > span { position: relative; }
+.team.t1 .cnt { left: -164px; }
+.team.t2 .cnt { left: 566px; }
+.v4.running .team.on .cnt { display: flex; }
+.v4.meta-danger .team.on .cnt > i { animation: cntpulse 1s ease-in-out infinite; }
+@keyframes cntpulse { 50% { background: var(--team-1); } }
+
+/* الإطار المتآكل: مضلع بميل 14° حول اللوحة (أو حول المربع)، يُرسم بخط أصفر 6 ويُمحى من طرفه مع الوقت */
+.ring { display: none; position: absolute; overflow: visible; pointer-events: none; }
+.ring polygon { fill: none; stroke: var(--hl); stroke-width: 6; stroke-dasharray: 100 100; stroke-dashoffset: 0; vector-effect: non-scaling-stroke; }
+.team > .ring { inset: -10px; width: calc(100% + 20px); height: calc(100% + 20px); }
+.cnt > .ring { inset: -6px; width: calc(100% + 12px); height: calc(100% + 12px); }
+.v4 .team.on > .ring { display: block; }
+.v4 .team.on .turn { visibility: hidden; }
+.v4.ringcnt .team.on > .ring { display: none; }
+.v4.ringcnt .team.on .turn { visibility: visible; }
+.v4.ringcnt.running .team.on .turn { visibility: visible; }
+.v4.ringcnt .cnt > .ring { display: block; }
+
+/* مربع الإجابة بارتفاع اللوحة */
+.v4 .ansbox { left: 1281px; top: 808px; width: 513px; height: 136px; padding: 0 48px; gap: 8px; }
+.v4 .ansbox .vchip { height: 44px; padding: 0 20px; font-size: 32px; }
+.v4 .ansbox .aline { font-size: 48px; line-height: 1.1; }
+.v4 .ansbox .aline .lbl { display: none; }
+
+/* ===== 8. النموذج د5: ملاحظتا المالك على د4 (2026-10-23 17:02) =====
+   1. عدّاد الثواني داخل لوحة الاسم، في طرفها المقابل للاسم: مربع أزرق داكن مائل وثوانٍ صفراء (شكل العدّاد نفسه في اللوحتين)،
+      في لوحة صاحب الدور وحدها، والإطار الأصفر يتآكل حول اللوحة كما في د4. فعادت اللوحة 646 (خمسة أعمدة: الأول 8–12، والثاني 1–5)
+      لتتسع لاسم 18 حرفاً (385) والعدّاد معاً. والرقم المائي في مكانه: الأول ينتهي 1094، والثاني يبدأ 826.
+   2. خط السؤال والإجابة بلون محايد مستقل عن الفريقين: --text #2F3138 (فحمي، تباينه على الأبيض 13:1)، لا أحمر ولا أزرق ولا أسود صريح.
+      والحرف في مربعه كما هو: أصفر على الأزرق الداكن. */
+:root { --text: #2F3138; }
+.v5 .team { width: 646px; }
+.pcnt { display: none; }
+.v5 .pcnt { display: flex; visibility: hidden; position: relative; margin-right: auto; margin-left: 0; width: 112px; height: 88px; align-items: center; justify-content: center;
+  font-size: 64px; font-weight: 900; line-height: 1; color: var(--hl); direction: ltr; }
+.pcnt > i { position: absolute; inset: 0; background: var(--stage-3); transform: skewX(calc(-1 * var(--lean))); }
+.team.t1 .pcnt > i { box-shadow: 0 0 0 3px rgba(255,255,255,.85); }
+.pcnt > span { position: relative; }
+.v5.running .team.on .pcnt { visibility: visible; }
+.v5.meta-danger .team.on .pcnt > i { animation: cntpulse 1s ease-in-out infinite; }
+.v5 .cnt { display: none !important; }
+.v5 .question, .v5 .ansbox .aline { color: var(--text); }
+.v5 .ansbox .aline .lbl { display: inline; font-weight: 700; }
+.v5 .ansbox .aline { font-size: 44px; }
+
+/* ===== 9. النموذج د6: لوحة الاسم بلون طرفها، يحددها إطار أبيض (ملاحظة المالك 2026-10-23 17:19) =====
+   1. لا تعبئة مختلفة: اللوحة زجاج من لون طرفها نفسه، أغمق قليلاً (أحمر داكن 22% على الأحمر، كحلي 24% على الأزرق)
+      ليثبت الاسم فوق خطوط الخلفية، ولا يُقرأ لوناً ثالثاً. والفريقان يتميزان بلون الطرف وحده.
+   2. الإطار أبيض 4 مائل بانحراف اللوحات، يُرى من آخر القاعة. والاسم أبيض.
+   3. صاحب الدور: الإطار الأصفر يُرسم فوق الأبيض نفسه لا حوله، فيتآكل ليكشف الأبيض تحته كمجرى. فلا إطار مزدوج، ولا تتحرك حافة اللوحة.
+      وداخل لوحته يضيء قليلاً (أبيض 8%).
+   4. العدّاد بلا مربع: ثوانٍ صفراء 64 يفصلها عن الاسم خط أبيض مائل. الأصفر لون الوقت في الإطار والرقم معاً، فلا كتلة بارزة ثالثة.
+      وآخر 3 ثوانٍ: الرقم ينبض بين الأصفر والأبيض. */
+.v6 .team .shape, .v6.split .team.t1 .shape { box-shadow: inset 0 0 0 4px #FFFFFF; transition: background .5s ease; }
+.v6 .team.t1 .shape { background: rgba(60,6,16,.22); }
+.v6 .team.t2 .shape { background: rgba(6,20,80,.24); }
+.v6 .team.t1.on .shape { background: linear-gradient(rgba(255,255,255,.1), rgba(255,255,255,.06)), rgba(60,6,16,.22); }
+.v6 .team.t2.on .shape { background: linear-gradient(rgba(255,255,255,.1), rgba(255,255,255,.06)), rgba(6,20,80,.24); }
+.v6 .team .row { color: #FFFFFF; }
+.v6 .team .name { font-weight: 800; }
+.v6 .team > .ring { inset: 0; width: 100%; height: 100%; }
+.v6 .team > .ring polygon { stroke-width: 8; }
+.v6 .pcnt > i { display: none; }
+.v6 .pcnt { width: 120px; justify-content: flex-start; padding-left: 8px; }
+.v6 .pcnt::before { content: ""; position: absolute; right: 0; top: 16px; bottom: 16px; width: 3px; background: rgba(255,255,255,.6); transform: skewX(calc(-1 * var(--lean))); }
+.v6.meta-danger .team.on .pcnt > span { animation: numpulse 1s ease-in-out infinite; }
+@keyframes numpulse { 50% { color: #FFFFFF; } }
+
+/* ===== 10. النموذج د7: بلا خطوط في الخلفية (طلب المالك 2026-10-23 17:33) =====
+   الخطوط المائلة الدقيقة على الطرفين تُزال، وتبقى حافة الضوء على الحدّ بين الطرفين، والحزم الضوئية العابرة.
+   وبزوال الخطوط زال سبب العتمة داخل اللوحتين، فصارت اللوحة شفافة تماماً كما طلب المالك: لون الطرف نفسه وإطار أبيض.
+   ولوحة صاحب الدور تضيء بأبيض 8% كما في د6. */
+.v7 .field::after, .v7 .wedge > i::after { display: none; }
+.v7 .team.t1 .shape, .v7 .team.t2 .shape { background: transparent; }
+.v7 .team.t1.on .shape, .v7 .team.t2.on .shape { background: linear-gradient(rgba(255,255,255,.1), rgba(255,255,255,.06)); }
+
+/* ===== 11. النموذج د8: الحدّ المائل يكتسح المسرح لصاحب الدور (طلب المالك 2026-10-23 17:51) =====
+   1. المواضع (الحدّ بميل 6°، فيُقاس عند وسط الشاشة x 960):
+      القراءة والحكم: 586، خلف البطاقة · دور الأول: 700، فيُرى الحدّ عند طرفَي البطاقة (يسار 787، يمين 600)
+      ويمر فوق لوحة الثاني (808) دون أن يقطعها، والأحمر يغطي كل ما فوق حافة البطاقة السفلى ·
+      دور الثاني: 320، بين لوحة الأول (200) وشارة النمط (314 عند x 1500)، وتحت الرقم المائي للأول، والأزرق نحو 70%.
+      لماذا 700 لا 786: بميل 6° ينخفض الحدّ 87 عند يسار الشاشة، فلو وقف عند 786 لقطع لوحة الثاني (808–944).
+   2. الحركة: دفعة واحدة 680ms بتسارع ثم تباطؤ وارتداد خفيف جداً (نحو 6)، والحافة تسبق الطرفين بـ 40ms وتشتد إضاءتها أثناء الاكتساح.
+      وعند انتقال الإجابة إلى الخصم يكتسح الحدّ إلى الجهة الأخرى بالحركة نفسها. ومع تقليل الحركة: انتقال فوري يلطّفه تلاشٍ 300ms.
+   3. لا لوحة ولا رقم مائي يقع على لون الخصم في أي موضع، فالتباين كما في د7.
+   4. الحزم تخفت إلى 45% وقت العدّاد، كي تبقى الثواني الصفراء واضحة. */
+.v8 .field { transition: translate .68s cubic-bezier(.34,1.18,.42,1) .04s, filter .8s ease; }
+.v8 .edge { transition: translate .68s cubic-bezier(.34,1.18,.42,1); }
+.v8.split.turn-1 .field, .v8.split.turn-1 .edge { translate: 0 114px; }
+.v8.split.turn-2 .field, .v8.split.turn-2 .edge { translate: 0 -266px; }
+.v8 .edge.sweep { animation: sweep .8s ease-out; }
+@keyframes sweep { 0%, 60% { background: #FFFFFF; box-shadow: 0 0 24px 6px rgba(255,255,255,.55), 0 4px 12px rgba(14,44,134,.6); } }
+.v8.running .beam { opacity: .45; transition: opacity .4s ease; }
+
+/* ===== 12. النموذج د9: صف الثاني يلاصق الهامش الأسفل تناظراً مع الأول (مشرف المصمّمين 17:55) =====
+   1. لوحة الأول 64–200 (تحت الهامش الأعلى 54 بعشرة)، فلوحة الثاني ومربع الإجابة 880–1016 (فوق الهامش الأسفل 1026 بعشرة). نزلا 72.
+      والرقم المائي للثاني في مكانه: رسمه 810–1015، فحافته السفلى عند حافة اللوحة، كما يبدأ رسم الأول عند حافة لوحته العليا.
+   2. الفراغ بين البطاقة (صفيحتها 774) وصف الثاني 106، يقابله فوق البطاقة 114 بين لوحة الأول (200) وصف الشارات... إلى البطاقة.
+      وهو مسرح الحدّ: فيه يقف في دور الأول، فلا يبقى فراغاً ميتاً.
+   3. دور الأول: الحدّ عند 740 من الوسط: عند x 900 على 746، فوق رأس الرقم المائي «2» (811) بـ 65، فيبقى الرقم كله على الأزرق؛
+      وعند يسار لوحة الثاني (143) على 826، فوق حافتها 880 بـ 54؛ ويمينه 639 خلف البطاقة. والأحمر نحو 72%.
+      ودور الثاني كما في د8: 320. */
+.v9 .team.t2 { top: 880px; }
+.v9 .ansbox { top: 880px; }
+.v9.split.turn-1 .field, .v9.split.turn-1 .edge { translate: 0 154px; }
+
+/* ===== 13. النموذج د10: اكتساح واضح (المالك 18:05: «بسيطة وخجولة… معظم الشاشة بلون الفريق») =====
+   الحركة في النسختين أقوى: 760ms، وحافة تتوهّج بوضوح أثناء الاكتساح، ودفعة ضوء في طرف صاحب الدور عند الوصول.
+   والطرفان أطول (1800) كي لا تنكشف زاوية حين يبعد الحدّ.
+   أ: الحدّ يحاذي صف الآخر من الداخل: دور الأول 770 (فوق رأس «2» بـ 32، وفوق لوحة الثاني بـ 24) · دور الثاني 304 (تحت لوحة الأول بـ 16 عند طرفها).
+      وهذا أقصى ما يسمح به الصف دون قطعه، فالنسبة نحو 72%، قريبة من د9. لأن الرقم المائي للآخر يشغل هذا الشريط.
+   ب: الحدّ يكاد يخرج من الشاشة: دور الأول 1110 (يبقى للأزرق مثلث صغير أسفل اليمين) · دور الثاني −30 (مثلث أحمر صغير أعلى اليسار، فوق الشعار).
+      صاحب الدور نحو 98%. ولوحة الآخر تقع على لون خصمها، فتمتلئ بلونها هي (لسانها) بإطارها الأبيض، كي لا تضيع هويتها. */
+.v10 .field.t1 { top: -1214px; height: 1800px; }
+.v10 .field.t2 { height: 1800px; }
+.v10 .field { transition: translate .76s cubic-bezier(.3,1.15,.4,1) .05s, filter .8s ease; }
+.v10 .edge { transition: translate .76s cubic-bezier(.3,1.15,.4,1); }
+.v10 .edge.sweep { animation: sweep2 .9s ease-out; }
+@keyframes sweep2 { 0%, 70% { background: #FFFFFF; height: 8px; box-shadow: 0 0 48px 16px rgba(255,255,255,.7), 0 0 120px 40px rgba(255,255,255,.25); } }
+.v10.split.turn-1 .field.t1, .v10.split.turn-2 .field.t2 { animation: arrive .7s ease-out .65s both; }
+@keyframes arrive { 0% { filter: brightness(1.15); } 25% { filter: brightness(1.55); } 100% { filter: brightness(1.15); } }
+.v10a.split.turn-1 .field, .v10a.split.turn-1 .edge { translate: 0 184px; }
+.v10a.split.turn-2 .field, .v10a.split.turn-2 .edge { translate: 0 -282px; }
+.v10b.split.turn-1 .field, .v10b.split.turn-1 .edge { translate: 0 524px; }
+.v10b.split.turn-2 .field, .v10b.split.turn-2 .edge { translate: 0 -616px; }
+.v10b .team .shape { transition: background .4s ease .3s; }
+.v10b.turn-1 .team.t2 .shape { background: linear-gradient(180deg, #0E2C86, #1238A8); }
+.v10b.turn-2 .team.t1 .shape { background: linear-gradient(0deg, #661220, #7A1622); }
+
+/* ===== 14. النموذج د11: بلا إطار للأسماء (المالك 18:11: «نكتفي بإطار الوقت للفريق الذي يُسأل») =====
+   على د10ب. الاسم وحده على لون طرفه: أبيض 40 وزن 800، على خط الشبكة نفسه (حشوة 48 من حافة اللوحة، فيحاذي البطاقة 127 و1793).
+   الإطار الأصفر المتآكل وحده يرسم حدود لوحة صاحب الدور حين يبدأ العدّاد، ويختفي بعد الحكم. ولا إضاءة داخل اللوحة.
+   ولوحة الآخر حين تقع على لون خصمها تبقى تعبئة بلونها بلا إطار. */
+.v11 .team .shape, .v11.split .team.t1 .shape { box-shadow: none; }
+.v11 .team.t1.on .shape, .v11 .team.t2.on .shape { background: transparent; }
+.v11.turn-1 .team.t2 .shape { background: linear-gradient(180deg, #0E2C86, #1238A8); }
+.v11.turn-2 .team.t1 .shape { background: linear-gradient(0deg, #661220, #7A1622); }
+.v11 .team.on > .ring { display: none; }
+.v11.running .team.on > .ring { display: block; }
+/* بلا إطار يصير الاسم هو مرساة الصف، فيُرسى على حافة البطاقة من جهة فريقه: الأول إلى اليمين، والثاني إلى اليسار (مرآة)،
+   والعدّاد في الطرف المقابل للاسم في الحالتين. */
+.v11 .team.t2 .row { flex-direction: row-reverse; }
+.v11 .team.t2 .pcnt { margin-right: 0; margin-left: auto; justify-content: flex-end; padding-left: 0; padding-right: 8px; }
+.v11 .team.t2 .pcnt::before { right: auto; left: 0; }
+
+/* ===== 15. النموذج د12: الرقم يكسر إطار الوقت (المالك 18:17) =====
+   على د11. الرقم المائي ينتقل من المنتصف إلى جوار اسم فريقه من جهة المنتصف، بحجمه نفسه (280، و236 بثلاث خانات)، وبلونه (أبيض 65% و70%).
+   اللوحة تتسع لمحتواها (الاسم ثم الرقم ثم العدّاد)، فإطار الوقت يحيط بها كلها بارتفاع اللوحة 136.
+   ورسم الرقم نحو 205 في ارتفاع 136، فيبرز نحو 35 أعلى الإطار وأسفله، ويُرسم فوق خط الإطار: يكسر حدوده عمداً.
+   الأول: رسمه نحو 30–235 (لا يُقص أعلى الشاشة، وبعيد عن شارة النمط 314) · الثاني: نحو 845–1050 (لا يُقص أسفلها، وبعيد عن صفيحة البطاقة 774).
+   القراءة وبعد الحكم: الرقم بجوار الاسم بلا إطار. والفريق غير صاحب الدور كذلك، وعلى لسانه حين يقع على لون خصمه. */
+.v12 .giant { display: none; }
+.v12 .team { width: auto; }
+.v12 .team .row { position: relative; inset: auto; height: 136px; justify-content: flex-start; gap: 32px; }
+.v12 .team .name { order: 0; }
+.v12 .team .row .score { display: block !important; order: 1; font-size: 280px; line-height: 136px; height: 136px; font-weight: 900;
+  color: #FFFFFF; margin: 0 8px; white-space: nowrap; transform: skewX(calc(-1 * var(--lean))); transition: font-size .3s ease; }
+.v12 .team .row .score, .v12 .team.t2 .row .score { opacity: 1; }   /* أبيض صريح: صار عنصراً أساسياً بجوار الاسم (اعتماد المالك 18:24) */
+.v12 .team .row .score.three { font-size: 236px; }
+.v12 .ansbox { left: 1135px; width: 659px; }   /* مربع الإعلان على الأعمدة 8–12 (system.md §15.4) */
+.v12 .team .pcnt, .v12 .team.t2 .pcnt { order: 2; margin: 0; }
+.v12 .team:not(.on) .pcnt { display: none; }   /* اللوحة لا تحجز مكان العدّاد إلا لصاحب الدور، فلا يطول لسان الآخر */
+.v12 .team > .ring polygon { stroke-width: 8; }
+
+@media (prefers-reduced-motion: reduce) {
+  .beam, .plane.a, .glow, .flash, .dim, .backdrop { animation: none !important; }
+  .beam { display: none; }
+  .v8 .field, .v8 .edge { transition: none; }
+  .v8 .edge.sweep, .v10 .edge.sweep { animation: none; }
+  .v10.split .field { animation: none !important; }
+  .v8.swap .field, .v8.swap .edge { animation: swapfade .3s ease-out; }
+  @keyframes swapfade { from { opacity: .4; } }
+}
