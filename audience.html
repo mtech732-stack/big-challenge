@@ -15,7 +15,7 @@
   .locked .team, .locked .strip, .locked .badge, .locked .timer, .locked .giant, .locked .verdict { display: none; }
   /* أعلى اليسار، حيث لا شيء من الهيكل، ويختفي في ملء الشاشة وفي النافذة الواحدة. */
   #fs { position: fixed; top: 24px; left: 24px; font-size: 32px; }
-  :fullscreen #fs, .embed #fs { display: none; }
+  :fullscreen #fs, .embed #fs, .filled #fs, .idle #fs { display: none; }
 </style>
 </head>
 <body>
@@ -386,6 +386,14 @@
   });
 
   $('fs').onclick = () => document.documentElement.requestFullscreen?.();
+  // يختفي الزر إن ملأت النافذة الشاشة بأي طريقة (زر Mac الأخضر مثلاً)، أو بعد 3 ثوانٍ من سكون الفأرة،
+  // ويعود مع حركتها (ملاحظة المعاين 3 في ش1 و2 في ش2).
+  const filled = () => document.body.classList.toggle('filled', innerWidth >= screen.width - 1 && innerHeight >= screen.height - 1);
+  let idle = 0;
+  const wakeMouse = () => { document.body.classList.remove('idle'); clearTimeout(idle); idle = setTimeout(() => document.body.classList.add('idle'), 3000); };
+  addEventListener('resize', filled);
+  addEventListener('pointermove', wakeMouse);
+  filled(); wakeMouse();
 
   // ?check في الرابط: فحص التداخل كما في design/main.html. ويعرض الهيكل كاملاً دون انتظار المقدّم.
   if (checking) {

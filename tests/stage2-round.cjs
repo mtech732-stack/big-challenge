@@ -278,7 +278,34 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   await wait(200);
   check('Esc: العودة إلى نافذتين والجولة كما هي', !(await visible(presenter, '#single')) && (await text(presenter, '#qState')) === 'انتهى السؤال');
 
-  // 12. المقاس الأصغر: نافذة المقدّم 1366×768 كانت المقاس طوال الاختبار. والآن 1920×1080.
+  // 12. النقرة المزدوجة أو المتأخرة (تقرير المعاين ش2، التعثّر 1): تساوي نقرة واحدة، ولا تقع على الزر الذي يحلّ مكانها.
+  const st = () => presenter.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).round.state);
+  await wait(800);
+  await presenter.dblclick('#nextQ');
+  await wait(800);
+  let s1 = await st();
+  check('نقرتان على «السؤال التالي»: السؤال التالي قبل «ابدأ»، لا سرقة', s1.index === 1 && s1.phase === 'ready');
+  await presenter.dblclick('#startTimer');
+  await wait(800);
+  s1 = await st();
+  check('نقرتان على «ابدأ العدّاد»: يبدأ العدّاد، ولا «صحيحة»', s1.phase === 'ask' && s1.results[1] === null);
+  check('«ابدأ العدّاد» يُخفى ويبقى مكانه، فلا يتمدد «صحيحة» تحته', await presenter.$eval('#startTimer', e => getComputedStyle(e).visibility === 'hidden' && e.getBoundingClientRect().width > 0));
+  await presenter.dblclick('#no');
+  await wait(100);
+  check('أزرار الجولة معطّلة لحظةً بعد التغيّر', await presenter.$eval('#yes', e => e.classList.contains('held')));
+  await presenter.evaluate(() => document.getElementById('yes').click());
+  await wait(800);
+  s1 = await st();
+  check('نقرتان على «خاطئة»: السرقة تبقى، و«صحيحة» في أول نصف ثانية منها لا تُحسب', s1.phase === 'steal' && s1.results[1] === null);
+  check('بعد 0.7 ثانية: الأزرار تعود', !(await presenter.$eval('#yes', e => e.classList.contains('held'))));
+  await presenter.click('#yes');
+  await wait(800);
+  await presenter.dblclick('#undo');
+  await wait(800);
+  s1 = await st();
+  check('نقرتان على «تراجع عن آخر حكم»: تراجع واحد', s1.phase === 'steal');
+
+  // 13. المقاس الأصغر: نافذة المقدّم 1366×768 كانت المقاس طوال الاختبار. والآن 1920×1080.
   await presenter.setViewportSize({ width: 1920, height: 1080 });
   await presenterCheck('1920');
 
