@@ -32,8 +32,10 @@ const { reporter } = require('./helpers.cjs');
     ['قائمة ترتيب من 12 عنصراً', c => { c.packs.general['ranking.json'].lists[0].items.pop(); }, '13 عنصراً بالضبط'],
     ['ترتيب خارج تسلسله', c => { c.packs.general['ranking.json'].lists[0].items[4].rank = 7; }, '«rank» يجب أن يكون 5'],
     ['مصدر واحد للترتيب', c => { c.packs.general['ranking.json'].lists[0].sources.pop(); }, 'مصدران على الأقل'],
-    ['عنوان ترتيب بلا سنة', c => { c.packs.general['ranking.json'].lists[0].title = 'أطول الأبراج'; }, 'العنوان يجب أن يذكر سنة القائمة'],
-    ['ملف نمط مفقود', c => { delete c.packs.general['auction.json']; }, 'الملف مفقود'],
+    ['التطويل حرفاً في الحرف المعيّن', c => { c.packs.general['letter.json'].questions[0].letter = 'ـ'; }, '«letter» حرف عربي واحد'],
+    ['أرقام هندية في إجابة بديلة', c => { c.packs.general['letter.json'].questions[0].alts = ['شاحن ٢']; }, 'فيه أرقام هندية'],
+    ['ملاحظة داخلية فارغة', c => { c.packs.general['letter.json'].questions[0].note = ''; }, '«note» مطلوب نصاً غير فارغ'],
+    ['مصدر مزاد بلا رابط كامل', c => { c.packs.general['auction.json'].topics[0].sources = [{ title: 'م', url: 'example.com', accessed: '2026-10-23' }]; }, '«url» رابط كامل'],
     ['حزمة غير مذكورة في الفهرس', c => { c.index.packs = ['study']; }, 'غير مذكور في الفهرس'],
     ['استثناء لا يُبقي مباراة قصيرة', c => { c.packs.general['pack.json'].excludeModes = ['auction', 'ranking', 'last-two']; }, 'لا تكفي الأنماط الباقية'],
     ['خانة حظ ناقصة', c => { c.wheel.luck.pop(); }, '«luck» ثلاث خانات'],
@@ -45,21 +47,51 @@ const { reporter } = require('./helpers.cjs');
     check(`يكتشف: ${name}`, errors.some(e => e.includes(expected)));
   }
 
+  // طلبات الكاتب: ما صار تنبيهاً بعد أن كان خطأً.
+  const later = examples();
+  delete later.packs.general['auction.json'];
+  delete later.packs.general['ranking.json'];
+  delete later.packs.general['last-two.json'];
+  delete later.packs.general['letter.json'];
+  const l = checkContent(later);
+  check('حزمة بلا ملفات أنماط بعد (البنك يُكتب شريحة بعد شريحة): تنبيه لا خطأ',
+    l.errors.length === 0 && l.warnings.some(x => x.includes('غير متاح بعد')) && l.warnings.some(x => x.includes('المتاحة الآن 0')));
+  const noYear = examples();
+  noYear.packs.general['ranking.json'].lists[0].title = 'أطول الأبراج';
+  const y = checkContent(noYear);
+  check('عنوان ترتيب بلا سنة: تنبيه لا خطأ', y.errors.length === 0 && y.warnings.some(x => x.includes('لا يذكر سنة القائمة')));
+
+  // «ال» تُحذف قبل توحيد الهمزات: لا تنبيه خاطئ على «ألماس»، ولا تكرار وهمي بين «ألبانيا» و«بانيا».
+  const hamza = examples();
+  Object.assign(hamza.packs.general['letter.json'].questions[0], { letter: 'أ', answer: 'ألماس', alts: ['إلكترون'] });
+  hamza.packs.general['letter.json'].questions[0].alts = [];
+  hamza.packs.general['auction.json'].topics[0].items.push({ name: 'ألبانيا' }, { name: 'بانيا' });
+  const h = checkContent(hamza);
+  check('«ألماس» لحرف «أ» دون تنبيه، و«ألبانيا» غير «بانيا»', h.errors.length === 0 && h.warnings.length === 0);
+
   // تنبيهات لا تمنع: يراجعها الكاتب بعينه.
   const soft = examples();
   soft.packs.general['letter.json'].questions[0].answer = 'هاتف';
   soft.packs.general['last-two.json'].questions[0].answer = 'كوب';
+  soft.packs.general['letter.json'].questions[1].alts = ['موز'];
   const w = checkContent(soft);
-  check('تنبيه: الإجابة لا تبدأ بالحرف', w.warnings.some(x => x.includes('لا تبدأ بالحرف')) && w.errors.length === 0);
+  check('تنبيه: الإجابة لا تبدأ بالحرف', w.warnings.some(x => x.includes('«هاتف» لا تبدأ بالحرف')) && w.errors.length === 0);
+  check('تنبيه: الإجابة البديلة لا تبدأ بالحرف', w.warnings.some(x => x.includes('«موز» لا تبدأ بالحرف')));
   check('تنبيه: الإجابة لا تنتهي بالحرفين', w.warnings.some(x => x.includes('لا تنتهي')));
 
   // ما يجب ألّا يُعدّ خطأ.
   const ok = examples();
   ok.packs.general['letter.json'].questions[1].answer = 'التفاحة';
   ok.packs.general['letter.json'].questions[0].page = 23;
+  ok.packs.general['letter.json'].questions[0].alts = ['شاحن الهاتف'];
+  ok.packs.general['last-two.json'].questions[0].note = 'سبب القبول';
+  ok.packs.general['auction.json'].topics[0].sources = [{ title: 'مصدر', url: 'https://example.com/a', accessed: '2026-10-23' }];
+  ok.wheel.challenges[0].note = 'ملاحظة';
   ok.packs.general['pack.json'].excludeModes = ['ranking'];
   delete ok.packs.general['ranking.json'];
-  check('مقبول: «ال» في أول الإجابة، ورقم الصفحة، وحزمة تستثني الترتيب دون ملفه', checkContent(ok).errors.length === 0);
+  const okResult = checkContent(ok);
+  check('مقبول: «ال» في أول الإجابة، ورقم الصفحة، و«alts» و«note» و«sources» للمزاد، وحزمة تستثني الترتيب دون ملفه',
+    okResult.errors.length === 0 && okResult.warnings.length === 0);
 
   process.exit(finish() ? 0 : 1);
 })().catch(e => { console.error(e); process.exit(1); });
