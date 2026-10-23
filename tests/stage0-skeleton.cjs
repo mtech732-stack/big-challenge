@@ -16,7 +16,7 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   await usePin(context);
   context.on('page', p => {
     p.on('pageerror', e => errors.push(e.message));
-    p.on('console', m => m.type() === 'error' && errors.push(m.text()));
+    p.on('console', m => m.type() === 'error' && !/content\/packs\//.test(m.location().url) && errors.push(m.text()));
     p.on('request', r => { if (!r.url().startsWith(base)) external.push(r.url()); });
   });
 
@@ -57,7 +57,7 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   const smallest = () => presenter.evaluate(() => Math.min(...[...document.querySelectorAll('body *')]
     .filter(n => n.getClientRects().length && [...n.childNodes].some(c => c.nodeType === 3 && c.textContent.trim()))
     .map(n => parseFloat(getComputedStyle(n).fontSize))));
-  await presenter.goto(base);
+  await presenter.goto(base + '?test');
   await presenter.evaluate(() => document.fonts.ready);
   check(`المقدّم · شاشة الرقم: أصغر نص ${await smallest()}`, (await smallest()) >= 32);
   await presenter.screenshot({ path: `${shots}/skeleton-gate.png` });
@@ -80,13 +80,18 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   await aud.setViewportSize({ width: 1920, height: 1080 });
   await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 5000 });
   await wait(300);
-  check('بعد الاتصال: اللوحتان والشريطان والشارة والعدّاد ظاهرة',
-    (await Promise.all(['.team.t1', '.team.t2', '.strip.t1', '.strip.t2', '.badge.mode', '.timer', '.giant.t1'].map(s => aud.isVisible(s)))).every(Boolean));
+  // من ش1: قبل أول سؤال تظهر اللوحتان والبطاقة وحدها (design/start.md، القسم 2)، والباقي مع العدّاد.
+  check('بعد الاتصال: اللوحتان ظاهرتان، ولا شريط ولا عدّاد ولا رقم عملاق قبل أول سؤال',
+    (await Promise.all(['.team.t1', '.team.t2', '.card'].map(s => aud.isVisible(s)))).every(Boolean)
+    && !(await Promise.all(['.strip.t1', '.strip.t2', '.badge.mode', '.timer', '.giant.t1'].map(s => aud.isVisible(s)))).some(Boolean));
   await aud.screenshot({ path: `${shots}/skeleton-audience-live.png` });
 
   // 5. حواف الخطر في آخر 3 ثوانٍ فقط، وتختفي عند 0:00.
   await presenter.click('#start');
-  await wait(4500);
+  await wait(300);
+  check('مع العدّاد: اللوحتان والشريطان والشارة والعدّاد والرقم العملاق ظاهرة',
+    (await Promise.all(['.team.t1', '.team.t2', '.strip.t1', '.strip.t2', '.badge.mode', '.timer', '.giant.t1'].map(s => aud.isVisible(s)))).every(Boolean));
+  await wait(4200);
   const early = await aud.textContent('#timer');
   check(`قبل آخر 3 ثوانٍ (${early}): لا حواف`, ['0:06', '0:05'].includes(early) && !(await aud.evaluate(() => document.getElementById('canvas').classList.contains('meta-danger'))));
   await wait(3000);

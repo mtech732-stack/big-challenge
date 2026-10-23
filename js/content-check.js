@@ -9,6 +9,9 @@ export const LUCK_EFFECTS = ['lose-3', 'steal-3', 'gift-3'];
 // حدود ما تتسع له الشاشة دون تصغير الخط (design/system.md، القسم 7)، بالمسافات والتشكيل.
 export const QUESTION_MAX = 85;
 export const TEAM_NAME_MAX = 18;
+// حدود ش1 (design/start.md، القسم 2.5): اسم النمط في خانة المسار الأضيق، واسم الحزمة مع شارة الطريقة في صف واحد.
+export const MODE_NAME_MAX = 13;
+export const PACK_NAME_MAX = 30;
 const length = text => [...String(text)].length;
 
 // أحجام البنك المطلوبة (القسم 6.2 من الوثيقة)، للعرض لا للمنع.
@@ -111,7 +114,9 @@ export function checkContent({ index, packs, wheel }) {
     const meta = pack['pack.json'];
     allowOnly(`${base}/pack.json`, meta, ['id', 'name', 'description', 'excludeModes']);
     if (meta?.id !== packId) err(`${base}/pack.json`, `«id» يجب أن يطابق اسم المجلد «${packId}»`);
-    needText(`${base}/pack.json`, meta, 'name');
+    if (needText(`${base}/pack.json`, meta, 'name') && length(meta.name) > PACK_NAME_MAX) {
+      err(`${base}/pack.json`, `«name» ${length(meta.name)} حرفاً، والحد ${PACK_NAME_MAX} (شارة على شاشة الجمهور)`);
+    }
     const excluded = meta?.excludeModes ?? [];
     if (!Array.isArray(excluded) || excluded.some(m => !MODES.includes(m))) {
       err(`${base}/pack.json`, `«excludeModes» قائمة من: ${MODES.join(' · ')}`);

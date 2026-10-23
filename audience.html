@@ -8,40 +8,65 @@
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/stage.css">
+<link rel="stylesheet" href="css/start.css">
 <style>
   /* اللعبة مغلقة أو بانتظار المقدّم: لا يبقى على الشاشة إلا الخلفية والبطاقة. */
   .locked .team, .locked .strip, .locked .badge, .locked .timer, .locked .giant { display: none; }
-  /* أعلى اليسار، حيث لا شيء من الهيكل، ويختفي في ملء الشاشة. */
+  /* أعلى اليسار، حيث لا شيء من الهيكل، ويختفي في ملء الشاشة وفي النافذة الواحدة. */
   #fs { position: fixed; top: 24px; left: 24px; font-size: 32px; }
-  :fullscreen #fs { display: none; }
+  :fullscreen #fs, .embed #fs { display: none; }
 </style>
 </head>
 <body>
 <div class="screen">
-  <div class="canvas locked" id="canvas">
+  <div class="canvas locked pre" id="canvas">
     <div class="plane a"></div><div class="plane b"></div><div class="plane c"></div>
     <div class="particles" id="particles"></div>
 
     <div class="giant t1" data-bg><span id="g1">0</span></div>
     <div class="giant t2" data-bg><span id="g2">0</span></div>
 
-    <section class="team t1" data-hud="لوحة الفريق الأول">
+    <section class="team t1" id="p1" data-hud="لوحة الفريق الأول">
       <div class="shape"></div><div class="turn"></div>
-      <div class="row"><span class="name" id="n1">الفريق الأول</span><span class="score" id="s1">0</span></div>
+      <div class="row" data-fit="لوحة الفريق الأول"><span class="name" id="n1">الفريق الأول</span><span class="score" id="s1"></span></div>
     </section>
     <div class="strip t1" data-hud="شريط الفارق الأول"><i></i><span id="d1">تعادل</span></div>
 
     <div class="badge mode" data-hud="شارة النمط"><i></i><span id="mode">اختبار العرض</span></div>
+    <div class="badge plain off" id="b1" data-hud="الشارة الأولى"><i></i><span></span></div>
+    <div class="badge plain off" id="b2" data-hud="الشارة الثانية"><i></i><span></span></div>
     <div class="timer" data-hud="العدّاد"><i></i><span id="timer">0:10</span></div>
 
     <div class="card-wrap" data-hud="البطاقة">
       <div class="plate"></div>
-      <div class="card"><div class="letter" id="letter"></div><p class="question" id="label">نافذة الجمهور · بانتظار المقدّم</p></div>
+      <div class="card">
+        <div class="scr q show" data-s="q"><div class="letter" id="letter"></div><p class="question" id="label">نافذة الجمهور · بانتظار المقدّم</p></div>
+        <div class="scr title" data-s="title">
+          <p class="big">التحدي الكبير</p>
+          <p class="sub">المباراة تبدأ بعد قليل</p>
+        </div>
+        <div class="scr draw" data-s="spin">
+          <p class="ask">من يختار نمط الجولة الأولى؟</p>
+        </div>
+        <div class="scr draw" data-s="result">
+          <p class="sub">الفائز بالقرعة</p>
+          <p class="winner" id="winner" data-fit="اسم الفائز"></p>
+          <p class="sub">يختار نمط الجولة الأولى</p>
+        </div>
+        <div class="scr pick" data-s="pick">
+          <p class="head" id="pickHead" data-fit="سطر الاختيار"></p>
+          <div class="tiles" id="tiles"></div>
+        </div>
+        <div class="scr face" data-s="face">
+          <p class="head" id="faceHead"></p>
+          <div class="track" id="track"></div>
+        </div>
+      </div>
     </div>
 
-    <section class="team t2" data-hud="لوحة الفريق الثاني">
+    <section class="team t2" id="p2" data-hud="لوحة الفريق الثاني">
       <div class="shape"></div><div class="turn"></div>
-      <div class="row"><span class="name" id="n2">الفريق الثاني</span><span class="score" id="s2">0</span></div>
+      <div class="row" data-fit="لوحة الفريق الثاني"><span class="name" id="n2">الفريق الثاني</span><span class="score" id="s2"></span></div>
     </section>
     <div class="strip t2" data-hud="شريط الفارق الثاني"><i></i><span id="d2">تعادل</span></div>
 
@@ -53,9 +78,12 @@
 <script type="module">
   import './js/offline.js';
   import { createLink } from './js/sync.js';
+  import { plan, chooser, picksDone, METHODS, other } from './js/match.js';
 
   const $ = id => document.getElementById(id);
   const canvas = $('canvas');
+  const query = new URLSearchParams(location.search);
+  if (query.has('embed')) document.body.classList.add('embed');
   const fit = () => document.documentElement.style.setProperty(
     '--scale', Math.min(innerWidth / 1920, innerHeight / 1080));
   addEventListener('resize', fit);
@@ -75,10 +103,116 @@
     }
   })();
 
+  const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const num = s => esc(s).replace(/(\d+)/g, '<span class="ltr">$1</span>');
   const setLocked = on => canvas.classList.toggle('locked', on);
   const setDanger = on => canvas.classList.toggle('meta-danger', on);
+  const showScreen = name => document.querySelectorAll('.card .scr').forEach(s => s.classList.toggle('show', s.dataset.s === name));
+  const setTurn = team => { $('p1').classList.toggle('on', team === 1); $('p2').classList.toggle('on', team === 2); };
+  const bump = team => { const p = $('p' + team); p.classList.remove('won'); void p.offsetWidth; p.classList.add('won'); };
 
-  // نافذة الجمهور هي التي تعدّ الثواني بنفسها، بموعد انتهاء ثابت لا بتراكم الفترات.
+  // الشارة الثانية تلي الأولى بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (كما في design/start.html).
+  function setBadges(a, b) {
+    for (const [el, t] of [[$('b1'), a], [$('b2'), b]]) { el.classList.toggle('off', !t); el.querySelector('span').innerHTML = t ? num(t) : ''; }
+    const lean = Math.tan(14 * Math.PI / 180) * 64;
+    $('b1').style.right = '108px';
+    $('b2').style.right = (108 + $('b1').offsetWidth + 24 + lean) + 'px';
+  }
+
+  // ===== عرض حالة المباراة (ما يرسله المقدّم: الحالة، وأسماء الأنماط، واسم الحزمة) =====
+  let view = null, shownPicks = -1, busy = false;
+  const methodText = m => m === 'full' ? 'مباراة كاملة · 4 جولات' : 'مباراة قصيرة · جولتان';
+
+  function render() {
+    if (!view || busy) return;
+    const { match: m, modes, packName } = view;
+    const modeName = id => modes.find(x => x.id === id)?.name ?? id;
+    const name = t => m.teams[t] || (t === 1 ? 'الفريق الأول' : 'الفريق الثاني');
+    const tn = t => `<b class="tn t${t}">${esc(name(t))}</b>`;
+    const total = METHODS[m.method].rounds;
+    canvas.classList.add('pre');
+    canvas.classList.toggle('short', m.method === 'short');
+    $('n1').textContent = name(1); $('n2').textContent = name(2);
+    const showScores = m.step === 'face';
+    $('s1').textContent = showScores ? m.scores[1] : '';
+    $('s2').textContent = showScores ? m.scores[2] : '';
+    let turn = 0;
+
+    if (m.step === 'setup') {
+      showScreen('title');
+      setBadges(packName, packName && methodText(m.method));
+    }
+    if (m.step === 'draw') {
+      setBadges('القرعة');
+      if (m.winner) { $('winner').innerHTML = tn(m.winner); showScreen('result'); turn = m.winner; }
+      else showScreen('spin');
+    }
+    if (m.step === 'pick') {
+      showScreen('pick');
+      const done = picksDone(m);
+      if (done) {
+        const auto = m.picks.find(p => p.by === 0);
+        $('pickHead').innerHTML = auto ? `الجولة <span class="ltr">4</span> للنمط المتبقي: ${esc(modeName(auto.mode))}` : 'اكتمل اختيار الأنماط';
+        setBadges('اختيار الأنماط', methodText(m.method));
+      } else {
+        turn = chooser(m);
+        const k = m.picks.length;
+        $('pickHead').innerHTML = `${tn(turn)} يختار نمط الجولة <span class="ltr">${k + 1}</span>`;
+        setBadges('اختيار الأنماط', `الجولة ${k + 1} من ${total}`);
+      }
+      $('tiles').innerHTML = modes.map(mode => {
+        const i = m.picks.findIndex(p => p.mode === mode.id), p = m.picks[i];
+        const cls = p ? (p.by ? `by${p.by}` : 'auto') : (done ? 'left' : '');
+        return `<div class="tile ${cls}" data-fit="خانة النمط" data-mode="${esc(mode.id)}"><i class="fill"></i><span class="mname">${esc(mode.name)}</span>` +
+          (p ? `<span class="chip">${num('الجولة ' + (i + 1))}</span>` : '') + '</div>';
+      }).join('');
+      // اختيار جديد: الخانة تمتلئ بلون الفريق (القسم 6).
+      const made = m.picks.filter(p => p.by);
+      if (shownPicks >= 0 && m.picks.length > shownPicks && made.length && !still()) {
+        const tile = $('tiles').querySelector(`[data-mode="${CSS.escape(made[made.length - 1].mode)}"]`);
+        tile?.classList.add('flash');
+      }
+    }
+    shownPicks = m.step === 'pick' ? m.picks.length : -1;
+    if (m.step === 'face') {
+      showScreen('face');
+      setBadges('المواجهة', methodText(m.method));
+      $('faceHead').innerHTML = `الفائز بالقرعة: ${tn(m.winner)}`;
+      let n = 0;
+      $('track').innerHTML = plan(m).map(s => s.kind === 'wheel'
+        ? `<div class="seg wheel" style="--i:${n++}" data-fit="خانة العجلة"><span>عجلة</span><span>البونص</span></div>`
+        : `<div class="seg ${s.by ? 'by' + s.by : ''}" style="--i:${n++}" data-fit="خانة الجولة"><span class="rn">${num('الجولة ' + s.n)}</span><span class="mname">${esc(modeName(s.mode))}</span></div>`).join('');
+      turn = m.winner;
+    }
+    setTurn(turn);
+  }
+
+  // ===== لحظات الحركة (design/start.md، القسم 6). النتيجة محسومة قبلها، والحركة عرض فقط =====
+  let timers = [];
+  const later = (ms, f) => timers.push(setTimeout(f, ms));
+  const DRAW_STEPS = [90, 90, 100, 110, 120, 140, 160, 190, 230, 280, 340, 420];
+  function animate(name) {
+    timers.forEach(clearTimeout); timers = []; busy = false;
+    canvas.classList.remove('enter', 'anim'); void canvas.offsetWidth;
+    if (!view || still()) return render();
+    canvas.classList.add('anim');
+    const winner = view.match.winner;
+    if (name === 'draw' && winner) {
+      render(); showScreen('spin'); busy = true;
+      // يتنقل المؤشر 12 مرة ويتباطأ، فيقف على الفائز في آخر خطوة.
+      let t = DRAW_STEPS.length % 2 === 0 ? other(winner) : winner, at = 0;
+      DRAW_STEPS.forEach(ms => { at += ms; const who = t; later(at, () => setTurn(who)); t = other(t); });
+      later(at + 420, () => { busy = false; render(); bump(winner); });
+    }
+    if (name === 'face' && view.match.step === 'face') {
+      render(); canvas.classList.add('enter'); setTurn(0); busy = true;
+      // بعد آخر خانة: تُرفع الحركة قبل العرض، فلا تبدأ خانات المسار من جديد.
+      later(1000 + $('track').children.length * 120 + 200, () => { busy = false; canvas.classList.remove('enter'); render(); bump(winner); });
+    }
+  }
+
+  // ===== العدّاد التجريبي (من ش0): نافذة الجمهور هي التي تعدّ الثواني بنفسها =====
   let endAt = 0, timer = 0, lastText = '';
   const format = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const show = seconds => {
@@ -93,44 +227,61 @@
     setDanger(left > 0 && left <= 3);
     if (left === 0) { stop(); $('label').textContent = 'انتهى الوقت'; }
   };
-  const ready = () => { stop(); setLocked(false); $('label').textContent = 'نافذة الجمهور · متصلة'; show(10); };
+  const waiting = () => { setLocked(true); canvas.classList.add('pre'); setTurn(0); showScreen('q'); $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم'; };
+  const ready = () => {
+    stop(); setLocked(false); show(10);
+    if (view) render();
+    else { canvas.classList.add('pre'); showScreen('q'); $('label').textContent = 'نافذة الجمهور · متصلة'; }
+  };
 
+  // ?check: صفحة فحص ثابتة، لا تتبع المقدّم وإن كان مفتوحاً.
+  const checking = query.has('check');
   const link = createLink('audience', (type, data) => {
+    if (checking) return;
+    if (type === 'view') { view = data; if (!timer) { setLocked(false); render(); } }
+    if (type === 'anim') { if (data.view) view = data.view; if (!timer) { setLocked(false); animate(data.name); } }
     if (type === 'start') {
       stop();
       setLocked(false);
+      canvas.classList.remove('pre'); setTurn(0); showScreen('q'); setBadges();
       endAt = performance.now() + data.seconds * 1000;
       $('label').textContent = 'العدّاد يعمل';
       run();
       timer = setInterval(run, 100);
     }
     // أُغلقت اللعبة لتغيّر الرقم السري: لا يبقى على شاشة الجمهور شيء من اللعب.
-    if (type === 'lock') {
-      stop();
-      setLocked(true);
-      $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم';
-    }
+    if (type === 'lock') { stop(); view = null; waiting(); }
     if (type === 'unlock' || type === 'reset') ready();
   });
   link.onStatus(on => {
+    if (checking) return;
     if (!timer && on) ready();
-    if (!timer && !on) { setLocked(true); $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم'; }
-    if (on) link.send('tick', { text: $('timer').textContent });
+    if (!timer && !on) waiting();
+    // اتصلت (أو عادت بعد إعادة تحميل): تطلب حالة المباراة، ولو كانت نافذة جمهور أخرى متصلة قبلها.
+    if (on) { link.send('tick', { text: $('timer').textContent }); link.send('need-view'); }
   });
 
   $('fs').onclick = () => document.documentElement.requestFullscreen?.();
 
   // ?check في الرابط: فحص التداخل كما في design/main.html. ويعرض الهيكل كاملاً دون انتظار المقدّم.
-  if (new URLSearchParams(location.search).has('check')) {
+  if (checking) {
     const { checkLayout } = await import('./js/layout-check.js');
     const layer = document.createElement('div');
     layer.className = 'check-layer';
     layer.innerHTML = '<div class="safe"></div>';
     canvas.appendChild(layer);
     setLocked(false);
+    canvas.classList.remove('pre');
     await document.fonts.ready;
     window.__check = checkLayout(canvas, layer);
   }
+
+  // للاختبار: فحص التداخل على الشاشة الحالية (js/stage-check.js، من design/check.js).
+  window.__stageCheck = async () => {
+    const { layoutCheck } = await import('./js/stage-check.js');
+    await document.fonts.ready;
+    return layoutCheck({ canvas, layer: null });
+  };
 </script>
 </body>
 </html>
