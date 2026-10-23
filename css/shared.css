@@ -30,6 +30,8 @@
 .ctl-corner.a { top: 64px; }
 .ctl-corner.b { top: 152px; }
 .ctl-corner.a:empty + .ctl-corner.b { top: 64px; }
+/* أثناء الجولة ثلاثة صفوف قصيرة (الملاحظة 26): الجولة على 64 · النوافذ على 152 · المباراة على 240 */
+.ctl-corner.c { top: 240px; }
 
 /* صف الأزرار في آخر محتوى البطاقة */
 .card .crow { display: flex; align-items: center; justify-content: center; gap: 48px; min-height: 72px; }
