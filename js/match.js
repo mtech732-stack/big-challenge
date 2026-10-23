@@ -53,8 +53,9 @@ export function toDraw(match) {
   return { ...match, step: 'draw', teams: { 1: clean(match.teams[1]), 2: clean(match.teams[2]) } };
 }
 
-// «رجوع إلى الإعداد» لتصحيح اسم أو اختيار، ما دامت القرعة لم تبدأ. لا يُمحى شيء.
-export const backToSetup = match => (match.step === 'draw' && !match.winner ? { ...match, step: 'setup' } : match);
+// «تعديل الاسمين»: رجوع من القرعة إلى الإعداد لتصحيح اسم (ملاحظة المعاين 3). لا يُمحى شيء، ونتيجة القرعة تبقى،
+// فالعودة إلى القرعة تعرض النتيجة نفسها ولا تُعاد القرعة (design/start.md: لا إعادة لها).
+export const backToSetup = match => (match.step === 'draw' ? { ...match, step: 'setup' } : match);
 
 // القرعة تُحسم قبل الحركة وتُحفظ، والحركة عرض لها فقط (design/start.md، القسم 8.6). ولا إعادة لها.
 export function draw(match, rng = Math.random) {

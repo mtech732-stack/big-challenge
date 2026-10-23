@@ -179,6 +179,7 @@
       <p class="who" id="who"></p>
       <p class="state grow" id="qState"></p>
       <button class="alt" id="undo">تراجع عن آخر حكم</button>
+      <button class="alt" data-new>مباراة جديدة</button>
     </div>
     <div class="judge" id="judge">
       <button class="alt" id="startTimer" data-act="start">ابدأ العدّاد</button>
@@ -274,6 +275,8 @@
     $('enter').disabled = true;
     $('pin-error').hidden = true;
     const value = $('pin').value;
+    // الخانة فارغة: لا يُتحقق من شيء (ملاحظة المعاين 8).
+    if (!value.trim()) { showError('أدخل الرقم'); $('enter').disabled = false; $('pin').focus(); return; }
     const { record, bad } = await fetchPinRecord();
     if (bad) {
       showError('ملف الرقم السري فيه خطأ. أعد لصقه من صفحة التغيير.');
@@ -653,12 +656,12 @@
     if (step === 'setup') {
       c.names = true;
       c.count = { value: match.method, four: modes().length >= M.METHODS.full.rounds };
-      c.card = [{ cmd: 'draw', label: 'ابدأ القرعة' }];
+      c.card = [{ cmd: 'draw', label: match.winner ? 'عُد إلى القرعة' : 'ابدأ القرعة' }];
       c.error = lastError?.text ?? '';
       c.b = [fs];
     }
     if (step === 'draw') {
-      if (match.winner && !drawing) c.card = [{ cmd: 'toPick', label: 'اختيار الأنماط' }];
+      if (match.winner && !drawing) c.card = [{ cmd: 'toPick', label: 'اختيار الأنماط' }, { cmd: 'back', label: 'تعديل الاسمين', kind: 'alt' }];
       c.b = [[fresh], fs];
     }
     if (step === 'pick') {
@@ -727,6 +730,7 @@
     if (cmd === 'count' && match.step === 'setup' && M.METHODS[arg]?.rounds <= modes().length) update(M.setMethod(match, arg));
     if (cmd === 'draw') match.step === 'setup' ? goDraw() : startDraw();
     if (cmd === 'pick') update(M.pick(match, arg, modes()));
+    if (cmd === 'back' && !drawing) update(M.backToSetup(match));
     if (cmd === 'begin') begin(false);
     if (cmd === 'single') begin(true);
     if (cmd === 'act') roundAct(arg);
