@@ -1,0 +1,87 @@
+/* التحدي الكبير · تصوّر الإصدار 1.3 على شاشات اللعبة المبنية (design/system.md §15، اعتمده المالك 2026-10-23 18:24)
+   طبقة فوق css/ تُحقن في audience.html للتصوير وحده مع design/v13.js، ولا تُحمَّل في اللعبة.
+   المهندس يبني هذه القواعد في css/ بالقيم نفسها، والمرجع الحي للحركة design/background.html (#d12). */
+
+/* 1. المسرح بطرفين، والحدّ يكتسح لصاحب الدور (§15.1–15.2) */
+.v13 .plane { display: none; }
+.v13bg { position: absolute; inset: 0; pointer-events: none; }
+.v13bg > * { position: absolute; }
+.v13bg .f { left: -240px; width: 2400px; height: 1800px; transform: rotate(calc(-1 * var(--tilt)));
+  transition: translate .76s cubic-bezier(.3,1.15,.4,1) .05s, filter .8s ease; }
+.v13bg .f1 { top: -1214px; background: linear-gradient(0deg, #661220 0%, #7A1622 22%, #8E1A28 60%); }
+.v13bg .f2 { top: 586px; background: linear-gradient(180deg, #0E2C86 0%, #1238A8 22%, #1A4BD1 60%); }
+.v13bg .e { left: -240px; width: 2400px; top: 584px; height: 4px; transform: rotate(calc(-1 * var(--tilt)));
+  background: rgba(255,255,255,.7); box-shadow: 0 4px 12px rgba(14,44,134,.6); transition: translate .76s cubic-bezier(.3,1.15,.4,1); }
+.v13bg .e::before { content: ""; position: absolute; left: 0; right: 0; top: -18px; height: 2px; background: rgba(255,90,102,.6); }
+.v13.turn-1 .v13bg .f, .v13.turn-1 .v13bg .e { translate: 0 524px; }
+.v13.turn-2 .v13bg .f, .v13.turn-2 .v13bg .e { translate: 0 -616px; }
+.v13.turn-1 .v13bg .f1, .v13.turn-2 .v13bg .f2 { filter: brightness(1.15); }
+
+/* 2. لا رقم عملاق في المنتصف: الرقم الكبير بجوار الاسم (§15.5) */
+.v13 .giant { display: none; }
+
+/* 3. لوحة الفريق بلا شكل: الاسم والرقم على لون الطرف، وإطار الوقت وحده لصاحب الدور (§15.3) */
+.v13 .team { width: auto; }
+.v13 .team.t2 { top: 880px; }
+.v13 .team .shape { background: transparent !important; box-shadow: none !important; }
+.v13.turn-1 .team.t2 .shape { background: linear-gradient(180deg, #0E2C86, #1238A8) !important; }
+.v13.turn-2 .team.t1 .shape { background: linear-gradient(0deg, #661220, #7A1622) !important; }
+.v13 .team .row { position: relative; inset: auto; height: 136px; justify-content: flex-start; gap: 32px; color: #FFFFFF !important; }
+.v13 .team.t2 .row { flex-direction: row-reverse; }
+.v13 .team .name { font-weight: 800; }
+.v13 .team .name-in { flex: 0 0 550px; font-weight: 800; }   /* الإعداد: خانة الاسم بعرض اللوحة 646 دون حشوتها */
+.v13 .team.t2 .name-in { text-align: end; }
+.v13 .team .score { font-size: 280px; line-height: 136px; height: 136px; font-weight: 900; color: #FFFFFF; margin: 0 8px;
+  white-space: nowrap; transform: skewX(calc(-1 * var(--lean))); }
+.v13 .team .score.three { font-size: 236px; }
+.v13 .team .score:empty { display: none; }
+.v13 .team .turn { inset: 0; border-width: 8px; }
+.v13 .team .row { z-index: 1; }
+/* عدّاد الثواني في لوحة صاحب الدور: ثوانٍ صفراء 64 بلا مربع، يفصلها خط أبيض مائل */
+.v13cnt { position: relative; display: flex; align-items: center; height: 88px; padding: 0 8px 0 0; margin-inline-start: 8px;
+  font-size: 64px; font-weight: 900; line-height: 1; color: var(--hl); direction: ltr; }
+.v13cnt::before { content: ""; width: 3px; height: 56px; margin-right: 32px; background: rgba(255,255,255,.6); transform: skewX(calc(-1 * var(--lean))); }
+.v13 .team.t2 .v13cnt { flex-direction: row-reverse; padding: 0 0 0 8px; }
+.v13 .team.t2 .v13cnt::before { margin-right: 0; margin-left: 32px; }
+.v13 .timer { display: none !important; }
+
+/* 4. الشعار أعلى اليسار في كل شاشة، ويحلّ محل سطر العنوان (§15.7) */
+.v13 .headline { display: none !important; }
+.v13logo { position: absolute; left: 127px; top: 58px; width: 383px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.v13logo .l1 { font-size: 72px; font-weight: 900; line-height: 1.3; color: var(--on-stage); padding: 0 24px; }
+.v13logo .l2 { position: relative; height: 120px; padding: 0 32px; display: flex; align-items: center; }
+.v13logo .l2 > i { position: absolute; inset: 0; background: var(--card); transform: skewX(calc(-1 * var(--lean))); box-shadow: 10px 10px 0 var(--stage-3); }
+.v13logo .l2 > b { position: relative; font-size: 104px; font-weight: 900; line-height: 1; color: var(--ink); }
+.locked .v13logo { display: none; }
+
+/* 5. مربع الإعلان والإجابة أسفل اليمين، على خط لوحة الثاني (§15.4):
+   الأعمدة 8–12 (1135–1794)، 880–1016. فيه ما يُعلَن بعد حدث: الحكم والإجابة · الفائز بالقرعة · «التالي» في نهاية الجولة */
+.v13box { position: absolute; left: 1135px; top: 880px; width: 659px; height: 136px; padding: 0 48px; box-sizing: border-box;
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 8px; color: var(--text, #2F3138); }
+.v13box[hidden] { display: none; }
+.v13box > i { position: absolute; inset: 0; background: var(--card); transform: skewX(calc(-1 * var(--lean))); box-shadow: 12px 12px 0 var(--stage-3); }
+.v13box > p { position: relative; margin: 0; white-space: nowrap; }
+.v13box .chip { height: 44px; padding: 0 20px; display: flex; align-items: center; font-size: 32px; font-weight: 900; color: var(--on-stage); }
+.v13box .chip > i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); background: var(--stage-3); }
+.v13box .chip.t1 > i { background: var(--team-1); }
+.v13box .chip > span { position: relative; }
+.v13box .chip.none { display: none; }
+.v13box .line { font-size: 44px; font-weight: 700; line-height: 1.1; }
+.v13box .line b { font-weight: 900; }
+.v13 .verdict { display: none !important; }
+.v13.boxed .card .reveal { display: none !important; }
+.v13 .scr.end .crow .next { visibility: hidden; }
+
+/* 6. نص البطاقة بلون محايد (§15.6) */
+.v13 .question, .v13 .card .reveal { color: #2F3138; }
+
+/* 7. النافذة الواحدة (§15.10): أزرار الزاويتين كلها في منطقة الشعار أعلى اليسار، صفاً لكل زاوية، وتحل محل الشعار.
+   (صف الشارات لا يتسع لأزرار الزاوية السفلى مع أزرار العدّاد والحكم، فتداخلت في التجربة.) */
+.v13.has-a .v13logo { display: none; }
+.v13 .ctl-corner.a, .v13 .ctl-corner.b { left: 127px; right: auto; display: flex; flex-direction: row; gap: 24px; align-items: center; justify-items: start; }
+.v13 .ctl-corner.a { top: 64px; }
+.v13 .ctl-corner.b { top: 152px; }
+.v13 .ctl-corner.a:empty + .ctl-corner.b { top: 64px; }
+.v13 .ctl-corner .ctl { display: flex; gap: 24px; }
+/* إطار الوقت للعدّاد وحده */
+.v13:not(.asking) .team .turn { visibility: hidden !important; }

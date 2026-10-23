@@ -332,9 +332,10 @@
 .v12 .team .row { position: relative; inset: auto; height: 136px; justify-content: flex-start; gap: 32px; }
 .v12 .team .name { order: 0; }
 .v12 .team .row .score { display: block !important; order: 1; font-size: 280px; line-height: 136px; height: 136px; font-weight: 900;
-  color: #FFFFFF; opacity: .65; margin: 0 8px; white-space: nowrap; transform: skewX(calc(-1 * var(--lean))); transition: font-size .3s ease; }
-.v12 .team.t2 .row .score { opacity: .7; }
+  color: #FFFFFF; margin: 0 8px; white-space: nowrap; transform: skewX(calc(-1 * var(--lean))); transition: font-size .3s ease; }
+.v12 .team .row .score, .v12 .team.t2 .row .score { opacity: 1; }   /* أبيض صريح: صار عنصراً أساسياً بجوار الاسم (اعتماد المالك 18:24) */
 .v12 .team .row .score.three { font-size: 236px; }
+.v12 .ansbox { left: 1135px; width: 659px; }   /* مربع الإعلان على الأعمدة 8–12 (system.md §15.4) */
 .v12 .team .pcnt, .v12 .team.t2 .pcnt { order: 2; margin: 0; }
 .v12 .team:not(.on) .pcnt { display: none; }   /* اللوحة لا تحجز مكان العدّاد إلا لصاحب الدور، فلا يطول لسان الآخر */
 .v12 .team > .ring polygon { stroke-width: 8; }
