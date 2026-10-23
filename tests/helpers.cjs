@@ -41,7 +41,11 @@ function reporter() {
 async function stageFrame(page) {
   await page.waitForSelector('#single:not([hidden]) iframe', { timeout: 10000 });
   const frame = await (await page.$('#single iframe')).contentFrame();
-  await frame.waitForSelector('.scr.show', { timeout: 10000 });
+  // حال المباراة وصلت من المقدّم، لا أول شاشة تظهر (الملاحظة 24): لا «بانتظار المقدّم» ولا «متصلة» وحدها.
+  await frame.waitForFunction(() => {
+    const c = document.getElementById('canvas'), show = document.querySelector('.scr.show');
+    return c && !c.classList.contains('locked') && show && !(show.dataset.s === 'q' && /^نافذة الجمهور ·/.test(document.getElementById('label').textContent));
+  }, null, { timeout: 10000 });
   return frame;
 }
 const cmd = (frame, c) => frame.click(`[data-cmd="${c}"]`, { timeout: 8000 });

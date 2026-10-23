@@ -145,7 +145,9 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   check('إعادة التحميل: يُطلب الرقم', await page.isVisible('#pin'));
   await unlock(page);
   frame = await stageFrame(page);
-  check('ثم تعود المواجهة كما هي', await vis('.scr.show[data-s="face"]') && await vis('[data-cmd="begin"]'));
+  // ينتظر وصول حال المباراة وأزرارها، لا أول شاشة تظهر (الملاحظة 24: كان يقرأ الشاشة قبل وصولها).
+  const backFace = await frame.waitForSelector('.scr.show[data-s="face"] [data-cmd="begin"]', { timeout: 6000 }).then(() => true, () => false);
+  check('ثم تعود المواجهة كما هي', backFace && await vis('.scr.show[data-s="face"]') && await vis('[data-cmd="begin"]'));
 
   // 6. منع النوافذ المنبثقة: تبقى الشاشة المشتركة، والسبب في البطاقة.
   await page.evaluate(() => { window.open = () => null; });
