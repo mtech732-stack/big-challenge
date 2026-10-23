@@ -305,6 +305,22 @@
 .v10b.turn-1 .team.t2 .shape { background: linear-gradient(180deg, #0E2C86, #1238A8); }
 .v10b.turn-2 .team.t1 .shape { background: linear-gradient(0deg, #661220, #7A1622); }
 
+/* ===== 14. النموذج د11: بلا إطار للأسماء (المالك 18:11: «نكتفي بإطار الوقت للفريق الذي يُسأل») =====
+   على د10ب. الاسم وحده على لون طرفه: أبيض 40 وزن 800، على خط الشبكة نفسه (حشوة 48 من حافة اللوحة، فيحاذي البطاقة 127 و1793).
+   الإطار الأصفر المتآكل وحده يرسم حدود لوحة صاحب الدور حين يبدأ العدّاد، ويختفي بعد الحكم. ولا إضاءة داخل اللوحة.
+   ولوحة الآخر حين تقع على لون خصمها تبقى تعبئة بلونها بلا إطار. */
+.v11 .team .shape, .v11.split .team.t1 .shape { box-shadow: none; }
+.v11 .team.t1.on .shape, .v11 .team.t2.on .shape { background: transparent; }
+.v11.turn-1 .team.t2 .shape { background: linear-gradient(180deg, #0E2C86, #1238A8); }
+.v11.turn-2 .team.t1 .shape { background: linear-gradient(0deg, #661220, #7A1622); }
+.v11 .team.on > .ring { display: none; }
+.v11.running .team.on > .ring { display: block; }
+/* بلا إطار يصير الاسم هو مرساة الصف، فيُرسى على حافة البطاقة من جهة فريقه: الأول إلى اليمين، والثاني إلى اليسار (مرآة)،
+   والعدّاد في الطرف المقابل للاسم في الحالتين. */
+.v11 .team.t2 .row { flex-direction: row-reverse; }
+.v11 .team.t2 .pcnt { margin-right: 0; margin-left: auto; justify-content: flex-end; padding-left: 0; padding-right: 8px; }
+.v11 .team.t2 .pcnt::before { right: auto; left: 0; }
+
 @media (prefers-reduced-motion: reduce) {
   .beam, .plane.a, .glow, .flash, .dim, .backdrop { animation: none !important; }
   .beam { display: none; }
