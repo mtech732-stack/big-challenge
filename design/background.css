@@ -1,0 +1,55 @@
+/* التحدي الكبير · الخلفية الحيّة (مقترح لملاحظة المالك: «الخلفية تفتقد لعنصر إثارة»)
+   المرجع: design/background.md. طبقة فوق الخلفية الحالية (design/system.md 6.7)، لا تمس البطاقة ولا اللوحات.
+   ثلاث طبقات: أضواء الاستوديو (دائماً) · وهج جهة الفريق صاحب الدور (مع العدّاد) · لحظات قصيرة عند الحكم.
+   النماذج: أ = .ambient .moments معاً · ب = .ambient وحده (الأضواء والحالة) · ج = .moments وحده (اللحظات).
+   كل ما هنا شفاف ولا نص فيه، وتحت الأرقام العملاقة في ترتيب الطبقات، فلا يدخل فحص فراغ الأمان. */
+
+.backdrop { inset: 0; pointer-events: none; }
+.backdrop > * { position: absolute; }
+
+/* ===== 1. أضواء الاستوديو: أربع حزم عريضة بميل الإطار 6° تعبر الشاشة من اليسار إلى اليمين =====
+   السرعة بالحالة (system: playbackRate من الكود): القراءة 1 · العدّاد 2.2 · آخر 3 ثوانٍ 3.5 · لحظة الحكم 6 لنصف ثانية */
+.beam {
+  top: -240px; height: 1560px; left: -480px; width: 320px; opacity: 0;
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.10) 50%, rgba(255,255,255,0));
+  transform: skewX(calc(-1 * var(--tilt)));
+}
+.beam.w { width: 560px; background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.06) 50%, rgba(255,255,255,0)); }
+.ambient .beam { opacity: 1; }
+
+/* المساحة القطرية العليا تتنفّس ببطء، فلا يبقى في الخلفية شيء ساكن تماماً */
+.ambient .plane.a { animation: drift 18s ease-in-out infinite alternate; }
+@keyframes drift { to { translate: -120px 24px; opacity: .6; } }
+
+/* ===== 2. وهج جهة الدور: يظهر مع العدّاد عند الفريق صاحب الدور =====
+   ضوء أبيض 18% في جهة الفريق: الأول أعلى اليمين، والثاني أسفل اليسار، يتلاشى نحو الوسط.
+   أبيض للفريقين لا أحمر: الأحمر الشفاف فوق الأزرق يُقرأ بنفسجياً (كما كان الرقم العملاق قبل 1.2)، ولون الفريق في لوحته.
+   مساحات مائلة مستقيمة الحواف، لا دوائر ولا أطر بيضوية */
+.glow { top: -120px; height: 1320px; width: 1100px; opacity: 0; transition: opacity .8s ease; transform: skewX(calc(-1 * var(--tilt))); }
+.glow.t1 { right: -200px; background: linear-gradient(270deg, rgba(255,255,255,.18), rgba(255,255,255,0)); }
+.glow.t2 { left: -200px; background: linear-gradient(90deg, rgba(255,255,255,.18), rgba(255,255,255,0)); }
+.ambient.turn-1 .glow.t1, .ambient.turn-2 .glow.t2 { opacity: 1; }
+.ambient.running .glow { animation: breathe 2s ease-in-out infinite; }
+.ambient.running.meta-danger .glow { animation-duration: 1s; }
+@keyframes breathe { 50% { filter: brightness(1.6); } }
+
+/* ===== 3. لحظات الحكم (أقل من ثانية، ثم تعود الخلفية إلى هدوئها) ===== */
+.flash, .dim { inset: 0; opacity: 0; pointer-events: none; }
+.flash { background: #FFFFFF; }
+.dim { background: #050E2E; }
+/* الصحيح: ومضة بيضاء خفيفة، ولمعة تعبر الشاشة (.shine من ش2)، والأضواء تندفع */
+.moments .flash.go { animation: flash .5s ease-out; }
+@keyframes flash { 0% { opacity: .22; } 100% { opacity: 0; } }
+/* الخطأ: إعتام سريع، وارتجاف الخلفية وحدها (البطاقة لها ارتجافها في ش2) */
+.moments .dim.go { animation: dim .9s ease-out; }
+@keyframes dim { 0% { opacity: 0; } 15% { opacity: .5; } 100% { opacity: 0; } }
+.moments .backdrop.shake { animation: bshake .3s linear; }
+@keyframes bshake { 20% { translate: 14px 0; } 40% { translate: -14px 0; } 60% { translate: 10px 0; } 80% { translate: -6px 0; } }
+/* انتقال الإجابة: الوهج يقفز إلى الجهة الأخرى بقوة، ثم يهدأ إلى مستواه */
+.moments .glow.jump { animation: jump .7s ease-out; }
+@keyframes jump { 0% { filter: brightness(2.4); } 100% { filter: brightness(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .beam, .plane.a, .glow, .flash, .dim, .backdrop { animation: none !important; }
+  .beam { display: none; }
+}

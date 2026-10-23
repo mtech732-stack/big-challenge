@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>التحدي الكبير · الخلفية الحيّة</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/base.css">
+<link rel="stylesheet" href="../css/stage.css">
+<link rel="stylesheet" href="../css/start.css">
+<link rel="stylesheet" href="../css/letter.css">
+<link rel="stylesheet" href="../css/shared.css">
+<link rel="stylesheet" href="grid.css">
+<link rel="stylesheet" href="background.css">
+<style>
+  /* صفحة تجربة للخلفية الحيّة (design/background.md): شاشة سؤال من ش2 بقيم 1.2، وتحتها أزرار تحاكي اللعب.
+     الأزرار للتجربة وحدها، وتختفي في ملء الشاشة. */
+  .screen { bottom: var(--tools, 112px); }
+  :fullscreen .screen { bottom: 0; }
+  .tools { position: fixed; inset: auto 0 0 0; min-height: 112px; display: flex; gap: 12px; align-items: center; justify-content: center;
+    flex-wrap: wrap; padding: 8px 16px; background: #050E2E; box-sizing: border-box; }
+  :fullscreen .tools { display: none; }
+  .tools button { min-height: 44px; padding: 0 20px; font-size: 18px; }
+  .tools button.on { background: var(--hl); }
+  .tools .sep { width: 1px; height: 36px; background: rgba(255,255,255,.25); }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="canvas ambient moments" id="canvas">
+    <div class="backdrop" id="backdrop">
+      <div class="plane a"></div><div class="plane b"></div><div class="plane c"></div>
+      <div class="beam"></div><div class="beam w"></div><div class="beam"></div><div class="beam w"></div>
+      <div class="glow t1" id="glow1"></div><div class="glow t2" id="glow2"></div>
+    </div>
+    <div class="particles" id="particles"></div>
+    <div class="dim" id="dim"></div>
+
+    <div class="giant t1" data-bg><span id="g1">4</span></div>
+    <div class="giant t2" data-bg><span id="g2">2</span></div>
+
+    <section class="team t1" id="p1">
+      <div class="shape"></div><div class="turn"></div>
+      <div class="row"><span class="name">النسور</span><span class="score" id="s1">4</span></div>
+    </section>
+
+    <div class="badge mode"><i></i><span>الحرف المعيّن</span></div>
+    <div class="timer" id="timerBox"><i></i><span id="timer">0:10</span></div>
+    <div class="verdict" id="verdict" hidden><i></i><span id="vtext"></span></div>
+
+    <div class="card-wrap" id="cardWrap">
+      <div class="plate"></div>
+      <div class="card">
+        <div class="scr q show"><div class="letter">ق</div><div class="qcol"><p class="question">مدينة سعودية تشتهر بالتمور وتقع في منتصف المملكة</p></div></div>
+      </div>
+    </div>
+
+    <section class="team t2" id="p2">
+      <div class="shape"></div><div class="turn"></div>
+      <div class="row"><span class="name">الصقور</span><span class="score" id="s2">2</span></div>
+    </section>
+
+    <div class="shine" id="shine"></div>
+    <div class="flash" id="flash"></div>
+    <div class="danger"></div>
+  </div>
+</div>
+
+<div class="tools">
+  <button data-a="read">قراءة السؤال</button>
+  <button data-a="run1">العدّاد · الفريق الأول</button>
+  <button data-a="run2">العدّاد · الفريق الثاني</button>
+  <span class="sep"></span>
+  <button data-a="right">صحيح</button>
+  <button data-a="wrong">خطأ</button>
+  <button data-a="steal">انتقال الإجابة</button>
+  <span class="sep"></span>
+  <button data-a="auto" id="autoBtn">تشغيل تلقائي</button>
+  <span class="sep"></span>
+  <button data-m="" >الحالية</button>
+  <button data-m="ambient moments" class="on">أ · الطبقات الثلاث</button>
+  <button data-m="ambient">ب · الأضواء والحالة</button>
+  <button data-m="moments">ج · اللحظات فقط</button>
+  <span class="sep"></span>
+  <button data-a="fs">ملء الشاشة</button>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const canvas = $('canvas');
+  const fit = () => {
+    const tools = document.fullscreenElement ? 0 : 112;
+    document.documentElement.style.setProperty('--scale', Math.min(innerWidth / 1920, (innerHeight - tools) / 1080));
+  };
+  addEventListener('resize', fit); document.addEventListener('fullscreenchange', fit); fit();
+
+  // الجسيمات كما في audience.html
+  (function particles() {
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 22; i++) {
+      const s = document.createElement('span');
+      s.style.left = Math.round(rnd() * 1900) + 'px';
+      s.style.top = Math.round(500 + rnd() * 600) + 'px';
+      s.style.animationDuration = (14 + rnd() * 10).toFixed(1) + 's';
+      s.style.animationDelay = (-rnd() * 20).toFixed(1) + 's';
+      const k = 6 + Math.round(rnd() * 8); s.style.width = s.style.height = k + 'px';
+      $('particles').appendChild(s);
+    }
+  })();
+
+  // ===== الأضواء: حركة واحدة متصلة، وسرعتها تتغير بالحالة دون قفز (playbackRate) =====
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const beams = still ? [] : [...document.querySelectorAll('.beam')].map((b, i) => {
+    const a = b.animate([{ translate: '0 0' }, { translate: '2900px 0' }],
+      { duration: [16000, 22000, 19000, 26000][i], iterations: Infinity, easing: 'linear' });
+    a.currentTime = [2000, 9000, 14000, 4000][i] * 1;
+    return a;
+  });
+  let base = 1;
+  const speed = r => { base = r; beams.forEach(a => a.updatePlaybackRate(r)); };
+  const surge = () => { if (!canvas.classList.contains('moments')) return; beams.forEach(a => a.updatePlaybackRate(6)); setTimeout(() => speed(base), 500); };
+
+  const replay = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
+  const setTurn = t => {
+    canvas.classList.toggle('turn-1', t === 1); canvas.classList.toggle('turn-2', t === 2);
+    $('p1').classList.toggle('on', t === 1); $('p2').classList.toggle('on', t === 2);
+  };
+
+  // ===== العدّاد: 10 ثوانٍ، وآخر 3 بحواف الخطر =====
+  let tick = null, left = 0, turn = 0;
+  const stopTimer = () => { clearInterval(tick); tick = null; canvas.classList.remove('running', 'meta-danger'); };
+  const show = () => { $('timer').textContent = '0:' + String(left).padStart(2, '0'); };
+
+  const act = {
+    read() { stopTimer(); setTurn(0); turn = 0; speed(1); $('verdict').hidden = true; $('timerBox').hidden = false; left = 10; show(); },
+    run(t, secs = 10) {
+      stopTimer(); turn = t; setTurn(t); $('verdict').hidden = true; $('timerBox').hidden = false;
+      left = secs; show(); canvas.classList.add('running'); speed(2.2);
+      tick = setInterval(() => {
+        left--; show();
+        if (left <= 3 && left > 0) { canvas.classList.add('meta-danger'); speed(3.5); }
+        if (left <= 0) act.wrong();
+      }, 1000);
+    },
+    run1() { act.run(1); }, run2() { act.run(2); },
+    right() {
+      const t = turn || 1; stopTimer(); speed(1);
+      replay($('flash'), 'go'); if (canvas.classList.contains('moments')) replay($('shine'), 'go'); surge();
+      const g = $('g' + t), s = $('s' + t); g.textContent = s.textContent = +s.textContent + 2; replay(g.parentElement, 'gain');
+      $('timerBox').hidden = true; $('vtext').innerHTML = (t === 1 ? 'النسور' : 'الصقور') + ' <span class="ltr">+2</span>';
+      $('verdict').className = 'verdict t' + t; $('verdict').hidden = false;
+    },
+    wrong() {
+      stopTimer(); speed(1);
+      replay($('dim'), 'go'); replay($('backdrop'), 'shake'); replay($('cardWrap'), 'shake');
+    },
+    steal() {
+      const t = turn === 1 ? 2 : 1;
+      act.wrong(); replay($('shine'), 'go');
+      setTimeout(() => { act.run(t, 10); replay($('glow' + t), 'jump'); surge(); }, 450);
+    },
+    fs() { document.documentElement.requestFullscreen?.(); },
+    auto() {
+      if (auto) { clearTimeout(auto); auto = null; $('autoBtn').classList.remove('on'); act.read(); return; }
+      $('autoBtn').classList.add('on'); step(0);
+    },
+  };
+
+  // التشغيل التلقائي: قراءة ← عدّاد الأول ← صحيح ← قراءة ← عدّاد الأول ← خطأ وانتقال ← عدّاد الثاني حتى آخر 3 ← صحيح
+  let auto = null;
+  const SCRIPT = [
+    ['read', 3000], ['run1', 5000], ['right', 3000],
+    ['read', 3000], ['run1', 4000], ['steal', 8500], ['right', 3500],
+  ];
+  const step = i => {
+    const [a, wait] = SCRIPT[i % SCRIPT.length];
+    if (a === 'steal') { turn = 1; act.steal(); } else act[a]();
+    auto = setTimeout(() => step(i + 1), wait);
+  };
+
+  document.querySelectorAll('.tools [data-a]').forEach(b => b.addEventListener('click', () => act[b.dataset.a]()));
+  // النماذج: الحالية (دون إضافة) · أ الطبقات الثلاث · ب الأضواء والحالة · ج اللحظات فقط
+  const models = document.querySelectorAll('.tools [data-m]');
+  const pick = b => {
+    canvas.classList.remove('ambient', 'moments');
+    b.dataset.m.split(' ').filter(Boolean).forEach(c => canvas.classList.add(c));
+    models.forEach(x => x.classList.toggle('on', x === b));
+  };
+  models.forEach(b => b.addEventListener('click', () => pick(b)));
+  const first = { a: 1, b: 2, c: 3, now: 0 }[location.hash.slice(1)];
+  if (first !== undefined) pick(models[first]);
+  act.read();
+</script>
+</body>
+</html>
