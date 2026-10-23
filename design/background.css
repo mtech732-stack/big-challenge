@@ -287,7 +287,7 @@
    والطرفان أطول (1800) كي لا تنكشف زاوية حين يبعد الحدّ.
    أ: الحدّ يحاذي صف الآخر من الداخل: دور الأول 770 (فوق رأس «2» بـ 32، وفوق لوحة الثاني بـ 24) · دور الثاني 304 (تحت لوحة الأول بـ 16 عند طرفها).
       وهذا أقصى ما يسمح به الصف دون قطعه، فالنسبة نحو 72%، قريبة من د9. لأن الرقم المائي للآخر يشغل هذا الشريط.
-   ب: الحدّ يكاد يخرج من الشاشة: دور الأول 1110 (يبقى للأزرق مثلث صغير أسفل اليمين) · دور الثاني −30 (مثلث أحمر صغير أعلى اليسار، فوق الشعار).
+   ب: الحدّ يكاد يخرج من الشاشة: دور الأول 1140 (يبقى للأزرق مثلث صغير أسفل اليمين؛ كان 1110، system.md 15.2) · دور الثاني −30 (مثلث أحمر صغير أعلى اليسار، فوق الشعار).
       صاحب الدور نحو 98%. ولوحة الآخر تقع على لون خصمها، فتمتلئ بلونها هي (لسانها) بإطارها الأبيض، كي لا تضيع هويتها. */
 .v10 .field.t1 { top: -1214px; height: 1800px; }
 .v10 .field.t2 { height: 1800px; }
@@ -299,7 +299,7 @@
 @keyframes arrive { 0% { filter: brightness(1.15); } 25% { filter: brightness(1.55); } 100% { filter: brightness(1.15); } }
 .v10a.split.turn-1 .field, .v10a.split.turn-1 .edge { translate: 0 184px; }
 .v10a.split.turn-2 .field, .v10a.split.turn-2 .edge { translate: 0 -282px; }
-.v10b.split.turn-1 .field, .v10b.split.turn-1 .edge { translate: 0 524px; }
+.v10b.split.turn-1 .field, .v10b.split.turn-1 .edge { translate: 0 554px; }
 .v10b.split.turn-2 .field, .v10b.split.turn-2 .edge { translate: 0 -616px; }
 .v10b .team .shape { transition: background .4s ease .3s; }
 .v10b.turn-1 .team.t2 .shape { background: linear-gradient(180deg, #0E2C86, #1238A8); }
