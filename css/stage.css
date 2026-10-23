@@ -22,6 +22,9 @@
 .stagebg .e.sweep { animation: sweep2 .9s ease-out; }
 @keyframes sweep2 { 0%, 70% { background: #FFFFFF; height: 8px; box-shadow: 0 0 48px 16px rgba(255,255,255,.7), 0 0 120px 40px rgba(255,255,255,.25); } }
 @keyframes arrive { 0% { filter: brightness(1.15); } 25% { filter: brightness(1.55); } 100% { filter: brightness(1.15); } }
+/* الحكم: جهة من أخذ النقاط تومض وإن لم يتحرك الحدّ (15.2) */
+.turn-1 .stagebg .f1.blink, .turn-2 .stagebg .f2.blink { animation: blink .7s ease-out both; }
+@keyframes blink { 0% { filter: brightness(1.15); } 25% { filter: brightness(1.55); } 100% { filter: brightness(1.15); } }
 .beam { top: -240px; height: 1560px; left: -480px; width: 320px;
   background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.10) 50%, rgba(255,255,255,0));
   transform: skewX(calc(-1 * var(--tilt))); transition: opacity .4s ease; }
