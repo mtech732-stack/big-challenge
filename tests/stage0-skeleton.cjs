@@ -25,7 +25,10 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   const longest = async () => audience.evaluate(async () => {
     const set = (id, v) => { document.getElementById(id).textContent = v; };
     set('n1', 'فريق النخبة الذهبي'); set('n2', 'نجوم المستقبل معاً');
-    set('s1', '188'); set('g1', '188'); set('s2', '176'); set('g2', '176');
+    set('s1', '188'); set('s2', '176');
+    // 1.3: الرقمان بثلاث خانات (236)، والثواني في اللوحتين معاً، أضيق ما يكون (design/system.md 15.5).
+    for (const k of [1, 2]) { document.getElementById('s' + k).classList.add('three'); document.getElementById('p' + k).classList.add('on'); set('c' + k, '15'); }
+    document.getElementById('canvas').classList.add('running');
     set('letter', 'ـوت');
     set('label', 'بيت لا يُبنى بطين ولا حجر، ووصفه القرآن بأنه أوهن البيوت، وتراه في زوايا البيوت القد');
     const { checkLayout } = await import('./js/layout-check.js');
@@ -36,7 +39,7 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
     await audience.goto(base + 'audience.html?check');
     await audience.waitForFunction(() => window.__check, null, { timeout: 10000 });
     const r = await audience.evaluate(() => window.__check);
-    check(`الجمهور ${w}×${h}: لا تداخل ولا خروج عن الهامش (${r.count} عناصر، أدنى فراغ ${Math.round(r.minGap)})`, r.ok && r.count === 7);
+    check(`الجمهور ${w}×${h}: لا تداخل ولا خروج عن الهامش (${r.count} عناصر، أدنى فراغ ${Math.round(r.minGap)})`, r.ok && r.count === 5);
     if (!r.ok) console.log(r.problems.join('\n'));
     if (w === 1920) await audience.screenshot({ path: `${shots}/skeleton-audience.png` });
     const l = await longest();
@@ -73,23 +76,25 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   const live = await other.newPage();
   await live.goto(base + 'audience.html');
   await wait(300);
-  check('بانتظار المقدّم: الهيكل مخفي والبطاقة وحدها', await live.isHidden('.team.t1') && await live.isHidden('.timer') && await live.isVisible('.card'));
+  check('بانتظار المقدّم: الهيكل مخفي والبطاقة وحدها', await live.isHidden('.team.t1') && await live.isHidden('.logo') && await live.isVisible('.card'));
   await other.close();
   const [aud] = await Promise.all([context.waitForEvent('page'), presenter.click('#open')]);
   await aud.setViewportSize({ width: 1920, height: 1080 });
   await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 5000 });
   await wait(300);
   // من ش1: قبل أول سؤال تظهر اللوحتان والبطاقة وحدها (design/start.md، القسم 2)، والباقي مع العدّاد.
-  check('بعد الاتصال: اللوحتان ظاهرتان، ولا شريط ولا عدّاد ولا رقم عملاق قبل أول سؤال',
-    (await Promise.all(['.team.t1', '.team.t2', '.card'].map(s => aud.isVisible(s)))).every(Boolean)
-    && !(await Promise.all(['.strip.t1', '.strip.t2', '.badge.mode', '.timer', '.giant.t1'].map(s => aud.isVisible(s)))).some(Boolean));
+  check('بعد الاتصال: اللوحتان والشعار ظاهرة، ولا شريط ولا عدّاد ولا رقم قبل أول سؤال',
+    (await Promise.all(['.team.t1', '.team.t2', '.card', '.logo'].map(s => aud.isVisible(s)))).every(Boolean)
+    && !(await Promise.all(['.strip.t1', '.strip.t2', '.badge.mode', '.team .cnt', '.team .score', '.giant'].map(s => aud.isVisible(s)))).some(Boolean));
   await aud.screenshot({ path: `${shots}/skeleton-audience-live.png` });
 
   // 5. حواف الخطر في آخر 3 ثوانٍ فقط، وتختفي عند 0:00.
   await presenter.click('#start');
   await wait(300);
-  check('مع العدّاد: اللوحتان والشارة والعدّاد والرقم العملاق ظاهرة، ولا شريط فارق (الإصدار 1.1)',
-    !(await aud.isVisible('.strip')) && (await Promise.all(['.team.t1', '.team.t2', '.badge.mode', '.timer', '.giant.t1'].map(s => aud.isVisible(s)))).every(Boolean));
+  // 1.3: لا مربع عدّاد مستقل، فعدّاد التجربة (لا دور فيه) يُعرض في البطاقة.
+  check('مع العدّاد: اللوحتان والشارة ظاهرة، والوقت في البطاقة، ولا شريط فارق',
+    !(await aud.isVisible('.strip')) && (await Promise.all(['.team.t1', '.team.t2', '.badge.mode'].map(s => aud.isVisible(s)))).every(Boolean)
+    && /^العدّاد يعمل · 0:(10|09)$/.test(await aud.textContent('#label')));
   await wait(4200);
   const early = await aud.textContent('#timer');
   check(`قبل آخر 3 ثوانٍ (${early}): لا حواف`, ['0:06', '0:05'].includes(early) && !(await aud.evaluate(() => document.getElementById('canvas').classList.contains('meta-danger'))));

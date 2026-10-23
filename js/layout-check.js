@@ -5,7 +5,8 @@
 function extent(el, scale, origin) {
   let r = null;
   for (const n of [el, ...el.querySelectorAll('*')]) {
-    if (n.closest('.check-layer')) continue;
+    if (n.closest('.check-layer') || n.closest('.ring polygon')) continue;
+    // إطار الوقت (1.3) يُرسم على حدود اللوحة نفسها، ويتبعها بعد تغيّر قياسها بإطار رسم واحد، فيُحسب بالـsvg لا بنقاط المضلع.
     const b = n.getBoundingClientRect(); if (!b.width && !b.height) continue;
     const x1 = (b.left - origin.left) / scale, y1 = (b.top - origin.top) / scale;
     const x2 = (b.right - origin.left) / scale, y2 = (b.bottom - origin.top) / scale;
@@ -47,7 +48,7 @@ export function checkLayout(canvas, layer) {
     if (g < 24 - .5) { problems.push(`${items[i].name} ↔ ${items[j].name}: ${Math.round(g)}`); bad.add(items[i]); bad.add(items[j]); }
   }
   for (const n of canvas.querySelectorAll('*')) {
-    if (![...n.childNodes].some(c => c.nodeType === 3 && c.textContent.trim())) continue;
+    if (![...n.childNodes].some(c => c.nodeType === 3 && c.textContent.trim()) || !n.getClientRects().length) continue;   // المخفي خارج الحساب (#timer في 1.3)
     const fs = parseFloat(getComputedStyle(n).fontSize);
     if (fs < 32) problems.push(`نص أصغر من 32: «${n.textContent.trim().slice(0, 20)}» ${fs}`);
     if (/[٠-٩۰-۹]/.test(n.textContent)) problems.push(`أرقام هندية: «${n.textContent.trim().slice(0, 20)}»`);
@@ -56,6 +57,7 @@ export function checkLayout(canvas, layer) {
   const lines = new Set([...range.getClientRects()].map(r => Math.round(r.top / scale / 10))).size;
   if (lines > 3) problems.push(`السؤال ${lines} أسطر، والحد 3`);
   for (const n of canvas.querySelectorAll('.team .name, .team .score, .strip > span, .badge > span, .timer > span')) {
+    if (!n.getClientRects().length) continue;
     const box = n.closest('.row, [data-hud]').getBoundingClientRect(), t = n.getBoundingClientRect();
     if (t.left < box.left - 1 || t.right > box.right + 1) problems.push(`نص يفيض: ${n.closest('[data-hud]').dataset.hud}`);
   }

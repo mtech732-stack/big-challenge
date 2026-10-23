@@ -134,7 +134,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await presenter.click('#yes');
   await wait(600);
   check('صحيحة · +1: الحكم مكان العدّاد بلون الفريق، والرصيد يزيد', (await text(audience, '#vtext')) === `${LONG[starter - 1]} · +1` && (await text(audience, '#reveal')) === `الإجابة: ${q.answer}` && await audience.$eval('#verdict', (e, t) => e.classList.contains('t' + t), starter)
-    && !(await visible(audience, '#timerBox')) && (await text(audience, '#s' + starter)) === '1');
+    && !(await visible(audience, '.team .cnt')) && (await text(audience, '#s' + starter)) === '1');
   check('المقدّم: «صحيحة · +1 لل…» إن بدأ الاسم بـ«ال»', (await text(presenter, '#qDone')) === `صحيحة · +1 لل${LONG[starter - 1].slice(2)}`);
   await both('صحيحة');
 

@@ -16,15 +16,18 @@
 .ctl-near .cbtn.alt, .ctl-corner .cbtn.alt { background: transparent; color: var(--on-stage); box-shadow: inset 0 0 0 3px var(--card); }
 .cbtn.no { background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 4px var(--team-1); }
 
-/* بجانب العدّاد: يمينه بفراغ 24 عند طرفه المائل، ويُحسب موضعه في الصفحة */
-.ctl-near { top: 310px; left: 358px; height: 72px; display: flex; align-items: center; gap: 24px; }
+/* أزرار العدّاد والحكم في صف الشارات (1.3، design/system.md 15.10): تنتهي قبل أول شارة بفراغ 24 بعد ميلها، ويُحسب موضعها في الصفحة */
+.ctl-near { top: 310px; left: 127px; height: 72px; display: flex; align-items: center; gap: 24px; }
 .ctl-near:empty, .ctl-corner:empty { display: none; }
 
-/* الزاويتان على الحافتين (1.2): العليا اليسرى من 96، والسفلى اليمنى إلى 1824. العليا اليسرى قبل الرقم العملاق للفريق الأول، والسفلى اليمنى بعد الرقم العملاق للثاني */
-.ctl-corner { display: grid; gap: 24px; }
+/* أزرار الزاويتين كلها أعلى اليسار من 127، مكان الشعار (1.3): صف للعليا على 64، وصف للسفلى على 152، أو على 64 إن خلت العليا.
+   (صف الشارات لا يتسع لأزرار الزاوية السفلى مع أزرار العدّاد والحكم.) */
+.ctl-corner { left: 127px; display: flex; gap: 24px; align-items: center; }
+.ctl-corner .ctl { gap: 24px; }
 .ctl-corner .cbtn { height: 64px; padding: 0 24px; }
-.ctl-corner.a { left: 96px; top: 64px; justify-items: end; }
-.ctl-corner.b { right: 96px; top: 818px; justify-items: start; }
+.ctl-corner.a { top: 64px; }
+.ctl-corner.b { top: 152px; }
+.ctl-corner.a:empty + .ctl-corner.b { top: 64px; }
 
 /* صف الأزرار في آخر محتوى البطاقة */
 .card .crow { display: flex; align-items: center; justify-content: center; gap: 48px; min-height: 72px; }
@@ -46,14 +49,15 @@
 .ctile.sel { background: var(--ink); color: var(--card); }
 .ctile.off { border-style: dashed; opacity: .45; cursor: default; pointer-events: none; }
 .scr.title { gap: 24px; }
-/* الإعداد: سطر إرشاد فوق صف العدد، لأن الاسمين يُكتبان في اللوحتين لا في البطاقة (design/system.md 14) */
+/* الإعداد: سطر إرشاد فوق صف العدد، لأن الاسمين يُكتبان في اللوحتين لا في البطاقة */
 .crow.setup { flex-wrap: wrap; row-gap: 32px; }
 .crow.setup .guide { flex: 1 0 100%; text-align: center; font-size: 40px; font-weight: 700; line-height: 1.2; }
 .crow.setup .guide[hidden] { display: none; }
 
 /* الإعداد: اللوحتان حقلا الاسمين، وتحت النص خط متقطّع يدل أنه يُكتب */
-.team .name-in { display: none; flex: 1 1 auto; min-width: 0; height: 56px; padding: 0; border: 0; border-radius: 0;
-  border-bottom: 3px dashed currentColor; background: transparent; color: inherit; font: inherit; font-size: var(--fs-name); font-weight: 700; line-height: 1; outline: none; }
+.team .name-in { display: none; flex: 0 0 550px; min-width: 0; height: 56px; padding: 0; border: 0; border-radius: 0;
+  border-bottom: 3px dashed currentColor; background: transparent; color: inherit; font: inherit; font-size: var(--fs-name); font-weight: 800; line-height: 1; outline: none; }
+.team.t2 .name-in { text-align: end; }   /* الثاني مرسى على اليسار (1.3)، فيبدأ نصه من حافته */
 .team .name-in::placeholder { color: inherit; opacity: .6; }
 .editing .team .name-in { display: block; }
 .editing .team .name, .editing .team .score { display: none; }
@@ -61,7 +65,5 @@
 /* ما يُنقر: خانات الأنماط ورقم الفريق */
 .tile[data-cmd], .score[data-cmd] { cursor: pointer; }
 
-/* بعد الحكم الأخير: الإجابة النموذجية تحت السؤال (design/shared.md 4) */
+/* السؤال، والإجابة النموذجية بعد الحكم الأخير في مربع الإعلان (1.3، design/system.md 15.4) */
 .qcol { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.qcol .reveal { margin: 0; font-size: 48px; font-weight: 700; line-height: 1.2; white-space: nowrap; }
-.qcol .reveal b { font-weight: 900; }

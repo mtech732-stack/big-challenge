@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="css/shared.css">
 <style>
   /* اللعبة مغلقة أو بانتظار المقدّم: لا يبقى على الشاشة إلا الخلفية والبطاقة. */
-  .locked .team, .locked .badge, .locked .timer, .locked .giant, .locked .verdict, .locked .ctl-near, .locked .ctl-corner { display: none; }
+  .locked .team, .locked .badge, .locked .box, .locked .ctl-near, .locked .ctl-corner { display: none; }
   /* أعلى اليسار، حيث لا شيء من الهيكل، ويختفي في ملء الشاشة وفي النافذة الواحدة. */
   #fs { position: fixed; top: 24px; left: 24px; font-size: 32px; }
   :fullscreen #fs, .embed #fs, .filled #fs, .idle #fs { display: none; }
@@ -22,31 +22,31 @@
 <body>
 <div class="screen">
   <div class="canvas locked pre" id="canvas">
-    <div class="plane a"></div><div class="plane b"></div><div class="plane c"></div>
+    <!-- المسرح بطرفين بلوني الفريقين، والحدّ بينهما يكتسح لصاحب الدور (1.3، design/system.md 15.1–15.2) -->
+    <div class="stagebg" id="stagebg"><div class="f f1"></div><div class="f f2"></div><div class="e" id="edge"></div>
+      <div class="beam"></div><div class="beam w"></div><div class="beam"></div><div class="beam w"></div></div>
     <div class="particles" id="particles"></div>
 
-    <div class="giant t1" data-bg><span id="g1">0</span></div>
-    <div class="giant t2" data-bg><span id="g2">0</span></div>
+    <!-- الشعار أعلى اليسار في كل شاشة (15.7) -->
+    <div class="logo" data-hud="الشعار" aria-label="التحدي الكبير"><span class="l1">التحدي</span><span class="l2"><i></i><b>الكبير</b></span></div>
 
+    <!-- لوحة الفريق بلا شكل: الاسم ثم الرقم الكبير ثم العدّاد لصاحب الدور، وإطار الوقت حولها (15.3 و15.5) -->
     <section class="team t1" id="p1" data-hud="لوحة الفريق الأول">
-      <div class="shape"></div><div class="turn"></div>
-      <div class="row" data-fit="لوحة الفريق الأول"><span class="name" id="n1">الفريق الأول</span><input class="name-in" id="i1" maxlength="18" autocomplete="off" placeholder="اكتب اسم الفريق الأول" aria-label="اسم الفريق الأول"><span class="score" id="s1"></span></div>
+      <div class="shape"></div><svg class="ring" preserveAspectRatio="none"><polygon pathLength="100"/></svg>
+      <div class="row" data-fit="لوحة الفريق الأول"><span class="name" id="n1">الفريق الأول</span><input class="name-in" id="i1" maxlength="18" autocomplete="off" placeholder="اكتب اسم الفريق الأول" aria-label="اسم الفريق الأول"><span class="score" id="s1"></span><span class="cnt" id="c1"></span></div>
     </section>
-
-    <!-- سطر العنوان قبل المباراة: الإعداد والمواجهة وحدهما (design/system.md 14) -->
-    <p class="headline" id="headline" data-hud="سطر العنوان" data-fit="سطر العنوان"></p>
 
     <div class="badge mode" data-hud="شارة النمط"><i></i><span id="mode">اختبار العرض</span></div>
     <div class="badge plain off" id="b1" data-hud="الشارة الأولى"><i></i><span></span></div>
     <div class="badge plain off" id="b2" data-hud="الشارة الثانية"><i></i><span></span></div>
-    <div class="timer" id="timerBox" data-hud="العدّاد"><i></i><span id="timer">0:10</span></div>
-    <div class="verdict" id="verdict" data-hud="الحكم" hidden><i></i><span id="vtext"></span></div>
+    <!-- الوقت بصيغته الكاملة للمقدّم والاختبار، والجمهور يرى ثوانيه في لوحة صاحب الدور (#c1 و#c2) -->
+    <span id="timer" hidden>0:10</span>
 
     <div class="card-wrap" id="cardWrap" data-hud="البطاقة">
       <div class="plate"></div>
       <div class="card">
         <!-- السؤال، وتحته الإجابة النموذجية بعد الحكم الأخير وحده (الوثيقة 1.1، 7.1) -->
-        <div class="scr q show" data-s="q"><div class="letter" id="letter"></div><div class="qcol"><p class="question" id="label" data-fit="السؤال">نافذة الجمهور · بانتظار المقدّم</p><p class="reveal" id="reveal" data-fit="سطر الإجابة" hidden>الإجابة: <b id="answer"></b></p></div></div>
+        <div class="scr q show" data-s="q"><div class="letter" id="letter"></div><div class="qcol"><p class="question" id="label" data-fit="السؤال">نافذة الجمهور · بانتظار المقدّم</p></div></div>
         <!-- الجولة (ش2): افتتاحها ونهايتها. والسؤال في القسم الأول نفسه -->
         <div class="scr intro" data-s="intro">
           <p class="rule" id="rule"></p>
@@ -57,7 +57,7 @@
             <div class="col"><p class="who t1" data-fit="اسم الفريق الأول"><i></i><span id="e1"></span></p><p class="pts tn t1" id="r1"></p></div>
             <div class="col"><p class="who t2" data-fit="اسم الفريق الثاني"><i></i><span id="e2"></span></p><p class="pts tn t2" id="r2"></p></div>
           </div>
-          <div class="crow"><p class="next" id="next" data-fit="سطر التالي"></p><div class="ctl"></div></div>
+          <div class="crow"><div class="ctl"></div></div>
         </div>
         <!-- الانتظار، وفي الشاشة المشتركة: عدد الأنماط و«ابدأ القرعة» (design/shared.md 4) -->
         <div class="scr title" data-s="title">
@@ -85,9 +85,18 @@
     </div>
 
     <section class="team t2" id="p2" data-hud="لوحة الفريق الثاني">
-      <div class="shape"></div><div class="turn"></div>
-      <div class="row" data-fit="لوحة الفريق الثاني"><span class="name" id="n2">الفريق الثاني</span><input class="name-in" id="i2" maxlength="18" autocomplete="off" placeholder="اكتب اسم الفريق الثاني" aria-label="اسم الفريق الثاني"><span class="score" id="s2"></span></div>
+      <div class="shape"></div><svg class="ring" preserveAspectRatio="none"><polygon pathLength="100"/></svg>
+      <div class="row" data-fit="لوحة الفريق الثاني"><span class="name" id="n2">الفريق الثاني</span><input class="name-in" id="i2" maxlength="18" autocomplete="off" placeholder="اكتب اسم الفريق الثاني" aria-label="اسم الفريق الثاني"><span class="score" id="s2"></span><span class="cnt" id="c2"></span></div>
     </section>
+
+    <!-- مربع الإعلان أسفل اليمين (15.4): الحكم والإجابة بعد الحكم الأخير · الفائز بالقرعة في المواجهة · «التالي» في نهاية الجولة -->
+    <div class="box" id="box" data-hud="مربع الإعلان" hidden><i></i>
+      <p class="chip" id="verdict" hidden><i></i><span id="vtext"></span></p>
+      <p class="chip" id="faceChip" hidden><i></i><span>الفائز بالقرعة</span></p>
+      <p class="line" id="reveal" data-fit="سطر الإجابة" hidden>الإجابة: <b id="answer"></b></p>
+      <p class="line" id="faceWin" data-fit="اسم الفائز" hidden></p>
+      <p class="line" id="next" data-fit="سطر التالي" hidden></p>
+    </div>
 
     <!-- أزرار الشاشة المشتركة، بجانب ما تتحكم فيه (design/shared.md 3.2). فارغة في نافذة الجمهور وحدها -->
     <div class="ctl-near" id="near" data-hud="أزرار العدّاد"></div>
@@ -137,19 +146,66 @@
   const num = s => esc(s).replace(/(\+?\d+)/g, '<span class="ltr">$1</span>');
   const setLocked = on => canvas.classList.toggle('locked', on);
   const setDanger = on => canvas.classList.toggle('meta-danger', on);
-  const showScreen = name => {
-    document.querySelectorAll('.card .scr').forEach(s => s.classList.toggle('show', s.dataset.s === name));
-    $('headline').classList.toggle('show', name === 'title' || name === 'face');
-  };
-  // سطر العنوان: «التحدي الكبير» في الإعداد، و«الفائز بالقرعة» في المواجهة.
-  const setHeadline = (html, kind) => { $('headline').innerHTML = html; $('headline').className = 'headline show ' + kind; };
+  const showScreen = name => document.querySelectorAll('.card .scr').forEach(s => s.classList.toggle('show', s.dataset.s === name));
   const setTurn = team => { $('p1').classList.toggle('on', team === 1); $('p2').classList.toggle('on', team === 2); };
   const replay = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
   const bump = team => replay($('p' + team), 'won');
-  // لحظات الرقم العملاق على الرقم نفسه (.giant)، لا على نصه الداخلي (#g1)، فحركته مكتوبة عليه (css/letter.css).
-  const giant = team => $('g' + team).parentElement;
-  // لحظة واحدة على الرقم العملاق في كل مرة: تُزال الثلاث قبل إضافة إحداها، فلا تغلب «lose» الباقية من لحظة سابقة «gain» بعدها.
-  const moment = (team, cls) => { const g = giant(team); g.classList.remove('gain', 'lead', 'lose'); replay(g, cls); };
+  // الرقم الكبير هو النتيجة (1.3، design/system.md 15.5)، ويصغر بثلاث خانات.
+  const setScore = (k, v) => { const el = $('s' + k); el.textContent = v; el.classList.toggle('three', String(v).length >= 3); };
+  // لحظة واحدة على الرقم الكبير في كل مرة: تُزال الثلاث قبل إضافة إحداها، فلا تغلب «lose» الباقية من لحظة سابقة «gain» بعدها.
+  const moment = (team, cls) => { const g = $('s' + team); g.classList.remove('gain', 'lead', 'lose'); replay(g, cls); };
+
+  // ===== المسرح بطرفين (1.3، design/system.md 15.1–15.2 و15.11) =====
+  // الحدّ يكتسح لصاحب الدور: وقت العدّاد، ومع مؤشر القرعة، ويقف على الفائز بها. وفي غير ذلك يعود إلى المنتصف.
+  let side = 0;
+  const setSide = t => {
+    if (t === side) return;
+    side = t;
+    canvas.classList.toggle('turn-1', t === 1); canvas.classList.toggle('turn-2', t === 2);
+    if (still()) replay(canvas, 'swap'); else replay($('edge'), 'sweep');
+  };
+  // الحزم: حركة واحدة متصلة، وسرعتها بالحالة دون قفز: القراءة 1 · العدّاد 2.2 · آخر 3 ثوانٍ 3.5 · لحظة الحكم 6 لنصف ثانية.
+  const beams = still() ? [] : [...document.querySelectorAll('.beam')].map((b, i) => {
+    const a = b.animate([{ translate: '0 0' }, { translate: '2900px 0' }], { duration: [16000, 22000, 19000, 26000][i], iterations: Infinity });
+    a.currentTime = [2000, 9000, 14000, 4000][i];
+    return a;
+  });
+  let pace = 1, surging = 0;
+  const speed = r => { if (r === pace) return; pace = r; if (!surging) beams.forEach(a => a.updatePlaybackRate(r)); };
+  const surge = () => { clearTimeout(surging); beams.forEach(a => a.updatePlaybackRate(6)); surging = setTimeout(() => { surging = 0; beams.forEach(a => a.updatePlaybackRate(pace)); }, 500); };
+  const setRunning = on => { canvas.classList.toggle('running', on); if (!on) speed(1); else if (pace === 1) speed(2.2); };
+
+  // إطار الوقت يُرسم على قياس اللوحة الفعلي بانحرافها 14°، ويُعاد رسمه كلما تغيّر قياسها (الاسم، والرقم، والعدّاد).
+  const fitRing = team => {
+    const svg = team.querySelector('.ring'), w = team.offsetWidth, h = team.offsetHeight, o = Math.tan(14 * Math.PI / 180) * h / 2;
+    if (!w) return;
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    svg.querySelector('polygon').setAttribute('points', `${o},0 ${w + o},0 ${w - o},${h} ${-o},${h}`);
+  };
+  const sized = new ResizeObserver(list => list.forEach(e => fitRing(e.target)));
+  sized.observe($('p1')); sized.observe($('p2'));
+  // ويتآكل مع العدّاد: يبدأ مما مضى من الوقت (بعد إعادة التحميل مثلاً)، وينتهي مع آخر ثانية.
+  // بحركة من الكود لا بانتقال CSS: الانتقال لا يجري على إطار مخفي (لحظة انتقال الإجابة تخفي المؤشر 240ms)، فكان يقفز إلى آخره.
+  let drainAnim = null;
+  const drain = (team, left, total) => {
+    drainAnim?.cancel(); drainAnim = null;
+    if (!team) return;
+    const from = 100 * Math.min(1, Math.max(0, 1 - left / total));
+    drainAnim = $('p' + team).querySelector('polygon').animate([{ strokeDashoffset: from }, { strokeDashoffset: 100 }], { duration: Math.max(0, left * 1000), fill: 'forwards' });
+  };
+  // مربع الإعلان (15.4): الحكم والإجابة · الفائز بالقرعة · «التالي». ولا يظهر إن لم يكن فيه شيء.
+  function announce({ verdict: v, answer, face, next } = {}) {
+    $('verdict').hidden = !v;
+    if (v) {
+      $('verdict').className = `chip${v.team ? ' t' + v.team : ''}`;
+      // الفريق الذي أخذ النقاط باسمه (الوثيقة 1.1، 7.1).
+      $('vtext').innerHTML = v.team ? `${esc(name(v.team))} · ${num('+' + v.points)}` : 'لا نقاط';
+    }
+    $('reveal').hidden = !answer; $('answer').textContent = answer ?? '';
+    $('faceChip').hidden = $('faceWin').hidden = !face; $('faceWin').textContent = face ? name(face) : '';
+    $('next').hidden = !next; $('next').innerHTML = next ? num(next) : '';
+    $('box').hidden = !(v || answer || face || next);
+  }
 
   // صف الشارات من اليمين بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (design/start.html وdesign/letter.html):
   // شارة النمط (في الجولة)، ثم الأولى، ثم الثانية. ولا شارة للحزمة ولا للطريقة ولا للمستوى ولا «سرقة» (design/shared.md 1).
@@ -165,6 +221,7 @@
       el.style.right = right + 'px';
       right += el.offsetWidth + 24 + lean;
     }
+    placeNear();
   }
   // أول فتح للشاشة: تُحسب المواضع بعرض الخط البديل إن لم يكن الخط محمّلاً، فيُعاد حسابها بعد تحميله، وإلا تداخلت الشارات.
   document.fonts?.ready.then(placeBadges);
@@ -185,16 +242,16 @@
     canvas.classList.add('pre');
     canvas.classList.remove('fresh');
     canvas.classList.toggle('short', m.method === 'short');
-    $('verdict').hidden = true; $('timerBox').hidden = false;
     $('n1').textContent = name(1); $('n2').textContent = name(2);
+    // الرقمان من المواجهة، وقبلها بلا رقم (design/system.md 15.10).
     const showScores = m.step === 'face';
-    $('s1').textContent = showScores ? m.scores[1] : '';
-    $('s2').textContent = showScores ? m.scores[2] : '';
+    setScore(1, showScores ? m.scores[1] : ''); setScore(2, showScores ? m.scores[2] : '');
+    announce(m.step === 'face' ? { face: m.winner } : {});
+    setRunning(false);
     let turn = 0;
 
     if (m.step === 'setup') {
       showScreen('title');
-      setHeadline('التحدي الكبير', 'big');
       setBadges();
     }
     if (m.step === 'draw') {
@@ -232,7 +289,6 @@
     if (m.step === 'face') {
       showScreen('face');
       setBadges('المواجهة');
-      setHeadline(`الفائز بالقرعة: ${tn(m.winner)}`, 'face');
       let n = 0;
       $('track').innerHTML = plan(m).map(s => s.kind === 'wheel'
         ? `<div class="seg wheel" style="--i:${n++}" data-fit="خانة العجلة"><span>عجلة</span><span>البونص</span></div>`
@@ -240,6 +296,8 @@
       turn = m.winner;
     }
     setTurn(turn);
+    // القرعة تقف على الفائز: الحدّ يكتسح إلى طرفه، والخاسر على لسانه.
+    setSide(m.step === 'draw' && m.winner ? m.winner : 0);
     renderCtl();
   }
 
@@ -273,8 +331,7 @@
     canvas.classList.remove('pre');
     canvas.classList.toggle('fresh', !!p.fresh);
     $('n1').textContent = name(1); $('n2').textContent = name(2);
-    $('s1').textContent = $('g1').textContent = sc[1];
-    $('s2').textContent = $('g2').textContent = sc[2];
+    setScore(1, sc[1]); setScore(2, sc[2]);
     $('mode').textContent = p.modeName;
 
     if (a.screen === 'intro') {
@@ -286,30 +343,28 @@
       showScreen('end');
       $('e1').textContent = name(1); $('e2').textContent = name(2);
       $('r1').textContent = '+' + a.totals[1]; $('r2').textContent = '+' + a.totals[2];
-      $('next').innerHTML = num(p.next);
       setBadges(`انتهت الجولة ${p.n}`);
     } else {
       showScreen('q');
       setBox(a);
       $('label').textContent = a.question;
-      $('reveal').hidden = !a.answer;
-      $('answer').textContent = a.answer ?? '';
       setBadges(`السؤال ${a.n} من ${a.count}`);
     }
 
-    // العدّاد ظاهر في كل سؤال: ثابتاً بوقته قبل «ابدأ»، ثم يعدّ. والحكم يحلّ محله بعد انتهاء السؤال.
+    // بعد الحكم الأخير: الحكم والإجابة في مربع الإعلان حتى السؤال التالي. و«التالي» فيه في نهاية الجولة.
     const v = a.screen === 'ask' ? a.verdict : null;
-    $('verdict').hidden = !v;
-    $('timerBox').hidden = a.screen !== 'ask' || !!v;
-    if (v) {
-      $('verdict').className = `verdict${v.team ? ' t' + v.team : ''}`;
-      // الفريق الذي أخذ النقاط باسمه (الوثيقة 1.1، 7.1).
-      $('vtext').innerHTML = v.team ? `${esc(name(v.team))} · ${num('+' + v.points)}` : 'لا نقاط';
-    }
+    announce(a.screen === 'end' ? { next: p.next } : { verdict: v, answer: a.answer });
     syncTimer(p.timer, a);
     setTurn(a.turn);
+    // العدّاد يعمل: الحدّ يكتسح لصاحب الدور، وإطار الوقت حول لوحته يتآكل، والثواني فيها. وفي القراءة والحكم يعود إلى المنتصف.
+    const running = !!count && !count.test;
+    setRunning(running);
+    setSide(running ? a.turn : 0);
+    if (running && count.id !== drained) { drained = count.id; drain(a.turn, (count.endAt - Date.now()) / 1000, p.timer.seconds); }
+    if (!running && drained) { drained = 0; drain(0); }
     renderCtl();
   }
+  let drained = 0;
 
   // ===== أزرار الشاشة المشتركة (design/shared.md 3): المقدّم يقرر ما يظهر (ctl)، وهنا موضعه =====
   // ctl: { card, near, a, b: أزرار · count: خانتا العدد · names: اللوحتان حقلان · pick: الخانات تُنقر · scores · error }
@@ -325,6 +380,8 @@
     $('near').innerHTML = (c?.near ?? []).map(button).join('');
     $('cornerA').innerHTML = rows(c?.a);
     $('cornerB').innerHTML = rows(c?.b);
+    // النافذة الواحدة: صفّا أزرار الزاويتين مكان الشعار (1.3).
+    canvas.classList.toggle('has-a', !!($('cornerA').children.length || $('cornerB').children.length));
     $('count').innerHTML = c?.count ? '<span class="lbl">عدد الأنماط</span>' + [['short', 2], ['full', 4]].map(([m, k]) =>
       `<button class="ctile${c.count.value === m ? ' sel' : ''}${k === 4 && !c.count.four ? ' off' : ''}" data-cmd="count:${m}"><span class="ltr">${k}</span></button>`).join('') : '';
     for (const id of ['err', 'faceErr']) { $(id).hidden = !c?.error; $(id).textContent = c?.error ?? ''; }
@@ -339,10 +396,11 @@
     }
     placeNear();
   }
-  // أزرار العدّاد يمينه (أي بعده في القراءة من اليسار) بفراغ 24 عند طرفه المائل (ارتفاع 80 × ظل 14° ÷ 2 = 10).
+  // أزرار العدّاد والحكم في صف الشارات (1.3): تنتهي قبل أول شارة بـ 32، أي 24 بعد ميلها (ارتفاع 64 × ظل 14° ÷ 2 = 8).
   function placeNear() {
-    const at = [$('timerBox'), $('verdict')].find(el => el.getClientRects().length);
-    if (at) $('near').style.left = (at.offsetLeft + at.offsetWidth + 10 + 24) + 'px';
+    const near = $('near'), badges = [...document.querySelectorAll('.badge')].filter(b => b.getClientRects().length);
+    if (!near.children.length || !badges.length) return;
+    near.style.left = (Math.min(...badges.map(b => b.offsetLeft)) - 32 - near.offsetWidth) + 'px';
   }
   const send = (cmd, data = {}) => parent.postMessage({ bc: 'cmd', cmd, ...data }, location.origin);
   if (embed) {
@@ -375,16 +433,16 @@
   const DRAW_STEPS = [90, 90, 100, 110, 120, 140, 160, 190, 230, 280, 340, 420];
   function animate(name) {
     timers.forEach(clearTimeout); timers = []; busy = false;
-    canvas.classList.remove('enter', 'anim'); void canvas.offsetWidth;
+    canvas.classList.remove('enter', 'anim', 'drawing'); void canvas.offsetWidth;
     if (!view || still()) return render();
     canvas.classList.add('anim');
     const winner = view.match.winner;
     if (name === 'draw' && winner) {
-      render(); showScreen('spin'); busy = true;
-      // يتنقل المؤشر 12 مرة ويتباطأ، فيقف على الفائز في آخر خطوة.
+      render(); showScreen('spin'); busy = true; canvas.classList.add('drawing');
+      // يتنقل المؤشر 12 مرة ويتباطأ، فيقف على الفائز في آخر خطوة. والحدّ يتأرجح معه، وإطار الوقت يتنقل معه (1.3).
       let t = DRAW_STEPS.length % 2 === 0 ? other(winner) : winner, at = 0;
-      DRAW_STEPS.forEach(ms => { at += ms; const who = t; later(at, () => setTurn(who)); t = other(t); });
-      later(at + 420, () => { busy = false; render(); bump(winner); });
+      DRAW_STEPS.forEach(ms => { at += ms; const who = t; later(at, () => { setTurn(who); setSide(who); }); t = other(t); });
+      later(at + 420, () => { busy = false; canvas.classList.remove('drawing'); render(); bump(winner); });
     }
     if (name === 'face' && view.match.step === 'face') {
       render(); canvas.classList.add('enter'); setTurn(0); busy = true;
@@ -405,19 +463,19 @@
     canvas.classList.remove('anim'); void canvas.offsetWidth; canvas.classList.add('anim');
     for (const m of moments) {
       if (m.name === 'right' && prev) {
-        // صحيحة: الحكم يُمسح من اليمين، وبعد 250ms يزيد الرقم وتنبض لوحة الكاسب ورقمه العملاق.
+        // صحيحة: مربع الإعلان يُمسح من اليمين، والحزم تندفع، وبعد 250ms يزيد الرقم الكبير وتنبض لوحة الكاسب.
         const w = m.team, to = p.scores[w];
-        $('s' + w).textContent = $('g' + w).textContent = prev.scores[w];
-        later(250, () => { $('s' + w).textContent = $('g' + w).textContent = to; bump(w); moment(w, 'gain'); });
+        setScore(w, prev.scores[w]); surge();
+        later(250, () => { setScore(w, to); bump(w); moment(w, 'gain'); });
       }
       if (m.name === 'lead') later(700, () => { moment(m.team, 'lead'); moment(other(m.team), 'lose'); });
       if (m.name === 'steal') {
         // انتقال الإجابة (السرقة): البطاقة تهتز إن كانت خاطئة، ثم لمعة، والمؤشر يقفز إلى الخصم. لا شارة ولا كلمة «سرقة». العدّاد لا ينتظر الحركة.
-        const go = () => { replay($('shine'), 'go'); bump(m.team); replay($('timerBox'), 'reset'); setTurn(m.team); };
+        const go = () => { replay($('shine'), 'go'); bump(m.team); setTurn(m.team); };
         if (m.reason === 'wrong') { replay($('cardWrap'), 'shake'); setTurn(0); later(240, go); } else go();
       }
     }
-    // نهاية الجولة: رقم المتقدّم العملاق يضيء، ولا يتحرك شيء إن تعادلا.
+    // نهاية الجولة: رقم المتقدّم الكبير ينبض، ويخفت رقم الآخر، ولا يتحرك شيء إن تعادلا.
     if (changed && a.screen === 'end' && a.totals) {
       const s = p.scores, lead = s[1] > s[2] ? 1 : s[2] > s[1] ? 2 : 0;
       if (lead) { moment(lead, 'lead'); moment(other(lead), 'lose'); }
@@ -431,13 +489,21 @@
   const show = seconds => {
     const text = format(seconds);
     $('timer').textContent = text;
+    // الجمهور يرى الثواني وحدها في لوحة صاحب الدور (1.3)، وفي عدّاد ش0 التجريبي في البطاقة.
+    $('c1').textContent = $('c2').textContent = String(seconds);
+    if (count?.test) $('label').textContent = `العدّاد يعمل · ${text}`;
     if (text !== lastText) { lastText = text; link.send('tick', { text }); }
   };
-  const stop = () => { clearInterval(ticker); ticker = 0; count = null; lastLeft = -1; setDanger(false); };
+  // يقف العدّاد: إطار الوقت يثبت حيث بلغ، والحزم تعود إلى سرعة القراءة.
+  const stop = () => {
+    clearInterval(ticker); ticker = 0; count = null; lastLeft = -1; setDanger(false); setRunning(false);
+    drainAnim?.pause();
+  };
   const run = () => {
     const left = Math.max(0, Math.ceil((count.endAt - Date.now()) / 1000));
     show(left);
     setDanger(left > 0 && left <= 3);
+    if (!count.test) speed(left > 0 && left <= 3 ? 3.5 : 2.2);
     if (left !== lastLeft && left > 0 && left <= 3) sound('tick');
     lastLeft = left;
     if (left > 0) return;
@@ -453,7 +519,7 @@
     if (!count) show(a?.clock ?? 0);
   }
 
-  const waiting = () => { stop(); setLocked(true); canvas.classList.add('pre'); setTurn(0); showScreen('q'); $('letter').textContent = ''; delete $('letter').dataset.key; $('letter').classList.remove('ending'); $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم'; };
+  const waiting = () => { stop(); setLocked(true); canvas.classList.add('pre'); setTurn(0); setSide(0); showScreen('q'); $('letter').textContent = ''; delete $('letter').dataset.key; $('letter').classList.remove('ending'); $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم'; };
   const ready = () => {
     if (count) stop();
     setLocked(false); show(10);
@@ -478,8 +544,7 @@
     if (type === 'anim') { if (data.view) view = data.view; if (!count?.test) { setLocked(false); animate(data.name); } }
     if (type === 'start') {
       setLocked(false); ctl = null; renderCtl();
-      canvas.classList.remove('pre', 'fresh'); setTurn(0); showScreen('q'); setBadges();
-      $('verdict').hidden = true; $('timerBox').hidden = false;
+      canvas.classList.remove('pre', 'fresh'); setTurn(0); setSide(0); showScreen('q'); setBadges(); announce();
       $('label').textContent = 'العدّاد يعمل';
       begin({ test: true, endAt: Date.now() + data.seconds * 1000 });
     }

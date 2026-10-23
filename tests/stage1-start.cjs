@@ -52,7 +52,8 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
     const f = document.getElementById('frame').getBoundingClientRect();
     return Math.round(f.width) === 1920 && Math.round(f.height) === 1080;
   }));
-  check('الإعداد: «التحدي الكبير» في سطر العنوان خارج البطاقة، وسطر الإرشاد فيها، وحقلا الاسمين في اللوحتين', (await text('#headline')) === 'التحدي الكبير' && await vis('#headline')
+  // 1.3 (design/system.md 15.10): الشعار أعلى اليسار، وفي النافذة الواحدة تحل محله أزرار الزاويتين.
+  check('الإعداد: أزرار الزاويتين مكان الشعار، وسطر الإرشاد في البطاقة، وحقلا الاسمين في اللوحتين', !(await vis('.logo')) && await vis('#cornerA .cbtn, #cornerB .cbtn')
     && (await text('.scr.show .guide')).startsWith('اكتب اسمَي الفريقين') && await vis('#i1') && await vis('#i2')
     && (await frame.getAttribute('#i1', 'placeholder')) === 'اكتب اسم الفريق الأول' && (await frame.getAttribute('#i2', 'placeholder')) === 'اكتب اسم الفريق الثاني');
   check('الإعداد: «عدد الأنماط» بخانتين 2 و4، والمتاح نمطان فـ2 مختارة و4 معطّلة', (await text('#count .lbl')) === 'عدد الأنماط'
@@ -98,6 +99,7 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   await frame.waitForSelector('[data-cmd="toPick"]', { timeout: 6000 });
   const W = (await saved()).winner, L = W === 1 ? 2 : 1, names = { 1: 'الصقور', 2: 'النجوم' };
   check(`القرعة محسومة (الفائز ${W}) واسمه على الشاشة، ثم «اختيار الأنماط»`, (await text('#winner')) === names[W]);
+  check('نتيجة القرعة: الحدّ يقف على طرف الفائز (1.3)', await frame.$eval('#canvas', (c, w) => c.classList.contains('turn-' + w) && !c.classList.contains('drawing'), W));
   await stageCheck('نتيجة القرعة');
 
   // ملاحظة المعاين 3: «تعديل الاسمين» يعود إلى الإعداد بالاسمين، ثم «عُد إلى القرعة» يعرض النتيجة نفسها دون قرعة جديدة.
@@ -134,6 +136,7 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   await frame.waitForSelector('.scr.show[data-s="face"]');
   await wait(2700);
   const track = await frame.$$eval('#track .seg', s => s.map(x => [...x.children].map(c => c.textContent.trim()).join(' ')).join(' | '));
+  check('المواجهة: «الفائز بالقرعة» واسمه في مربع الإعلان (1.3)', await vis('#box') && (await text('#faceChip')) === 'الفائز بالقرعة' && (await text('#faceWin')) === (await saved()).teams[(await saved()).winner]);
   check(`المواجهة: المسار (${track})`, track === 'الجولة 1 آخر حرفين | عجلة البونص | الجولة 2 الحرف المعيّن');
   check('المواجهة: «ابدأ المباراة» و«بنافذة واحدة» و«أعد العرض»', (await frame.$$eval('.scr.show .ctl .cbtn', b => b.map(x => x.textContent).join('|'))) === 'ابدأ المباراة|بنافذة واحدة|أعد العرض');
   await noWords('المواجهة');

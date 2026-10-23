@@ -1,17 +1,22 @@
 /* شاشة الجمهور في الجولة (ش2 · الحرف المعيّن)، منقولة من design/letter.html بقياساتها (design/letter.md، القسمان 2 و6).
-   الهيكل من css/stage.css كما هو، ويضاف إليه: الحكم مكان العدّاد، وافتتاح الجولة ونهايتها، ولمعة انتقال الإجابة. */
+   الهيكل من css/stage.css كما هو، ويضاف إليه: مربع الإعلان (1.3)، وافتتاح الجولة ونهايتها، ولمعة انتقال الإجابة. */
 
-/* قبل أول سؤال في المباراة: لا رقم عملاق (قرار ش1). ولا شارة «سرقة» ولا شريط فارق (الوثيقة 1.1). */
-.fresh .giant { display: none; }
+/* لا شارة «سرقة» ولا شريط فارق (الوثيقة 1.1). */
 
-/* الحكم: يحلّ محل العدّاد بموضعه، وفيه اسم الفريق الكاسب ونقاطه بلون لوحته، أو «لا نقاط» داكناً */
-.verdict { top: 306px; left: 106px; height: 80px; min-width: 216px; padding: 0 40px; display: flex; align-items: center; justify-content: center;
-  font-size: 48px; font-weight: 900; line-height: 1; white-space: nowrap; color: var(--on-stage); }
-.verdict > i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); background: var(--stage-3); transform-origin: right; }
-.verdict > span { position: relative; }
-.verdict.t1 > i { background: var(--team-1); }
-.verdict.t2 { color: var(--team-2-ink); }
-.verdict.t2 > i { background: var(--team-2); }
+/* مربع الإعلان (1.3، design/system.md 15.4): أسفل اليمين على الأعمدة 8–12 (1135–1794) وعلى خط لوحة الثاني (880–1016)،
+   أبيض مائل بظل صلب لأنه محتوى يُقرأ. فيه ما يُعلَن بعد حدث: الحكم بلون الفريق و«الإجابة: …» · الفائز بالقرعة في المواجهة · «التالي» في نهاية الجولة.
+   والشارة فوق السطر تُخفى إن لم يكن لها نص */
+.box { left: 1135px; top: 880px; width: 659px; height: 136px; padding: 0 48px;
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 8px; color: var(--text); }
+.box > i { position: absolute; inset: 0; background: var(--card); transform: skewX(calc(-1 * var(--lean))); box-shadow: 12px 12px 0 var(--stage-3); }
+.box > p { position: relative; margin: 0; white-space: nowrap; }
+.box .chip { height: 44px; padding: 0 20px; display: flex; align-items: center; font-size: var(--fs-badge); font-weight: 900; line-height: 1; color: var(--on-stage); }
+.box .chip > i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); background: var(--stage-3); transform-origin: right; }
+.box .chip > span { position: relative; }
+.box .chip.t1 > i { background: var(--team-1); }
+.box .line { font-size: 44px; font-weight: 700; line-height: 1.1; }
+.box .line b { font-weight: 900; }
+.locked .box { display: none; }
 
 /* افتتاح الجولة */
 .scr.intro { flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; }
@@ -19,7 +24,7 @@
 .scr.intro .sub { font-size: 40px; font-weight: 700; line-height: 1; }
 .scr.intro .head { font-size: 48px; font-weight: 700; line-height: 1.2; white-space: nowrap; }
 
-/* نهاية الجولة: حصيلة كل فريق في عمود */
+/* نهاية الجولة: حصيلة كل فريق في عمود، و«التالي» في مربع الإعلان */
 .scr.end { flex-direction: column; align-items: stretch; justify-content: center; gap: 24px; }
 .scr.end .cols { display: flex; justify-content: center; gap: 96px; }
 .scr.end .col { display: flex; flex-direction: column; align-items: center; gap: 16px; min-width: 560px; }
@@ -28,35 +33,27 @@
 .scr.end .who.t1 i { background: var(--team-1); }
 .scr.end .who.t2 i { background: var(--team-2-ink); }
 .scr.end .pts { font-size: 128px; font-weight: 900; line-height: 1; direction: ltr; }
-.scr.end .next { font-size: 40px; font-weight: 700; line-height: 1; text-align: center; white-space: nowrap; }
 
 /* لمعة السرقة: شريط ضوء مائل يعبر الشاشة مرة. شفاف، لا نص فيه، فلا يحجب شيئاً */
 .shine { left: -900px; top: -200px; width: 520px; height: 1480px; pointer-events: none; opacity: 0;
   background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.28), rgba(255,255,255,0)); transform: skewX(calc(-1 * var(--lean))); }
 
-/* لحظات الحركة (design/letter.md، القسم 6) */
-.anim .verdict:not([hidden]) > i { animation: vwipe .2s ease-out both; }
-.anim .verdict:not([hidden]) > span { animation: in .15s ease-out .12s both; }
+/* لحظات الحركة (design/letter.md، القسم 6، وبالإصدار 1.3): المربع يظهر بمسح من اليمين، واللحظات على الرقم الكبير نفسه */
+.anim .box:not([hidden]) > i { animation: vwipe .2s ease-out both; }
+.anim .box:not([hidden]) > p { animation: in .15s ease-out .12s both; }
 @keyframes vwipe { from { transform: skewX(calc(-1 * var(--lean))) scaleX(0); } }
-.giant.gain { animation: gain .6s ease-out; }
-@keyframes gain { 40% { opacity: .6; scale: 1.08; } }
-.giant.lead { animation: lead .8s ease-in-out; }
-@keyframes lead { 25%, 75% { opacity: .6; } 50% { opacity: .32; } }
-.giant.lose { animation: lose .8s ease-in-out; }
-@keyframes lose { 50% { opacity: .08; } }
-/* الأول بالأزرق الداكن 50%: يضيء إلى 80% ويخفت إلى 25% (design/system.md 6.6) */
-.giant.t1.gain { animation-name: gain1; }
-@keyframes gain1 { 40% { opacity: .8; scale: 1.08; } }
-.giant.t1.lead { animation-name: lead1; }
-@keyframes lead1 { 25%, 75% { opacity: .8; } 50% { opacity: .5; } }
-.giant.t1.lose { animation-name: lose1; }
-@keyframes lose1 { 50% { opacity: .25; } }
+.box > i { transform-origin: right; }
+.team .score.gain { animation: gain .6s ease-out; }
+@keyframes gain { 40% { scale: 1.08; } }
+.team .score.lead { animation: lead .8s ease-in-out; }
+@keyframes lead { 25%, 75% { scale: 1.06; } }
+.team .score.lose { animation: lose .8s ease-in-out; }
+@keyframes lose { 50% { opacity: .55; } }
 .card-wrap.shake { animation: shake .24s linear; }
 @keyframes shake { 25% { translate: 8px 0; } 50% { translate: -8px 0; } 75% { translate: 8px 0; } }
 .shine.go { animation: shine .6s ease-in-out; }
 @keyframes shine { 0% { opacity: 1; translate: 0 0; } 100% { opacity: 1; translate: 3700px 0; } }
-.timer.reset > span { animation: in .2s ease-out both; }
-@media (prefers-reduced-motion: reduce) { .shine, .giant, .card-wrap, .badge > i, .verdict > *, .timer > span { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .shine, .team .score, .card-wrap, .badge > i, .box > * { animation: none !important; } }
 
 /* مربع الحرفين (ش3 · آخر حرفين، design/last-two.md 2.1 و5): التطويل ثم الحرفان، بعرض المحتوى من 220 إلى 456.
    والحرفان يُصغَّران في الصفحة إن زادا على 392، ولا يُصغَّران تحت 128. لا transform ولا inline-block على عنصريه، كي لا ينقطع الوصل */
