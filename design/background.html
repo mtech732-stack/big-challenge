@@ -41,12 +41,15 @@
     <div class="particles" id="particles"></div>
     <div class="dim" id="dim"></div>
 
+    <!-- د2: شعار اللعبة أعلى اليسار (الأعمدة 1–3) -->
+    <div class="logo" aria-label="التحدي الكبير"><span class="l1">التحدي</span><span class="l2"><i></i><b>الكبير</b></span></div>
+
     <div class="giant t1" data-bg><span id="g1">4</span></div>
     <div class="giant t2" data-bg><span id="g2">2</span></div>
 
     <section class="team t1" id="p1">
       <div class="shape"></div><div class="turn"></div>
-      <div class="row"><span class="name">النسور</span><span class="score" id="s1">4</span></div>
+      <div class="row"><span class="name">النسور</span><span class="secs" id="c1"></span><span class="tbar"><i id="f1"></i></span><span class="score" id="s1">4</span></div>
     </section>
 
     <div class="badge mode"><i></i><span>الحرف المعيّن</span></div>
@@ -62,8 +65,14 @@
 
     <section class="team t2" id="p2">
       <div class="shape"></div><div class="turn"></div>
-      <div class="row"><span class="name">الصقور</span><span class="score" id="s2">2</span></div>
+      <div class="row"><span class="name">الصقور</span><span class="secs" id="c2"></span><span class="tbar"><i id="f2"></i></span><span class="score" id="s2">2</span></div>
     </section>
+
+    <!-- د2: مربع الإجابة والحكم أسفل اليمين (الأعمدة 7–12) بعد الحكم -->
+    <div class="ansbox" id="ansbox" hidden><i></i>
+      <p class="vchip" id="vchip"><i></i><span id="vtext2"></span></p>
+      <p class="aline">الإجابة: <b>القصيم</b></p>
+    </div>
 
     <div class="shine" id="shine"></div>
     <div class="flash" id="flash"></div>
@@ -79,6 +88,7 @@
     <button data-m="moments">ج</button>
     <button data-m="split ambient moments">د</button>
     <button data-m="wedge-on ambient moments">هـ</button>
+    <button data-m="split v2 ambient moments">د2</button>
     <span class="sep"></span>
     <button data-a="auto" id="autoBtn">إيقاف</button>
     <button data-a="manual" id="manualBtn">تحكم يدوي</button>
@@ -92,7 +102,7 @@
     <button data-a="wrong">خطأ</button>
     <button data-a="steal">انتقال</button>
   </div>
-  <p class="key">أ: الطبقات الثلاث · ب: الأضواء والحالة · ج: اللحظات فقط · د: طرفان بلونَي الفريقين · هـ: شريحتان من الزاويتين · وفي ملء الشاشة: المفاتيح 0 إلى 5</p>
+  <p class="key">أ: الطبقات الثلاث · ب: الأضواء والحالة · ج: اللحظات فقط · د: طرفان بلونَي الفريقين · هـ: شريحتان من الزاويتين · د2: د بتعديلات المالك · وفي ملء الشاشة: المفاتيح 0 إلى 6</p>
 </div>
 
 <script>
@@ -140,18 +150,28 @@
   // ===== العدّاد: 10 ثوانٍ، وآخر 3 بحواف الخطر =====
   let tick = null, left = 0, turn = 0;
   const stopTimer = () => { clearInterval(tick); tick = null; canvas.classList.remove('running', 'meta-danger'); };
-  const show = () => { $('timer').textContent = '0:' + String(left).padStart(2, '0'); };
+  let total = 10;
+  const show = () => {
+    $('timer').textContent = '0:' + String(left).padStart(2, '0');
+    // د2: شريط الوقت في لوحة صاحب الدور وحدها، والثواني رقماً بجانبه
+    for (const t of [1, 2]) {
+      $('f' + t).style.transform = `skewX(calc(-1 * var(--lean))) scaleX(${turn === t && tick ? left / total : turn === t ? 1 : 0})`;
+      $('c' + t).textContent = turn === t ? left : '';
+    }
+  };
+  const hideAnswer = () => { $('ansbox').hidden = true; canvas.classList.remove('answered'); };
 
   const act = {
-    read() { stopTimer(); setTurn(0); turn = 0; speed(1); $('verdict').hidden = true; $('timerBox').hidden = false; left = 10; show(); },
+    read() { stopTimer(); setTurn(0); turn = 0; speed(1); hideAnswer(); $('verdict').hidden = true; $('timerBox').hidden = false; left = 10; show(); },
     run(t, secs = 10) {
       stopTimer(); turn = t; setTurn(t); $('verdict').hidden = true; $('timerBox').hidden = false;
-      left = secs; show(); canvas.classList.add('running'); speed(2.2);
+      hideAnswer(); left = total = secs; canvas.classList.add('running'); speed(2.2);
       tick = setInterval(() => {
         left--; show();
         if (left <= 3 && left > 0) { canvas.classList.add('meta-danger'); speed(3.5); }
         if (left <= 0) act.wrong();
       }, 1000);
+      show(); requestAnimationFrame(() => { left = secs; show(); });
     },
     run1() { act.run(1); }, run2() { act.run(2); },
     right() {
@@ -160,6 +180,10 @@
       const g = $('g' + t), s = $('s' + t); g.textContent = s.textContent = +s.textContent + 2; replay(g.parentElement, 'gain');
       $('timerBox').hidden = true; $('vtext').innerHTML = (t === 1 ? 'النسور' : 'الصقور') + ' <span class="ltr">+2</span>';
       $('verdict').className = 'verdict t' + t; $('verdict').hidden = false;
+      // د2: الحكم والإجابة معاً في مربع أسفل اليمين، ويختفي الرقم العملاق الثاني تحته
+      $('vtext2').innerHTML = $('vtext').innerHTML; $('vchip').className = 'vchip t' + t;
+      $('ansbox').hidden = false; canvas.classList.add('answered'); replay($('ansbox'), 'in');
+      turn = 0; setTurn(0); show();
     },
     wrong() {
       stopTimer(); speed(1);
@@ -197,14 +221,14 @@
   // النماذج: الحالية (دون إضافة) · أ الطبقات الثلاث · ب الأضواء والحالة · ج اللحظات فقط
   const models = document.querySelectorAll('.tools [data-m]');
   const pick = b => {
-    canvas.classList.remove('ambient', 'moments', 'split', 'wedge-on');
+    canvas.classList.remove('ambient', 'moments', 'split', 'wedge-on', 'v2');
     b.dataset.m.split(' ').filter(Boolean).forEach(c => canvas.classList.add(c));
     models.forEach(x => x.classList.toggle('on', x === b));
   };
   models.forEach(b => b.addEventListener('click', () => pick(b)));
   // في ملء الشاشة تختفي الأزرار: المفاتيح 0 و1 و2 و3 تبدّل النموذج
-  addEventListener('keydown', e => { const i = '012345'.indexOf(e.key); if (i >= 0) pick(models[i]); });
-  const first = { a: 1, b: 2, c: 3, d: 4, e: 5, now: 0 }[location.hash.slice(1)];
+  addEventListener('keydown', e => { const i = '0123456'.indexOf(e.key); if (i >= 0) pick(models[i]); });
+  const first = { a: 1, b: 2, c: 3, d: 4, e: 5, d2: 6, now: 0 }[location.hash.slice(1)];
   if (first !== undefined) pick(models[first]);
   // تبدأ الصفحة بالتشغيل التلقائي، فيُرى النموذج دون نقر
   fit(); act.read(); if (!still) step(0); else $('autoBtn').textContent = 'تشغيل';
