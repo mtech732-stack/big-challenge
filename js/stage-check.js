@@ -8,6 +8,7 @@
  - [data-fit]: وعاء مستقيم لا يفيض عنه نصه أفقياً (اسم في لوحة، نمط في خانة، ...).
  - lines: { el, max } عنصر لا تتجاوز أسطره الحد.
  - كل نص ظاهر: لا أصغر من 32، ولا أرقام هندية.
+ - grid: true (من الإصدار 1.2): كل حافة لمكوّن قرب حافتي الشاشة على الهامش (96 أو 1824)، فتبقى حافة واحدة في كل جانب.
  العناصر المخفية (display:none أو visibility:hidden) خارج الحساب. */
 const SAFE = { x1: 96, y1: 54, x2: 1824, y2: 1026 };
 const visible = n => n.getClientRects().length && getComputedStyle(n).visibility !== 'hidden';
@@ -37,7 +38,7 @@ function glyphExtent(el, scale, origin) {
 
 const ownText = n => [...n.childNodes].some(c => c.nodeType === 3 && c.textContent.trim());
 
-export function layoutCheck({ canvas, layer, lines = [], scope = [canvas] }) {
+export function layoutCheck({ canvas, layer, lines = [], scope = [canvas], grid = false }) {
   const origin = canvas.getBoundingClientRect(), scale = origin.width / 1920;
   layer?.querySelectorAll('.box').forEach(n => n.remove());
 
@@ -84,10 +85,21 @@ export function layoutCheck({ canvas, layer, lines = [], scope = [canvas] }) {
     return n;
   });
 
+  // الشبكة (system.md 4): «قرب الحافة» = امتداده يبدأ قبل 256 أو ينتهي بعد 1664. والمكوّنات بينها خارج هذا الحساب.
+  const edges = { right: new Set(), left: new Set() };
+  for (const it of items) {
+    if (it.name === 'الرقم العملاق') continue;
+    if (it.r.x2 > 1664) edges.right.add(Math.round(it.r.x2));
+    if (it.r.x1 < 256) edges.left.add(Math.round(it.r.x1));
+  }
+  const off = [...edges.right].filter(x => Math.abs(x - SAFE.x2) > 1.5).concat([...edges.left].filter(x => Math.abs(x - SAFE.x1) > 1.5));
+  if (grid && off.length) problems.push(`حواف خارج الشبكة: ${off.join('، ')}`);
+
   if (layer) for (const it of items) {
     const d = document.createElement('div'); d.className = 'box' + (bad.has(it) ? ' bad' : '');
     Object.assign(d.style, { left: it.r.x1 + 'px', top: it.r.y1 + 'px', width: (it.r.x2 - it.r.x1) + 'px', height: (it.r.y2 - it.r.y1) + 'px' });
     layer.appendChild(d);
   }
-  return { ok: !problems.length, problems, minGap, lines: lineCounts, items: items.map(i => ({ name: i.name, ...i.r })) };
+  return { ok: !problems.length, problems, minGap, lines: lineCounts, edges: { right: [...edges.right], left: [...edges.left] },
+    items: items.map(i => ({ name: i.name, ...i.r })) };
 }

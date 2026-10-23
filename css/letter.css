@@ -5,7 +5,7 @@
 .fresh .giant { display: none; }
 
 /* الحكم: يحلّ محل العدّاد بموضعه، وفيه اسم الفريق الكاسب ونقاطه بلون لوحته، أو «لا نقاط» داكناً */
-.verdict { top: 306px; left: 108px; height: 80px; min-width: 216px; padding: 0 40px; display: flex; align-items: center; justify-content: center;
+.verdict { top: 306px; left: 106px; height: 80px; min-width: 216px; padding: 0 40px; display: flex; align-items: center; justify-content: center;
   font-size: 48px; font-weight: 900; line-height: 1; white-space: nowrap; color: var(--on-stage); }
 .verdict > i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); background: var(--stage-3); transform-origin: right; }
 .verdict > span { position: relative; }
@@ -44,6 +44,13 @@
 @keyframes lead { 25%, 75% { opacity: .6; } 50% { opacity: .32; } }
 .giant.lose { animation: lose .8s ease-in-out; }
 @keyframes lose { 50% { opacity: .08; } }
+/* الأول بالأزرق الداكن 50%: يضيء إلى 80% ويخفت إلى 25% (design/system.md 6.6) */
+.giant.t1.gain { animation-name: gain1; }
+@keyframes gain1 { 40% { opacity: .8; scale: 1.08; } }
+.giant.t1.lead { animation-name: lead1; }
+@keyframes lead1 { 25%, 75% { opacity: .8; } 50% { opacity: .5; } }
+.giant.t1.lose { animation-name: lose1; }
+@keyframes lose1 { 50% { opacity: .25; } }
 .card-wrap.shake { animation: shake .24s linear; }
 @keyframes shake { 25% { translate: 8px 0; } 50% { translate: -8px 0; } 75% { translate: 8px 0; } }
 .shine.go { animation: shine .6s ease-in-out; }

@@ -33,6 +33,9 @@
       <div class="row" data-fit="لوحة الفريق الأول"><span class="name" id="n1">الفريق الأول</span><input class="name-in" id="i1" maxlength="18" autocomplete="off" placeholder="اكتب اسم الفريق الأول" aria-label="اسم الفريق الأول"><span class="score" id="s1"></span></div>
     </section>
 
+    <!-- سطر العنوان قبل المباراة: الإعداد والمواجهة وحدهما (design/system.md 14) -->
+    <p class="headline" id="headline" data-hud="سطر العنوان" data-fit="سطر العنوان"></p>
+
     <div class="badge mode" data-hud="شارة النمط"><i></i><span id="mode">اختبار العرض</span></div>
     <div class="badge plain off" id="b1" data-hud="الشارة الأولى"><i></i><span></span></div>
     <div class="badge plain off" id="b2" data-hud="الشارة الثانية"><i></i><span></span></div>
@@ -58,9 +61,8 @@
         </div>
         <!-- الانتظار، وفي الشاشة المشتركة: عدد الأنماط و«ابدأ القرعة» (design/shared.md 4) -->
         <div class="scr title" data-s="title">
-          <p class="big">التحدي الكبير</p>
           <p class="sub">المباراة تبدأ بعد قليل</p>
-          <div class="crow setup"><div class="count" id="count"></div><p class="err" id="err" hidden></p><div class="ctl"></div></div>
+          <div class="crow setup"><p class="guide" id="guide" data-fit="سطر الإرشاد" hidden>اكتب اسمَي الفريقين في لوحتيهما، ثم اختر عدد الأنماط</p><div class="count" id="count"></div><p class="err" id="err" hidden></p><div class="ctl"></div></div>
         </div>
         <div class="scr draw" data-s="spin">
           <p class="ask">من يختار نمط الجولة الأولى؟</p>
@@ -75,7 +77,6 @@
           <div class="tiles" id="tiles"></div>
         </div>
         <div class="scr face" data-s="face">
-          <p class="head" id="faceHead"></p>
           <div class="track" id="track"></div>
           <p class="err" id="faceErr" hidden></p>
           <div class="crow"><div class="ctl"></div></div>
@@ -135,17 +136,24 @@
   const num = s => esc(s).replace(/(\+?\d+)/g, '<span class="ltr">$1</span>');
   const setLocked = on => canvas.classList.toggle('locked', on);
   const setDanger = on => canvas.classList.toggle('meta-danger', on);
-  const showScreen = name => document.querySelectorAll('.card .scr').forEach(s => s.classList.toggle('show', s.dataset.s === name));
+  const showScreen = name => {
+    document.querySelectorAll('.card .scr').forEach(s => s.classList.toggle('show', s.dataset.s === name));
+    $('headline').classList.toggle('show', name === 'title' || name === 'face');
+  };
+  // سطر العنوان: «التحدي الكبير» في الإعداد، و«الفائز بالقرعة» في المواجهة.
+  const setHeadline = (html, kind) => { $('headline').innerHTML = html; $('headline').className = 'headline show ' + kind; };
   const setTurn = team => { $('p1').classList.toggle('on', team === 1); $('p2').classList.toggle('on', team === 2); };
   const replay = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
   const bump = team => replay($('p' + team), 'won');
+  // لحظات الرقم العملاق على الرقم نفسه (.giant)، لا على نصه الداخلي (#g1)، فحركته مكتوبة عليه (css/letter.css).
+  const giant = team => $('g' + team).parentElement;
 
   // صف الشارات من اليمين بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (design/start.html وdesign/letter.html):
   // شارة النمط (في الجولة)، ثم الأولى، ثم الثانية. ولا شارة للحزمة ولا للطريقة ولا للمستوى ولا «سرقة» (design/shared.md 1).
   function setBadges(a, b) {
     for (const [el, t] of [[$('b1'), a], [$('b2'), b]]) { el.classList.toggle('off', !t); el.querySelector('span').innerHTML = t ? num(t) : ''; }
     const lean = Math.tan(14 * Math.PI / 180) * 64;
-    let right = 108;
+    let right = 104;
     for (const el of [document.querySelector('.badge.mode'), $('b1'), $('b2')]) {
       if (!el.getClientRects().length) continue;
       el.style.right = right + 'px';
@@ -176,6 +184,7 @@
 
     if (m.step === 'setup') {
       showScreen('title');
+      setHeadline('التحدي الكبير', 'big');
       setBadges();
     }
     if (m.step === 'draw') {
@@ -213,7 +222,7 @@
     if (m.step === 'face') {
       showScreen('face');
       setBadges('المواجهة');
-      $('faceHead').innerHTML = `الفائز بالقرعة: ${tn(m.winner)}`;
+      setHeadline(`الفائز بالقرعة: ${tn(m.winner)}`, 'face');
       let n = 0;
       $('track').innerHTML = plan(m).map(s => s.kind === 'wheel'
         ? `<div class="seg wheel" style="--i:${n++}" data-fit="خانة العجلة"><span>عجلة</span><span>البونص</span></div>`
@@ -236,7 +245,7 @@
     el.innerHTML = `<span class="end"><span class="tw">ـ</span><span class="lt">${esc(a.letter)}</span></span>`;
     fitBox();
     // يُعاد القياس بعد تحميل الخط إن لم يكن محمّلاً (عرض الخط البديل غير عرضه).
-    document.fonts?.load(`800 150px "Noto Kufi Arabic"`, a.letter).then(fitBox, () => {});
+    document.fonts?.load(`800 152px "Noto Kufi Arabic"`, a.letter).then(fitBox, () => {});
     if (!still()) replay(el, 'in');
   }
   // يُقاس عرض الحرفين بعنصرهما لا بالمربع: ما يفيض من مربع يتوسط محتواه لا يدخل كله في scrollWidth.
@@ -245,7 +254,7 @@
     el.style.fontSize = '';
     if (!end) return;
     const inner = 456 - 64, w = end.offsetWidth;
-    if (w > inner) el.style.fontSize = Math.max(128, Math.floor(150 * inner / w)) + 'px';
+    if (w > inner) el.style.fontSize = Math.max(128, Math.floor(152 * inner / w)) + 'px';
   }
 
   // ===== الجولة (design/letter.md 2 وdesign/shared.md 4): ما تعيده audience() من وحدة النمط، ولا إجابة فيه قبل الحكم الأخير =====
@@ -310,6 +319,7 @@
       `<button class="ctile${c.count.value === m ? ' sel' : ''}${k === 4 && !c.count.four ? ' off' : ''}" data-cmd="count:${m}"><span class="ltr">${k}</span></button>`).join('') : '';
     for (const id of ['err', 'faceErr']) { $(id).hidden = !c?.error; $(id).textContent = c?.error ?? ''; }
     document.querySelector('.scr.title .sub').hidden = !!c;
+    $('guide').hidden = !c?.count;
     $('tiles').querySelectorAll('.tile').forEach(t => { if (c?.pick && !t.classList.contains('by1') && !t.classList.contains('by2') && !t.classList.contains('auto') && !t.classList.contains('left')) t.dataset.cmd = 'pick:' + t.dataset.mode; else delete t.dataset.cmd; });
     for (const k of [1, 2]) {
       if (c?.scores) $('s' + k).dataset.cmd = 'scores'; else delete $('s' + k).dataset.cmd;
@@ -388,9 +398,9 @@
         // صحيحة: الحكم يُمسح من اليمين، وبعد 250ms يزيد الرقم وتنبض لوحة الكاسب ورقمه العملاق.
         const w = m.team, to = p.scores[w];
         $('s' + w).textContent = $('g' + w).textContent = prev.scores[w];
-        later(250, () => { $('s' + w).textContent = $('g' + w).textContent = to; bump(w); replay($('g' + w), 'gain'); });
+        later(250, () => { $('s' + w).textContent = $('g' + w).textContent = to; bump(w); replay(giant(w), 'gain'); });
       }
-      if (m.name === 'lead') later(700, () => { replay($('g' + m.team), 'lead'); replay($('g' + other(m.team)), 'lose'); });
+      if (m.name === 'lead') later(700, () => { replay(giant(m.team), 'lead'); replay(giant(other(m.team)), 'lose'); });
       if (m.name === 'steal') {
         // انتقال الإجابة (السرقة): البطاقة تهتز إن كانت خاطئة، ثم لمعة، والمؤشر يقفز إلى الخصم. لا شارة ولا كلمة «سرقة». العدّاد لا ينتظر الحركة.
         const go = () => { replay($('shine'), 'go'); bump(m.team); replay($('timerBox'), 'reset'); setTurn(m.team); };
@@ -400,7 +410,7 @@
     // نهاية الجولة: رقم المتقدّم العملاق يضيء، ولا يتحرك شيء إن تعادلا.
     if (changed && a.screen === 'end' && a.totals) {
       const s = p.scores, lead = s[1] > s[2] ? 1 : s[2] > s[1] ? 2 : 0;
-      if (lead) { replay($('g' + lead), 'lead'); replay($('g' + other(lead)), 'lose'); }
+      if (lead) { replay(giant(lead), 'lead'); replay(giant(other(lead)), 'lose'); }
     }
   }
 
@@ -502,7 +512,7 @@
   window.__stageCheck = async () => {
     const { layoutCheck } = await import('./js/stage-check.js');
     await document.fonts.ready;
-    return layoutCheck({ canvas, layer: null, lines: [{ el: $('label'), max: 3 }] });
+    return layoutCheck({ canvas, layer: null, lines: [{ el: $('label'), max: 3 }], grid: true });
   };
 </script>
 </body>
