@@ -1,5 +1,6 @@
 // اختبار آلي لاختبار النافذتين: يفتح نافذة المقدّم، ثم نافذة الجمهور منها، ويتحقق من التزامن.
 const { chromium } = require('playwright');
+const { usePin, unlock } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/';
@@ -15,9 +16,11 @@ const { chromium } = require('playwright');
   const check = (name, ok) => { results.push([name, !!ok]); };
   const wait = ms => new Promise(r => setTimeout(r, ms));
 
+  await usePin(context);
   const presenter = await context.newPage();
   watch(presenter);
   await presenter.goto(base);
+  await unlock(presenter);
   check('المقدّم: يبدأ غير متصل', (await presenter.textContent('#status')).includes('غير متصلة'));
   check('المقدّم: زر ابدأ معطّل قبل الاتصال', await presenter.isDisabled('#start'));
 
@@ -46,6 +49,20 @@ const { chromium } = require('playwright');
   await presenter.click('#reset');
   await wait(300);
   check('صفّر: يعود الجمهور إلى 0:10', (await audience.textContent('#timer')) === '0:10');
+
+  // ملاحظة المعاين 1: النقر الثاني على الزر يُظهر النافذة المفتوحة ولا يعيد تحميلها.
+  check('الزر يصير «أظهر نافذة الجمهور» بعد الاتصال', (await presenter.textContent('#open')) === 'أظهر نافذة الجمهور');
+  await presenter.click('#start');
+  await wait(1200);
+  await audience.evaluate(() => { window.__marker = 'same-page'; });
+  await presenter.click('#open');
+  await wait(1200);
+  const marker = await audience.evaluate(() => window.__marker);
+  const afterClick = await audience.textContent('#timer');
+  check(`النقر الثاني لا يعيد تحميل نافذة الجمهور ولا يوقف العدّ (${afterClick})`,
+    marker === 'same-page' && ['0:08', '0:07'].includes(afterClick) && context.pages().length === 2);
+  await presenter.click('#reset');
+  await wait(300);
 
   // العدّاد يستمر في نافذة الجمهور حتى لو انقطع الإنترنت.
   await context.setOffline(true);
