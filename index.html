@@ -387,14 +387,15 @@
   async function unlock(pin) {
     $('pin').value = '';
     if (!packs.length) packs = await loadPacks();
-    if (!match) match = fitMethod(restore());
+    let reset = false;
+    if (!match) { const saved = restore(); match = fitSaved(saved); reset = match !== saved && match.step !== saved.step; match = fitMethod(match); }
     $('gate').hidden = true;
     $('app').hidden = false;
     if (!link) startPresenter();
     link.send('unlock');
     link.send('view', view());
     watcher = watchPin(pin, lock);
-    render();
+    render(reset ? { field: null, text: 'عادت المباراة إلى الإعداد لأنها بدأت في رابط المعاينة. الاسمان كما هما.' } : undefined);
   }
 
   // تغيّر الرقم في المستودع: تُغلق اللعبة فوراً في النافذتين، ويُطلب الرقم الجديد.
@@ -428,6 +429,15 @@
   const modes = () => modesOf(pack());
   const modeName = id => (pack() ? matchModes({ pack: pack(), files: pack().files }) : []).find(m => m.id === id)?.name ?? id;
   // طريقة جولاتها أكثر من أنماط الحزمة لا تُختار: تصير «قصيرة» في الإعداد، فلا تعلق المباراة في اختيار الأنماط.
+  // مباراة محفوظة بدأت في رابط المعاينة ثم فُتح الرابط العادي، ولم تبدأ مواجهتها: إن كان فيها نمط لا يُختار هنا،
+  // أو طريقتها أكبر من أنماط الحزمة، عادت إلى الإعداد بالاسمين، كي لا يقف الاختيار بلا زر (تقرير المعاين ش3).
+  // وإن بلغت المواجهة فلا تعلق: الجولة التي لم يُبنَ نمطها يُتخطى بزر «تخطَّ».
+  function fitSaved(m) {
+    if (PREVIEW || !['draw', 'pick'].includes(m.step)) return m;
+    const available = modesOf(packs.find(p => p.id === m.pack));
+    const bad = m.picks.some(p => !available.some(x => x.id === p.mode)) || M.METHODS[m.method].rounds > available.length;
+    return bad ? { ...M.newMatch({ pack: m.pack, method: 'short' }), teams: m.teams, single: m.single } : m;
+  }
   const fitMethod = m => (m?.step === 'setup' && M.METHODS[m.method].rounds > modesOf(packs.find(p => p.id === m.pack)).length ? { ...m, method: 'short' } : m);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const num = s => esc(s).replace(/(\+?\d+)/g, '<span class="ltr">$1</span>');
@@ -574,7 +584,7 @@
       c.classList.toggle('off', available.length < need);
       // سبب تعطيل «كاملة» ظاهر في خانتها، لا في رسالة بعد النقر.
       if (c.dataset.m === 'full') c.querySelector('span').innerHTML = available.length < need
-        ? `تحتاج <span class="ltr">${need}</span> أنماط · المتاح <span class="ltr">${available.length}</span>`
+        ? `المتاح <span class="ltr">${available.length}</span> من <span class="ltr">${need}</span> أنماط`
         : '<span class="ltr">4</span> جولات · عجلتان';
       c.querySelector('input').checked = c.dataset.m === match.method;
     });
