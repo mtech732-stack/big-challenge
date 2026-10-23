@@ -183,6 +183,8 @@
     svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
     svg.querySelector('polygon').setAttribute('points', `${o},0 ${w + o},0 ${w - o},${h} ${-o},${h}`);
   };
+  // يُعاد حسابه إن تغيّر عرض لوحة الثاني (الاسم والرقم) أو طول سطر المربع.
+  { const ro = new ResizeObserver(() => placeBox()); for (const id of ['p2', 'reveal', 'faceWin', 'next']) ro.observe($(id)); }
   const sized = new ResizeObserver(list => list.forEach(e => fitRing(e.target)));
   sized.observe($('p1')); sized.observe($('p2'));
   // ويتآكل مع العدّاد: يبدأ مما مضى من الوقت (بعد إعادة التحميل مثلاً)، وينتهي مع آخر ثانية.
@@ -208,6 +210,18 @@
     $('box').hidden = !(v || answer || face || next);
     // «التالي» في نهاية الجولة نص أبيض على الطرف بلا مربع، فلا يتجاوز الأبيض سقفه (15.4 و15.12).
     $('box').classList.toggle('bare', !!next && !v && !answer && !face);
+    placeBox();
+  }
+  // الملاحظة 27 (15.4): المربع يضيق بقدر ما يبقى بعد لوحة الثاني. حافته اليمنى ثابتة على 1794، وعرضه الأصغر من 659
+  // ومن 1794 − (نهاية امتداد اللوحة + 24 + 17)، والامتداد 17 = ارتفاع 136 × ظل 14° ÷ 2. وإن لم يتسع السطر انكسر سطرين وصعدت الشارة لساناً فوقه.
+  function placeBox() {
+    const box = $('box'), p2 = $('p2');
+    if (box.hidden) return;
+    const w = Math.min(659, 1794 - (p2.offsetLeft + p2.offsetWidth + 17 + 24 + 17));
+    box.style.left = (1794 - w) + 'px'; box.style.width = w + 'px';
+    box.classList.remove('wrap');
+    const line = [...box.querySelectorAll('.line')].find(l => !l.hidden);
+    box.classList.toggle('wrap', !!line && line.scrollWidth > box.clientWidth - 96);
   }
 
   // صف الشارات من اليمين بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (design/start.html وdesign/letter.html):
