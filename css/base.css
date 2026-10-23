@@ -1,0 +1,25 @@
+/* أساس مشترك: ألوان المسرح، والخط، ومنع الميل، وشاشة ثابتة 1920×1080 تتمدد مع أي شاشة. */
+:root {
+  --stage: #1A4BD1; --stage-2: #1238A8; --stage-3: #0E2C86;
+  --team-1: #E63946; --hl: #FFC300; --ink: #0E2C86;
+}
+* { box-sizing: border-box; font-style: normal; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: "Noto Kufi Arabic", "Segoe UI", Tahoma, sans-serif;
+  background: linear-gradient(135deg, var(--stage) 0%, var(--stage-2) 55%, var(--stage-3) 100%);
+  color: #fff;
+}
+button {
+  font: inherit; cursor: pointer; border: 0; border-radius: 4px;
+  padding: 12px 28px; background: #fff; color: var(--ink); font-weight: 700;
+}
+button:disabled { opacity: .45; cursor: default; }
+.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+
+/* شاشة الجمهور: لوحة ثابتة بمقاس 1920×1080 تُكبَّر أو تُصغَّر لتملأ الشاشة. */
+.screen { position: fixed; inset: 0; overflow: hidden; }
+.canvas {
+  position: absolute; top: 50%; left: 50%; width: 1920px; height: 1080px;
+  transform: translate(-50%, -50%) scale(var(--scale, 1)); transform-origin: center;
+}
