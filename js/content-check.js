@@ -6,6 +6,11 @@ export const LEVELS = ['easy', 'medium', 'hard'];
 export const DOMAINS = ['kuwait-gulf', 'geography', 'history', 'religion', 'language', 'science', 'sports', 'daily-life'];
 export const LUCK_EFFECTS = ['lose-3', 'steal-3', 'gift-3'];
 
+// حدود ما تتسع له الشاشة دون تصغير الخط (design/system.md، القسم 7)، بالمسافات والتشكيل.
+export const QUESTION_MAX = 85;
+export const TEAM_NAME_MAX = 18;
+const length = text => [...String(text)].length;
+
 // أحجام البنك المطلوبة (القسم 6.2 من الوثيقة)، للعرض لا للمنع.
 export const TARGETS = {
   letter: { easy: 20, medium: 20, hard: 20, tiebreak: 20 },
@@ -86,6 +91,11 @@ export function checkContent({ index, packs, wheel }) {
     });
     if (new Set(sources.map(src => src?.url)).size < sources.length) err(where, 'مصدران متطابقا الرابط');
   };
+  const checkLength = (where, item, key) => {
+    if (typeof item?.[key] === 'string' && length(item[key]) > QUESTION_MAX) {
+      err(where, `«${key}» ${length(item[key])} حرفاً، والحد ${QUESTION_MAX} (ثلاثة أسطر على الشاشة)`);
+    }
+  };
   const tally = (mode, key) => {
     counts[mode] ??= {};
     counts[mode][key] = (counts[mode][key] ?? 0) + 1;
@@ -138,6 +148,7 @@ export function checkContent({ index, packs, wheel }) {
           checkCommon(where, item, LEVELS);
           checkNote(where, item);
           needText(where, item, 'prompt');
+          checkLength(where, item, 'prompt');
           if (typeof item.letter !== 'string' || !ARABIC_LETTER.test(item.letter)) err(where, '«letter» حرف عربي واحد');
           const answers = needText(where, item, 'answer') ? [item.answer, ...checkAlts(where, item.alts)] : [];
           if (ARABIC_LETTER.test(item.letter ?? '')) for (const a of answers) {
@@ -153,6 +164,7 @@ export function checkContent({ index, packs, wheel }) {
           checkCommon(where, item, LEVELS);
           checkNote(where, item);
           needText(where, item, 'prompt');
+          checkLength(where, item, 'prompt');
           const answers = needText(where, item, 'answer') ? [item.answer, ...checkAlts(where, item.alts)] : [];
           if (typeof item.ending !== 'string' || [...item.ending].length !== 2 || ![...item.ending].every(c => ARABIC_LETTER.test(c))) {
             err(where, '«ending» حرفان عربيان دون تطويل (مثل «ان»)');
@@ -168,6 +180,7 @@ export function checkContent({ index, packs, wheel }) {
           checkNote(where, item);
           checkSources(where, item.sources, 0);
           needText(where, item, 'topic');
+          checkLength(where, item, 'topic');
           if (!Array.isArray(item.items) || item.items.length < 3) err(where, '«items» قائمة مرجعية كاملة (3 عناصر على الأقل)');
           else checkNames(where, item.items);
           tally(mode, item.level);
