@@ -175,7 +175,11 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('انتهى الوقت: «دور [الخصم]» و«انتقلت الإجابة بعد انتهاء الوقت · 5 ثوانٍ»', (await text(presenter, '#who')) === `دور ${LONG[thief - 1]}` && (await text(presenter, '#qState')) === 'انتقلت الإجابة بعد انتهاء الوقت · 5 ثوانٍ');
   await wait(1200);
   await presenter.click('#yes');
-  await wait(600);
+  await wait(450);
+  // الكسب بعد تبادل الصدارة: رقم الخصم العملاق عليه «lose» من السؤال 1، فتُزال قبل «gain» ولا تغلبها (ملاحظة المعاين 22).
+  const regain = await audience.$eval(`#g${thief}`, e => { const g = e.parentElement; return [...g.classList].filter(c => ['gain', 'lead', 'lose'].includes(c)).join(' ') + ' · ' + getComputedStyle(g).animationName; });
+  check(`الجمهور: لحظة الكسب للمتأخر بعد أن تخلّف (${regain})`, regain === `gain · ${thief === 1 ? 'gain1' : 'gain'}`);
+  await wait(150);
   check('صحيحة بعد الانتقال: «[اسم الخصم] · +2» بلونه، ورصيده 2', (await text(audience, '#vtext')) === `${LONG[thief - 1]} · +2` && await audience.$eval('#verdict', (e, s) => e.classList.contains('t' + s), thief) && (await text(audience, `#s${thief}`)) === '2');
   await presenter.click('#undo');
   await wait(400);
