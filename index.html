@@ -18,17 +18,37 @@
   #status[data-on="false"]::before { content: "■ "; color: var(--team-1); }
   #mirror { font-size: 48px; font-weight: 800; }
   .hint { line-height: 1.9; margin: 0; }
-  #blocked { color: var(--team-1); background: #fff; padding: 12px 16px; border-radius: 4px; font-weight: 700; }
+  .alert { color: var(--team-1); background: #fff; padding: 12px 16px; border-radius: 4px; font-weight: 700; margin: 12px 0 0; }
+
+  /* شاشة الرقم السري */
+  #gate { min-height: calc(100vh - 80px); display: grid; place-items: center; }
+  #gate form { background: #fff; color: var(--ink); padding: 48px; border-radius: 4px; width: min(520px, 100%); display: grid; gap: 20px; text-align: center; box-shadow: 12px 12px 0 var(--stage-3); }
+  #gate h1 { font-size: 36px; }
+  #gate p { margin: 0; font-size: 20px; }
+  #pin { font: inherit; font-size: 40px; text-align: center; letter-spacing: 12px; padding: 12px; border: 3px solid var(--ink); border-radius: 4px; direction: ltr; width: 100%; }
+  #gate button { background: var(--ink); color: #fff; font-size: 24px; }
+  #gate .alert { margin: 0; border: 2px solid var(--team-1); }
 </style>
 </head>
 <body>
-<main>
+<section id="gate">
+  <form id="pin-form" autocomplete="off">
+    <h1>التحدي الكبير</h1>
+    <p>أدخل الرقم السري</p>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="off" aria-label="الرقم السري" autofocus>
+    <button id="enter" type="submit">دخول</button>
+    <p id="pin-error" class="alert" hidden></p>
+  </form>
+</section>
+
+<main id="app" hidden>
   <h1>نافذة المقدّم · اختبار النافذتين</h1>
 
   <section class="panel">
     <h2>قبل البدء: ضبط الشاشة</h2>
     <p class="hint">اضغط <span class="ltr">Windows + P</span> واختر «توسيع» (في Mac: إعدادات الشاشات ثم «توسيع»).<br>
-    افتح نافذة الجمهور، واسحبها إلى التلفاز، ثم انقر فيها «ملء الشاشة».</p>
+    افتح نافذة الجمهور، واسحبها إلى التلفاز، ثم انقر فيها «ملء الشاشة».<br>
+    استعمل متصفحاً واحداً للنافذتين، في نافذة عادية لا خفية.</p>
   </section>
 
   <section class="panel">
@@ -36,7 +56,7 @@
       <button id="open">افتح نافذة الجمهور</button>
       <span id="status" data-on="false">نافذة الجمهور غير متصلة</span>
     </div>
-    <p id="blocked" hidden>منع المتصفح فتح النافذة. اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد المحاولة.</p>
+    <p id="blocked" class="alert" hidden>منع المتصفح فتح النافذة. اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد المحاولة.</p>
   </section>
 
   <section class="panel">
@@ -51,25 +71,58 @@
 
 <script type="module">
   import { createLink } from './js/sync.js';
+  import { fetchPinRecord, checkPin } from './js/pin.js';
 
   const $ = id => document.getElementById(id);
-  const link = createLink('presenter', (type, data) => {
-    if (type === 'tick') $('mirror').textContent = data.text;
-  });
+  const AUDIENCE = 'big-challenge-audience';
 
-  link.onStatus(on => {
-    $('status').dataset.on = on;
-    $('status').textContent = on ? 'نافذة الجمهور متصلة' : 'نافذة الجمهور غير متصلة';
-    $('start').disabled = $('reset').disabled = !on;
-    if (!on) $('mirror').textContent = '–';
-  });
-
-  $('open').onclick = () => {
-    const win = window.open('audience.html', 'big-challenge-audience', 'popup,width=1280,height=720');
-    $('blocked').hidden = !!win;
+  // لا يبدأ شيء قبل الرقم السري، ولا تُنشأ قناة التزامن قبله.
+  const showError = text => { $('pin-error').textContent = text; $('pin-error').hidden = false; };
+  $('pin-form').onsubmit = async event => {
+    event.preventDefault();
+    $('enter').disabled = true;
+    $('pin-error').hidden = true;
+    const { record } = await fetchPinRecord();
+    if (!record) {
+      showError('تعذّر التحقق: لا اتصال بالإنترنت. اتصل ثم أعد المحاولة.');
+    } else if (await checkPin($('pin').value, record)) {
+      $('gate').remove();
+      $('app').hidden = false;
+      startPresenter();
+      return;
+    } else {
+      showError('الرقم غير صحيح');
+      $('pin').select();
+    }
+    $('enter').disabled = false;
   };
-  $('start').onclick = () => link.send('start', { seconds: 10 });
-  $('reset').onclick = () => link.send('reset');
+
+  function startPresenter() {
+    const link = createLink('presenter', (type, data) => {
+      if (type === 'tick') $('mirror').textContent = data.text;
+    });
+
+    link.onStatus(on => {
+      $('status').dataset.on = on;
+      $('status').textContent = on ? 'نافذة الجمهور متصلة' : 'نافذة الجمهور غير متصلة';
+      $('open').textContent = on ? 'أظهر نافذة الجمهور' : 'افتح نافذة الجمهور';
+      $('start').disabled = $('reset').disabled = !on;
+      if (!on) $('mirror').textContent = '–';
+    });
+
+    // إن كانت نافذة الجمهور مفتوحة يُكتفى بإظهارها، فلا يُعاد تحميلها ولا تخرج من ملء الشاشة.
+    $('open').onclick = () => {
+      const win = window.open('', AUDIENCE, 'popup,width=1280,height=720');
+      $('blocked').hidden = !!win;
+      if (!win) return;
+      let fresh = true;
+      try { fresh = win.location.href === 'about:blank'; } catch {}
+      if (fresh) win.location.href = 'audience.html';
+      win.focus();
+    };
+    $('start').onclick = () => link.send('start', { seconds: 10 });
+    $('reset').onclick = () => link.send('reset');
+  }
 </script>
 </body>
 </html>

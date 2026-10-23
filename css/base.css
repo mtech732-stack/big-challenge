@@ -4,6 +4,7 @@
   --team-1: #E63946; --hl: #FFC300; --ink: #0E2C86;
 }
 * { box-sizing: border-box; font-style: normal; }
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; }
 body {
   font-family: "Noto Kufi Arabic", "Segoe UI", Tahoma, sans-serif;
