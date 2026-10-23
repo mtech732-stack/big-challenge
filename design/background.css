@@ -62,7 +62,7 @@
 .field::after { content: ""; position: absolute; inset: 0;
   background: repeating-linear-gradient(104deg, rgba(255,255,255,.035) 0 2px, rgba(255,255,255,0) 2px 26px); }
 .field.t1 { top: -514px;
-  background: linear-gradient(0deg, #7A1622 0%, #8E1A28 40%, #A51E2C 100%); }
+  background: linear-gradient(0deg, #661220 0%, #7A1622 40%, #8E1A28 100%); }   /* أغمق درجة لتبرز لوحة الأول (مشرف المصمّمين)، دون سواد */
 .field.t2 { top: 586px;
   background: linear-gradient(180deg, #0E2C86 0%, #1238A8 40%, #1A4BD1 100%); }
 /* الحافة: خط ضوء رفيع على حد الطرف الأول، وتحته ظل، وخط صدى أحمر فاتح فوقه بـ 16، كحواف رسوم البث */
@@ -76,6 +76,8 @@
 .split.turn-1 .field, .split.turn-1 .edge { translate: 0 40px; }
 .split.turn-2 .field, .split.turn-2 .edge { translate: 0 -40px; }
 .split .giant.t1 { color: #FFFFFF; opacity: .14; }
+/* حافة بيضاء رفيعة حول لوحة الأول، تفصلها عن الطرف الأحمر خلفها */
+.split .team.t1 .shape { box-shadow: 0 0 0 3px rgba(255,255,255,.85); }
 
 /* ===== 5. النموذج هـ: شريحتان من زاويتَي الفريقين (توصية مشرف المصمّمين) =====
    الأزرق يبقى مسيطراً. لون كل فريق يدخل من زاويته شريحةً بنحو ربع الشاشة، حدّها السفلي بميل الإطار 6°،
