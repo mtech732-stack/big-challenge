@@ -37,25 +37,41 @@ const { reporter } = require('./helpers.cjs');
   check('من يبدأ الجولة عشوائي (يخرج الفريقان)', firsts.has(1) && firsts.has(2) && firsts.size === 2);
 
   // تشغيل جولة.
+  const P = { easy: 1, medium: 2, hard: 3 };
+  const has = (r, type, extra = {}) => r.events.some(e => e.type === type && Object.entries(extra).every(([k, v]) => e[k] === v));
   let r = R.startRound(sample, { content: files, first: 1, rng });
   const q1 = r.state.questions[0];
-  check('الجولة تبدأ بالفريق المختار', r.state.team === 1 && r.first === 1);
+  check('الجولة تبدأ بالفريق المختار، ولا عدّاد قبل «ابدأ»', r.state.team === 1 && r.first === 1 && !r.timer && R.act(sample, r, 'correct') === r);
   const aud = JSON.stringify(sample.audience(r.state));
   check('نافذة الجمهور لا تحمل الإجابة', !aud.includes(q1.answer) && sample.presenter(r.state).answer === q1.answer);
+  r = R.act(sample, r, 'start');
+  const t1 = r.timer.id;
+  check('«ابدأ»: عدّاد 15 برقم يميّزه', has(r, 'timer', { seconds: 15, id: t1 }));
   r = R.act(sample, r, 'correct');
-  const p1 = { easy: 1, medium: 2, hard: 3 }[q1.level];
-  check(`إجابة صحيحة: +${p1} للفريق الأول، والدور للثاني بعدّاد 15`, r.scores[1] === p1 && r.state.team === 2 && r.events.some(e => e.type === 'timer' && e.seconds === 15));
+  const p1 = P[q1.level];
+  check(`إجابة صحيحة: +${p1} للأول، ويتوقف العدّاد، والسؤال التالي للثاني ينتظر «ابدأ»`, r.scores[1] === p1 && has(r, 'stop-timer') && !r.timer && r.state.team === 2 && r.state.phase === 'ready');
+  // الملاحظة 1: «انتهى الوقت» من عدّاد السؤال الأول يصل بعد الحكم.
+  check('«انتهى الوقت» متأخر من عدّاد سابق يُهمل (لا سرقة خاطئة)', R.act(sample, r, 'timeout', t1) === r);
+  r = R.act(sample, r, 'start');
+  const t2 = r.timer.id;
+  check('«انتهى الوقت» برقم عدّاد قديم يُهمل أثناء عدّاد جديد', R.act(sample, r, 'timeout', t1) === r);
+  const live = r;
   const saved = JSON.parse(JSON.stringify(r));
   r = R.act(sample, r, 'wrong');
-  check('خطأ: السرقة للفريق الأول في 5 ثوانٍ مع لحظة السرقة', r.state.phase === 'steal' && r.state.team === 1 && r.events.some(e => e.seconds === 5) && r.events.some(e => e.name === 'steal'));
+  const t3 = r.timer.id;
+  check('خطأ: السرقة للأول بعدّاد 5 جديد ولحظة السرقة', r.state.phase === 'steal' && r.state.team === 1 && has(r, 'timer', { seconds: 5, id: t3 }) && t3 !== t2 && has(r, 'moment', { name: 'steal' }));
+  // الملاحظة 2: التراجع أثناء السرقة.
   r = R.undo(r);
   check('التراجع يعيد الحالة والرصيد كما كانا', JSON.stringify({ s: r.state, c: r.scores }) === JSON.stringify({ s: saved.state, c: saved.scores }));
-  check('الحالة بعد الحفظ والاستعادة (JSON) تكمل كما هي', JSON.stringify(R.act(sample, saved, 'timeout')) === JSON.stringify(R.act(sample, r, 'timeout')));
-  r = R.act(sample, r, 'timeout');
+  check('التراجع يوقف عدّاد السرقة ويعيد عدّاد صاحب السؤال كاملاً (15)', has(r, 'timer', { seconds: 15 }) && r.timer.seconds === 15 && r.timer.id !== t3);
+  check('«انتهى الوقت» من عدّاد السرقة الملغى يُهمل', R.act(sample, r, 'timeout', t3) === r);
+  check('الحالة بعد الحفظ والاستعادة (JSON) تكمل كما هي', JSON.stringify(R.act(sample, saved, 'timeout', t2)) === JSON.stringify(R.act(sample, live, 'timeout', t2)) && R.act(sample, saved, 'timeout', t2).state.phase === 'steal');
+  r = R.act(sample, r, 'timeout', r.timer.id);
+  check('انتهاء الوقت الحالي: سرقة', r.state.phase === 'steal' && r.state.team === 1);
   r = R.act(sample, r, 'correct');
-  const p2 = { easy: 1, medium: 2, hard: 3 }[r.history.at(-1).state.questions[1].level];
+  const p2 = P[r.history.at(-1).state.questions[1].level];
   check(`السرقة الصحيحة تعطي النقاط نفسها (+${p2}) للسارق`, r.scores[1] === p1 + p2 && r.scores[2] === 0);
-  check('الجولة انتهت ولا أزرار بعدها', sample.finished(r.state) && sample.actions(r.state).length === 0);
+  check('الجولة انتهت ولا أزرار بعدها ولا عدّاد', sample.finished(r.state) && sample.actions(r.state).length === 0 && !r.timer);
   check('لا فعل بعد نهاية الجولة', R.act(sample, r, 'correct') === r);
   check('فعل غير موجود في الأزرار يُهمل', (() => { const s = R.startRound(sample, { content: files, first: 2, rng }); return R.act(sample, s, 'jump') === s; })());
 
@@ -64,6 +80,9 @@ const { reporter } = require('./helpers.cjs');
   check('«اسرق 3» من فريق رصيده 1: يأخذ 1 فقط', JSON.stringify(R.applyEvents({ 1: 5, 2: 1 }, [{ type: 'take', from: 2, to: 1, points: 3 }])) === '{"1":6,"2":0}');
   let m = R.setScore(r, 2, 7);
   check('تعديل الرصيد يدوياً، ويُتراجع عنه', m.scores[2] === 7 && R.undo(m).scores[2] === 0 && R.setScore(r, 2, -4).scores[2] === 0);
+  const running = R.act(sample, R.startRound(sample, { content: files, first: 1, rng }), 'start');
+  const u = R.undo(R.setScore(running, 1, 4));
+  check('التراجع عن تعديل يدوي لا يمس العدّاد الجاري', u.timer.id === running.timer.id && u.events.length === 0);
 
   // ذاكرة الأسئلة.
   const used = sample.used(r.state);
