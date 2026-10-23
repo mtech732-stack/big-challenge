@@ -42,7 +42,7 @@ const snapshot = round => ({ state: round.state, scores: round.scores, timer: ro
 // timerId: مع 'timeout' وحده، رقم العدّاد الذي انتهى.
 export function act(mode, round, action, timerId) {
   if (mode.finished(round.state)) return round;
-  if (action === 'timeout' ? round.timer?.id !== timerId : !mode.actions(round.state).some(a => a.id === action)) return round;
+  if (action === 'timeout' ? !round.timer || round.timer.id !== timerId : !mode.actions(round.state).some(a => a.id === action)) return round;
   const { state, events = [] } = mode.act(round.state, action);
   return {
     ...round,

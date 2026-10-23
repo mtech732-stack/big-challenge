@@ -52,6 +52,7 @@ const { reporter } = require('./helpers.cjs');
   check(`إجابة صحيحة: +${p1} للأول، ويتوقف العدّاد، والسؤال التالي للثاني ينتظر «ابدأ»`, r.scores[1] === p1 && has(r, 'stop-timer') && !r.timer && r.state.team === 2 && r.state.phase === 'ready');
   // الملاحظة 1: «انتهى الوقت» من عدّاد السؤال الأول يصل بعد الحكم.
   check('«انتهى الوقت» متأخر من عدّاد سابق يُهمل (لا سرقة خاطئة)', R.act(sample, r, 'timeout', t1) === r);
+  check('«انتهى الوقت» بلا رقم ولا عدّاد جارٍ يُهمل (لا يُتخطى السؤال)', R.act(sample, r, 'timeout') === r && R.act(sample, r, 'timeout', undefined) === r);
   r = R.act(sample, r, 'start');
   const t2 = r.timer.id;
   check('«انتهى الوقت» برقم عدّاد قديم يُهمل أثناء عدّاد جديد', R.act(sample, r, 'timeout', t1) === r);
