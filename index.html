@@ -485,7 +485,7 @@
     if (!win) render();
     return !!win;
   }
-  // في الجولة بنافذة واحدة: «افتح نافذة المقدّم» يسلّمها كما هي.
+  // في الجولة بنافذة واحدة: «المقدّم» يفتح نافذته ويسلّمها الجولة كما هي.
   function toPresenter() {
     if (!openPresenter()) return;
     handing = true;
@@ -650,7 +650,7 @@
     if (error !== undefined) lastError = error;
     if (match.step !== 'setup') lastError = null;
     const step = match.step, wait = held();
-    const c = { card: [], near: [], a: [], b: [] };
+    const c = { card: [], near: [], a: [], b: [], c: [] };
     const fs = document.fullscreenElement ? [] : [{ cmd: 'fullscreen', label: 'ملء الشاشة', kind: 'alt' }];
     const fresh = { cmd: 'new', label: 'مباراة جديدة', kind: 'alt' };
     if (step === 'setup') {
@@ -689,12 +689,14 @@
       if (screen === 'ask') c.near = [...act('start', 'ابدأ'), ...act('correct'), ...act('wrong', null, 'no'), ...act('next', last ? 'إنهاء الجولة' : 'السؤال التالي')];
       if (screen === 'end') { const nb = nextButton(); c.card = [{ cmd: 'next', label: nb.text, off: !!nb.off || wait }]; }
       c.scores = true;
-      c.a = [[...(screen !== 'intro' ? [{ cmd: 'undo', label: 'تراجع', kind: 'alt', off: !match.round.history.length || wait }] : []), { cmd: 'mute', label: muted ? 'مكتوم' : 'الصوت', kind: 'alt' }],
-        [{ cmd: 'presenter', label: 'افتح نافذة المقدّم', kind: 'alt' }]];
-      c.b = [[{ cmd: 'scores', label: 'الرصيد', kind: 'alt' }, fresh], fs];
+      // ثلاثة صفوف قصيرة (الملاحظة 26، design/system.md 15.10): الجولة · النوافذ · المباراة، فلا تبلغ لوحة الأول ولا أزرار العدّاد.
+      c.a = [[...(screen !== 'intro' ? [{ cmd: 'undo', label: 'تراجع', kind: 'alt', off: !match.round.history.length || wait }] : []), { cmd: 'mute', label: muted ? 'مكتوم' : 'الصوت', kind: 'alt' }]];
+      c.b = [[{ cmd: 'presenter', label: 'المقدّم', kind: 'alt' }, ...fs]];
+      c.c = [[{ cmd: 'scores', label: 'الرصيد', kind: 'alt' }, fresh]];
     }
     c.a = c.a.filter(r => r.length);
     c.b = c.b.filter(r => r.length);
+    c.c = c.c.filter(r => r.length);
     return c;
   }
   function sendCtl(error) {

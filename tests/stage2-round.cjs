@@ -300,11 +300,13 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await presenter.click('#lostSingle');
   const frame = await stageFrame(presenter);
   const near = () => frame.$$eval('#near .cbtn', b => b.map(x => x.textContent.replace(/\s+/g, ' ').trim()).join(' | '));
-  const corners = () => frame.$$eval('#cornerA .cbtn, #cornerB .cbtn', b => b.map(x => x.textContent.trim()).join(' | '));
+  const corners = () => frame.$$eval('.ctl-corner .cbtn', b => b.map(x => x.textContent.trim()).join(' | '));
+  const rowsText = () => frame.$$eval('.ctl-corner', r => r.map(x => [...x.querySelectorAll('.cbtn')].map(b => b.textContent.trim()).join(' | ')).join(' // '));
   await wait(300);
   check('لا شريط سفلي', !(await presenter.$('#band')));
   check('بجانب العدّاد بعد انتقال الإجابة: «صحيحة · +1» «خاطئة»', (await near()) === 'صحيحة · +1 | خاطئة');
-  check('الزاويتان: «تراجع» «الصوت» «افتح نافذة المقدّم» ثم «الرصيد» «مباراة جديدة» «ملء الشاشة»', (await corners()) === 'تراجع | الصوت | افتح نافذة المقدّم | الرصيد | مباراة جديدة | ملء الشاشة');
+  check('الزاوية ثلاثة صفوف (الملاحظة 26): «تراجع» «الصوت» · «المقدّم» «ملء الشاشة» · «الرصيد» «مباراة جديدة»', (await rowsText()) === 'تراجع | الصوت // المقدّم | ملء الشاشة // الرصيد | مباراة جديدة'
+    && JSON.stringify(await frame.$$eval('.ctl-corner', e => e.map(x => x.offsetTop))) === '[64,152,240]');
   const coverFails = [];
   // الملاحظة 25: كل زر ظاهر هو ما يستجيب في خمس نقاط منه (elementFromPoint)، بالاسمين الطويلين وبرقم من خانة وخانتين وثلاث للفريقين.
   const covered = async label => {
@@ -312,7 +314,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
       const bad = await frame.evaluate(v => {
         for (const k of [1, 2]) { const s = document.getElementById('s' + k); s.textContent = v; s.classList.toggle('three', v.length >= 3); }
         const out = [];
-        for (const b of document.querySelectorAll('#near .cbtn, #cornerA .cbtn, #cornerB .cbtn, .card .scr.show .cbtn')) {
+        for (const b of document.querySelectorAll('#near .cbtn, .ctl-corner .cbtn, .card .scr.show .cbtn')) {
           if (!b.getClientRects().length) continue;
           const r = b.getBoundingClientRect();
           const pts = [[.5, .5], [.1, .15], [.9, .15], [.1, .85], [.9, .85]].map(([x, y]) => [r.left + r.width * x, r.top + r.height * y]);
@@ -322,6 +324,17 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
         return out;
       }, v);
       if (bad.length) { coverFails.push(`${label} بـ ${v}: ${bad.join('، ')}`); }
+      // أسوأ حالة (الملاحظة 26): الدور للأول والعدّاد يعمل، بالاسم الطويل والرقم: لا تداخل ولا فراغ أقل من 24.
+      if (label === 'العدّاد يعدّ') {
+        const r = await frame.evaluate(async () => {
+          const p1 = document.getElementById('p1'), p2 = document.getElementById('p2'), was = p2.classList.contains('on');
+          p1.classList.add('on'); p2.classList.remove('on'); document.getElementById('c1').textContent = '15';
+          const out = await window.__stageCheck();
+          p1.classList.toggle('on', !was); p2.classList.toggle('on', was);
+          return out.problems;
+        });
+        if (r.length) coverFails.push(`أسوأ حالة بـ ${v}: ${r.join('، ')}`);
+      }
     }
   };
   const qs = (await st()).questions[1];
@@ -345,7 +358,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('النافذة الواحدة: العدّاد يعدّ، و«ابدأ» يختفي', ['0:14', '0:13'].includes(await text(frame, '#timer')) && (await near()) === 'صحيحة · +2 | خاطئة');
   await audienceCheck(frame, 'نافذة واحدة · العدّاد يعدّ');
   await covered('العدّاد يعدّ');
-  check(`النافذة الواحدة: لا يغطي شيءٌ أزرار التحكم بالاسمين الطويلين وأرقام من 1 و2 و3 خانات (الملاحظة 25)${coverFails.length ? ': ' + coverFails.slice(0, 3).join(' | ') : ''}`, !coverFails.length);
+  check(`النافذة الواحدة: لا يغطي شيءٌ أزرار التحكم بالاسمين الطويلين وأرقام من 1 و2 و3 خانات (الملاحظة 25)، ولا تداخل في أسوأ حالة وقت عدّاد الأول (الملاحظة 26)${coverFails.length ? ': ' + coverFails.slice(0, 3).join(' | ') : ''}`, !coverFails.length);
   await frame.click('#s1');
   const opened = await presenter.waitForSelector('#scores:not([hidden])', { timeout: 3000 }).then(() => true, () => false);
   check('النقر على رقم الفريق يفتح طبقة الرصيد فوق الشاشة', opened && await presenter.evaluate(() => {

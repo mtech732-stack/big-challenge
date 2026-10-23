@@ -183,7 +183,7 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   await page.click('#resume');
   await frame.waitForSelector('#near .cbtn', { timeout: 6000 });
   check('المتابعة بنافذة واحدة: أزرار الحكم بجانب العدّاد، والسؤال كما كان', (await saved()).single === true && (await text('#b1')) === 'السؤال 1 من 6'
-    && await vis('#cornerA [data-cmd="presenter"]'));
+    && await vis('#cornerB [data-cmd="presenter"]'));
   const [host2] = await Promise.all([context.waitForEvent('page'), cmd(frame, 'presenter')]);
   await host2.waitForSelector('#app:not([hidden])', { timeout: 10000 });
   await wait(400);
