@@ -50,21 +50,34 @@
 @keyframes jump { 0% { filter: brightness(2.4); } 100% { filter: brightness(1); } }
 
 /* ===== 4. النموذج د: طرفان بلونَي الفريقين (طلب المالك) =====
-   الشاشة تنقسم بخط مائل 14° يمر بالوسط: الطرف الأيمن (جهة الفريق الأول، أعلى اليمين) أحمر داكن،
-   والأيسر (جهة الفريق الثاني) يبقى أزرق المسرح، لأن لوحة الثاني بيضاء ونصها أزرق، والخلفية البيضاء تُذهب البطاقة.
-   والأحمر داكن (#7A1622 ← #4A0B14) كي تبقى لوحة الأول الحمراء الزاهية بارزة فوقه.
-   والخط الفاصل يتحرك نحو الفريق الآخر 160 حين يبدأ عدّاد صاحب الدور، فيبدو طرفه كأنه يتقدّم. */
-.side, .seam { display: none; }
-.split .side, .split .seam { display: block; }
-.side.t1 { top: -100px; height: 1280px; left: 960px; width: 1400px;
-  background: linear-gradient(200deg, #8E1B28 0%, #6A111D 45%, #3E0A12 100%);
-  transform: skewX(calc(-1 * var(--lean))); transition: translate .9s cubic-bezier(.2,.8,.2,1); }
-.seam { top: -100px; height: 1280px; left: 957px; width: 6px; background: rgba(255,255,255,.55);
-  transform: skewX(calc(-1 * var(--lean))); transition: translate .9s cubic-bezier(.2,.8,.2,1); }
-.split.turn-1 .side.t1, .split.turn-1 .seam { translate: -160px 0; }
-.split.turn-2 .side.t1, .split.turn-2 .seam { translate: 160px 0; }
-/* في هذا النموذج ضوء الدور أبيض للطرفين كما في أ، والرقم العملاق الأول أبيض 16% كالثاني، لأن الأزرق الداكن يغيب في الأحمر */
-.split .giant.t1 { color: #FFFFFF; opacity: .16; }
+   القصّ يتبع هيكل الشاشة لا منتصفها: الفريق الأول أعلى اليمين، والثاني أسفل اليسار، فالحد بينهما أفقي بميل الإطار 6°
+   ويمر بمركز البطاقة (y 586)، فتغطيه البطاقة وصفيحتها، ولا يظهر إلا في الهامشين كحافة مدروسة.
+   كل طرف مضاء من ركن فريقه ويغمق نحو الحد، فيلتقي الطرفان في عمق داكن تبرز فوقه البطاقة البيضاء.
+   والأحمر داكن عند لوحة الأول كي تبقى اللوحة الزاهية بارزة. وعلى الطرفين خطوط دقيقة بميل 14° كشاشات الاستوديو. */
+.field, .edge { display: none; }
+.split .field, .split .edge { display: block; }
+.split .plane { display: none; }
+.field { left: -240px; width: 2400px; height: 1100px; transform: rotate(calc(-1 * var(--tilt)));
+  transition: translate 1s cubic-bezier(.2,.8,.2,1), filter .8s ease; }
+.field::after { content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(104deg, rgba(255,255,255,.035) 0 2px, rgba(255,255,255,0) 2px 26px); }
+.field.t1 { top: -514px;
+  background: linear-gradient(0deg, #14050B 0%, #3A0B16 22%, #6E1220 60%, #8E1A28 100%),
+              linear-gradient(90deg, rgba(0,0,0,.35), rgba(0,0,0,0) 60%); background-blend-mode: multiply; }
+.field.t2 { top: 586px;
+  background: linear-gradient(180deg, #050E2E 0%, #0B1E5C 22%, #1238A8 60%, #1A4BD1 100%),
+              linear-gradient(270deg, rgba(0,0,0,.35), rgba(0,0,0,0) 60%); background-blend-mode: multiply; }
+/* الحافة: خط ضوء رفيع على حد الطرف الأول، وتحته ظل، وخط صدى أحمر فاتح فوقه بـ 16، كحواف رسوم البث */
+.edge { left: -240px; width: 2400px; top: 584px; height: 4px; transform: rotate(calc(-1 * var(--tilt)));
+  background: rgba(255,255,255,.7); box-shadow: 0 6px 18px rgba(0,0,0,.5);
+  transition: translate 1s cubic-bezier(.2,.8,.2,1); }
+.edge::before { content: ""; position: absolute; left: 0; right: 0; top: -18px; height: 2px; background: rgba(255,90,102,.6); }
+/* الدور: طرف صاحب الدور يضيء، والحد يتزحزح 40 نحو الفريق الآخر */
+.split.turn-1 .field.t1 { filter: brightness(1.3); }
+.split.turn-2 .field.t2 { filter: brightness(1.25); }
+.split.turn-1 .field, .split.turn-1 .edge { translate: 0 40px; }
+.split.turn-2 .field, .split.turn-2 .edge { translate: 0 -40px; }
+.split .giant.t1 { color: #FFFFFF; opacity: .14; }
 
 @media (prefers-reduced-motion: reduce) {
   .beam, .plane.a, .glow, .flash, .dim, .backdrop { animation: none !important; }
