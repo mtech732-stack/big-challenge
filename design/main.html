@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>التحدي الكبير · الشاشة الرئيسية المرجعية</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  /* الصفحة المرجعية للشاشة الرئيسية (شاشة الجمهور أثناء السؤال).
+     كل موضع هنا مقيس على لوحة 1920×1080، وملاحظات القياس في design/system.md (القسم 5). */
+  html, body { margin: 0; height: 100%; background: #050E2E; font-family: var(--font); color: var(--on-stage); }
+  .screen { position: fixed; inset: 0 0 var(--tools, 64px) 0; overflow: hidden; }
+  :fullscreen .screen, .clean .screen { bottom: 0; }
+  .canvas {
+    position: absolute; top: 50%; left: 50%; width: 1920px; height: 1080px; overflow: hidden;
+    transform: translate(-50%, -50%) scale(var(--scale, 1));
+    background: linear-gradient(135deg, var(--stage-1) 0%, var(--stage-2) 55%, var(--stage-3) 100%);
+  }
+  .canvas > *, .team > *, .card-wrap > *, .particles > *, .check-layer > * { position: absolute; }
+
+  /* 1. الخلفية: مساحات قطرية بميل الإطار، وجسيمات تصعد ببطء */
+  .plane { width: 2600px; transform: rotate(calc(-1 * var(--tilt))); transform-origin: center; }
+  .plane.a { height: 520px; left: -340px; top: -330px; background: linear-gradient(90deg, rgba(255,255,255,.07), rgba(255,255,255,0)); }
+  .plane.b { height: 300px; left: -340px; top: 470px; background: linear-gradient(270deg, rgba(14,44,134,.55), rgba(14,44,134,0)); }
+  .plane.c { height: 420px; left: -340px; top: 860px; background: linear-gradient(90deg, rgba(14,44,134,.6), rgba(14,44,134,.15)); }
+  .particles span {
+    width: 10px; height: 10px; background: rgba(255,255,255,.22);
+    transform: skewX(calc(-1 * var(--lean)));
+    animation: rise linear infinite;
+  }
+  @keyframes rise { from { translate: 0 0; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } to { translate: 0 -420px; opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .particles span { animation: none; } }
+
+  /* 2. الرقم العملاق: خلفية كل فريق في نطاقه، ولا يمس أي عنصر */
+  .giant {
+    height: 228px; line-height: 228px; font-size: var(--fs-giant); font-weight: 900;
+    direction: ltr; white-space: nowrap; transform: skewX(calc(-1 * var(--lean)));
+  }
+  .giant.t1 { top: 60px; right: 808px; color: var(--team-1); opacity: .32; }
+  .giant.t2 { top: 805px; left: 808px; color: var(--team-2); opacity: .16; }
+
+  /* 3. لوحة الفريق: مائلة، ومحتواها مستقيم */
+  .team { width: 600px; height: 136px; }
+  .team.t1 { top: 64px; right: 126px; }
+  .team.t2 { top: 808px; left: 126px; }
+  .team .shape { inset: 0; transform: skewX(calc(-1 * var(--lean))); }
+  .team.t1 .shape { background: var(--team-1); }
+  .team.t2 .shape { background: var(--team-2); }
+  .team .turn { inset: -10px; border: 6px solid var(--hl); transform: skewX(calc(-1 * var(--lean))); visibility: hidden; }
+  .team.on .turn { visibility: visible; }
+  .team .row {
+    inset: 0; padding: 0 48px; display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  }
+  .team .name { font-size: var(--fs-name); font-weight: 700; line-height: 1; white-space: nowrap; }
+  .team .score { font-size: var(--fs-score); font-weight: 900; line-height: 1; direction: ltr; }
+  .team.t1 .row { color: var(--on-stage); }
+  .team.t2 .row { color: var(--team-2-ink); }
+
+  /* 4. شريط الفارق تحت كل لوحة */
+  .strip {
+    height: 48px; padding: 0 32px; display: flex; align-items: center; white-space: nowrap;
+    font-size: var(--fs-badge); font-weight: 700; line-height: 1; color: var(--on-stage);
+  }
+  .strip > i { background: var(--stage-3); transform: skewX(calc(-1 * var(--lean))); }
+  .strip.t1 { top: 234px; right: 132px; }
+  .strip.t2 { top: 978px; left: 132px; }
+  .strip > i, .badge > i, .timer > i { position: absolute; inset: 0; }
+  .strip > span, .badge > span, .timer > span { position: relative; }
+  .ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+
+  /* 5. صف الشارات والعدّاد فوق البطاقة */
+  .badge {
+    height: 64px; padding: 0 40px; display: flex; align-items: center; white-space: nowrap;
+    font-size: var(--fs-badge); font-weight: 800; line-height: 1; top: 314px;
+  }
+  .badge > i { transform: skewX(calc(-1 * var(--lean))); }
+  .badge.mode { right: 108px; color: var(--ink); }
+  .badge.mode > i { background: var(--hl); }
+  .badge.level { color: var(--ink); }
+  .badge.level > i { background: var(--card); }
+  .timer {
+    top: 306px; left: 108px; height: 80px; min-width: 216px; padding: 0 40px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: var(--fs-timer); font-weight: 900; line-height: 1; color: var(--hl); direction: ltr;
+  }
+  .timer > i { background: var(--stage-3); transform: skewX(calc(-1 * var(--lean))); }
+
+  /* 6. البطاقة: مستقيمة بيضاء، وخلفها صفيحة مائلة بميل الإطار هي ظلها الصلب */
+  .card-wrap { left: 160px; top: 410px; width: 1600px; height: 352px; }
+  .card-wrap .plate { inset: 12px -12px -12px -12px; background: var(--stage-3); transform: skewX(calc(-1 * var(--tilt))); }
+  .card {
+    inset: 0; background: var(--card); color: var(--ink);
+    display: flex; align-items: center; gap: 48px; padding: 0 var(--pad-card);
+  }
+  .letter {
+    flex: none; min-width: 220px; height: 220px; padding: 0 24px; background: var(--ink); color: var(--hl);
+    display: flex; align-items: center; justify-content: center;
+    font-size: var(--fs-letter); font-weight: 800; line-height: 1;
+  }
+  .letter:empty { display: none; }
+  .question { margin: 0; font-size: var(--fs-question); font-weight: 700; line-height: var(--lh-question); max-height: 270px; overflow: hidden; }
+
+  /* 7. لحظة انفعالية: آخر 3 ثوانٍ، حواف حمراء نابضة فوق كل شيء */
+  .danger { inset: 0; pointer-events: none; box-shadow: inset 0 0 0 0 rgba(230,57,70,0); }
+  .meta-danger .danger { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { box-shadow: inset 0 0 0 12px rgba(230,57,70,.9), inset 0 0 120px 24px rgba(230,57,70,.45); } 50% { box-shadow: inset 0 0 0 4px rgba(230,57,70,.4), inset 0 0 60px 0 rgba(230,57,70,.15); } }
+
+  /* طبقة الفحص: الهامش الآمن، وحدود كل عنصر عند أبعد أطرافه المائلة */
+  .check-layer { inset: 0; pointer-events: none; display: none; z-index: 10; }
+  .checking .check-layer { display: block; }
+  .check-layer .safe { left: 96px; top: 54px; width: 1728px; height: 972px; outline: 2px dashed rgba(255,255,255,.7); }
+  .check-layer .box { outline: 2px solid #3ddc84; outline-offset: 0; }
+  .check-layer .box.bad { outline: 4px solid #ff2d55; background: rgba(255,45,85,.15); }
+
+  /* أدوات المعاينة: خارج اللوحة، وليست من التصميم */
+  .tools {
+    position: fixed; left: 0; right: 0; bottom: 0; height: var(--tools, 64px); padding: 0 16px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: #050E2E; font-size: 18px;
+  }
+  :fullscreen .tools, .clean .tools { display: none; }
+  .tools button { font: inherit; font-size: 18px; padding: 6px 14px; border: 0; background: #fff; color: var(--ink); cursor: pointer; }
+  .tools button[aria-pressed="true"] { background: var(--hl); }
+  .tools output { margin-inline-start: auto; font-size: 18px; }
+  .tools output.bad { color: #ff6b81; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="canvas" id="canvas">
+    <div class="plane a"></div><div class="plane b"></div><div class="plane c"></div>
+    <div class="particles" id="particles"></div>
+
+    <div class="giant t1" data-bg><span id="g1"></span></div>
+    <div class="giant t2" data-bg><span id="g2"></span></div>
+
+    <section class="team t1" data-hud="لوحة الفريق الأول">
+      <div class="shape"></div><div class="turn"></div>
+      <div class="row"><span class="name" id="n1"></span><span class="score" id="s1"></span></div>
+    </section>
+    <div class="strip t1" data-hud="شريط الفارق الأول"><i></i><span id="d1"></span></div>
+
+    <div class="badge mode" data-hud="شارة النمط"><i></i><span id="mode"></span></div>
+    <div class="badge level" data-hud="شارة المستوى"><i></i><span id="level"></span></div>
+    <div class="timer" data-hud="العدّاد"><i></i><span id="timer">0:15</span></div>
+
+    <div class="card-wrap" data-hud="البطاقة">
+      <div class="plate"></div>
+      <div class="card"><div class="letter" id="letter"></div><p class="question" id="question"></p></div>
+    </div>
+
+    <section class="team t2" data-hud="لوحة الفريق الثاني">
+      <div class="shape"></div><div class="turn"></div>
+      <div class="row"><span class="name" id="n2"></span><span class="score" id="s2"></span></div>
+    </section>
+    <div class="strip t2" data-hud="شريط الفارق الثاني"><i></i><span id="d2"></span></div>
+
+    <div class="danger"></div>
+    <div class="check-layer" id="checkLayer"><div class="safe"></div></div>
+  </div>
+</div>
+
+<nav class="tools" aria-label="أدوات المعاينة">
+  <button data-set="sample" aria-pressed="true">مثال</button>
+  <button data-set="longLetter">أطول محتوى · الحرف</button>
+  <button data-set="longLastTwo">أطول محتوى · آخر حرفين</button>
+  <button data-set="topic">بلا حرف</button>
+  <button data-set="tie">تعادل</button>
+  <button id="turn">الدور: الأول</button>
+  <button id="danger" aria-pressed="false">آخر 3 ثوانٍ</button>
+  <button id="check" aria-pressed="false">فحص التداخل</button>
+  <button id="fs">ملء الشاشة</button>
+  <output id="report"></output>
+</nav>
+
+<script>
+  const $ = id => document.getElementById(id);
+
+  // المحتوى: المثال من عيّنات الوثيقة، والأطول هو أقصى ما يتسع له التصميم (system.md، القسم 6).
+  const SETS = {
+    sample: { n1: 'الصقور', n2: 'النجوم', s1: 12, s2: 9, mode: 'الحرف المعيّن', level: 'متوسط · نقطتان', letter: 'ت',
+      q: 'فاكهة إذا قطعتها بالعرض ظهرت في قلبها نجمة' },
+    longLetter: { n1: 'فريق النخبة الذهبي', n2: 'نجوم المستقبل معاً', s1: 188, s2: 176, mode: 'الحرف المعيّن', level: 'متوسط · نقطتان', letter: 'ش',
+      q: 'فاكهة إذا قطعتها بالعرض ظهرت في قلبها نجمة، ويقال إنها سبب اكتشاف الجاذبية في قصة شهيرة' },
+    longLastTwo: { n1: 'فريق النخبة الذهبي', n2: 'نجوم المستقبل معاً', s1: 100, s2: 188, mode: 'آخر حرفين', level: 'صعب · 3 نقاط', letter: 'ـوت',
+      q: 'بيت لا يُبنى بطين ولا حجر، ووصفه القرآن بأنه أوهن البيوت، وتراه في زوايا البيوت القديمة' },
+    topic: { n1: 'الصقور', n2: 'النجوم', s1: 24, s2: 31, mode: 'المزاد', level: 'سهل · نقطة', letter: '',
+      q: 'أشياء تجدها في حقيبة المدرسة' },
+    tie: { n1: 'الصقور', n2: 'النجوم', s1: 7, s2: 7, mode: 'آخر حرفين', level: 'سهل · نقطة', letter: 'ـان',
+      q: 'صغير الحجم، لكنه يُكرَم به الضيف في كل بيت كويتي' },
+  };
+
+  const diff = (a, b) => a === b ? 'تعادل'
+    : `${a > b ? 'يتقدّم' : 'يتأخر'} بفارق <span class="ltr">${Math.abs(a - b)}</span>`;
+
+  function render(name) {
+    const d = SETS[name];
+    for (const k of ['n1', 'n2', 'mode', 'letter']) $(k).textContent = d[k];
+    $('level').innerHTML = d.level.replace(/(\d+)/, '<span class="ltr">$1</span>');
+    $('question').textContent = d.q;
+    $('s1').textContent = $('g1').textContent = d.s1;
+    $('s2').textContent = $('g2').textContent = d.s2;
+    $('d1').innerHTML = diff(d.s1, d.s2);
+    $('d2').innerHTML = diff(d.s2, d.s1);
+    document.querySelectorAll('[data-set]').forEach(b => b.setAttribute('aria-pressed', b.dataset.set === name));
+    place();
+  }
+
+  // شارة المستوى تلي شارة النمط بفراغ الأمان، محسوباً عند الطرف الأدنى المائل.
+  function place() {
+    const mode = document.querySelector('.badge.mode');
+    const lean = Math.tan(14 * Math.PI / 180) * 64;
+    document.querySelector('.badge.level').style.right = (108 + mode.offsetWidth + 24 + lean) + 'px';
+    if (document.body.classList.contains('checking')) check();
+  }
+
+  // الجسيمات: مواضع ثابتة البذرة، فتتطابق الصورة في كل فتح.
+  (function particles() {
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 22; i++) {
+      const s = document.createElement('span');
+      s.style.left = Math.round(rnd() * 1900) + 'px';
+      s.style.top = Math.round(500 + rnd() * 600) + 'px';
+      s.style.animationDuration = (14 + rnd() * 10).toFixed(1) + 's';
+      s.style.animationDelay = (-rnd() * 20).toFixed(1) + 's';
+      const k = 6 + Math.round(rnd() * 8); s.style.width = s.style.height = k + 'px';
+      $('particles').appendChild(s);
+    }
+  })();
+
+  // الفحص: لكل عنصر أبعد حدوده (ومنها الطرف الأدنى المائل ومؤشر الدور)،
+  // ثم: داخل الهامش الآمن؟ وبينه وبين كل عنصر آخر 24 على الأقل؟ ولا نص أصغر من 32؟ ولا نص مقصوص؟
+  function extent(el, scale, origin) {
+    let r = null;
+    for (const n of [el, ...el.querySelectorAll('*')]) {
+      if (n.closest('.check-layer')) continue;
+      const b = n.getBoundingClientRect(); if (!b.width && !b.height) continue;
+      const x1 = (b.left - origin.left) / scale, y1 = (b.top - origin.top) / scale;
+      const x2 = (b.right - origin.left) / scale, y2 = (b.bottom - origin.top) / scale;
+      r = r ? { x1: Math.min(r.x1, x1), y1: Math.min(r.y1, y1), x2: Math.max(r.x2, x2), y2: Math.max(r.y2, y2) } : { x1, y1, x2, y2 };
+    }
+    return r;
+  }
+  // حدود الرقم العملاق بحسب رسم أرقامه الفعلي لا صندوق السطر، مع ميله.
+  function glyphExtent(el, scale, origin) {
+    const b = el.getBoundingClientRect(), cs = getComputedStyle(el);
+    const ctx = document.createElement('canvas').getContext('2d');
+    ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const m = ctx.measureText(el.textContent);
+    const box = { x1: (b.left - origin.left) / scale, x2: (b.right - origin.left) / scale, y1: (b.top - origin.top) / scale, y2: (b.bottom - origin.top) / scale };
+    const base = el.offsetHeight / 2 + (m.fontBoundingBoxAscent - m.fontBoundingBoxDescent) / 2;
+    return { x1: box.x1, x2: box.x2, y1: box.y1 + base - m.actualBoundingBoxAscent, y2: box.y1 + base + m.actualBoundingBoxDescent };
+  }
+  function check() {
+    const canvas = $('canvas'), origin = canvas.getBoundingClientRect(), scale = origin.width / 1920;
+    const layer = $('checkLayer'); layer.querySelectorAll('.box').forEach(n => n.remove());
+    const items = [...document.querySelectorAll('[data-hud]')].map(el => ({ el, name: el.dataset.hud, r: extent(el, scale, origin) }));
+    for (const el of document.querySelectorAll('[data-bg]')) items.push({ el, name: 'الرقم العملاق', r: glyphExtent(el, scale, origin) });
+    const problems = [], bad = new Set();
+    for (const it of items) {
+      const { x1, y1, x2, y2 } = it.r;
+      if (x1 < 96 - .5 || y1 < 54 - .5 || x2 > 1824 + .5 || y2 > 1026 + .5) { problems.push(`${it.name} خارج الهامش الآمن`); bad.add(it); }
+    }
+    let minGap = Infinity;
+    for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
+      const a = items[i].r, b = items[j].r;
+      const gx = Math.max(b.x1 - a.x2, a.x1 - b.x2), gy = Math.max(b.y1 - a.y2, a.y1 - b.y2);
+      const g = Math.max(gx, gy); minGap = Math.min(minGap, g);
+      if (g < 24 - .5) { problems.push(`${items[i].name} ↔ ${items[j].name}: ${Math.round(g)}`); bad.add(items[i]); bad.add(items[j]); }
+    }
+    for (const n of canvas.querySelectorAll('*')) {
+      if (!n.childNodes.length || ![...n.childNodes].some(c => c.nodeType === 3 && c.textContent.trim())) continue;
+      const fs = parseFloat(getComputedStyle(n).fontSize);
+      if (fs < 32) problems.push(`نص أصغر من 32: «${n.textContent.trim().slice(0, 20)}» ${fs}`);
+      if (/[٠-٩۰-۹]/.test(n.textContent)) problems.push(`أرقام هندية: «${n.textContent.trim().slice(0, 20)}»`);
+    }
+    // أسطر السؤال من مواضعها الفعلية، والحد ثلاثة أسطر.
+    const q = $('question'), range = document.createRange(); range.selectNodeContents(q);
+    const lines = new Set([...range.getClientRects()].map(r => Math.round(r.top / scale / 10))).size;
+    if (lines > 3) problems.push(`السؤال ${lines} أسطر، والحد 3`);
+    // النص لا يتجاوز وعاءه المستقيم (الجزء المائل خارج الحساب).
+    for (const n of document.querySelectorAll('.team .name, .team .score, .strip > span, .badge > span, .timer > span')) {
+      const box = n.closest('.row, [data-hud]').getBoundingClientRect(), t = n.getBoundingClientRect();
+      if (t.left < box.left - 1 || t.right > box.right + 1) problems.push(`نص يفيض: ${n.closest('[data-hud]').dataset.hud}`);
+    }
+    for (const it of items) {
+      const d = document.createElement('div'); d.className = 'box' + (bad.has(it) ? ' bad' : '');
+      Object.assign(d.style, { left: it.r.x1 + 'px', top: it.r.y1 + 'px', width: (it.r.x2 - it.r.x1) + 'px', height: (it.r.y2 - it.r.y1) + 'px' });
+      layer.appendChild(d);
+    }
+    const out = $('report');
+    out.textContent = problems.length ? `✗ ${problems.join(' · ')}` : `✓ لا تداخل · أدنى فراغ ${Math.round(minGap)} · السؤال ${lines} أسطر`;
+    out.className = problems.length ? 'bad' : '';
+    window.__check = { ok: !problems.length, problems, minGap, lines, items: items.map(i => ({ name: i.name, ...i.r })) };
+    return window.__check;
+  }
+
+  const fit = () => {
+    const tools = document.fullscreenElement || document.body.classList.contains('clean') ? 0 : 64;
+    document.documentElement.style.setProperty('--scale', Math.min(innerWidth / 1920, (innerHeight - tools) / 1080));
+    if (document.body.classList.contains('checking')) requestAnimationFrame(check);
+  };
+  addEventListener('resize', fit);
+  document.addEventListener('fullscreenchange', fit);
+
+  let turn = 1;
+  const setTurn = t => {
+    turn = t;
+    document.querySelector('.team.t1').classList.toggle('on', t === 1);
+    document.querySelector('.team.t2').classList.toggle('on', t === 2);
+    $('turn').textContent = `الدور: ${t === 1 ? 'الأول' : 'الثاني'}`;
+  };
+  $('turn').onclick = () => { setTurn(turn === 1 ? 2 : 1); place(); };
+  $('danger').onclick = e => { const on = document.body.classList.toggle('meta-danger'); e.target.setAttribute('aria-pressed', on); $('timer').textContent = on ? '0:03' : '0:15'; };
+  $('check').onclick = e => { const on = document.body.classList.toggle('checking'); e.target.setAttribute('aria-pressed', on); if (on) check(); else $('report').textContent = ''; };
+  $('fs').onclick = () => document.documentElement.requestFullscreen?.();
+  document.querySelectorAll('[data-set]').forEach(b => b.onclick = () => render(b.dataset.set));
+
+  const params = new URLSearchParams(location.search);
+  if (params.has('clean')) document.body.classList.add('clean');
+  setTurn(params.get('turn') === '2' ? 2 : 1);
+  document.fonts.ready.then(() => {
+    render(SETS[params.get('set')] ? params.get('set') : 'sample');
+    if (params.has('check')) $('check').click();
+    fit();
+  });
+  // خط الأرقام اللاتينية يُحمَّل عند أول رقم يُعرض، فيُعاد القياس بعده.
+  document.fonts.addEventListener('loadingdone', place);
+  fit();
+</script>
+</body>
+</html>

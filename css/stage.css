@@ -1,0 +1,94 @@
+/* هيكل شاشة الجمهور، منقول من design/main.html بمواضعه وطبقاته (design/system.md، القسمان 4 و6).
+   ترتيب الطبقات من الأسفل: الخلفية والجسيمات ← الأرقام العملاقة ← اللوحات والشرائط ← الشارات والعدّاد ← البطاقة ← حواف الخطر. */
+.canvas { background: linear-gradient(135deg, var(--stage-1) 0%, var(--stage-2) 55%, var(--stage-3) 100%); }
+.canvas > *, .team > *, .card-wrap > *, .particles > *, .check-layer > * { position: absolute; }
+
+/* 1. الخلفية: مساحات قطرية بميل الإطار، وجسيمات تصعد ببطء */
+.plane { width: 2600px; transform: rotate(calc(-1 * var(--tilt))); transform-origin: center; }
+.plane.a { height: 520px; left: -340px; top: -330px; background: linear-gradient(90deg, rgba(255,255,255,.07), rgba(255,255,255,0)); }
+.plane.b { height: 300px; left: -340px; top: 470px; background: linear-gradient(270deg, rgba(14,44,134,.55), rgba(14,44,134,0)); }
+.plane.c { height: 420px; left: -340px; top: 860px; background: linear-gradient(90deg, rgba(14,44,134,.6), rgba(14,44,134,.15)); }
+.particles span {
+  width: 10px; height: 10px; background: rgba(255,255,255,.22);
+  transform: skewX(calc(-1 * var(--lean)));
+  animation: rise linear infinite;
+}
+@keyframes rise { from { translate: 0 0; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } to { translate: 0 -420px; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .particles span { animation: none; } }
+
+/* 2. الرقم العملاق */
+.giant {
+  height: 228px; line-height: 228px; font-size: var(--fs-giant); font-weight: 900;
+  direction: ltr; white-space: nowrap; transform: skewX(calc(-1 * var(--lean)));
+}
+.giant.t1 { top: 60px; right: 808px; color: var(--team-1); opacity: .32; }
+.giant.t2 { top: 805px; left: 808px; color: var(--team-2); opacity: .16; }
+
+/* 3. لوحة الفريق: الشكل مائل، والمحتوى مستقيم فوقه */
+.team { width: 600px; height: 136px; }
+.team.t1 { top: 64px; right: 126px; }
+.team.t2 { top: 808px; left: 126px; }
+.team .shape { inset: 0; transform: skewX(calc(-1 * var(--lean))); }
+.team.t1 .shape { background: var(--team-1); }
+.team.t2 .shape { background: var(--team-2); }
+.team .turn { inset: -10px; border: 6px solid var(--hl); transform: skewX(calc(-1 * var(--lean))); visibility: hidden; }
+.team.on .turn { visibility: visible; }
+.team .row { inset: 0; padding: 0 48px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.team .name { font-size: var(--fs-name); font-weight: 700; line-height: 1; white-space: nowrap; }
+.team .score { font-size: var(--fs-score); font-weight: 900; line-height: 1; direction: ltr; }
+.team.t1 .row { color: var(--on-stage); }
+.team.t2 .row { color: var(--team-2-ink); }
+
+/* 4. شريط الفارق */
+.strip {
+  height: 48px; padding: 0 32px; display: flex; align-items: center; white-space: nowrap;
+  font-size: var(--fs-badge); font-weight: 700; line-height: 1; color: var(--on-stage);
+}
+.strip > i { background: var(--stage-3); transform: skewX(calc(-1 * var(--lean))); }
+.strip.t1 { top: 234px; right: 132px; }
+.strip.t2 { top: 978px; left: 132px; }
+.strip > i, .badge > i, .timer > i { position: absolute; inset: 0; }
+.strip > span, .badge > span, .timer > span { position: relative; }
+
+/* 5. صف الشارات والعدّاد */
+.badge {
+  height: 64px; padding: 0 40px; display: flex; align-items: center; white-space: nowrap;
+  font-size: var(--fs-badge); font-weight: 800; line-height: 1; top: 314px;
+}
+.badge > i { transform: skewX(calc(-1 * var(--lean))); }
+.badge.mode { right: 108px; color: var(--ink); }
+.badge.mode > i { background: var(--hl); }
+.badge.level { color: var(--ink); }
+.badge.level > i { background: var(--card); }
+.timer {
+  top: 306px; left: 108px; height: 80px; min-width: 216px; padding: 0 40px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs-timer); font-weight: 900; line-height: 1; color: var(--hl); direction: ltr;
+}
+.timer > i { background: var(--stage-3); transform: skewX(calc(-1 * var(--lean))); }
+
+/* 6. البطاقة المستقيمة وصفيحتها المائلة */
+.card-wrap { left: 160px; top: 410px; width: 1600px; height: 352px; }
+.card-wrap .plate { inset: 12px -12px -12px -12px; background: var(--stage-3); transform: skewX(calc(-1 * var(--tilt))); }
+.card {
+  inset: 0; background: var(--card); color: var(--ink);
+  display: flex; align-items: center; gap: 48px; padding: 0 var(--pad-card);
+}
+.letter {
+  flex: none; min-width: 220px; height: 220px; padding: 0 24px; background: var(--ink); color: var(--hl);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs-letter); font-weight: 800; line-height: 1;
+}
+.letter:empty { display: none; }
+.question { margin: 0; font-size: var(--fs-question); font-weight: 700; line-height: var(--lh-question); max-height: 270px; overflow: hidden; }
+
+/* 7. لحظة انفعالية: آخر 3 ثوانٍ، حواف حمراء نابضة فوق كل شيء */
+.danger { inset: 0; pointer-events: none; box-shadow: inset 0 0 0 0 rgba(230,57,70,0); }
+.meta-danger .danger { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { box-shadow: inset 0 0 0 12px rgba(230,57,70,.9), inset 0 0 120px 24px rgba(230,57,70,.45); } 50% { box-shadow: inset 0 0 0 4px rgba(230,57,70,.4), inset 0 0 60px 0 rgba(230,57,70,.15); } }
+
+/* طبقة الفحص (?check في الرابط): الهامش الآمن، وحدود كل عنصر */
+.check-layer { inset: 0; pointer-events: none; z-index: 10; }
+.check-layer .safe { left: 96px; top: 54px; width: 1728px; height: 972px; outline: 2px dashed rgba(255,255,255,.7); }
+.check-layer .box { outline: 2px solid #3ddc84; }
+.check-layer .box.bad { outline: 4px solid #ff2d55; background: rgba(255,45,85,.15); }

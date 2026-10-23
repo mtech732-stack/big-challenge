@@ -5,22 +5,47 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>التحدي الكبير · نافذة الجمهور</title>
 <link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/stage.css">
 <style>
-  .canvas { display: grid; place-items: center; text-align: center; }
-  #label { font-size: 48px; margin: 0 0 24px; }
-  #timer { font-size: 320px; font-weight: 800; line-height: 1; color: var(--hl); }
-  #fs { position: fixed; bottom: 24px; left: 24px; font-size: 32px; }
+  /* اللعبة مغلقة أو بانتظار المقدّم: لا يبقى على الشاشة إلا الخلفية والبطاقة. */
+  .locked .team, .locked .strip, .locked .badge, .locked .timer, .locked .giant { display: none; }
+  /* أعلى اليسار، حيث لا شيء من الهيكل، ويختفي في ملء الشاشة. */
+  #fs { position: fixed; top: 24px; left: 24px; font-size: 32px; }
   :fullscreen #fs { display: none; }
 </style>
 </head>
 <body>
 <div class="screen">
-  <div class="canvas">
-    <div>
-      <p id="label">نافذة الجمهور · بانتظار المقدّم</p>
-      <div id="timer" class="ltr">0:10</div>
+  <div class="canvas locked" id="canvas">
+    <div class="plane a"></div><div class="plane b"></div><div class="plane c"></div>
+    <div class="particles" id="particles"></div>
+
+    <div class="giant t1" data-bg><span id="g1">0</span></div>
+    <div class="giant t2" data-bg><span id="g2">0</span></div>
+
+    <section class="team t1" data-hud="لوحة الفريق الأول">
+      <div class="shape"></div><div class="turn"></div>
+      <div class="row"><span class="name" id="n1">الفريق الأول</span><span class="score" id="s1">0</span></div>
+    </section>
+    <div class="strip t1" data-hud="شريط الفارق الأول"><i></i><span id="d1">تعادل</span></div>
+
+    <div class="badge mode" data-hud="شارة النمط"><i></i><span id="mode">اختبار العرض</span></div>
+    <div class="timer" data-hud="العدّاد"><i></i><span id="timer">0:10</span></div>
+
+    <div class="card-wrap" data-hud="البطاقة">
+      <div class="plate"></div>
+      <div class="card"><div class="letter" id="letter"></div><p class="question" id="label">نافذة الجمهور · بانتظار المقدّم</p></div>
     </div>
+
+    <section class="team t2" data-hud="لوحة الفريق الثاني">
+      <div class="shape"></div><div class="turn"></div>
+      <div class="row"><span class="name" id="n2">الفريق الثاني</span><span class="score" id="s2">0</span></div>
+    </section>
+    <div class="strip t2" data-hud="شريط الفارق الثاني"><i></i><span id="d2">تعادل</span></div>
+
+    <div class="danger"></div>
   </div>
 </div>
 <button id="fs">ملء الشاشة</button>
@@ -29,10 +54,28 @@
   import { createLink } from './js/sync.js';
 
   const $ = id => document.getElementById(id);
+  const canvas = $('canvas');
   const fit = () => document.documentElement.style.setProperty(
     '--scale', Math.min(innerWidth / 1920, innerHeight / 1080));
   addEventListener('resize', fit);
   fit();
+
+  // الجسيمات: مواضع ثابتة البذرة كما في design/main.html.
+  (function particles() {
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 22; i++) {
+      const s = document.createElement('span');
+      s.style.left = Math.round(rnd() * 1900) + 'px';
+      s.style.top = Math.round(500 + rnd() * 600) + 'px';
+      s.style.animationDuration = (14 + rnd() * 10).toFixed(1) + 's';
+      s.style.animationDelay = (-rnd() * 20).toFixed(1) + 's';
+      const k = 6 + Math.round(rnd() * 8); s.style.width = s.style.height = k + 'px';
+      $('particles').appendChild(s);
+    }
+  })();
+
+  const setLocked = on => canvas.classList.toggle('locked', on);
+  const setDanger = on => canvas.classList.toggle('meta-danger', on);
 
   // نافذة الجمهور هي التي تعدّ الثواني بنفسها، بموعد انتهاء ثابت لا بتراكم الفترات.
   let endAt = 0, timer = 0, lastText = '';
@@ -42,15 +85,19 @@
     $('timer').textContent = text;
     if (text !== lastText) { lastText = text; link.send('tick', { text }); }
   };
+  const stop = () => { clearInterval(timer); timer = 0; setDanger(false); };
   const run = () => {
     const left = Math.max(0, Math.ceil((endAt - performance.now()) / 1000));
     show(left);
-    if (left === 0) { clearInterval(timer); $('label').textContent = 'انتهى الوقت'; }
+    setDanger(left > 0 && left <= 3);
+    if (left === 0) { stop(); $('label').textContent = 'انتهى الوقت'; }
   };
+  const ready = () => { stop(); setLocked(false); $('label').textContent = 'نافذة الجمهور · متصلة'; show(10); };
 
   const link = createLink('audience', (type, data) => {
     if (type === 'start') {
-      clearInterval(timer);
+      stop();
+      setLocked(false);
       endAt = performance.now() + data.seconds * 1000;
       $('label').textContent = 'العدّاد يعمل';
       run();
@@ -58,28 +105,31 @@
     }
     // أُغلقت اللعبة لتغيّر الرقم السري: لا يبقى على شاشة الجمهور شيء من اللعب.
     if (type === 'lock') {
-      clearInterval(timer);
-      timer = 0;
-      $('timer').hidden = true;
+      stop();
+      setLocked(true);
       $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم';
     }
-    if (type === 'unlock') {
-      $('timer').hidden = false;
-      $('label').textContent = 'نافذة الجمهور · متصلة';
-      show(10);
-    }
-    if (type === 'reset') {
-      clearInterval(timer);
-      $('label').textContent = 'نافذة الجمهور · متصلة';
-      show(10);
-    }
+    if (type === 'unlock' || type === 'reset') ready();
   });
   link.onStatus(on => {
-    if (!timer) $('label').textContent = on ? 'نافذة الجمهور · متصلة' : 'نافذة الجمهور · بانتظار المقدّم';
+    if (!timer && on) ready();
+    if (!timer && !on) { setLocked(true); $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم'; }
     if (on) link.send('tick', { text: $('timer').textContent });
   });
 
   $('fs').onclick = () => document.documentElement.requestFullscreen?.();
+
+  // ?check في الرابط: فحص التداخل كما في design/main.html. ويعرض الهيكل كاملاً دون انتظار المقدّم.
+  if (new URLSearchParams(location.search).has('check')) {
+    const { checkLayout } = await import('./js/layout-check.js');
+    const layer = document.createElement('div');
+    layer.className = 'check-layer';
+    layer.innerHTML = '<div class="safe"></div>';
+    canvas.appendChild(layer);
+    setLocked(false);
+    await document.fonts.ready;
+    window.__check = checkLayout(canvas, layer);
+  }
 </script>
 </body>
 </html>

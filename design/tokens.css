@@ -1,0 +1,53 @@
+/* التحدي الكبير · رموز نظام التصميم 1.0
+   المرجع: design/system.md. كل القياسات بالبكسل على أساس لوحة 1920×1080،
+   واللوحة كلها تُكبَّر أو تُصغَّر لتملأ الشاشة، فلا تُحوَّل القياسات إلى نسب. */
+
+@font-face {
+  font-family: "Kufi";
+  src: url("fonts/NotoKufiArabic-arabic.woff2") format("woff2");
+  font-weight: 100 900; font-style: normal; font-display: block;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC;
+}
+@font-face {
+  font-family: "Kufi";
+  src: url("fonts/NotoKufiArabic-latin.woff2") format("woff2");
+  font-weight: 100 900; font-style: normal; font-display: block;
+  unicode-range: U+0000-00FF, U+2000-206F, U+2212;
+}
+
+:root {
+  /* الألوان بأدوارها */
+  --stage-1: #1A4BD1;      /* المسرح: المساحة الفاتحة */
+  --stage-2: #1238A8;      /* المسرح: المساحة الوسطى */
+  --stage-3: #0E2C86;      /* المسرح: الداكن، والظل الصلب، وخلفية العدّاد والشريط */
+  --team-1: #E63946;       /* الفريق الأول */
+  --team-2: #FFFFFF;       /* الفريق الثاني: اللوحة */
+  --team-2-ink: #0E2C86;   /* الفريق الثاني: نصه، وخاناته على البطاقة البيضاء */
+  --hl: #FFC300;           /* الإبراز وحده: الحرف، العدّاد، شارة النمط، مؤشر الدور */
+  --card: #FFFFFF;         /* البطاقة */
+  --ink: #0E2C86;          /* نص البطاقة */
+  --on-stage: #FFFFFF;     /* النص على المسرح وعلى لوحة الفريق الأول */
+
+  /* الخط وسلّم الأحجام (لا شيء أصغر من 32) */
+  --font: "Kufi", "Noto Kufi Arabic", "Segoe UI", Tahoma, sans-serif;
+  --fs-badge: 32px;        /* الشارات، والشريط، وأصغر نص */
+  --fs-name: 40px;         /* اسم الفريق */
+  --fs-question: 64px;     /* السؤال: الحد الأدنى */
+  --fs-timer: 64px;        /* العدّاد */
+  --fs-score: 76px;        /* رقم الفريق في لوحته */
+  --fs-letter: 150px;      /* الحرف في مربعه */
+  --fs-giant: 300px;       /* الرقم العملاق */
+  --lh-question: 1.4;
+
+  /* الزوايا */
+  --tilt: 6deg;            /* ميل الإطار: الخلفية، وصفيحة البطاقة */
+  --lean: 14deg;           /* انحراف اللوحات والشارات والشرائط والأرقام العملاقة */
+
+  /* الشبكة والفراغات */
+  --safe-x: 96px;
+  --safe-y: 54px;
+  --gap: 24px;             /* فراغ الأمان: أدنى مسافة بين أي عنصرين */
+  --pad-card: 48px;
+}
+
+* { box-sizing: border-box; font-style: normal; }

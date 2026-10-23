@@ -22,6 +22,7 @@ const { TEST_PIN, testPinRecord, unlock, reporter } = require('./helpers.cjs');
     fetches++;
     if (served.kind === 'offline') return route.abort('internetdisconnected');
     if (served.kind === 'error') return route.fulfill({ status: 503, body: 'down' });
+    if (served.kind === 'bad') return route.fulfill({ body: '{"salt": "ab', contentType: 'application/json' });
     return route.fulfill({ json: served.record });
   });
   await context.clock.install();
@@ -57,6 +58,10 @@ const { TEST_PIN, testPinRecord, unlock, reporter } = require('./helpers.cjs');
   served = { kind: 'error' };
   await forward('03:10');
   check('تعذّر جلب الملف (خطأ من الخادم): تبقى مفتوحة', await isOpen());
+
+  served = { kind: 'bad' };
+  await forward('03:10');
+  check('ملف الرقم تالف: لا تأكّد من التغيّر، فتبقى مفتوحة', await isOpen());
 
   // تغيّر الرقم فعلاً: تُغلق فوراً في النافذتين.
   served = { kind: 'record', record: testPinRecord('975310') };

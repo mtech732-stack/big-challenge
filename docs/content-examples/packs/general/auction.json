@@ -1,0 +1,32 @@
+{
+  "mode": "auction",
+  "topics": [
+    {
+      "id": "general-auction-001",
+      "level": "easy",
+      "topic": "فصول السنة",
+      "items": [
+        { "name": "الربيع" },
+        { "name": "الصيف", "alts": ["القيظ"] },
+        { "name": "الخريف" },
+        { "name": "الشتاء" }
+      ],
+      "domain": "science"
+    },
+    {
+      "id": "general-auction-002",
+      "level": "medium",
+      "topic": "أيام الأسبوع",
+      "items": [
+        { "name": "السبت" },
+        { "name": "الأحد" },
+        { "name": "الاثنين", "alts": ["الإثنين"] },
+        { "name": "الثلاثاء" },
+        { "name": "الأربعاء" },
+        { "name": "الخميس" },
+        { "name": "الجمعة" }
+      ],
+      "domain": "daily-life"
+    }
+  ]
+}
