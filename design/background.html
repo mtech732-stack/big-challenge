@@ -49,6 +49,8 @@
 
     <section class="team t1" id="p1">
       <div class="shape"></div><div class="turn"></div>
+      <svg class="ring" viewBox="0 0 520 156" preserveAspectRatio="none"><polygon id="r1" pathLength="100" points="19.4,0 539.4,0 500.6,156 -19.4,156"/></svg>
+      <div class="cnt" id="k1"><i></i><span id="kn1">10</span><svg class="ring" viewBox="0 0 110 108" preserveAspectRatio="none"><polygon id="rk1" pathLength="100" points="13.5,0 123.5,0 96.5,108 -13.5,108"/></svg></div>
       <div class="row"><span class="name">النسور</span><span class="secs" id="c1"></span><span class="tbar"><i id="f1"></i></span><span class="score" id="s1">4</span></div>
     </section>
 
@@ -65,13 +67,15 @@
 
     <section class="team t2" id="p2">
       <div class="shape"></div><div class="turn"></div>
+      <svg class="ring" viewBox="0 0 520 156" preserveAspectRatio="none"><polygon id="r2" pathLength="100" points="19.4,0 539.4,0 500.6,156 -19.4,156"/></svg>
+      <div class="cnt" id="k2"><i></i><span id="kn2">10</span><svg class="ring" viewBox="0 0 110 108" preserveAspectRatio="none"><polygon id="rk2" pathLength="100" points="13.5,0 123.5,0 96.5,108 -13.5,108"/></svg></div>
       <div class="row"><span class="name">الصقور</span><span class="secs" id="c2"></span><span class="tbar"><i id="f2"></i></span><span class="score" id="s2">2</span></div>
     </section>
 
     <!-- د2: مربع الإجابة والحكم أسفل اليمين (الأعمدة 7–12) بعد الحكم -->
     <div class="ansbox" id="ansbox" hidden><i></i>
       <p class="vchip" id="vchip"><i></i><span id="vtext2"></span></p>
-      <p class="aline">الإجابة: <b>القصيم</b></p>
+      <p class="aline"><span class="lbl">الإجابة: </span><b>القصيم</b></p>
     </div>
 
     <div class="shine" id="shine"></div>
@@ -89,6 +93,8 @@
     <button data-m="split ambient moments">د</button>
     <button data-m="wedge-on ambient moments">هـ</button>
     <button data-m="split v2 ambient moments">د2</button>
+    <button data-m="split v2 v4 ambient moments">د4</button>
+    <button data-m="split v2 v4 ringcnt ambient moments">د4ب</button>
     <span class="sep"></span>
     <button data-a="auto" id="autoBtn">إيقاف</button>
     <button data-a="manual" id="manualBtn">تحكم يدوي</button>
@@ -102,7 +108,7 @@
     <button data-a="wrong">خطأ</button>
     <button data-a="steal">انتقال</button>
   </div>
-  <p class="key">أ: الطبقات الثلاث · ب: الأضواء والحالة · ج: اللحظات فقط · د: طرفان بلونَي الفريقين · هـ: شريحتان من الزاويتين · د2: د بتعديلات المالك · وفي ملء الشاشة: المفاتيح 0 إلى 6</p>
+  <p class="key">أ: الطبقات الثلاث · ب: الأضواء والحالة · ج: اللحظات فقط · د: طرفان بلونَي الفريقين · هـ: شريحتان من الزاويتين · د2 ود4: د بتعديلات المالك · د4ب: الشريط على حواف العدّاد · وفي ملء الشاشة: المفاتيح 0 إلى 8</p>
 </div>
 
 <script>
@@ -149,7 +155,10 @@
 
   // ===== العدّاد: 10 ثوانٍ، وآخر 3 بحواف الخطر =====
   let tick = null, left = 0, turn = 0;
-  const stopTimer = () => { clearInterval(tick); tick = null; canvas.classList.remove('running', 'meta-danger'); };
+  const stopTimer = () => {
+    clearInterval(tick); tick = null; canvas.classList.remove('running', 'meta-danger');
+    for (const id of ['r1', 'r2', 'rk1', 'rk2']) { const r = document.getElementById(id); if (!r) continue; const v = getComputedStyle(r).strokeDashoffset; r.style.transition = 'none'; r.style.strokeDashoffset = v; }
+  };
   let total = 10;
   const show = () => {
     $('timer').textContent = '0:' + String(left).padStart(2, '0');
@@ -157,15 +166,25 @@
     for (const t of [1, 2]) {
       $('f' + t).style.transform = `skewX(calc(-1 * var(--lean))) scaleX(${turn === t && tick ? left / total : turn === t ? 1 : 0})`;
       $('c' + t).textContent = turn === t ? left : '';
+      $('kn' + t).textContent = turn === t ? left : '';
+    }
+  };
+  // د4: إطار الدور يتآكل مع الوقت (على اللوحة، أو على مربع العدّاد في د4ب)
+  const drain = (t, secs) => {
+    for (const id of ['r1', 'r2', 'rk1', 'rk2']) { const r = $(id); r.style.transition = 'none'; r.style.strokeDashoffset = 0; }
+    if (!t) return;
+    for (const id of ['r' + t, 'rk' + t]) {
+      const r = $(id); void r.getBoundingClientRect();
+      requestAnimationFrame(() => requestAnimationFrame(() => { r.style.transition = `stroke-dashoffset ${secs}s linear`; r.style.strokeDashoffset = 100; }));
     }
   };
   const hideAnswer = () => { $('ansbox').hidden = true; canvas.classList.remove('answered'); };
 
   const act = {
-    read() { stopTimer(); setTurn(0); turn = 0; speed(1); hideAnswer(); $('verdict').hidden = true; $('timerBox').hidden = false; left = 10; show(); },
+    read() { stopTimer(); drain(0); setTurn(0); turn = 0; speed(1); hideAnswer(); $('verdict').hidden = true; $('timerBox').hidden = false; left = 10; show(); },
     run(t, secs = 10) {
       stopTimer(); turn = t; setTurn(t); $('verdict').hidden = true; $('timerBox').hidden = false;
-      hideAnswer(); left = total = secs; canvas.classList.add('running'); speed(2.2);
+      hideAnswer(); left = total = secs; canvas.classList.add('running'); speed(2.2); drain(t, secs);
       tick = setInterval(() => {
         left--; show();
         if (left <= 3 && left > 0) { canvas.classList.add('meta-danger'); speed(3.5); }
@@ -221,14 +240,14 @@
   // النماذج: الحالية (دون إضافة) · أ الطبقات الثلاث · ب الأضواء والحالة · ج اللحظات فقط
   const models = document.querySelectorAll('.tools [data-m]');
   const pick = b => {
-    canvas.classList.remove('ambient', 'moments', 'split', 'wedge-on', 'v2');
+    canvas.classList.remove('ambient', 'moments', 'split', 'wedge-on', 'v2', 'v4', 'ringcnt');
     b.dataset.m.split(' ').filter(Boolean).forEach(c => canvas.classList.add(c));
     models.forEach(x => x.classList.toggle('on', x === b));
   };
   models.forEach(b => b.addEventListener('click', () => pick(b)));
   // في ملء الشاشة تختفي الأزرار: المفاتيح 0 و1 و2 و3 تبدّل النموذج
-  addEventListener('keydown', e => { const i = '0123456'.indexOf(e.key); if (i >= 0) pick(models[i]); });
-  const first = { a: 1, b: 2, c: 3, d: 4, e: 5, d2: 6, now: 0 }[location.hash.slice(1)];
+  addEventListener('keydown', e => { const i = '012345678'.indexOf(e.key); if (i >= 0) pick(models[i]); });
+  const first = { a: 1, b: 2, c: 3, d: 4, e: 5, d2: 6, d4: 7, d4b: 8, now: 0 }[location.hash.slice(1)];
   if (first !== undefined) pick(models[first]);
   // تبدأ الصفحة بالتشغيل التلقائي، فيُرى النموذج دون نقر
   fit(); act.read(); if (!still) step(0); else $('autoBtn').textContent = 'تشغيل';

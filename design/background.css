@@ -156,6 +156,50 @@
 .logo .l2 > i { position: absolute; inset: 0; background: var(--card); transform: skewX(calc(-1 * var(--lean))); box-shadow: 10px 10px 0 var(--stage-3); }
 .logo .l2 > b { position: relative; font-size: 104px; font-weight: 900; line-height: 1; color: var(--ink); }
 
+/* ===== 7. النموذج د4: ملاحظات المالك على د2 (2026-10-23 16:55) =====
+   1. النتيجة هي الرقم المائي الكبير وحده، في مكانه، ولا تتكرر في اللوحة ولا تختفي أبداً. ورُفعت شفافيته إلى 40% ليُقرأ من آخر القاعة.
+   2. اللوحة أقصر بالاسم وحده: 500 (امتدادها 4 أعمدة: الأول 9–12، والثاني 1–4). اسم 18 حرفاً (385) يتسع بحشوة 48.
+   3. التوقيت: مربع عدّاد بجانب لوحة صاحب الدور، على عمود واحد بين اللوحة والرقم المائي (الأول العمود 8، والثاني العمود 5)،
+      ارتفاعه 96 في منتصف ارتفاع اللوحة، والثواني صفراء 64 على الأزرق الداكن. وإطار الدور الأصفر يتآكل مع الوقت حول اللوحة
+      (د4ب: حول مربع العدّاد بدل اللوحة). آخر 3 ثوانٍ بحواف الخطر كما هي.
+   4. مربع الإجابة: الأعمدة 9–12، بارتفاع لوحة الثاني (136) وحافتها السفلى (944)، فلا يبلغ الرقم المائي للثاني (يبدأ 826، وبخانتين ينتهي قبل 1190).
+      وإن بلغ الرقم ثلاث خانات صغُر ليتسع في الأعمدة 6–8 (يطبّقه المهندس بالقياس). */
+.v4 .team { width: 500px; }
+.v4 .team .score, .v4 .team .tbar, .v4 .team .secs { display: none !important; }
+.v4 .team .row { justify-content: flex-start; }
+.v4 .giant.t1, .v4.split .giant.t1 { color: #FFFFFF; opacity: .4; }
+.v4 .giant.t2 { color: #FFFFFF; opacity: .4; }
+.v4.answered .giant.t2 { opacity: .4; }
+
+/* مربع العدّاد */
+.cnt { display: none; top: 20px; width: 98px; height: 96px; align-items: center; justify-content: center;
+  font-size: 64px; font-weight: 900; line-height: 1; color: var(--hl); direction: ltr; }
+.cnt > i { position: absolute; inset: 0; background: var(--stage-3); transform: skewX(calc(-1 * var(--lean))); }
+.cnt > span { position: relative; }
+.team.t1 .cnt { left: -164px; }
+.team.t2 .cnt { left: 566px; }
+.v4.running .team.on .cnt { display: flex; }
+.v4.meta-danger .team.on .cnt > i { animation: cntpulse 1s ease-in-out infinite; }
+@keyframes cntpulse { 50% { background: var(--team-1); } }
+
+/* الإطار المتآكل: مضلع بميل 14° حول اللوحة (أو حول المربع)، يُرسم بخط أصفر 6 ويُمحى من طرفه مع الوقت */
+.ring { display: none; position: absolute; overflow: visible; pointer-events: none; }
+.ring polygon { fill: none; stroke: var(--hl); stroke-width: 6; stroke-dasharray: 100 100; stroke-dashoffset: 0; vector-effect: non-scaling-stroke; }
+.team > .ring { inset: -10px; width: calc(100% + 20px); height: calc(100% + 20px); }
+.cnt > .ring { inset: -6px; width: calc(100% + 12px); height: calc(100% + 12px); }
+.v4 .team.on > .ring { display: block; }
+.v4 .team.on .turn { visibility: hidden; }
+.v4.ringcnt .team.on > .ring { display: none; }
+.v4.ringcnt .team.on .turn { visibility: visible; }
+.v4.ringcnt.running .team.on .turn { visibility: visible; }
+.v4.ringcnt .cnt > .ring { display: block; }
+
+/* مربع الإجابة بارتفاع اللوحة */
+.v4 .ansbox { left: 1281px; top: 808px; width: 513px; height: 136px; padding: 0 48px; gap: 8px; }
+.v4 .ansbox .vchip { height: 44px; padding: 0 20px; font-size: 32px; }
+.v4 .ansbox .aline { font-size: 48px; line-height: 1.1; }
+.v4 .ansbox .aline .lbl { display: none; }
+
 @media (prefers-reduced-motion: reduce) {
   .beam, .plane.a, .glow, .flash, .dim, .backdrop { animation: none !important; }
   .beam { display: none; }
