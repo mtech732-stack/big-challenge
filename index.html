@@ -348,7 +348,7 @@
   import { createLink } from './js/sync.js';
   import { fetchPinRecord, checkPin, watchPin } from './js/pin.js';
   import { loadPacks } from './js/content.js';
-  import { matchModes, MODES } from './js/modes/index.js';
+  import { matchModes, pickableModes, MODES } from './js/modes/index.js';
   import * as M from './js/match.js';
   import * as P from './js/play.js';
 
@@ -387,7 +387,7 @@
   async function unlock(pin) {
     $('pin').value = '';
     if (!packs.length) packs = await loadPacks();
-    if (!match) match = restore();
+    if (!match) match = fitMethod(restore());
     $('gate').hidden = true;
     $('app').hidden = false;
     if (!link) startPresenter();
@@ -421,8 +421,14 @@
   const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(match)); } catch {} };
 
   const pack = () => packs.find(p => p.id === match.pack);
-  const modes = () => (pack() ? matchModes({ pack: pack(), files: pack().files }) : []);
-  const modeName = id => modes().find(m => m.id === id)?.name ?? id;
+  // الأنماط التي يختار منها الفريقان: المبنية وحدها، ولها ملف أسئلة في الحزمة، وما لم تستثنه (ملاحظة تدقيق ش1، البند 6).
+  // و«?preview» في الرابط يضيف إليها معاينة ما لم يُبنَ بعد، للتجربة أثناء البناء وحدها، لا في مباراة تُلعب.
+  const PREVIEW = query.has('preview');
+  const modesOf = p => (!p ? [] : PREVIEW ? matchModes({ pack: p, files: p.files }) : pickableModes({ pack: p, files: p.files }));
+  const modes = () => modesOf(pack());
+  const modeName = id => (pack() ? matchModes({ pack: pack(), files: pack().files }) : []).find(m => m.id === id)?.name ?? id;
+  // طريقة جولاتها أكثر من أنماط الحزمة لا تُختار: تصير «قصيرة» في الإعداد، فلا تعلق المباراة في اختيار الأنماط.
+  const fitMethod = m => (m?.step === 'setup' && M.METHODS[m.method].rounds > modesOf(packs.find(p => p.id === m.pack)).length ? { ...m, method: 'short' } : m);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const num = s => esc(s).replace(/(\+?\d+)/g, '<span class="ltr">$1</span>');
   const tn = t => `<b class="tn t${t}">${esc(match.teams[t])}</b>`;
@@ -447,6 +453,7 @@
     };
   }
   function update(next, anim) {
+    next = fitMethod(next);
     if (next === match && !anim) return;
     match = next;
     save();
@@ -504,7 +511,7 @@
 
   // ===== الخطوات =====
   async function goDraw() {
-    const errors = M.setupErrors(match);
+    const errors = M.setupErrors(match, modes());
     if (errors.length) return render(errors[0]);
     // التحقق من الرقم السري عند بدء كل مباراة جديدة (4.3): إن تأكد تغيّره أُغلقت اللعبة.
     $('toDraw').disabled = true;
@@ -565,6 +572,10 @@
       const need = M.METHODS[c.dataset.m].rounds;
       c.classList.toggle('sel', c.dataset.m === match.method);
       c.classList.toggle('off', available.length < need);
+      // سبب تعطيل «كاملة» ظاهر في خانتها، لا في رسالة بعد النقر.
+      if (c.dataset.m === 'full') c.querySelector('span').innerHTML = available.length < need
+        ? `تحتاج <span class="ltr">${need}</span> أنماط · المتاح <span class="ltr">${available.length}</span>`
+        : '<span class="ltr">4</span> جولات · عجلتان';
       c.querySelector('input').checked = c.dataset.m === match.method;
     });
     $('setupErr').hidden = !error;

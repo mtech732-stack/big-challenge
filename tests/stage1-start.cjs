@@ -23,7 +23,8 @@ const { usePin, unlock, reporter, testPinRecord } = require('./helpers.cjs');
   });
 
   const presenter = await context.newPage();
-  await presenter.goto(base);
+  // ?preview: معاينة الأنماط التي لم تُبنَ بعد، ليُختبر بدء المباراة بالطريقة الكاملة (4 أنماط) قبل بنائها كلها.
+  await presenter.goto(base + '?preview');
   await unlock(presenter);
   const text = (page, sel) => page.textContent(sel).then(t => t.replace(/\s+/g, ' ').trim());
   const visible = (page, sel) => page.isVisible(sel);

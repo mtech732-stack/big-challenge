@@ -212,10 +212,14 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   await wait(900);
   await presenter.click('#showQ');
   await audience.waitForSelector('.scr.show[data-s="q"]');
-  await wait(500);
   const lq = (await st()).questions[0];
-  check('الحرف المعيّن بعد آخر حرفين: حرف واحد بلا تطويل في مربع 220، والعدّاد 0:15', (await text(audience, '#letter')) === lq.box && !(await audience.$('#letter .tw'))
-    && (await box(audience)).w === 220 && (await text(audience, '#timer')) === '0:15' && (await text(presenter, '#qLetter')) === lq.box);
+  // ينتظر ظهور الحرف الجديد والعدّاد بوقته بدل انتظار ثابت (تقرير المعاين ش3، الملاحظة 1).
+  await audience.waitForFunction(b => document.getElementById('letter').textContent === b && document.getElementById('letter').offsetWidth === 220
+    && document.getElementById('timer').textContent === '0:15', lq.box, { timeout: 5000 }).catch(() => {});
+  await presenter.waitForFunction(b => document.getElementById('qLetter').textContent === b, lq.box, { timeout: 5000 }).catch(() => {});
+  const l2 = [await text(audience, '#letter'), !!(await audience.$('#letter .tw')), (await box(audience)).w, await text(audience, '#timer'), await text(presenter, '#qLetter')];
+  check(`الحرف المعيّن بعد آخر حرفين: حرف واحد بلا تطويل في مربع 220، والعدّاد 0:15${l2[0] === lq.box && !l2[1] && l2[2] === 220 && l2[3] === '0:15' && l2[4] === lq.box ? '' : ' ' + JSON.stringify([lq.box, ...l2])}`,
+    l2[0] === lq.box && !l2[1] && l2[2] === 220 && l2[3] === '0:15' && l2[4] === lq.box);
   await both('الحرف المعيّن بعد آخر حرفين');
 
   // 9. النافذة الواحدة بأزرار الجولة في جولة آخر حرفين، وأعرض الحرفين في الخط مع أطول وصف في التصميم (مباراة ثانية ببنك تجريبي)

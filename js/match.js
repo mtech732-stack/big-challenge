@@ -22,7 +22,8 @@ export function newMatch({ pack = null, method = 'full' } = {}) {
 }
 
 // أخطاء الإعداد بنصوص الواجهة (design/start.md، القسم 4.3). تعيد [{ field, text }].
-export function setupErrors(match) {
+// available: أنماط الحزمة التي تُختار ([{ id, name }])؛ إن أُعطيت رُفضت طريقة جولاتها أكثر منها.
+export function setupErrors(match, available) {
   const a = clean(match.teams[1]), b = clean(match.teams[2]);
   if (!a) return [{ field: 1, text: 'اكتب اسم الفريق الأول' }];
   if (!b) return [{ field: 2, text: 'اكتب اسم الفريق الثاني' }];
@@ -31,6 +32,12 @@ export function setupErrors(match) {
   if (a === b) return [{ field: 2, text: 'الاسمان متطابقان. غيّر أحدهما.' }];
   if (!match.pack) return [{ field: 'pack', text: 'اختر الحزمة' }];
   if (!METHODS[match.method]) return [{ field: 'method', text: 'اختر طريقة اللعب' }];
+  if (available && METHODS[match.method].rounds > available.length) {
+    const n = available.length;
+    return [{ field: 'method', text: match.method === 'full'
+      ? `الطريقة الكاملة تحتاج 4 أنماط، والمتاح في هذه الحزمة ${n}. اختر «قصيرة».`
+      : `المباراة تحتاج نمطين على الأقل، والمتاح في هذه الحزمة ${n}.` }];
+  }
   return [];
 }
 
