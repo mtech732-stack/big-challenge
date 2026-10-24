@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>التحدي الكبير · ش6 · عجلة البونص · شاشة الجمهور</title>
+<link rel="icon" href="data:,">
+<!-- الصفحة المرجعية لتصميم عجلة البونص (design/wheel.md) فوق CSS اللعبة المبنية بالإصدار 1.3، فما يُرى هنا هو ما سيُبنى.
+     الحالة من الرابط: ?s=ready&w=1&long=1 (s: الحالة · w=1 النافذة الواحدة · long=1 أطول اسمين ورقمان من ثلاث خانات وأطول تحدٍّ ·
+     check=1 فحص التداخل · anim=1 الحركة، ومنها الدوران كاملاً في ?s=spin&anim=1). وبلا ?s: قائمة الحالات. -->
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/base.css">
+<link rel="stylesheet" href="../css/stage.css">
+<link rel="stylesheet" href="../css/start.css">
+<link rel="stylesheet" href="../css/letter.css">
+<link rel="stylesheet" href="../css/shared.css">
+<link rel="stylesheet" href="../css/auction.css">
+<link rel="stylesheet" href="../css/ranking.css">
+<link rel="stylesheet" href="wheel.css">
+<style>
+  .menu { position: fixed; inset: 0; z-index: 20; overflow: auto; background: #050E2E; color: #fff; padding: 32px 48px; font-size: 20px; line-height: 1.6; }
+  .menu h1 { font-size: 32px; margin: 0 0 16px; }
+  .menu a { color: #FFC300; }
+  .menu table { border-collapse: collapse; }
+  .menu td { padding: 4px 16px 4px 0; vertical-align: top; }
+  .check-layer { inset: 0; pointer-events: none; z-index: 10; position: absolute; }
+  .check-out { position: fixed; z-index: 21; bottom: 0; left: 0; right: 0; background: #050E2E; color: #fff; font-size: 16px; padding: 8px 16px; white-space: pre-wrap; direction: rtl; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="canvas" id="canvas">
+    <div class="stagebg" id="stagebg"><div class="f f1"></div><div class="f f2"></div><div class="e" id="edge"></div>
+      <div class="beam"></div><div class="beam w"></div><div class="beam"></div><div class="beam w"></div></div>
+    <div class="particles" id="particles"></div>
+    <div class="logo" data-hud="الشعار" aria-label="التحدي الكبير"><span class="l1">التحدي</span><span class="l2"><i></i><b>الكبير</b></span></div>
+
+    <section class="team t1" id="p1" data-hud="لوحة الفريق الأول">
+      <div class="shape"></div><svg class="ring" preserveAspectRatio="none"><polygon pathLength="100"/></svg>
+      <div class="row" data-fit="لوحة الفريق الأول"><span class="name" id="n1"></span><span class="score" id="s1"></span><span class="cnt" id="c1"></span></div>
+    </section>
+
+    <div class="badge mode" data-hud="شارة النمط"><i></i><span>عجلة البونص</span></div>
+    <div class="badge plain" id="b1" data-hud="الشارة الأولى"><i></i><span></span></div>
+
+    <div class="card-wrap" id="cardWrap" data-hud="البطاقة">
+      <div class="plate"></div>
+      <div class="card">
+        <!-- العجلة: من يديرها، ثم الخانات العشر (design/wheel.md 2) -->
+        <div class="scr whl" data-s="whl" id="whl">
+          <p class="whead" id="whead" data-fit="سطر من يدير العجلة"></p>
+          <div class="band" id="band"></div>
+        </div>
+        <!-- بعد الوقوف: الخانة في مربعها، والتحدي أو خانة الحظ بمقاس السؤال (design/wheel.md 2.3) -->
+        <div class="scr q" data-s="q"><div class="letter slot" id="slot"></div><div class="qcol"><p class="question" id="label" data-fit="نص الخانة"></p></div></div>
+        <div class="scr end" data-s="end">
+          <div class="cols">
+            <div class="col"><p class="who t1" data-fit="اسم الفريق الأول"><i></i><span id="e1"></span></p><p class="pts tn t1" id="r1"></p></div>
+            <div class="col"><p class="who t2" data-fit="اسم الفريق الثاني"><i></i><span id="e2"></span></p><p class="pts tn t2" id="r2"></p></div>
+          </div>
+          <div class="crow"><div class="ctl" id="endCtl"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <section class="team t2" id="p2" data-hud="لوحة الفريق الثاني">
+      <div class="shape"></div><svg class="ring" preserveAspectRatio="none"><polygon pathLength="100"/></svg>
+      <div class="row" data-fit="لوحة الفريق الثاني"><span class="name" id="n2"></span><span class="score" id="s2"></span><span class="cnt" id="c2"></span></div>
+    </section>
+
+    <div class="box" id="box" data-hud="مربع الإعلان" hidden><i></i>
+      <p class="chip" id="verdict"><i></i><span id="vtext"></span></p>
+      <p class="line" id="line" data-fit="سطر الإعلان"></p>
+    </div>
+
+    <div class="ctl-near" id="near" data-hud="أزرار العجلة"></div>
+    <div class="ctl-corner a" id="cornerA" data-hud="أزرار الزاوية العليا"></div>
+    <div class="ctl-corner b" id="cornerB" data-hud="أزرار الزاوية السفلى"></div>
+    <div class="ctl-corner c" id="cornerC" data-hud="أزرار الصف الثالث"></div>
+    <div class="shine" id="shine"></div>
+    <div class="danger"></div>
+  </div>
+</div>
+<script src="check.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const q = new URLSearchParams(location.search);
+  const canvas = $('canvas');
+  const fit = () => document.documentElement.style.setProperty('--scale', Math.min(innerWidth / 1920, innerHeight / 1080));
+  addEventListener('resize', fit); fit();
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const num = s => esc(s).replace(/([+−-]?\d+(?:[:–]\d+)?)/g, '<span class="ltr">$1</span>');
+
+  // ===== المحتوى المثال، وأطول محتوى (design/wheel.md 3) =====
+  const LONG = q.has('long');
+  const NAMES = LONG ? { 1: 'فريق النخبة الذهبي', 2: 'نجوم المستقبل معاً' } : { 1: 'الصقور', 2: 'النجوم' };
+  // الرصيد قبل العجلة: الثاني أقل نقاطاً، فيديرها أولاً (الوثيقة 5.7)
+  const BASE = LONG ? { 1: 188, 2: 176 } : { 1: 14, 2: 9 };
+  // التحديات السبعة (content-format 5: challenges[].text). أمثلة للتصميم وحده، والكاتب يكتبها في المرحلة التالية
+  const CH = ['قلّدوا أصوات ثلاثة حيوانات، ويخمّن الخصم أسماءها', 'مثّلوا مهنة بلا كلام حتى يعرفها فريقكم', 'اذكروا عشر فواكه قبل أن ينتهي الوقت',
+    'رتّبوا أنفسكم بحسب الطول دون أن تتكلموا', 'ارسموا في الهواء شيئاً يخمّنه فريقكم', 'اذكروا خمسة أشياء زرقاء في القاعة', 'قولوا اسم كل لاعب في فريقكم بالعكس'];
+  // أطول تحدٍّ: 84 حرفاً (حد السؤال 85، الوثيقة 7.3 وdesign/system.md 7)
+  if (LONG) CH[2] = 'يمثّل أحدكم فيلماً كرتونياً مشهوراً بلا كلام، ويخمّن فريقه اسمه قبل انتهاء الوقت كله';
+  // خانات الحظ (content-format 5: luck[].effect و label). والنص القصير في الخانة من التأثير، والنص الكامل من label
+  const LUCK = { 'lose-3': { w: 'خصم', n: '−3', label: 'خصم 3 نقاط' }, 'steal-3': { w: 'اسرق', n: '3', label: 'اسرق 3 نقاط من خصمك' },
+    'gift-3': { w: 'هدية', n: '+3', label: 'هدية: +3 نقاط' } };
+  // الخانات العشر من اليمين: سبعة تحديات وثلاث خانات حظ، موزّعة كي لا تتجاور خانتا حظ (design/wheel.md 2.2)
+  const SLOTS = [['c', 0], ['l', 'lose-3'], ['c', 1], ['c', 2], ['l', 'gift-3'], ['c', 3], ['c', 4], ['l', 'steal-3'], ['c', 5], ['c', 6]];
+
+  // ===== الحالات (design/wheel.md 2) =====
+  // turn: صاحب الدور (الحدّ يكتسح له) · by: من يدير العجلة (لون المؤشر) · lit: الخانة المضاءة · run: ثوانٍ باقية من 120 ·
+  // scores: الرصيد بعد الحدث · verdict: مربع الإعلان
+  const S = BASE, A = { 1: S[1], 2: S[2] + 5 };   // بعد نجاح الثاني في تحديه
+  const STATES = {
+    ready:   { t: 'الدورة 1: قبل الدوران (يديرها الثاني، الأقل نقاطاً)', turn: 2, by: 2, badge: 'الدورة 1 من 2' },
+    spin:    { t: 'الدوران: المؤشر يمرّ على الخانات ويتباطأ (?anim=1 للدوران كاملاً)', turn: 2, by: 2, lit: 6, badge: 'الدورة 1 من 2', spin: true },
+    land:    { t: 'وقوف العجلة على تحدٍّ (لحظة انفعالية)', turn: 2, by: 2, lit: 3, stop: true, badge: 'الدورة 1 من 2' },
+    landluck:{ t: 'وقوف العجلة على خانة حظ', turn: 2, by: 2, lit: 1, stop: true, badge: 'الدورة 1 من 2' },
+    challenge:{ t: 'التحدي: قبل «ابدأ»', screen: 'q', turn: 2, by: 2, slot: 3, badge: 'الدورة 1 من 2' },
+    run:     { t: 'التحدي: الوقت يجري (دقيقتان)', screen: 'q', turn: 2, by: 2, slot: 3, run: 102, badge: 'الدورة 1 من 2' },
+    last:    { t: 'التحدي: آخر 3 ثوانٍ', screen: 'q', turn: 2, by: 2, slot: 3, run: 3, badge: 'الدورة 1 من 2' },
+    timeup:  { t: 'التحدي: انتهى الوقت، بانتظار حكم المقدّم', screen: 'q', turn: 2, by: 2, slot: 3, badge: 'الدورة 1 من 2', next: 'انتهى الوقت' },
+    won:     { t: 'بعد الحكم: نجح التحدي (+5)', screen: 'q', turn: 2, by: 2, slot: 3, scores: A, badge: 'الدورة 1 من 2', verdict: { team: 2, points: '+5', line: 'نجح التحدي' }, gain: 2 },
+    failed:  { t: 'بعد الحكم: لم ينجح (لا خصم)', screen: 'q', turn: 0, by: 2, slot: 3, badge: 'الدورة 1 من 2', verdict: { team: 0, line: 'لم ينجح التحدي' } },
+    lose:    { t: 'خانة حظ: خصم 3 نقاط', screen: 'q', turn: 0, by: 2, slot: 1, scores: { 1: S[1], 2: S[2] - 3 }, badge: 'الدورة 1 من 2', verdict: { team: 2, points: '−3', line: 'خانة حظ' }, danger: true },
+    lose0:   { t: 'خانة حظ: خصم 3 والرصيد 1 (لا ينزل تحت 0)', screen: 'q', turn: 0, by: 2, slot: 1, before: { 1: S[1], 2: 1 }, scores: { 1: S[1], 2: 0 }, badge: 'الدورة 1 من 2', verdict: { team: 2, points: '−1', line: 'خانة حظ' }, danger: true },
+    steal:   { t: 'خانة حظ: اسرق 3 نقاط من خصمك', screen: 'q', turn: 2, by: 2, slot: 7, scores: { 1: S[1] - 3, 2: S[2] + 3 }, badge: 'الدورة 1 من 2', verdict: { team: 2, points: '+3', line: `${NAMES[1]} · −3` }, gain: 2, loss: 1 },
+    gift:    { t: 'خانة حظ: هدية +3', screen: 'q', turn: 2, by: 2, slot: 4, scores: { 1: S[1], 2: S[2] + 3 }, badge: 'الدورة 1 من 2', verdict: { team: 2, points: '+3', line: 'خانة حظ' }, gain: 2 },
+    ready2:  { t: 'الدورة 2: قبل الدوران (يديرها الأول)', turn: 1, by: 1, before: A, badge: 'الدورة 2 من 2' },
+    land2:   { t: 'الدورة 2: وقوف العجلة (يديرها الأول)', turn: 1, by: 1, lit: 8, stop: true, before: A, badge: 'الدورة 2 من 2' },
+    end:     { t: 'نهاية العجلة', screen: 'end', turn: 0, before: { 1: A[1] - 3, 2: A[2] + 3 }, badge: 'انتهت العجلة', totals: { 1: '−3', 2: '+8' } },
+  };
+
+  // أزرار النافذة الواحدة (design/wheel.md 4): بجانب ما تتحكم فيه، في صف الشارات. والزوايا الثلاث كما في 1.3
+  const SINGLE = q.get('w') === '1';
+  const B = (label, kind = '') => `<button class="cbtn${kind ? ' ' + kind : ''}">${num(label)}</button>`;
+  function single(id, st) {
+    if (!SINGLE) return;
+    $('cornerA').innerHTML = `<div class="ctl">${B('تراجع', 'alt')}${B('الصوت', 'alt')}</div>`;
+    $('cornerB').innerHTML = `<div class="ctl">${B('المقدّم', 'alt')}${B('ملء الشاشة', 'alt')}</div>`;
+    $('cornerC').innerHTML = `<div class="ctl">${B('الرصيد', 'alt')}${B('مباراة جديدة', 'alt')}</div>`;
+    canvas.classList.add('has-a');
+    const judge = [B('نجح'), B('لم ينجح', 'alt')];
+    const after = [B('التالي · الدورة 2')];
+    const near = {
+      ready: [B('أدِر العجلة')], ready2: [B('أدِر العجلة')],
+      challenge: [B('ابدأ · دقيقتان')],
+      run: judge, last: judge, timeup: judge,
+      won: after, failed: after, lose: after, lose0: after, steal: after, gift: after,
+    }[id] ?? [];
+    $('near').innerHTML = near.join('');
+    if (id === 'end') $('endCtl').innerHTML = B('الجولة 3');
+  }
+
+  function slotHtml(i, st) {
+    const [k, v] = SLOTS[i], lit = i === st.lit;
+    const w = k === 'c' ? 'تحدٍّ' : LUCK[v].w, n = k === 'c' ? '+5' : LUCK[v].n;
+    const cls = ['ws', k === 'l' && 'luck', lit && 't' + st.by, lit && st.stop && 'stop'].filter(Boolean).join(' ');
+    return `<p class="${cls}" data-fit="خانة ${i + 1}"><span>${w}</span><b>${num(n)}</b></p>`;
+  }
+
+  function render(id) {
+    const st = STATES[id];
+    const sc = st.scores ?? st.before ?? BASE;
+    $('n1').textContent = NAMES[1]; $('n2').textContent = NAMES[2];
+    for (const k of [1, 2]) { $('s' + k).textContent = sc[k]; $('s' + k).classList.toggle('three', String(sc[k]).length >= 3); }
+    document.querySelectorAll('.card .scr').forEach(s => s.classList.toggle('show', s.dataset.s === (st.screen ?? 'whl')));
+    $('b1').querySelector('span').innerHTML = num(st.badge);
+    canvas.classList.toggle('turn-1', st.turn === 1); canvas.classList.toggle('turn-2', st.turn === 2);
+    $('p1').classList.toggle('on', st.turn === 1); $('p2').classList.toggle('on', st.turn === 2);
+    canvas.classList.toggle('running', !!st.run);
+    canvas.classList.toggle('meta-danger', !!st.run && st.run <= 3);
+    if (st.run) { const t = `${Math.floor(st.run / 60)}:${String(st.run % 60).padStart(2, '0')}`; $('c1').innerHTML = $('c2').innerHTML = `<span class="ltr">${t}</span>`; }
+    $('box').hidden = true;
+    if (!st.screen) {
+      $('whead').textContent = 'يدير العجلة: ' + NAMES[st.by];
+      $('band').innerHTML = SLOTS.map((_, i) => slotHtml(i, st)).join('');
+    }
+    if (st.screen === 'q') {
+      const [k, v] = SLOTS[st.slot];
+      $('slot').className = 'letter slot t' + st.by;
+      $('slot').innerHTML = `<span>${k === 'c' ? 'تحدٍّ' : LUCK[v].w}</span><b>${num(k === 'c' ? '+5' : LUCK[v].n)}</b>`;
+      $('label').innerHTML = num(k === 'c' ? CH[v] : LUCK[v].label);
+      if (st.verdict) box({ verdict: st.verdict, line: st.verdict.line });
+      if (st.next) box({ next: st.next });
+    }
+    if (st.screen === 'end') {
+      $('e1').textContent = NAMES[1]; $('e2').textContent = NAMES[2];
+      $('r1').textContent = st.totals[1]; $('r2').textContent = st.totals[2];
+      box({ next: 'التالي: الجولة 3 · المزاد' });
+    }
+    single(id, st);
+    placeBadges(); placeNear(); fitRings();
+  }
+
+  function box({ verdict, line, next }) {
+    $('box').hidden = false;
+    $('verdict').hidden = !verdict;
+    if (verdict) {
+      $('verdict').className = `chip${verdict.team ? ' t' + verdict.team : ''}`;
+      $('vtext').innerHTML = verdict.team ? `${esc(NAMES[verdict.team])} · ${num(verdict.points)}` : 'لا نقاط';
+    }
+    $('line').innerHTML = num(line ?? next);
+    // حكم العجلة بلا مربع (design/wheel.md 2.5)، كحكم المزاد (auction.md 1.5): الشارة بيضاء بنص صاحبها، والسطر أبيض على الطرف.
+    // فالبطاقة فيها نص قصير (خانة الحظ)، والمربع الأبيض كان يرفع الأبيض فوق 35
+    $('box').classList.add('bare');
+    const p2 = $('p2'), w = Math.min(659, 1794 - (p2.offsetLeft + p2.offsetWidth + 17 + 24 + 17));
+    $('box').style.left = (1794 - w) + 'px'; $('box').style.width = w + 'px';
+    $('box').classList.remove('wrap');
+    $('box').classList.toggle('wrap', $('line').scrollWidth > $('box').clientWidth - 96);
+  }
+  function placeBadges() {
+    const lean = Math.tan(14 * Math.PI / 180) * 64; let right = 104;
+    for (const el of [document.querySelector('.badge.mode'), $('b1')]) { el.style.right = right + 'px'; right += el.offsetWidth + 24 + lean; }
+  }
+  function placeNear() {
+    const near = $('near'); if (!near.children.length) return;
+    // بحدود الشارة الفعلية مقسومة على المقياس (تدقيق ش6): على غير 1920 تُرسم اللوحة مصغّرة
+    const c = canvas.getBoundingClientRect().left, k = canvas.getBoundingClientRect().width / 1920;
+    near.style.left = Math.floor(Math.min(...[...document.querySelectorAll('.badge')].map(b => (b.getBoundingClientRect().left - c) / k)) - 32 - near.offsetWidth) + 'px';
+  }
+  function fitRings() {
+    for (const team of [$('p1'), $('p2')]) {
+      const svg = team.querySelector('.ring'), w = team.offsetWidth, h = team.offsetHeight, o = Math.tan(14 * Math.PI / 180) * h / 2;
+      svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      svg.querySelector('polygon').setAttribute('points', `${o},0 ${w + o},0 ${w - o},${h} ${-o},${h}`);
+      // إطار الوقت متآكل بقدر ما مضى من الدقيقتين (للصورة الثابتة)
+      const st = STATES[q.get('s')];
+      svg.querySelector('polygon').style.strokeDashoffset = st?.run ? 100 * (1 - st.run / 120) : 0;
+    }
+  }
+
+  // الدوران (design/wheel.md 2.4): المؤشر ينتقل خانةً خانة من اليمين، ثلاث دورات ثم إلى خانة الوقوف، وكل خطوة أبطأ من التي قبلها
+  // (من 60ms إلى نحو 480ms، والمجموع نحو 4.5 ثوانٍ). ثم لحظة الوقوف، ثم شاشة الخانة بعد 1.2 ثانية
+  function spin(target, by) {
+    const steps = 30 + target, cells = [...document.querySelectorAll('#band .ws')];
+    let i = 0;
+    const step = () => {
+      cells.forEach(c => c.classList.remove('t1', 't2', 'stop'));
+      const c = cells[i % 10]; c.classList.add('t' + by);
+      if (i === steps) { c.classList.add('stop'); return; }
+      const p = i / steps; i++;
+      setTimeout(step, 60 + 420 * p * p * p);
+    };
+    step();
+  }
+
+  // ===== الصفحة =====
+  (function particles() {
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 22; i++) {
+      const s = document.createElement('span');
+      s.style.left = Math.round(rnd() * 1900) + 'px'; s.style.top = Math.round(500 + rnd() * 600) + 'px';
+      s.style.animationDuration = (14 + rnd() * 10).toFixed(1) + 's'; s.style.animationDelay = (-rnd() * 20).toFixed(1) + 's';
+      const k = 6 + Math.round(rnd() * 8); s.style.width = s.style.height = k + 'px';
+      $('particles').appendChild(s);
+    }
+  })();
+
+  const id = q.get('s');
+  if (!STATES[id]) {
+    const m = document.createElement('div'); m.className = 'menu';
+    m.innerHTML = '<h1>ش6 · عجلة البونص · شاشة الجمهور</h1><table>' + Object.entries(STATES).map(([k, s]) =>
+      `<tr><td>${esc(s.t)}</td><td><a href="?s=${k}">نافذتان</a></td><td><a href="?s=${k}&w=1">نافذة واحدة</a></td><td><a href="?s=${k}&long=1">أطول محتوى</a></td><td><a href="?s=${k}&w=1&long=1&check=1">الأطول بنافذة واحدة مع الفحص</a></td><td><a href="?s=${k}&anim=1">الحركة</a></td></tr>`).join('') +
+      '</table><p>التفصيل في design/wheel.md. ونافذة المقدّم في <a href="presenter-wheel.html">presenter-wheel.html</a>.</p>';
+    document.body.append(m);
+  } else {
+    Promise.all(['700 32px Kufi', '900 104px Kufi'].map(f => document.fonts.load(f, 'عجلة البونص 0123456789+'))).then(() => document.fonts.ready).then(() => {
+      render(id);
+      requestAnimationFrame(() => {
+        render(id);
+        const st = STATES[id];
+        if (q.has('anim')) {
+          canvas.classList.add('anim');
+          if (st.danger) $('cardWrap').classList.add('shake');
+          if (st.spin) spin(3, st.by);
+        }
+        window.__ready = true;
+        if (q.has('check')) {
+          const layer = document.createElement('div'); layer.className = 'check-layer'; canvas.append(layer);
+          const r = layoutCheck({ canvas, layer, grid: true });
+          window.__check = r;
+          const out = document.createElement('div'); out.className = 'check-out';
+          out.textContent = (r.ok ? 'سليم' : 'مشكلات: ' + r.problems.join(' · ')) + ` · أدنى فراغ ${Math.round(r.minGap)}`;
+          document.body.append(out);
+        }
+      });
+    });
+  }
+</script>
+</body>
+</html>
