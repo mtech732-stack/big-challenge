@@ -567,7 +567,8 @@
       if (m.name === 'steal') {
         // انتقال الإجابة (السرقة): البطاقة تهتز إن كانت خاطئة، ثم لمعة، والمؤشر يقفز إلى الخصم. لا شارة ولا كلمة «سرقة». العدّاد لا ينتظر الحركة.
         const go = () => { replay($('shine'), 'go'); bump(m.team); setTurn(m.team); };
-        if (m.reason === 'wrong') { replay($('cardWrap'), 'shake'); setTurn(0); later(240, go); } else go();
+        // وفي المزاد تهتز أيضاً حين انتهى وقت الملتزم (shake، design/auction.md 2.5).
+        if (m.reason === 'wrong' || m.shake) { replay($('cardWrap'), 'shake'); setTurn(0); later(240, go); } else go();
       }
     }
     // نهاية الجولة: رقم المتقدّم الكبير ينبض، ويخفت رقم الآخر، ولا يتحرك شيء إن تعادلا.

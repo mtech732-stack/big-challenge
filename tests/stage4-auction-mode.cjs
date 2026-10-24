@@ -6,7 +6,7 @@ const { reporter } = require('./helpers.cjs');
 (async () => {
   const root = path.join(__dirname, '..');
   const auction = (await import(path.join(root, 'js/modes/auction.js'))).default;
-  const { OPEN_OFFER, MAX_BID, FULFIL_SECONDS } = await import(path.join(root, 'js/modes/auction.js'));
+  const { OPEN_OFFER, MAX_BID, FULFIL_SECONDS, COMPLETE_SECONDS } = await import(path.join(root, 'js/modes/auction.js'));
   const { checkMode } = await import(path.join(root, 'js/modes/contract.js'));
   const { MODES, DRAFTS, matchModes, pickableModes } = await import(path.join(root, 'js/modes/index.js'));
   const R = await import(path.join(root, 'js/round.js'));
@@ -160,15 +160,39 @@ const { reporter } = require('./helpers.cjs');
   check('التراجع عن «توقّف» بعد 8 ثوانٍ: يعود الوفاء بـ 52 ثانية', hs.state.phase === 'fulfil' && Math.round(hs.timer.seconds) === 52);
   check('التراجع عن «ابدأ»: لا عدّاد', R.undo(R.act(auction, commitAt(2), 'start', undefined, T), T + 3000).timer === null);
 
-  // لم يفِ: «توقّف» أو انتهى الوقت، فيقف العدّاد (إكمال الخصم في المرحلة التالية).
-  let g = R.act(auction, commitAt(5, 2), 'start');
-  g = R.act(auction, g, 'item:1');
-  const gs = R.act(auction, g, 'stop');
-  check('«توقّف · لم يفِ»: يقف العدّاد، ولا نقاط، ولا عدّ بعده', gs.state.phase === 'short' && gs.timer === null && gs.scores[2] === 0 && !auction.actions(gs.state).length);
-  const gt = R.act(auction, g, 'timeout', g.timer.id);
-  check('انتهى الوقت: كـ «توقّف»', gt.state.phase === 'short' && gt.state.short === 'timeout');
+  // لم يفِ («توقّف» أو انتهى الوقت): إكمال الخصم في 15 ثانية، من حيث وقف العدّ، دون تكرار (5.5).
+  let g = R.act(auction, commitAt(5, 2), 'start', undefined, T);
+  g = R.act(auction, g, 'item:1', undefined, T + 1000);
+  g = R.act(auction, g, 'item:2', undefined, T + 2000);
+  const gs = R.act(auction, g, 'stop', undefined, T + 20000);
+  a = auction.audience(gs.state);
+  check(`«توقّف · لم يفِ»: الدور للخصم بعدّاد ${COMPLETE_SECONDS} ثانية، والعدّ «2 من 5» كما هو`, gs.state.phase === 'complete' && a.turn === 1 && gs.timer?.seconds === COMPLETE_SECONDS
+    && a.tally.n === 2 && a.tally.of === 5 && a.clock === COMPLETE_SECONDS);
+  check('لحظة الانتقال: «steal» للخصم، والبطاقة تهتز', gs.events.some(e => e.name === 'steal' && e.team === 1 && e.shake));
+  check('إكمال الخصم: «صحيح · +1» و«توقّف · لا نقاط»', ids(auction.actions(gs.state)) === 'item,count,stop' && auction.actions(gs.state)[2].label === 'توقّف · لا نقاط');
+  const gt = R.act(auction, g, 'timeout', g.timer.id, T + 60000);
+  check('انتهى وقت الملتزم: كـ «توقّف»، والانتقال بلا «خاطئة»', gt.state.phase === 'complete' && gt.events.some(e => e.name === 'steal' && e.reason === 'timeout'));
   check('«انتهى الوقت» من عدّاد قديم يُهمل', R.act(auction, g, 'timeout', g.timer.id + 1).state === g.state);
-  check('«توقّف» قبل «ابدأ» أيضاً', R.act(auction, commitAt(4), 'stop').state.phase === 'short');
+  check('«توقّف» قبل «ابدأ» أيضاً', R.act(auction, commitAt(4), 'stop').state.phase === 'complete');
+  check('ما ذكره الملتزم لا يُحسب للخصم ثانية', R.act(auction, gs, 'item:1').state === gs.state);
+  let gc = R.act(auction, gs, 'item:0', undefined, T + 21000);
+  a = auction.audience(gc.state);
+  check('عنصر من الخصم: «3 من 5» بلونه، والعدّاد يبقى', a.tally.n === 3 && a.tally.team === 1 && a.said[2].team === 1 && gc.timer.id === gs.timer.id);
+  gc = R.act(auction, R.act(auction, gc, 'item:3'), 'count');
+  a = auction.audience(gc.state);
+  check('أكمل الخصم: النقاط كاملة (5) له، ولا شيء للملتزم', gc.state.phase === 'decided' && gc.scores[1] === 5 && gc.scores[2] === 0 && a.verdict.team === 1 && a.verdict.points === 5 && a.turn === 1);
+  check('بعد الحكم: القائمة كلها، ما ذكره كل فريق بلونه', a.list[1].by === 2 && a.list[2].by === 2 && a.list[0].by === 1 && a.list[3].by === 1);
+  const gn = R.act(auction, gs, 'stop');
+  a = auction.audience(gn.state);
+  check('«توقّف · لا نقاط» من الخصم: لا يأخذ أحد شيئاً، والحدّ في المنتصف', gn.state.phase === 'decided' && gn.scores[1] === 0 && gn.scores[2] === 0 && a.verdict.team === 0 && a.turn === 0 && gn.timer === null);
+  check('انتهى وقت الخصم: لا نقاط', R.act(auction, gs, 'timeout', gs.timer.id).state.phase === 'decided' && auction.audience(R.act(auction, gs, 'timeout', gs.timer.id).state).verdict.team === 0);
+  check('مسار المواضيع: لا أحد', auction.presenter(gn.state).track[0].result === 0);
+  // التراجع: عن الانتقال يعود الوفاء بما بقي (40 ثانية)، وعن الحكم يعود الإكمال بما بقي.
+  const gu = R.undo(gs, T + 25000);
+  check('التراجع عن الانتقال بعد 20 ثانية: الوفاء للملتزم بـ 40 ثانية', gu.state.phase === 'fulfil' && auction.audience(gu.state).turn === 2 && Math.round(gu.timer.seconds) === 40);
+  const gnu = R.undo(R.act(auction, gs, 'stop', undefined, T + 26000), T + 30000);
+  check('التراجع عن «لا نقاط» بعد 6 ثوانٍ من الإكمال: يعود الإكمال بـ 9 ثوانٍ', gnu.state.phase === 'complete' && Math.round(gnu.timer.seconds) === 9);
+
   // حالة محفوظة من «المزايدة» (بلا said) تكمل بعد التحديث.
   const old = commitAt(2); const { said, ...rest } = old.state;
   check('حالة محفوظة بلا said: العدّ 0 ويُعدّ عنصر', auction.audience(rest).tally.n === 0 && auction.audience(R.act(auction, { ...old, state: rest }, 'item:0').state).tally.n === 1);
