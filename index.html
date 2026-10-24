@@ -171,6 +171,8 @@
   .rnk .ref button.t2 { background: var(--team-2-ink); }
   /* قبل «ابدأ» وبعد الحكم ونهاية القائمة: للاطلاع، لا تُنقر */
   .rnk .ref.view button { pointer-events: none; cursor: default; }
+  /* المقارنة بالنافذة الواحدة: الخانة المنقورة تُنقر ثانية (تدوّر صاحبها) */
+  .rnk .ref.mark button.t1, .rnk .ref.mark button.t2 { pointer-events: auto; }
   /* لوحة الدور: «خطأ» بعرضها، أو «التالي» و«أنهِ القائمة» */
   #app .ctlrow { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0.75rem; }
   #app .ctlrow:empty { display: none; }
@@ -824,7 +826,9 @@
     const at = pr.title.indexOf(' · ');
     $('rTitle').innerHTML = at < 0 ? esc(pr.title) : `${esc(pr.title.slice(0, at))} <small>· ${num(pr.title.slice(at + 3))}</small>`;
     const ref = $('rRef');
-    ref.classList.toggle('view', !acts.some(a => a.id === 'item'));
+    // تُنقر في العدّاد (ما قاله الفريق)، وفي المقارنة بالنافذة الواحدة (لمن قالها أولاً، تدوّر صاحبها).
+    ref.classList.toggle('view', !acts.some(a => a.id === 'item' || a.id === 'mark'));
+    ref.classList.toggle('mark', pr.phase === 'mark');
     const key = pr.n + '|' + pr.items.map(x => x.name).join('|');
     if (ref.dataset.key !== key) {
       ref.dataset.key = key;
@@ -833,7 +837,8 @@
     }
     pr.items.forEach((x, i) => { const el = ref.children[i]; el.classList.toggle('t1', x.by === 1); el.classList.toggle('t2', x.by === 2); });
     const v = pr.verdict;
-    $('rWho').innerHTML = pr.phase === 'listend' ? `<span class="done">${num(`انتهت القائمة ${pr.n} · كُشف ${pr.found} من ${pr.of}`)}</span>`
+    $('rWho').innerHTML = pr.phase === 'mark' ? '<span class="done">المقارنة بالتسجيل · انقر كل خانة لمن قالها أولاً</span>'
+      : pr.phase === 'listend' ? `<span class="done">${num(`انتهت القائمة ${pr.n} · كُشف ${pr.found} من ${pr.of}`)}</span>`
       : v ? `<span class="done">${!v.team ? 'لا نقاط · لم تُكشف خانة' : `${esc(match.teams[v.team])} · ${num(v.rank > 10 ? `${v.points ? '−' + -v.points : '0'} · فخّ المركز ${v.rank}` : `+${v.points} · المركز ${v.rank}`)}`}</span>`
       : `${mk(pr.turn)} دور ${tn(pr.turn)}`;
     rankState(pr);
@@ -841,6 +846,9 @@
     const b = (id, cls, label) => `<button class="${cls}" data-act="${id}">${num(label ?? ctl(id).label)}</button>`;
     const next = ctl('next'), finish = ctl('finish');
     $('rCtl').innerHTML = pr.phase === 'read' ? b('start', '') + b('finish', 'alt')
+      // بنافذة واحدة: «التالي» ينقل الدور بلا حكم، و«أنهِ القائمة». ثم «اعتمد النقاط» في المقارنة.
+      : pr.phase === 'ask' && pr.one ? b('pass', 'next') + b('finish', 'alt')
+      : pr.phase === 'mark' ? b('commit', 'full')
       : pr.phase === 'ask' || pr.phase === 'steal' ? b('wrong', 'no full')
       // بعد الحكم: «التالي · دور [الخصم]» و«أنهِ القائمة». وإن انكشفت العشرة فنهايتها وحدها.
       : pr.phase === 'decided' ? (next ? `<button class="next" data-act="next">التالي · دور ${esc(match.teams[pr.upNext])}</button>` : '') + (finish ? b('finish', next ? 'alt' : 'alt full') : '')
@@ -859,7 +867,7 @@
   $('rRef').addEventListener('click', e => {
     const el = e.target.closest('button[data-r]');
     if (!el || $('rRef').classList.contains('view')) return;
-    roundAct('item:' + el.dataset.r);
+    roundAct(($('rRef').classList.contains('mark') ? 'mark:' : 'item:') + el.dataset.r);
   });
 
   // ===== الشاشة المشتركة: شاشة الجمهور في هذه النافذة، وأزرارها (design/shared.md 3 و4) =====
@@ -926,8 +934,14 @@
       const act = (id, label, kind) => acts.some(a => a.id === id) ? [{ cmd: 'act:' + id, label: label ?? acts.find(a => a.id === id).label, kind, off: wait }] : [];
       if (screen === 'intro') c.card = act('show');
       const last = st.index === (st.questions ?? st.topics ?? st.lists).length - 1;
-      // الترتيب بنافذة واحدة ينتظر جواب المالك (design/ranking.md 4، docs/open-questions.md): لا أزرار حكم هنا بعد،
-      // ويُلعب من نافذة المقدّم («المقدّم» في الزاوية).
+      // الترتيب بنافذة واحدة (جواب المالك، design/ranking.md 4): لا حكم في أثناء القائمة لأن المقدّم لا يراها. «ابدأ» ثم «التالي»
+      // و«أنهِ القائمة»، ثم المقارنة بالتسجيل: الخانات تُنقر لمن قالها أولاً، و«اعتمد النقاط». ثم «إنهاء الجولة».
+      if (screen === 'list') {
+        if (st.phase === 'read') c.near = act('start', 'ابدأ').map(b => ({ ...b, cmd: 'act:start:one' }));
+        if (st.phase === 'ask' && st.one) c.near = [...act('pass'), ...act('finish', null, 'alt')];
+        if (st.phase === 'mark') { c.near = act('commit'); c.marks = !wait; }
+        if (st.phase === 'listend') c.near = act('next');
+      }
       // المزاد (design/auction.md 4، 3.0): زر كل فريق بلونه برقمه («زايد» قبل أول رقم) · «ابدأ» بينهما (معطّل قبل أول رقم).
       const b = screen === 'topic' && st.phase === 'bid';
       if (b) {
@@ -981,7 +995,8 @@
     if (!frame || e.source !== frame.contentWindow || e.origin !== location.origin || !match) return;
     if (e.data?.bc === 'need-ctl') return sendCtl();
     if (e.data?.bc !== 'cmd' || role !== 'presenter' || !shared()) return;
-    const [cmd, arg] = String(e.data.cmd).split(':');
+    // والقيمة قد تحمل «:» («act:mark:7»)، فهي كل ما بعد الأول.
+    const [cmd, ...rest] = String(e.data.cmd).split(':'), arg = rest.join(':');
     if (cmd === 'teams' && match.step === 'setup') update(M.setTeams(match, String(e.data.a ?? ''), String(e.data.b ?? '')));
     if (cmd === 'count' && match.step === 'setup' && M.METHODS[arg]?.rounds <= modes().length) update(M.setMethod(match, arg));
     if (cmd === 'draw') match.step === 'setup' ? goDraw() : startDraw();
