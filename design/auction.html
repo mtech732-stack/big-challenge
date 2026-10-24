@@ -121,10 +121,10 @@
   // turn: صاحب الدور (الحدّ يكتسح له) · run: العدّاد يعمل (ثوانٍ) · bids: [فريق، رقم] · said: [فريق، عنصر] · box: مربع الإعلان
   const STATES = {
     intro:    { t: 'افتتاح الجولة', screen: 'intro', turn: 0, badge: 'الجولة 3 من 4' },
-    open:     { t: 'المزايدة: ظهور الموضوع (قائمة 12)، والدور لمن يفتتح', turn: 1, bids: [], short: true },
-    bid:      { t: 'المزايدة: رقماً رقماً، الدور على الثاني (قائمة 12)', turn: 2, bids: [[1, 1], [2, 2], [1, 3]], short: true },
-    bidlong:  { t: 'المزايدة: قائمة فوق 20 (عددها مخفي)، أربعة عشر رقماً', turn: 1, bids: [...Array(14).keys()].map(i => [i % 2 ? 1 : 2, i + 1]) },
-    ready:    { t: 'الوفاء: توقّف الثاني، والأول ملتزم بـ 12 قبل «ابدأ»', turn: 1, of: 12, said: [] },
+    // المزايدة (الوثيقة 5.5): bids رقما الفريقين [الأول، الثاني]، والحدّ في المنتصف حتى «ابدأ»
+    open:     { t: 'المزايدة: ظهور الموضوع (قائمة 12)، ولا رقم بعد', turn: 0, bids: [0, 0], short: true },
+    bid:      { t: 'المزايدة: الأول 8 والثاني 11 (قائمة 12)', turn: 0, bids: [8, 11], short: true },
+    bidlong:  { t: 'المزايدة: قائمة فوق 20 (عددها مخفي)، رقمان من خانتين', turn: 0, bids: [36, 27] },
     run:      { t: 'الوفاء: العدّاد يعمل، ذُكر 7', turn: 1, of: 12, run: 38, said: ARAB.slice(0, 7).map(x => [1, x]) },
     runfull:  { t: 'الوفاء: أطول ما ذُكر (يسقط ما لا يتسع)', turn: 1, of: 40, run: 9, said: AFRICA.slice(0, 33).map(x => [1, x]), list: AFRICA },
     won:      { t: 'بعد الحكم: وفى الأول', turn: 1, of: 12, said: ARAB.slice(0, 12).map(x => [1, x]), verdict: { team: 1, points: 12 }, reveal: true },
@@ -146,15 +146,11 @@
     $('cornerB').innerHTML = `<div class="ctl">${B('المقدّم', 'alt')}${B('ملء الشاشة', 'alt')}</div>`;
     $('cornerC').innerHTML = `<div class="ctl">${B('الرصيد', 'alt')}${B('مباراة جديدة', 'alt')}</div>`;
     canvas.classList.add('has-a');
-    // المزايدة رقماً رقماً (الوثيقة 5.5): «زايد» بالرقم التالي، و«العدد كاملاً» للقائمة حتى 20، و«توقّف» إلا للمفتتح في دوره الأول
-    const list = st.short ? MONTHS : (st.list ?? ARAB), next = (st.bids?.length ?? 0) + 1;
-    // «كاملاً · 12» (لا «العدد كاملاً») كي يتسع صف الشارات للثلاثة بجانب الصف الثالث من الأزرار
-    const full = list.length <= 20 ? [B(`كاملاً · ${list.length}`)] : [];
+    // المزايدة (الوثيقة 5.5): زر كل فريق بلونه يُظهر رقمه (أول نقرة: رقم الخصم + 1، ثم +1)، و«ابدأ» بينهما يرسي على الأعلى ويبدأ الوفاء
+    const tb = (t, n) => B(n ? String(n) : 'زايد', 'bidt t' + t);
+    const bidRow = st.bids && [tb(1, st.bids[0]), B('ابدأ', st.bids[0] || st.bids[1] ? '' : 'off'), tb(2, st.bids[1])];
     const near = {
-      open: [B(`زايد · ${next}`), ...full],
-      bid: [B(`زايد · ${next}`), ...full, B('توقّف', 'no')],
-      bidlong: [B(`زايد · ${next}`), ...full, B('توقّف', 'no')],
-      ready: [B('ابدأ'), B('صحيح · +1')],
+      open: bidRow, bid: bidRow, bidlong: bidRow,
       run: [B('صحيح · +1'), B('توقّف', 'no')],
       runfull: [B('صحيح · +1'), B('توقّف', 'no')],
     }[id] ?? [];
@@ -176,8 +172,8 @@
     canvas.classList.toggle('running', !!st.run);
     if (st.run) { $('c1').textContent = $('c2').textContent = st.run; }
     if (st.screen === 'intro') {
-      $('rule').textContent = 'زايدوا رقماً رقماً، ثم أوفوا';
-      $('starter').innerHTML = `يفتتح المزايدة <b class="tn t1">${esc(NAMES[1])}</b>`;
+      $('rule').textContent = 'زايدوا على ما تقدرون على ذكره، ثم أوفوا';
+      $('starter').textContent = 'ثلاثة مواضيع';
     }
     if (st.screen === 'end') {
       $('e1').textContent = NAMES[1]; $('e2').textContent = NAMES[2];
@@ -190,10 +186,9 @@
       const len = (st.short ? MONTHS : (st.list ?? ARAB)).length;
       $('tsize').hidden = !(st.bids && len <= 20);
       $('tsize').innerHTML = `في القائمة <span class="ltr">${len}</span>`;
-      // المزايدة: الأحدث أعلى رقم وأكبرها، والأقدم يسقط من اليمين إن لم يتسع الصف (يُحسب في الصفحة)
-      const bids = st.bids ?? [];
-      $('bids').innerHTML = bids.map(([t, n], i) => `<span class="bid t${t}${i === bids.length - 1 ? ' top' : ''}"><i></i><span>${n}</span></span>`).join('');
-      dropOld($('bids'), '.bid');
+      // المزايدة: رقما الفريقين وحدهما، كلٌّ بلونه، والأعلى أكبرهما. ومن لم يزايد بعد لا شارة له
+      const [b1, b2] = st.bids ?? [0, 0];
+      $('bids').innerHTML = [[1, b1], [2, b2]].filter(([, n]) => n).map(([t, n]) => `<span class="bid t${t}${n === Math.max(b1, b2) ? ' top' : ''}"><i></i><span>${n}</span></span>`).join('');
       // العدّ والعناصر
       const said = st.said;
       $('tally').hidden = !said;
@@ -220,14 +215,8 @@
     placeBadges(); placeNear(); fitRings();
   }
 
-  // ما زاد على صف المزايدة يسقط من أوله (اليمين): يبقى الأحدث دائماً
-  // (overflow: clip لا يُحسب في scrollWidth، فالقياس بحدود آخر عنصر)
+  // (overflow: clip لا يُحسب في scrollWidth، فالقياس بحدود العناصر)
   const rect = el => el.getBoundingClientRect();
-  function dropOld(row, sel) {
-    const els = [...row.querySelectorAll(sel)];
-    const fits = () => rect(els[els.length - 1]).left >= rect(row).left - 1;
-    while (els.length > 1 && !fits()) els.shift().remove();
-  }
   // ما ذُكر: أثناء العدّ يبقى الأحدث (يسقط الأقدم). وبعد الحكم يبقى أوله، وفي آخره «و N غيرها»
   const fitsAll = box => !box.lastElementChild || rect(box.lastElementChild).bottom <= rect(box).bottom + 1;
   function fitItems(box, reveal) {

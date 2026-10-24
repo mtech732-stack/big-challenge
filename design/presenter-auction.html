@@ -127,14 +127,14 @@
   .ref button.t2 { background: var(--team-2-ink); }
   /* في المزايدة وبعد الحكم: القائمة للاطلاع، لا تُنقر */
   .ref.view button { pointer-events: none; }
-  /* أزرار المزايدة (رقماً رقماً): «زايد · 4» أربعة أعمدة، و«العدد كاملاً · 12» خمسة، و«توقّف» ثلاثة. وفوق 20 عنصراً «زايد» ثمانية و«توقّف» أربعة. والعدّ: «ابدأ» و«توقّف» */
+  /* أزرار المزايدة: زر كل فريق بلونه (5 أعمدة) يُظهر رقمه، و«ابدأ» بينهما (عمودان). والعدّ: «توقّف · لم يفِ» */
   #app .bidrow { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0.75rem; }
   #app .bidrow button { min-height: 5rem; font-size: 1.5rem; margin: 0; }
-  #app .bidrow .go { grid-column: span 4; }
-  #app .bidrow .go.wide { grid-column: span 8; }
-  #app .bidrow .full { grid-column: span 5; }
+  #app .bidrow .bidt { grid-column: span 5; color: var(--card); font-size: 2.5rem; font-weight: 900; box-shadow: none; }
+  #app .bidrow .bidt.t1 { background: var(--team-1); }
+  #app .bidrow .bidt.t2 { background: var(--team-2-ink); }
+  #app .bidrow .go2 { grid-column: span 2; }
   #app .bidrow .no { grid-column: span 3; background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
-  #app .bidrow .go.wide + .no { grid-column: span 4; }
   #app .bidrow .half { grid-column: span 6; }
   .menu { padding: 1rem; line-height: 1.8; }
   .menu a { color: var(--hl); }
@@ -179,13 +179,10 @@
   const MONTHS = ['محرم', 'صفر', 'ربيع الأول', ['ربيع الآخر', 'ربيع الثاني'], 'جمادى الأولى', ['جمادى الآخرة', 'جمادى الثانية'], 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'].map(x => [].concat(x));
   const B = (label, cls = '') => `<button class="${cls}">${num(label)}</button>`;
   const STATES = {
-    // المزايدة رقماً رقماً (الوثيقة 5.5): «زايد» بالرقم التالي، و«العدد كاملاً» للقائمة حتى 20 يُقفل المزاد، و«توقّف» إلا للمفتتح في دوره الأول
-    open:     { t: 'المزايدة: الافتتاح (قائمة 12)', turn: 1, bids: [], list: MONTHS, who: 1, state: 'يفتتح بـ 1 أو بالعدد كاملاً', ctl: [B('زايد · 1', 'go'), B('العدد كاملاً · 12', 'full'), B('توقّف', 'no held')] },
-    bid:      { t: 'المزايدة: الدور على الثاني (قائمة 12)', turn: 2, bids: [[1, 1], [2, 2], [1, 3]], list: MONTHS,
-                who: 2, state: 'يزايد على 3 أو يتوقّف', ctl: [B('زايد · 4', 'go'), B('العدد كاملاً · 12', 'full'), B('توقّف', 'no')] },
-    bidhidden:{ t: 'المزايدة: قائمة فوق 20 (لا «العدد كاملاً»)', turn: 2, bids: [[1, 1], [2, 2], [1, 3]],
-                who: 2, state: 'يزايد على 3 أو يتوقّف', ctl: [B('زايد · 4', 'go wide'), B('توقّف', 'no')] },
-    ready:    { t: 'الوفاء قبل «ابدأ»', turn: 1, of: 12, said: [], who: 1, state: 'التزم بـ 12 · 60 ثانية', ctl: [B('ابدأ العدّاد', 'alt half'), B('توقّف · لم يفِ', 'no half')] },
+    // المزايدة (الوثيقة 5.5): زر كل فريق بلونه يُظهر رقمه (أول نقرة: رقم الخصم + 1، ثم +1 بكل نقرة)، و«ابدأ» بينهما يرسي على الأعلى ويبدأ عدّاد الوفاء
+    open:     { t: 'المزايدة: لا رقم بعد (قائمة 12)', turn: 0, bids: [0, 0], list: MONTHS, done: 'المزايدة · لا رقم بعد', ctl: [B('زايد', 'bidt t1'), B('ابدأ', 'alt go2 held'), B('زايد', 'bidt t2')] },
+    bid:      { t: 'المزايدة: الأول 8 والثاني 11 (قائمة 12)', turn: 0, bids: [8, 11], list: MONTHS, done: 'المزايدة · الأعلى 11', ctl: [B('8', 'bidt t1'), B('ابدأ', 'alt go2'), B('11', 'bidt t2')] },
+    bidhidden:{ t: 'المزايدة: قائمة فوق 20، رقمان من خانتين', turn: 0, bids: [36, 27], done: 'المزايدة · الأعلى 36', ctl: [B('36', 'bidt t1'), B('ابدأ', 'alt go2'), B('27', 'bidt t2')] },
     run:      { t: 'الوفاء: العدّاد يعمل', turn: 1, of: 12, said: [0, 1, 2, 3, 4, 5, 6].map(i => [1, i]), who: 1, state: '0:38 · بقي 5', ctl: [B('توقّف · لم يفِ', 'no half')] },
     decided:  { t: 'بعد الحكم: لم يفِ الأول', turn: 0, of: 12, said: [0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => [1, i]), done: 'لم يفِ · ذُكر 9 من 12', ctl: [B('الموضوع التالي · 3 من 3', 'half')] },
     long:     { t: 'أطول قائمة (54) أثناء العدّ', turn: 1, of: 30, said: [...Array(21).keys()].map(i => [1, i * 2]), list: AFRICA, who: 1, state: '0:09 · بقي 9', ctl: [B('توقّف · لم يفِ', 'no half')] },
