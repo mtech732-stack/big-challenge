@@ -5,11 +5,11 @@ import lastTwo from './last-two.js';
 import auction from './auction.js';
 import ranking from './ranking.js';
 
-export const MODES = [letter, lastTwo, auction];
+export const MODES = [letter, lastTwo, auction, ranking];
 
 // أنماط تُبنى الآن مرحلةً مرحلة: تُلعب في رابط «?preview» وحده حتى تكتمل شريحتها، ثم تنتقل إلى MODES.
-// فلا تقف مباراة تُلعب عند مرحلة لم تُبنَ بعد. (ش4: انتقل المزاد إلى MODES بعد التدقيق الأخير. ش5: الترتيب.)
-export const DRAFTS = [ranking];
+// فلا تقف مباراة تُلعب عند مرحلة لم تُبنَ بعد. (ش4: انتقل المزاد إلى MODES بعد التدقيق الأخير. ش5: والترتيب كذلك.)
+export const DRAFTS = [];
 
 // الأنماط الأربعة في الوثيقة (القسمان 3 و5) بأسمائها وترتيبها. ما لم تُبنَ وحدته بعد يظهر في الاختيار
 // «معاينةً» حتى تُبنى في شريحتها، ليُجرَّب بدء المباراة كاملاً من ش1. وحين يُضاف نمط إلى MODES

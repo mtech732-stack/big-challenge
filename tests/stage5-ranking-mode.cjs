@@ -21,14 +21,14 @@ const { reporter } = require('./helpers.cjs');
   let seed = 7;
   const rng = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
-  // العقد والسجل: يُبنى مرحلةً مرحلة، فهو في DRAFTS (رابط المعاينة وحده).
+  // العقد والسجل: اكتملت الشريحة بالتدقيق الأخير، فانتقل من DRAFTS إلى MODES ويُلعب في الرابط العادي.
   check('الوحدة تلتزم «عقد الوحدة»', checkMode(ranking).length === 0);
   check('ملف أسئلته ranking.json، وترتيبه 4، واسمه «الترتيب»', ranking.contentKey === 'ranking.json' && ranking.order === 4 && ranking.name === 'الترتيب');
-  check('في DRAFTS لا في MODES: لا يُختار في مباراة تُلعب حتى تكتمل ش5', DRAFTS.includes(ranking) && !MODES.includes(ranking));
+  check('في MODES لا في DRAFTS: يُختار في مباراة تُلعب', MODES.includes(ranking) && !DRAFTS.includes(ranking) && DRAFTS.length === 0);
   const files = { 'letter.json': {}, 'last-two.json': {}, 'auction.json': {}, 'ranking.json': twice };
   const pv = matchModes({ modes: [...MODES, ...DRAFTS], pack: { excludeModes: [] }, files });
   const normal = matchModes({ pack: { excludeModes: [] }, files });
-  check('رابط المعاينة: الترتيب مبنيّ في موضعه الرابع، والرابط العادي: معاينة', pv[3]?.id === 'ranking' && !pv[3].preview && normal[3]?.id === 'ranking' && normal[3].preview);
+  check('في الرابط العادي ورابط المعاينة: الترتيب مبنيّ في موضعه الرابع، ولا معاينة بعد اليوم', pv[3]?.id === 'ranking' && !pv[3].preview && normal[3]?.id === 'ranking' && !normal.some(m => m.preview));
 
   // الإعداد
   let round = R.startRound(ranking, { content, first: 2, rng });

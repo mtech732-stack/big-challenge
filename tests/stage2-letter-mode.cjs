@@ -145,10 +145,11 @@ const { reporter } = require('./helpers.cjs');
   check('بعد الجولة 1 في القصيرة: «التالي: عجلة البونص»', P.nextText(m, name) === 'التالي: عجلة البونص' && P.nextKind(m, MODES) === 'skip');
   m = P.skipNext(m, MODES);
   check('بعد تخطّي العجلة: «التالي: الجولة 2 · المزاد»، وهو مبنيّ فيبدأ (ش4)', P.nextText(m, name) === 'التالي: الجولة 2 · المزاد' && P.nextKind(m, MODES) === 'start');
-  // وجولة نمط لم يُبنَ بعد (الترتيب، ش5) تُتخطى، ثم النتيجة النهائية.
+  // والترتيب مبنيّ منذ نهاية ش5 فيبدأ. وجولة نمط لم يُبنَ (بأنماط بلا الترتيب) تُتخطى، ثم النتيجة النهائية.
   m = { ...m, picks: m.picks.map(p => (p.mode === 'auction' ? { ...p, mode: 'ranking' } : p)) };
-  check('ولو كانت «الترتيب» (لم يُبنَ): تُتخطى', P.nextText(m, name) === 'التالي: الجولة 2 · الترتيب' && P.nextKind(m, MODES) === 'skip');
-  m = P.skipNext(m, MODES);
+  const unbuilt = MODES.filter(x => x.id !== 'ranking');
+  check('ولو كانت «الترتيب»: مبنيّ فيبدأ (ش5)، ولو لم يُبنَ لتُخطّي', P.nextText(m, name) === 'التالي: الجولة 2 · الترتيب' && P.nextKind(m, MODES) === 'start' && P.nextKind(m, unbuilt) === 'skip');
+  m = P.skipNext(m, unbuilt);
   check('بعدها: «التالي: النتيجة النهائية» (ش7)', P.nextText(m, name) === 'التالي: النتيجة النهائية' && P.nextKind(m, MODES) === 'final' && P.skipNext(m, MODES) === m);
   check('الجولة المنتهية تبقى ورصيدها', m.round.n === 1 && m.scores[1] > 0);
   check('حالة المباراة في الجولة تُحفظ JSON وتُقرأ سليمة', M.isMatch(JSON.parse(JSON.stringify(m))));

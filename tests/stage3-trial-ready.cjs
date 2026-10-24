@@ -55,20 +55,23 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
   };
   const tiles = () => frame.$$eval('#tiles .tile', b => b.map(x => x.dataset.mode).join(','));
 
-  // 1. المباراة كما تُلعب: نمطان مبنيان.
+  // 1. المباراة كما تُلعب: الأنماط الأربعة مبنية منذ نهاية ش5 (الترتيب)، فـ4 مختارة افتراضياً، و2 تُختار.
   await open(base);
-  check('الإعداد: 2 مختارة، و4 معطّلة بإطار متقطّع', await sel('short') && await off('full'));
-  await frame.click('[data-cmd="count:full"]', { force: true });
+  check('الإعداد: 4 مختارة ومتاحة، و2 متاحة', await sel('full') && !(await off('full')) && !(await off('short')));
+  await cmd(frame, 'count:short');
   await wait(150);
-  check('النقر على 4 لا يختارها', await sel('short') && !(await sel('full')));
+  check('النقر على 2 يختارها', await sel('short') && !(await sel('full')));
   await toPick();
-  check(`الاختيار: المبنية الثلاثة وحدها، بلا «الترتيب» (${await tiles()})`, (await tiles()) === 'letter,last-two,auction');
+  check(`الاختيار: الأنماط الأربعة المبنية (${await tiles()})`, (await tiles()) === 'letter,last-two,auction,ranking');
   await cmd(frame, 'pick:last-two');
   await cmd(frame, 'pick:letter');
   await cmd(frame, 'toFace');
   await wait(2500);
   check('المواجهة: «ابدأ المباراة»، لا «تخطَّ»', await frame.isVisible('[data-cmd="begin"]') && !(await frame.$('.scr.show [data-cmd="next"]')));
 
+  // ما يلي لحزمة فيها أقل من أربعة أنماط (تستثني «الترتيب»)، كما كان الرابط العادي قبل اكتمال الأنماط.
+  const packJson = { id: 'general', name: 'الحزمة الثقافية العامة', description: 'أسئلة ثقافية خفيفة في المجالات الثمانية', excludeModes: ['ranking'] };
+  await context.route('**/content/packs/general/pack.json*', r => r.fulfill({ json: packJson }));
   // مباراة محفوظة في الإعداد بـ4 (من نسخة سابقة): تصير 2 عند الفتح.
   await page.evaluate(() => localStorage.setItem('big-challenge.match', JSON.stringify({ v: 1, step: 'setup', teams: { 1: '', 2: '' }, pack: 'general', method: 'full', winner: null, picks: [], scores: { 1: 0, 2: 0 }, history: [], single: false })));
   await reopen();
@@ -93,22 +96,22 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
   await saved('pick', { method: 'short', picks: [{ mode: 'letter', by: 1 }] });
   await reopen();
   check('اختيار سليم (2، الحرف المعيّن): يبقى كما هو، وخانتان تُنقران (آخر حرفين والمزاد)', (await frame.$$('#tiles .tile[data-cmd]')).length === 2 && !(await frame.isVisible('[data-cmd="draw"]')));
-  // (المزاد صار مبنياً في ش4، فالجولة 1 هنا «الترتيب» غير المبني.)
+  // مواجهة بالأنماط الأربعة (والترتيب للجولة 1): تبقى، والأنماط كلها مبنية منذ ش5 فلا «تخطَّ».
   await saved('face', { picks: [{ mode: 'ranking', by: 1 }, { mode: 'letter', by: 2 }, { mode: 'last-two', by: 1 }, { mode: 'auction', by: 0 }] });
   await reopen();
-  check('مواجهة من رابط المعاينة: تبقى، والجولة غير المبنية بزر «تخطَّ الجولة 1»', (await text('.scr.show [data-cmd="next"]')) === 'تخطَّ الجولة 1');
-  // ملاحظة المعاين 1: أسماء الأنماط غير المبنية بالعربية في خانات المسار، لا معرّفاتها.
+  check('مواجهة بالأنماط الأربعة: تبقى، و«ابدأ المباراة» لا «تخطَّ»', await frame.isVisible('[data-cmd="begin"]') && !(await frame.$('.scr.show [data-cmd="next"]')));
+  // ملاحظة المعاين 1: أسماء الأنماط بالعربية في خانات المسار، لا معرّفاتها.
   const segs = await frame.$$eval('#track .seg .mname', e => e.map(x => x.textContent).join(' | '));
   check(`مواجهة من رابط المعاينة: الأنماط بأسمائها العربية (${segs})`, segs === 'الترتيب | الحرف المعيّن | آخر حرفين | المزاد');
 
-  // 2. المعاينة للتجربة: «?preview» يعيد الأنماط الأربعة و4.
+  // 2. المعاينة للتجربة: «?preview» يبقى يعمل، والأنماط الأربعة و4 (بالحزمة كاملة).
+  packJson.excludeModes = [];
   await open(base + '?preview');
   check('«?preview»: 4 متاحة ومختارة', !(await off('full')) && await sel('full'));
 
-  // 3. حزمة تستثني نمطاً مع 4 (بالمعاينة: ثلاثة أنماط): تصير 2، فلا تعلق المباراة.
-  const packJson = { id: 'general', name: 'الحزمة الثقافية العامة', description: 'أسئلة ثقافية خفيفة في المجالات الثمانية', excludeModes: ['ranking'] };
-  await context.route('**/content/packs/general/pack.json*', r => r.fulfill({ json: packJson }));
-  await open(base + '?preview');
+  // 3. حزمة تستثني نمطاً مع 4 (ثلاثة أنماط): تصير 2، فلا تعلق المباراة.
+  packJson.excludeModes = ['ranking'];
+  await open(base);
   check('حزمة تستثني «الترتيب» (3 أنماط): 4 معطّلة و2 مختارة', await off('full') && await sel('short'));
   await toPick();
   check('الاختيار: لا «الترتيب»', !(await tiles()).includes('ranking'));
@@ -116,8 +119,8 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
   await cmd(frame, 'pick:auction');
   check('اكتمل الاختيار بجولتين و«إلى المواجهة» متاح', await frame.waitForSelector('[data-cmd="toFace"]', { timeout: 3000 }).then(() => true, () => false));
 
-  // 4. حزمة تستثني «آخر حرفين» و«المزاد»: نمط مبني واحد، فلا تبدأ مباراة، ويقول السبب.
-  packJson.excludeModes = ['last-two', 'auction'];
+  // 4. حزمة تستثني «آخر حرفين» و«المزاد» و«الترتيب»: نمط مبني واحد، فلا تبدأ مباراة، ويقول السبب.
+  packJson.excludeModes = ['last-two', 'auction', 'ranking'];
   await open(base);
   await frame.fill('#i1', 'الصقور');
   await frame.fill('#i2', 'النجوم');
