@@ -19,6 +19,8 @@ export const altsText = alts => (alts ?? []).join('، ');
 // حدّا ش4 (design/auction.md 3): موضوع المزاد سطر واحد بجوار العدّ «12 من 12»، واسم العنصر في شارته. تنبيهان لا خطآن.
 export const TOPIC_MAX = 32;
 export const ITEM_MAX = 20;
+// أقل قائمة في بنك المزاد (المالك، 24 أكتوبر 2026): دونها لا تتحقق المزايدة. حدّ أدنى لا هدف.
+export const AUCTION_MIN = 10;
 // أسئلة كل مستوى في الجولة لكل فريق سؤال (5.3 و5.4)، فسؤالان من كل مستوى في جولة «آخر حرفين» بنهاية واحدة.
 export const ROUND_PER_LEVEL = 2;
 const length = text => [...String(text)].length;
@@ -198,7 +200,7 @@ export function checkContent({ index, packs, wheel }) {
           needText(where, item, 'topic');
           checkLength(where, item, 'topic');
           if (typeof item.topic === 'string' && length(item.topic) > TOPIC_MAX) warn(where, `الموضوع ${length(item.topic)} حرفاً، والحد ${TOPIC_MAX} (سطر واحد بجوار العدّ)`);
-          if (!Array.isArray(item.items) || item.items.length < 3) err(where, '«items» قائمة مرجعية كاملة (3 عناصر على الأقل)');
+          if (!Array.isArray(item.items) || item.items.length < AUCTION_MIN) err(where, `«items» قائمة مرجعية كاملة (${AUCTION_MIN} عناصر على الأقل، لتتحقق المزايدة)`);
           else {
             checkNames(where, item.items);
             item.items.forEach((it, k) => { if (typeof it?.name === 'string' && length(it.name) > ITEM_MAX) warn(`${where} · العنصر ${k + 1}`, `«${it.name}» ${length(it.name)} حرفاً، والحد ${ITEM_MAX} (شارة العنصر)`); });

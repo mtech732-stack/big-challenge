@@ -17,9 +17,11 @@ const { reporter } = require('./helpers.cjs');
   const read = f => JSON.parse(fs.readFileSync(path.join(root, 'content/packs/general', f), 'utf8'));
   const bank = read('auction.json');
   const content = { 'letter.json': read('letter.json'), 'last-two.json': read('last-two.json'), 'auction.json': bank };
-  // بنك ثابت لما بعد الإعداد: «أركان الإيمان» (6، سهل) و«أولو العزم» (5، متوسط) و«دول قارة أفريقيا» (54، صعب).
-  const pick3 = ['أركان الإيمان', 'أولو العزم', 'دول قارة أفريقيا'];
-  const small = { ...bank, topics: bank.topics.filter(t => pick3.includes(t.topic)) };
+  // بنك ثابت لما بعد الإعداد، لا يعتمد على اسم قائمة بعينها: من أطول قائمة في البنك (54) قائمتان 6 (سهل) و5 (متوسط)، ثم هي كما هي (صعب).
+  // (أصغر من حدّ البنك 10 عمداً: يختبر الوحدة لا المحتوى.)
+  const longest = bank.topics.reduce((x, t) => (t.items.length > x.items.length ? t : x));
+  const cut = (n, level, k) => ({ ...longest, id: `fixed-${k}`, level, topic: `قائمة ${n}`, items: longest.items.slice(0, n) });
+  const small = { ...bank, topics: [cut(6, 'easy', 1), cut(5, 'medium', 2), { ...longest, level: 'hard' }] };
   const fixed = { ...content, 'auction.json': small };
   let seed = 11;
   const rng = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -245,7 +247,8 @@ const { reporter } = require('./helpers.cjs');
   const pack = extra => { const b = JSON.parse(JSON.stringify(bank)); extra(b); return checkContent({ index: { packs: ['general'] }, packs: { general: { 'pack.json': read('pack.json'), 'auction.json': b } }, wheel: undefined }); };
   const ok = pack(() => {});
   check('البنك الحالي: لا تنبيه حدّ في المزاد', !ok.warnings.some(w => w.includes('والحد 32') || w.includes('والحد 20')));
-  const long = pack(b => { b.topics[0].topic = 'م'.repeat(33); b.topics[0].items[0].name = 'ع'.repeat(21); });
+  const at = bank.topics.indexOf(longest);
+  const long = pack(b => { b.topics[at].topic = 'م'.repeat(33); b.topics[at].items[0].name = 'ع'.repeat(21); });
   check('موضوع 33 حرفاً وعنصر 21: تنبيهان، لا خطأ', long.warnings.some(w => w.includes('الموضوع 33 حرفاً')) && long.warnings.some(w => w.includes('21 حرفاً، والحد 20')) && long.errors.length === ok.errors.length);
 
   process.exit(finish() ? 0 : 1);

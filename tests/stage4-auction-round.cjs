@@ -58,7 +58,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
       t = t.replace(document.getElementById('topic').innerText, '').replace(document.getElementById('tsize').innerText, '');
       for (const n of ns) t = t.split(n).join(''); return t; }, LONG);
     if (/سرقة|سهل|متوسط|صعب|بفارق|انسحب|في القائمة|عنصر/.test(body)) { leak = true; fails.push(`${label}: نص ممنوع على الجمهور`); }
-    if (names.some(n => body.includes(n))) { leak = true; fails.push(`${label}: عنصر من القائمة على الجمهور`); }
+    // اسم من حرف أو حرفين يقع في أي نص، فلا يُبحث عنه في نص الشاشة.
+    if (names.some(n => [...n].length > 2 && body.includes(n))) { leak = true; fails.push(`${label}: عنصر من القائمة على الجمهور`); }
     if (s.phase === 'bid' && len > 20 && body.includes(String(len))) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
   };
   const presenterCheck = async label => {
