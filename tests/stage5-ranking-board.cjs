@@ -259,7 +259,8 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo } = require
       s2 = await st();
       check(`انتهى وقت القائمة: نهاية القائمة بنفسها، وكلها مكشوفة (${s2.phase})`, s2.phase === 'listend' && s2.timeup && (await slots()).every((x, i) => x.name === bank.lists[1].items[i].name));
       check(`«انتهى وقت القائمة» في مربع الجمهور وسطر المقدّم، و«إنهاء الجولة» (${await text(audience, '#next')} · ${await text(presenter, '#rWho')})`,
-        (await text(audience, '#next')) === 'انتهى وقت القائمة · كُشف 0 من 10' && (await text(presenter, '#rWho')) === 'انتهى وقت القائمة 2 · كُشف 0 من 10' && (await ctl()) === 'إنهاء الجولة');
+        (await audience.$eval('#next', e => e.innerText)) === 'انتهى وقت القائمة\nكُشف 0 من 10' && await audience.$eval('#box', b => b.classList.contains('two') && !b.classList.contains('wrap'))
+        && await audience.$eval('#next', e => { const r = e.getBoundingClientRect(), b = e.closest('.box').getBoundingClientRect(); return r.top >= b.top && r.bottom <= b.bottom && e.scrollWidth <= e.clientWidth + 1; }) && (await text(presenter, '#rWho')) === 'انتهى وقت القائمة 2 · كُشف 0 من 10' && (await ctl()) === 'إنهاء الجولة');
       await both('انتهى وقت القائمة');
       await shot('timeup');
       await act('next');
