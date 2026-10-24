@@ -117,6 +117,49 @@ const { reporter } = require('./helpers.cjs');
   const m2 = P.act(P.act(m1, all, 'show'), all, 'bid:6');
   check('أفعال المزايدة تمرّ بالمشغّل: «bid:6»', auction.audience(m2.round.state).bids[0].n === 6);
 
+  // الوفاء والعدّ (5.5): للملتزم 60 ثانية، وكل عنصر يذكره +1، فإن بلغ ما التزم به أخذ نقاطه.
+  const commitAt = (n, first = 1) => { let x = R.act(auction, start(first), 'show'); x = R.act(auction, x, `bid:${n}`); return R.act(auction, x, 'pass'); };
+  let f = commitAt(3);
+  const ft = f.state.topics[0];
+  check('الملتزم قبل «ابدأ»: «ابدأ العدّاد» والعدّ و«توقّف · لم يفِ»', ids(auction.actions(f.state)) === 'start,item,count,stop');
+  f = R.act(auction, f, 'start');
+  check(`«ابدأ»: عدّاد ${FULFIL_SECONDS} ثانية`, f.state.phase === 'fulfil' && f.timer?.seconds === FULFIL_SECONDS && f.events.some(e => e.type === 'timer' && e.seconds === FULFIL_SECONDS));
+  const timerId = f.timer.id;
+  f = R.act(auction, f, 'item:2');
+  a = auction.audience(f.state);
+  check('عنصر: +1 للعدّ بلون الملتزم، واسمه فيما ذُكر، والعدّاد يبقى يعدّ', a.tally.n === 1 && a.tally.of === 3 && a.tally.team === 1 && a.said.length === 1 && a.said[0].name === ft.items[2].name && a.said[0].team === 1
+    && f.timer?.id === timerId && !f.events.some(e => e.type === 'stop-timer' || e.type === 'timer'));
+  check('لحظة «said» للعنصر، ولا نقاط قبل الوفاء', f.events.some(e => e.type === 'moment' && e.name === 'said') && f.scores[1] === 0);
+  check('العنصر نفسه مرة ثانية يُهمل (لا مكرر)', R.act(auction, f, 'item:2').state === f.state);
+  check('موضع خارج القائمة أو بلا رقم يُهمل', ['item:-1', `item:${ft.items.length}`, 'item:x', 'item:', 'item'].every(x => R.act(auction, f, x).state === f.state));
+  check('المقدّم: العنصر ممتلئ بلون من ذكره', auction.presenter(f.state).items[2].by === 1 && auction.presenter(f.state).items.filter(x => x.by).length === 1);
+  check('القائمة لا تظهر على الجمهور قبل الحكم', a.list === undefined && a.verdict === null);
+  f = R.act(auction, f, 'count');
+  a = auction.audience(f.state);
+  check('«صحيح · +1» دون اسم: يزيد العدّ، ولا اسم فيما ذُكر', a.tally.n === 2 && a.said.length === 1);
+  const undone = R.undo(f);
+  check('التراجع عن عنصر: يعود العدّ، والعدّاد يبقى', auction.audience(undone.state).tally.n === 1 && undone.timer?.id === timerId && undone.events.length === 0);
+  f = R.act(auction, f, 'item:0');
+  a = auction.audience(f.state);
+  check('بلغ العدّ 3 من 3: يُحكم تلقائياً، +3 للملتزم، ولحظة «صحيحة»', f.state.phase === 'decided' && f.scores[1] === 3 && f.scores[2] === 0 && a.verdict.team === 1 && a.verdict.points === 3 && f.events.some(e => e.name === 'right'));
+  check('يقف العدّاد مع الحكم', f.timer === null && f.events.some(e => e.type === 'stop-timer'));
+  check('بعد الحكم: القائمة كلها، كل عنصر بمن ذكره (2 و0 للأول، والباقي 0)', a.list.length === ft.items.length && a.list[2].by === 1 && a.list[0].by === 1 && a.list.filter(x => x.by).length === 2);
+  check('بعد الحكم: الحدّ عند من أخذ النقاط، ولا أزرار عدّ', a.turn === 1 && !auction.actions(f.state).some(x => x.id === 'item' || x.id === 'count'));
+  check('مسار المواضيع: الموضوع الأول للأول', auction.presenter(f.state).track[0].result === 1);
+
+  // لم يفِ: «توقّف» أو انتهى الوقت، فيقف العدّاد (إكمال الخصم في المرحلة التالية).
+  let g = R.act(auction, commitAt(5, 2), 'start');
+  g = R.act(auction, g, 'item:1');
+  const gs = R.act(auction, g, 'stop');
+  check('«توقّف · لم يفِ»: يقف العدّاد، ولا نقاط، ولا عدّ بعده', gs.state.phase === 'short' && gs.timer === null && gs.scores[2] === 0 && !auction.actions(gs.state).length);
+  const gt = R.act(auction, g, 'timeout', g.timer.id);
+  check('انتهى الوقت: كـ «توقّف»', gt.state.phase === 'short' && gt.state.short === 'timeout');
+  check('«انتهى الوقت» من عدّاد قديم يُهمل', R.act(auction, g, 'timeout', g.timer.id + 1).state === g.state);
+  check('«توقّف» قبل «ابدأ» أيضاً', R.act(auction, commitAt(4), 'stop').state.phase === 'short');
+  // حالة محفوظة من «المزايدة» (بلا said) تكمل بعد التحديث.
+  const old = commitAt(2); const { said, ...rest } = old.state;
+  check('حالة محفوظة بلا said: العدّ 0 ويُعدّ عنصر', auction.audience(rest).tally.n === 0 && auction.audience(R.act(auction, { ...old, state: rest }, 'item:0').state).tally.n === 1);
+
   // حدّا المحتوى (design/auction.md 3): الموضوع 32 حرفاً واسم العنصر 20، تنبيهان لا خطآن.
   const { checkContent } = await import(path.join(root, 'js/content-check.js'));
   const pack = extra => { const b = JSON.parse(JSON.stringify(bank)); extra(b); return checkContent({ index: { packs: ['general'] }, packs: { general: { 'pack.json': read('pack.json'), 'auction.json': b } }, wheel: undefined }); };

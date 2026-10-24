@@ -106,6 +106,7 @@
       <p class="chip" id="verdict" hidden><i></i><span id="vtext"></span></p>
       <p class="chip" id="faceChip" hidden><i></i><span>الفائز بالقرعة</span></p>
       <p class="line" id="reveal" data-fit="سطر الإجابة" hidden>الإجابة: <b id="answer"></b></p>
+      <p class="line" id="told" data-fit="سطر ما ذُكر" hidden></p>
       <p class="line" id="faceWin" data-fit="اسم الفائز" hidden></p>
       <p class="line" id="next" data-fit="سطر التالي" hidden></p>
     </div>
@@ -210,7 +211,8 @@
     drainAnim = $('p' + team).querySelector('polygon').animate([{ strokeDashoffset: from }, { strokeDashoffset: 100 }], { duration: Math.max(0, left * 1000), fill: 'forwards' });
   };
   // مربع الإعلان (15.4): الحكم والإجابة · الفائز بالقرعة · «التالي». ولا يظهر إن لم يكن فيه شيء.
-  function announce({ verdict: v, answer, face, next } = {}) {
+  // told: سطر المزاد بعد الحكم «ذُكر 10 من 12» مكان الإجابة (القائمة كلها في البطاقة، design/auction.md 2).
+  function announce({ verdict: v, answer, told, face, next } = {}) {
     $('verdict').hidden = !v;
     if (v) {
       $('verdict').className = `chip${v.team ? ' t' + v.team : ''}`;
@@ -218,11 +220,12 @@
       $('vtext').innerHTML = v.team ? `${esc(name(v.team))} · ${num('+' + v.points)}` : 'لا نقاط';
     }
     $('reveal').hidden = !answer; $('answer').textContent = answer ?? '';
+    $('told').hidden = !told; $('told').innerHTML = told ? num(told) : '';
     $('faceChip').hidden = $('faceWin').hidden = !face; $('faceWin').textContent = face ? name(face) : '';
     $('next').hidden = !next; $('next').innerHTML = next ? num(next) : '';
-    $('box').hidden = !(v || answer || face || next);
+    $('box').hidden = !(v || answer || told || face || next);
     // «التالي» في نهاية الجولة نص أبيض على الطرف بلا مربع، فلا يتجاوز الأبيض سقفه (15.4 و15.12).
-    $('box').classList.toggle('bare', !!next && !v && !answer && !face);
+    $('box').classList.toggle('bare', !!next && !v && !answer && !told && !face);
     placeBox();
   }
   // الملاحظة 27 (15.4): المربع يضيق بقدر ما يبقى بعد لوحة الثاني. حافته اليمنى ثابتة على 1794، وعرضه الأصغر من 659
@@ -388,7 +391,7 @@
     // بعد الحكم الأخير: الحكم والإجابة في مربع الإعلان حتى السؤال التالي. و«التالي» فيه في نهاية الجولة.
     const asking = a.screen === 'ask' || a.screen === 'topic';
     const v = asking ? a.verdict : null;
-    announce(a.screen === 'end' ? { next: p.next } : { verdict: v, answer: a.answer });
+    announce(a.screen === 'end' ? { next: p.next } : { verdict: v, answer: a.answer, told: v && a.tally ? `ذُكر ${a.tally.n} من ${a.tally.of}` : undefined });
     syncTimer(p.timer, a);
     setTurn(a.turn);
     // الحدّ يكتسح لصاحب الدور من ظهور سؤاله، في القراءة ثم العدّاد بلا حركة بينهما، وللآخر فوراً إن انتقل إليه (المالك 20:39، design/system.md 15.2).
@@ -413,8 +416,37 @@
     const t = a.tally;
     $('tally').hidden = !t;
     if (t) { $('tn').textContent = t.n; $('tof').textContent = t.of; $('tally').className = `tally t${t.team}`; }
-    $('auc').classList.toggle('reveal', false);
-    $('items').innerHTML = '';
+    // ما ذُكر بلون من ذكره، والأحدث يظهر بحركته. وبعد الحكم القائمة كلها: ما ذُكر أولاً، ثم ما لم يُذكر بإطار (design/auction.md 2.3 و2.4).
+    // وفي النافذة الواحدة يُعدّ دون أسماء، فلا عناصر قبل الحكم، وبعده القائمة كلها بإطار.
+    const reveal = !!a.list;
+    $('auc').classList.toggle('reveal', reveal);
+    const it = (x, cls) => `<span class="it ${cls}"><i></i><span>${esc(x.name)}</span></span>`;
+    const said = a.said ?? [];
+    const fresh = !reveal && said.length > shownSaid;
+    shownSaid = said.length;
+    const items = said.map((x, i) => it(x, `t${x.team}${fresh && i === said.length - 1 ? ' new' : ''}`));
+    if (reveal) items.push(...a.list.filter(x => !x.by).map(x => it(x, 'left')));
+    $('items').innerHTML = items.join('');
+    fitItems($('items'), reveal);
+    if (fresh) replay($('tally'), 'bump');
+  }
+  let shownSaid = 0;
+  // ما ذُكر: أثناء العدّ يبقى الأحدث (يسقط الأقدم). وبعد الحكم يبقى كل ما ذُكر، ويسقط من غير المذكور آخره،
+  // وفي آخر الصف «و N غيرها» (design/auction.md 7.2، fitItems في design/auction.html).
+  function fitItems(box, reveal) {
+    const all = [...box.children];
+    const fits = () => !box.lastElementChild || rect(box.lastElementChild).bottom <= rect(box).bottom + 1;
+    if (fits()) return;
+    if (!reveal) { while (!fits() && box.firstElementChild) box.firstElementChild.remove(); return; }
+    const more = document.createElement('span'); more.className = 'it more'; box.append(more);
+    let hidden = 0;
+    const lefts = all.filter(e => e.classList.contains('left'));
+    while (!fits()) {
+      const el = lefts.length ? lefts.pop() : all.filter(e => e.isConnected).pop();
+      if (!el) break;
+      el.remove(); hidden++;
+      more.innerHTML = `<span>و <span class="ltr">${hidden}</span> غيرها</span>`;
+    }
   }
   // ما زاد على صف المزايدة يسقط من أوله (اليمين)، فيبقى الأحدث دائماً. بحدود العناصر لا scrollWidth:
   // ما يُقصّ بـ overflow: clip لا يُحسب فيه (design/auction.md 7.2).
