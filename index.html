@@ -150,6 +150,36 @@
   #app .bidrow .no { grid-column: span 3; background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
   #app .bidrow .half { grid-column: span 6; }
   #app .bidrow button:disabled { opacity: .45; cursor: default; }
+
+  /* ===== الترتيب (design/ranking.md 5، من design/presenter-ranking.html): العنوان، والقائمة كاملة (13) أزراراً تُنقر ===== */
+  .rnk { grid-template-columns: 1fr; align-items: center; align-content: center; gap: 0.5rem 1.25rem; }
+  .rnk .title { font-size: 1.25rem; font-weight: 800; line-height: 1.3; }
+  .rnk .title small { font-size: 1rem; font-weight: 700; }
+  /* القائمة كما على التلفاز: ثلاثة أعمدة، 1–5 ثم 6–10 ثم الفخاخ. كل عنصر زر: رتبته ثم اسمه ثم صيغه البديلة */
+  .rnk .ref { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(5, auto); grid-auto-flow: column; gap: 0.375rem 0.75rem; }
+  .rnk .ref button { min-width: 0; min-height: 2.5rem; padding: 0.125rem 0.5rem; background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink);
+    display: flex; align-items: center; justify-content: flex-start; gap: 0.5rem; font-size: 1rem; font-weight: 700; line-height: 1.1; white-space: normal; text-align: start; }
+  .rnk .ref button b { flex: none; min-width: 1.75rem; font-weight: 900; text-align: center; direction: ltr; }
+  .rnk .ref button small { font-size: 1rem; font-weight: 400; }
+  /* الفخ: إطار أحمر متقطع، وخصمه مكان رتبته (−3 −2 −1) كما على التلفاز */
+  .rnk .ref button.trap { box-shadow: none; border: 3px dashed var(--team-1); }
+  .rnk .ref button.trap b { color: var(--team-1); }
+  /* ما كُشف: ممتلئ بلون من ذكره، ولا يُنقر ثانية (المكرر خطأ، الوثيقة 5.6) */
+  .rnk .ref button.t1, .rnk .ref button.t2 { color: var(--card); box-shadow: none; border: 0; pointer-events: none; }
+  .rnk .ref button.t1 b, .rnk .ref button.t2 b { color: var(--card); }
+  .rnk .ref button.t1 { background: var(--team-1); }
+  .rnk .ref button.t2 { background: var(--team-2-ink); }
+  /* قبل «ابدأ» وبعد الحكم ونهاية القائمة: للاطلاع، لا تُنقر */
+  .rnk .ref.view button { pointer-events: none; cursor: default; }
+  /* لوحة الدور: «خطأ» بعرضها، أو «التالي» و«أنهِ القائمة» */
+  #app .ctlrow { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0.75rem; }
+  #app .ctlrow:empty { display: none; }
+  #app .ctlrow button { min-height: 5rem; font-size: 1.5rem; margin: 0; grid-column: span 6; }
+  #app .ctlrow .full { grid-column: span 12; }
+  /* «التالي · دور [الاسم]» أعرض، لأن أطول اسم (18 حرفاً) فيه */
+  #app .ctlrow .next { grid-column: span 8; }
+  #app .ctlrow .next + .alt { grid-column: span 4; }
+  #app .ctlrow .no { background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
 </style>
 </head>
 <body>
@@ -245,6 +275,21 @@
       <button class="alt" data-new>مباراة جديدة</button>
     </div>
     <div class="bidrow" id="aCtl"></div>
+  </section>
+
+  <!-- الترتيب (design/ranking.md 5): العنوان والقائمة كاملة (للمقدّم وحده)، ثم الدور والحكم -->
+  <section class="panel rnk" data-step="play" data-part="rnk" hidden>
+    <p class="title" id="rTitle"></p>
+    <div class="ref view" id="rRef"></div>
+  </section>
+  <section class="panel" data-step="play" data-part="rnk" hidden>
+    <div class="row">
+      <p class="who" id="rWho"></p>
+      <p class="state grow" id="rState"></p>
+      <button class="alt" id="rUndo">تراجع عن آخر حكم</button>
+      <button class="alt" data-new>مباراة جديدة</button>
+    </div>
+    <div class="ctlrow" id="rCtl"></div>
   </section>
 
   <!-- نهاية الجولة -->
@@ -633,10 +678,11 @@
     if (!mode) return;
     const st = match.round.state, pr = mode.presenter(st), acts = mode.actions(st);
     const label = id => acts.find(a => a.id === id)?.label;
-    const part = pr.screen === 'intro' ? 'intro' : pr.screen === 'end' ? 'end' : pr.screen === 'topic' ? 'auc' : 'q';
+    const part = pr.screen === 'intro' ? 'intro' : pr.screen === 'end' ? 'end' : pr.screen === 'topic' ? 'auc' : pr.screen === 'list' ? 'rnk' : 'q';
     document.querySelectorAll(`[data-part="${part}"]`).forEach(s => s.hidden = false);
     const n = match.round.n, title = `الجولة ${n} · ${mode.name}`;
-    $('roundChip').querySelector('span').innerHTML = num(part === 'auc' ? `${mode.name} · الموضوع ${pr.n} من ${pr.count}` : `الجولة ${n} من ${M.rounds(match)} · ${mode.name}`);
+    $('roundChip').querySelector('span').innerHTML = num(part === 'auc' ? `${mode.name} · الموضوع ${pr.n} من ${pr.count}`
+      : part === 'rnk' ? `${mode.name} · القائمة ${pr.n} من ${pr.count}` : `الجولة ${n} من ${M.rounds(match)} · ${mode.name}`);
     $('pips').innerHTML = pr.track.map(x => `<i class="pip t${x.owner}${x.result === null ? '' : x.result ? ' won' + x.result : ' none'}${x.now ? ' now' : ''}"></i>`).join('');
 
     if (part === 'intro') {
@@ -674,6 +720,7 @@
       $('undo').disabled = !match.round.history.length;
     }
     if (part === 'auc') renderAuction(pr, acts);
+    if (part === 'rnk') renderRanking(pr, acts);
     if (part === 'end') {
       $('endHead').innerHTML = num(`انتهت ${title}`);
       $('sum').innerHTML = [1, 2].map(k => `<span>${mk(k)} ${tn(k)}</span><span class="pts">+${pr.totals[k]}</span><span>${num('الرصيد ' + match.round.scores[k])}</span>`).join('');
@@ -768,6 +815,50 @@
     roundAct('item:' + el.dataset.i, true);
   });
 
+  // ===== الترتيب في نافذة المقدّم (design/ranking.md 5) =====
+  // القائمة كاملة كما على التلفاز (13): تُنقر في العدّاد وحده، فيُحكم فوراً، ويمتلئ العنصر بلون صاحبه ولا يُنقر ثانية.
+  // وقبل «ابدأ» وبعد الحكم ونهاية القائمة للاطلاع. والحكم يغيّر الأزرار تحته، فالنقرة بالإمهال كغيرها.
+  const PEN = { 11: 3, 12: 2, 13: 1 };
+  function renderRanking(pr, acts) {
+    const at = pr.title.indexOf(' · ');
+    $('rTitle').innerHTML = at < 0 ? esc(pr.title) : `${esc(pr.title.slice(0, at))} <small>· ${num(pr.title.slice(at + 3))}</small>`;
+    const ref = $('rRef');
+    ref.classList.toggle('view', !acts.some(a => a.id === 'item'));
+    const key = pr.n + '|' + pr.items.map(x => x.name).join('|');
+    if (ref.dataset.key !== key) {
+      ref.dataset.key = key;
+      ref.innerHTML = pr.items.map(x => `<button tabindex="-1" data-r="${x.rank}" class="${x.trap ? 'trap' : ''}"><b>${x.trap ? '−' + PEN[x.rank] : x.rank}</b>` +
+        `<span>${esc(x.name)}${x.alts.length ? ` <small>· ${esc(x.alts.join(' · '))}</small>` : ''}</span></button>`).join('');
+    }
+    pr.items.forEach((x, i) => { const el = ref.children[i]; el.classList.toggle('t1', x.by === 1); el.classList.toggle('t2', x.by === 2); });
+    const v = pr.verdict;
+    $('rWho').innerHTML = pr.phase === 'listend' ? `<span class="done">${num(`انتهت القائمة ${pr.n} · كُشف ${pr.found} من ${pr.of}`)}</span>`
+      : v ? `<span class="done">${v.team ? `${esc(match.teams[v.team])} · ${num(`+${v.points} · المركز ${v.rank}`)}` : 'لا نقاط · لم تُكشف خانة'}</span>`
+      : `${mk(pr.turn)} دور ${tn(pr.turn)}`;
+    rankState(pr);
+    const ctl = id => acts.find(a => a.id === id);
+    const b = (id, cls, label) => `<button class="${cls}" data-act="${id}">${num(label ?? ctl(id).label)}</button>`;
+    const next = ctl('next'), finish = ctl('finish');
+    $('rCtl').innerHTML = pr.phase === 'read' ? b('start', '') + b('finish', 'alt')
+      : pr.phase === 'ask' ? b('wrong', 'no full')
+      // بعد الحكم: «التالي · دور [الخصم]» و«أنهِ القائمة». وإن انكشفت العشرة فنهايتها وحدها.
+      : pr.phase === 'decided' ? (next ? `<button class="next" data-act="next">التالي · دور ${esc(match.teams[pr.upNext])}</button>` : '') + (finish ? b('finish', next ? 'alt' : 'alt full') : '')
+      : pr.phase === 'listend' ? b('next', 'full') : '';
+    $('rUndo').disabled = !match.round.history.length;
+  }
+  // سطر الحالة: في العدّاد الوقت الباقي كما على الشاشة (يصل كل ثانية من نافذة الجمهور).
+  function rankState(pr) {
+    $('rState').innerHTML = pr.phase === 'read' ? 'يقرأ الفريق القائمة'
+      : pr.phase === 'ask' ? `<span class="ltr">${esc(tickText || '0:15')}</span>` : '';
+  }
+  $('rCtl').addEventListener('click', e => { const el = e.target.closest('button[data-act]'); if (el) roundAct(el.dataset.act); });
+  // ما قاله الفريق: يُحكم فوراً (خانته بنقاطها). والفخاخ في المرحلة التالية من ش5.
+  $('rRef').addEventListener('click', e => {
+    const el = e.target.closest('button[data-r]');
+    if (!el || $('rRef').classList.contains('view') || el.classList.contains('trap')) return;
+    roundAct('item:' + el.dataset.r);
+  });
+
   // ===== الشاشة المشتركة: شاشة الجمهور في هذه النافذة، وأزرارها (design/shared.md 3 و4) =====
   function renderStage(error) {
     const on = role === 'stage' || handing || shared();
@@ -831,7 +922,9 @@
       const st = match.round.state, acts = mode.actions(st), screen = mode.audience(st).screen;
       const act = (id, label, kind) => acts.some(a => a.id === id) ? [{ cmd: 'act:' + id, label: label ?? acts.find(a => a.id === id).label, kind, off: wait }] : [];
       if (screen === 'intro') c.card = act('show');
-      const last = st.index === (st.questions ?? st.topics).length - 1;
+      const last = st.index === (st.questions ?? st.topics ?? st.lists).length - 1;
+      // الترتيب بنافذة واحدة ينتظر جواب المالك (design/ranking.md 4، docs/open-questions.md): لا أزرار حكم هنا بعد،
+      // ويُلعب من نافذة المقدّم («المقدّم» في الزاوية).
       // المزاد (design/auction.md 4، 3.0): زر كل فريق بلونه برقمه («زايد» قبل أول رقم) · «ابدأ» بينهما (معطّل قبل أول رقم).
       const b = screen === 'topic' && st.phase === 'bid';
       if (b) {
@@ -910,6 +1003,7 @@
         tickText = data.text;
         const st = match?.round?.state, mode = st && roundMode();
         if (mode?.id === 'auction' && st.phase === 'fulfil') auctionState(mode.presenter(st));
+        if (mode?.id === 'ranking' && st.phase === 'ask') rankState(mode.presenter(st));
       }
       // انتهى عدّاد في نافذة الجمهور: يُطبَّق إن طابق رقمه العدّاد الجاري، وإلا أُهمل (عقد الوحدة 5).
       if (type === 'timeout' && match && $('gate').hidden) roundUpdate(P.act(match, MODES, 'timeout', data.id));
@@ -941,7 +1035,7 @@
   $('lostSingle').onclick = () => update({ ...match, single: true });
   $('showQ').onclick = () => roundAct('show');
   document.querySelectorAll('#judge [data-act], #nextQ').forEach(b => b.onclick = () => roundAct(b.dataset.act));
-  $('undo').onclick = $('endUndo').onclick = $('aUndo').onclick = actions.undo;
+  $('undo').onclick = $('endUndo').onclick = $('aUndo').onclick = $('rUndo').onclick = actions.undo;
   $('endNext').onclick = () => actions[nextButton().act]?.();
   $('mute').onclick = toggleMute;
   document.querySelectorAll('[data-new]').forEach(b => b.onclick = newMatch);

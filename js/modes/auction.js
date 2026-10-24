@@ -6,7 +6,7 @@
 // والقائمة المرجعية لا تصل إلى الجمهور قبل الحكم (7.1).
 // ثم الوفاء والعدّ: يُحسب كل عنصر يذكره الملتزم (+1)، فإن بلغ ما التزم به أخذ نقاطه، وإلا أخذ الخصم نقطتين (لا إكمال).
 // ثم «الموضوع التالي» حتى الثالث، و«إنهاء الجولة».
-import { freshFirst } from '../round.js';
+import { freshFirst, besides } from '../round.js';
 
 // وقت الوفاء 60 (45 مقترحة تُضبط في ش8)، ونقاط الخصم إن لم يفِ الملتزم (قيمة مبدئية تُضبط في ش8).
 export const FULFIL_SECONDS = 60;
@@ -22,10 +22,11 @@ const other = team => (team === 1 ? 2 : 1);
 // · commit: { team, n } من رسا عليه المزاد ورقمه
 // · said: ما ذُكر بالترتيب { i, team }، وi موضع العنصر في القائمة، أو null إن عُدّ دون اسم («صحيح · +1» في النافذة الواحدة)
 // · results[i]: { team, points } من أخذ نقاط الموضوع i (team 0 إن لم يأخذها أحد)، أو null ما لم ينتهِ.
-function setup({ content, first, seen = [], rng = Math.random }) {
+// avoid: مواضيع تتقاطع مع قائمة ترتيب اختيرت في المباراة (تدقيق ش5 «ثالثاً»).
+function setup({ content, first, seen = [], avoid = [], rng = Math.random }) {
   const bank = content?.topics ?? [];
   const topics = LEVELS.map((l, i) => {
-    const t = freshFirst(bank.filter(x => x.level === l), seen, 1, rng)[0];
+    const t = freshFirst(besides(bank.filter(x => x.level === l), avoid), seen, 1, rng)[0];
     return t && { id: t.id, level: t.level, topic: t.topic, items: t.items.map(x => ({ name: x.name, alts: x.alts ?? [] })), note: t.note ?? '' };
   }).filter(Boolean);
   return { first, topics, index: 0, phase: 'intro', team: 0, nums: [0, 0], commit: null, said: [], results: topics.map(() => null) };
