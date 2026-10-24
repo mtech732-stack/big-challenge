@@ -1,6 +1,9 @@
 // تحميل الحزم في المتصفح: فهرس الحزم، ثم pack.json لكل حزمة، ثم ملفات أنماطها الموجودة.
 // ما وصل مرة بإنترنت يحفظه عامل الحفظ (sw.js)، فيُقرأ بلا إنترنت.
-import { MODES } from './content-check.js';
+// تُطلب ملفات الأنماط المبنية وحدها، فلا يُطلب ملف نمط لم تُبنَ شريحته بعد (الملاحظة 31).
+import { MODES, DRAFTS } from './modes/index.js';
+
+const BUILT = [...MODES, ...DRAFTS].map(m => m.id);
 
 const ROOT = 'content/packs';
 
@@ -19,7 +22,7 @@ export async function loadPacks() {
     const meta = await getJson(`${ROOT}/${id}/pack.json`);
     if (!meta) return null;
     const files = { 'pack.json': meta };
-    await Promise.all(MODES.filter(m => !(meta.excludeModes ?? []).includes(m)).map(async m => {
+    await Promise.all(BUILT.filter(m => !(meta.excludeModes ?? []).includes(m)).map(async m => {
       const data = await getJson(`${ROOT}/${id}/${m}.json`);
       if (data) files[`${m}.json`] = data;
     }));
