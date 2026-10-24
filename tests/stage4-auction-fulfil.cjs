@@ -125,7 +125,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await presenter.click('#aCtl [data-act="start"]');
   await wait(1300);
   check('«ابدأ»: الجمهور يعدّ (الإطار يتآكل حول لوحة الملتزم)', await audience.$eval('#canvas', (c, t) => c.classList.contains('running') && c.classList.contains('turn-' + t), opener));
-  check(`المقدّم: «0:5x · بقي ${N - 1}» و«توقّف · لم يفِ» وحده`, /^0:5\d · بقي 29$/.test(await text(presenter, '#aState'))
+  check(`المقدّم: «0:5x · بقي ${N - 1}» (الوقت في حاوية ltr) و«توقّف · لم يفِ» وحده`, /^0:5\d · بقي 29$/.test(await text(presenter, '#aState'))
+    && /^0:5\d$/.test(await presenter.$eval('#aState .ltr', e => e.textContent))
     && (await presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim()).join(' | '))) === 'توقّف · لم يفِ');
   const timer = (await stored()).round.timer.id;
 
@@ -184,7 +185,11 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await stage.screenshot({ path: `${shots}/s4-won.png` });
 
   // 8. النافذة الواحدة: «صحيح · +1» دون أسماء، و«توقّف». يُتراجع عن عنصرين (28 من 30).
+  const leftAt = async () => Number(await audience.$eval(`#c${opener}`, e => e.textContent));
   await presenter.click('#aUndo'); await wait(900);
+  const back = await leftAt();
+  check(`التراجع عن الحكم: يعود الوفاء بما بقي من الوقت (${back} ثانية، لا 60)`, (await st()).phase === 'fulfil' && back > 0 && back < 56
+    && await audience.$eval('#canvas', c => c.classList.contains('running')));
   await presenter.click('#aUndo'); await wait(900);
   await presenter.close();
   presenter = null;

@@ -147,6 +147,19 @@ const { reporter } = require('./helpers.cjs');
   check('بعد الحكم: الحدّ عند من أخذ النقاط، ولا أزرار عدّ', a.turn === 1 && !auction.actions(f.state).some(x => x.id === 'item' || x.id === 'count'));
   check('مسار المواضيع: الموضوع الأول للأول', auction.presenter(f.state).track[0].result === 1);
 
+  // التراجع عن الحكم أو عن «توقّف» يعيد الوفاء بما بقي من الوقت لا بوقته كاملاً (تقرير المعاين ش4، الوفاء والعدّ).
+  const T = 1_000_000;
+  let h = R.act(auction, commitAt(2), 'start', undefined, T);
+  h = R.act(auction, h, 'item:0', undefined, T + 5000);
+  const hd = R.act(auction, h, 'item:1', undefined, T + 10000);
+  const hu = R.undo(hd, T + 20000);
+  check('التراجع عن الحكم بعد 10 ثوانٍ: يعود الوفاء بـ 50 ثانية', hu.state.phase === 'fulfil' && Math.round(hu.timer.seconds) === 50 && hu.events.some(e => e.type === 'timer' && Math.round(e.seconds) === 50));
+  const hu2 = R.undo(hu, T + 25000);
+  check('ثم التراجع عن عنصر: العدّاد نفسه يبقى (لا وقت زائد)', hu2.timer.id === hu.timer.id && hu2.events.length === 0 && auction.audience(hu2.state).tally.n === 0);
+  const hs = R.undo(R.act(auction, h, 'stop', undefined, T + 8000), T + 30000);
+  check('التراجع عن «توقّف» بعد 8 ثوانٍ: يعود الوفاء بـ 52 ثانية', hs.state.phase === 'fulfil' && Math.round(hs.timer.seconds) === 52);
+  check('التراجع عن «ابدأ»: لا عدّاد', R.undo(R.act(auction, commitAt(2), 'start', undefined, T), T + 3000).timer === null);
+
   // لم يفِ: «توقّف» أو انتهى الوقت، فيقف العدّاد (إكمال الخصم في المرحلة التالية).
   let g = R.act(auction, commitAt(5, 2), 'start');
   g = R.act(auction, g, 'item:1');

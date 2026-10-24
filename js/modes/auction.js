@@ -67,7 +67,7 @@ function act(s, action) {
     const last = s.bids[s.bids.length - 1];
     return { state: { ...s, phase: 'ready', team: last.team, commit: { team: last.team, n: last.n }, said: [] }, events: [] };
   }
-  if (id === 'start') return { state: { ...s, phase: 'fulfil' }, events: [{ type: 'timer', seconds: FULFIL_SECONDS }] };
+  if (id === 'start') return { state: { ...s, phase: 'fulfil' }, events: [{ type: 'timer', seconds: FULFIL_SECONDS, resume: true }] };
   if (id === 'item' || id === 'count') {
     const i = id === 'item' ? Number(arg) : null;
     // لا مكرر (5.5): العنصر الذي ذُكر لا يُحسب ثانية، ولا موضع خارج القائمة.

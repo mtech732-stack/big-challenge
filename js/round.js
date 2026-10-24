@@ -28,18 +28,24 @@ export function startRound(mode, { content, scores = { 1: 0, 2: 0 }, first, seen
 // العدّاد: لكل عدّاد رقم يميّزه، و«انتهى الوقت» يحمل رقمه، فيُهمل ما جاء من عدّاد قديم
 // (حكم في اللحظة الأخيرة ثم وصل «انتهى الوقت» بعده). وكل فعل يوقف العدّاد الجاري ما لم يبدأ غيره.
 // والفعل الذي لا يُنهي الوقت (عنصر يُعدّ في وفاء المزاد) يحمل «keep-timer»، فيبقى العدّاد الجاري كما هو.
-function withTimer(round, events) {
+// resume: عدّاد يعود بالتراجع بما بقي من وقته لا بوقته كاملاً (المزاد، تقرير المعاين ش4). at: متى بدأ (ms)،
+// وroot: أول عدّاد في سلسلته (العدّاد الذي عاد بالتراجع يُعدّ هو نفسه).
+function withTimer(round, events, now) {
   const start = events.find(e => e.type === 'timer');
   const rest = events.filter(e => e.type !== 'timer' && e.type !== 'stop-timer' && e.type !== 'keep-timer');
   if (!start && events.some(e => e.type === 'keep-timer')) return { timer: round.timer, timers: round.timers, events: rest };
   if (start) {
     const id = round.timers + 1;
-    return { timer: { id, seconds: start.seconds }, timers: id, events: [...rest, { type: 'timer', seconds: start.seconds, id }] };
+    const timer = { id, seconds: start.seconds, at: now, root: start.root ?? id, ...(start.resume ? { resume: true } : {}) };
+    return { timer, timers: id, events: [...rest, { type: 'timer', seconds: start.seconds, id }] };
   }
   return { timer: null, timers: round.timers, events: round.timer ? [{ type: 'stop-timer' }, ...rest] : rest };
 }
 
-const snapshot = round => ({ state: round.state, scores: round.scores, timer: round.timer });
+// والعدّاد الذي يعود بما بقي: يُحفظ معه ما بقي منه لحظة الفعل.
+const left = (t, now) => Math.max(1, t.seconds - (now - (t.at ?? now)) / 1000);
+const snapshot = (round, now) => ({ state: round.state, scores: round.scores, timer: round.timer?.resume ? { ...round.timer, left: left(round.timer, now) } : round.timer });
+const rootOf = t => t?.root ?? t?.id;
 
 // timerId: مع 'timeout' وحده، رقم العدّاد الذي انتهى.
 // الفعل قد يحمل قيمة بعد «:» («bid:12» في المزاد)، فيُطابق اسمه وحده بما في actions()، والوحدة تتحقق من قيمته.
@@ -49,7 +55,7 @@ const ignored = round => ({ ...round, events: [] });
 // تبادل الصدارة (قرار المالك): إن صار فريق متقدماً بعد أن كان متأخراً أو متعادلاً، أضاف المشغّل لحظة «lead».
 const leader = s => (s[1] > s[2] ? 1 : s[2] > s[1] ? 2 : 0);
 
-export function act(mode, round, action, timerId) {
+export function act(mode, round, action, timerId, now = Date.now()) {
   if (mode.finished(round.state)) return ignored(round);
   if (action === 'timeout' ? !round.timer || round.timer.id !== timerId : !mode.actions(round.state).some(a => a.id === String(action).split(':')[0])) return ignored(round);
   const { state, events = [] } = mode.act(round.state, action);
@@ -60,20 +66,21 @@ export function act(mode, round, action, timerId) {
     ...round,
     state,
     scores,
-    history: [...round.history, snapshot(round)],
-    ...withTimer(round, [...events, ...lead]),
+    history: [...round.history, snapshot(round, now)],
+    ...withTimer(round, [...events, ...lead], now),
   };
 }
 
 // التراجع عن آخر حكم أو نقطة: يعيد الحالة والرصيد كما كانا، ويوقف العدّاد الجاري،
-// فإن كان للحالة المستعادة عدّاد بدأ من جديد بوقته كاملاً.
-export function undo(round) {
+// فإن كان للحالة المستعادة عدّاد بدأ من جديد بوقته كاملاً، أو بما بقي منه إن كان «resume».
+export function undo(round, now = Date.now()) {
   if (!round.history.length) return ignored(round);
   const last = round.history[round.history.length - 1];
   const back = { ...round, state: last.state, scores: last.scores, history: round.history.slice(0, -1) };
   // التراجع عن تعديل يدوي للرصيد لا يمس عدّاداً جارياً.
-  if (last.timer?.id === round.timer?.id) return { ...back, events: [] };
-  return { ...back, ...withTimer(round, last.timer ? [{ type: 'timer', seconds: last.timer.seconds }] : []) };
+  if (rootOf(last.timer) === rootOf(round.timer)) return { ...back, events: [] };
+  const t = last.timer;
+  return { ...back, ...withTimer(round, t ? [{ type: 'timer', seconds: t.resume ? t.left ?? t.seconds : t.seconds, resume: t.resume, root: rootOf(t) }] : [], now) };
 }
 
 // تعديل الرصيد يدوياً بيد المقدّم، ويُتراجع عنه كأي حكم. لا يمس العدّاد.
@@ -81,7 +88,7 @@ export function setScore(round, team, value) {
   return {
     ...round,
     scores: { ...round.scores, [team]: Math.max(0, Math.round(value)) },
-    history: [...round.history, snapshot(round)],
+    history: [...round.history, snapshot(round, Date.now())],
     events: [],
   };
 }
