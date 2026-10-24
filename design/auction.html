@@ -50,6 +50,7 @@
         <div class="scr auc" data-s="auc" id="auc">
           <div class="ahead">
             <p class="topic" id="topic" data-fit="الموضوع"></p>
+            <p class="size" id="tsize" hidden></p>
             <p class="tally" id="tally" data-fit="العدّ"><b class="n" id="tn"></b><span class="of">من <b class="ltr" id="tof"></b></span></p>
             <div class="ctl" id="aucCtl"></div>
           </div>
@@ -106,6 +107,8 @@
   const TOPIC = LONG ? 'أشياء تجدها في حقيبة طالب المدرسة' : 'الدول العربية';
   const ARAB = ['السعودية', 'الكويت', 'الإمارات', 'قطر', 'البحرين', 'عُمان', 'اليمن', 'العراق', 'سوريا', 'الأردن', 'لبنان', 'فلسطين',
     'مصر', 'السودان', 'ليبيا', 'تونس', 'الجزائر', 'المغرب', 'موريتانيا', 'الصومال', 'جيبوتي', 'جزر القمر'];
+  // قائمة لا تتجاوز 20: عددها ظاهر في المزايدة، ولكل فريق «العدد كاملاً» (الوثيقة 5.5)
+  const MONTHS = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
   const ULUL = ['نوح', 'إبراهيم', 'موسى', 'عيسى', 'محمد'];
   const IMAN = ['الإيمان بالله', 'الملائكة', 'الكتب', 'الرسل', 'اليوم الآخر', 'القدر'];
   const AFRICA = ['مصر', 'السودان', 'ليبيا', 'تونس', 'الجزائر', 'المغرب', 'موريتانيا', 'الصومال', 'جيبوتي', 'جزر القمر', 'إثيوبيا', 'إريتريا',
@@ -118,21 +121,19 @@
   // turn: صاحب الدور (الحدّ يكتسح له) · run: العدّاد يعمل (ثوانٍ) · bids: [فريق، رقم] · said: [فريق، عنصر] · box: مربع الإعلان
   const STATES = {
     intro:    { t: 'افتتاح الجولة', screen: 'intro', turn: 0, badge: 'الجولة 3 من 4' },
-    open:     { t: 'المزايدة: ظهور الموضوع، والدور لمن يفتتح', turn: 1, bids: [] },
-    bid:      { t: 'المزايدة: الدور على الثاني بعد ثلاثة أرقام', turn: 2, bids: [[1, 5], [2, 7], [1, 9]] },
-    bidlong:  { t: 'المزايدة: اثنا عشر رقماً (يسقط الأقدم)', turn: 1, bids: [[1, 3], [2, 4], [1, 5], [2, 6], [1, 7], [2, 8], [1, 9], [2, 10], [1, 11], [2, 12], [1, 13], [2, 14]] },
-    ready:    { t: 'الوفاء: انسحب الثاني، والأول ملتزم بـ 12 قبل «ابدأ»', turn: 1, of: 12, said: [] },
+    open:     { t: 'المزايدة: ظهور الموضوع (قائمة 12)، والدور لمن يفتتح', turn: 1, bids: [], short: true },
+    bid:      { t: 'المزايدة: رقماً رقماً، الدور على الثاني (قائمة 12)', turn: 2, bids: [[1, 1], [2, 2], [1, 3]], short: true },
+    bidlong:  { t: 'المزايدة: قائمة فوق 20 (عددها مخفي)، أربعة عشر رقماً', turn: 1, bids: [...Array(14).keys()].map(i => [i % 2 ? 1 : 2, i + 1]) },
+    ready:    { t: 'الوفاء: توقّف الثاني، والأول ملتزم بـ 12 قبل «ابدأ»', turn: 1, of: 12, said: [] },
     run:      { t: 'الوفاء: العدّاد يعمل، ذُكر 7', turn: 1, of: 12, run: 38, said: ARAB.slice(0, 7).map(x => [1, x]) },
     runfull:  { t: 'الوفاء: أطول ما ذُكر (يسقط ما لا يتسع)', turn: 1, of: 40, run: 9, said: AFRICA.slice(0, 33).map(x => [1, x]), list: AFRICA },
-    complete: { t: 'إكمال الخصم: الثاني يكمل في 15 ثانية', turn: 2, of: 12, run: 11, said: [...ARAB.slice(0, 9).map(x => [1, x]), [2, 'الأردن']] },
     won:      { t: 'بعد الحكم: وفى الأول', turn: 1, of: 12, said: ARAB.slice(0, 12).map(x => [1, x]), verdict: { team: 1, points: 12 }, reveal: true },
-    taken:    { t: 'بعد الحكم: أكمل الثاني', turn: 2, of: 12, said: [...ARAB.slice(0, 9).map(x => [1, x]), ...ARAB.slice(9, 12).map(x => [2, x])], verdict: { team: 2, points: 12 }, reveal: true },
-    none:     { t: 'بعد الحكم: لا نقاط', turn: 0, of: 12, said: [...ARAB.slice(0, 9).map(x => [1, x]), [2, 'الأردن']], verdict: { team: 0, points: 0 }, reveal: true },
+    failed:   { t: 'بعد الحكم: لم يفِ الأول، فللثاني نقطتان', turn: 2, of: 12, said: ARAB.slice(0, 9).map(x => [1, x]), verdict: { team: 2, points: 2 }, reveal: true },
     wonshort: { t: 'بعد الحكم: وفى الأول بقائمة قصيرة (2 من 5)', turn: 1, of: 2, said: ULUL.slice(0, 2).map(x => [1, x]), verdict: { team: 1, points: 2 }, reveal: true, list: ULUL, topic: 'أولو العزم من الرسل' },
-    compshort:{ t: 'بعد الحكم: أكمل الأول بقائمة قصيرة (4 من 6)', turn: 1, of: 4, said: [...IMAN.slice(0, 2).map(x => [2, x]), ...IMAN.slice(2, 4).map(x => [1, x])], verdict: { team: 1, points: 4 }, reveal: true, list: IMAN, topic: 'أركان الإيمان' },
+    failshort:{ t: 'بعد الحكم: لم يفِ الأول بقائمة قصيرة (2 من 4)', turn: 2, of: 4, said: IMAN.slice(0, 2).map(x => [1, x]), verdict: { team: 2, points: 2 }, reveal: true, list: IMAN, topic: 'أركان الإيمان' },
     won2short:{ t: 'بعد الحكم: وفى الثاني بقائمة قصيرة (2 من 5)', turn: 2, of: 2, said: ULUL.slice(0, 2).map(x => [2, x]), verdict: { team: 2, points: 2 }, reveal: true, list: ULUL, topic: 'أولو العزم من الرسل' },
-    comp2short:{ t: 'بعد الحكم: أكمل الثاني بقائمة قصيرة (4 من 6)', turn: 2, of: 4, said: [...IMAN.slice(0, 2).map(x => [1, x]), ...IMAN.slice(2, 4).map(x => [2, x])], verdict: { team: 2, points: 4 }, reveal: true, list: IMAN, topic: 'أركان الإيمان' },
-    revlong:  { t: 'بعد الحكم: قائمة من 54 عنصراً', turn: 0, of: 20, said: AFRICA.slice(0, 15).map(x => [1, x]), verdict: { team: 0, points: 0 }, reveal: true, list: AFRICA },
+    fail2short:{ t: 'بعد الحكم: لم يفِ الثاني بقائمة قصيرة (2 من 4)', turn: 1, of: 4, said: IMAN.slice(0, 2).map(x => [2, x]), verdict: { team: 1, points: 2 }, reveal: true, list: IMAN, topic: 'أركان الإيمان' },
+    revlong:  { t: 'بعد الحكم: قائمة من 54 عنصراً، لم يفِ الأول', turn: 2, of: 20, said: AFRICA.slice(0, 15).map(x => [1, x]), verdict: { team: 2, points: 2 }, reveal: true, list: AFRICA },
     end:      { t: 'نهاية الجولة', screen: 'end', turn: 0, badge: 'انتهت الجولة 3', totals: { 1: 12, 2: 9 } },
   };
 
@@ -145,15 +146,17 @@
     $('cornerB').innerHTML = `<div class="ctl">${B('المقدّم', 'alt')}${B('ملء الشاشة', 'alt')}</div>`;
     $('cornerC').innerHTML = `<div class="ctl">${B('الرصيد', 'alt')}${B('مباراة جديدة', 'alt')}</div>`;
     canvas.classList.add('has-a');
-    const next = (st.bids?.length ? Math.max(...st.bids.map(b => b[1])) : 0) + 1;
+    // المزايدة رقماً رقماً (الوثيقة 5.5): «زايد» بالرقم التالي، و«العدد كاملاً» للقائمة حتى 20، و«توقّف» إلا للمفتتح في دوره الأول
+    const list = st.short ? MONTHS : (st.list ?? ARAB), next = (st.bids?.length ?? 0) + 1;
+    // «كاملاً · 12» (لا «العدد كاملاً») كي يتسع صف الشارات للثلاثة بجانب الصف الثالث من الأزرار
+    const full = list.length <= 20 ? [B(`كاملاً · ${list.length}`)] : [];
     const near = {
-      open: [B('−', 'step'), B(`زايد · ${next + 4}`), B('+', 'step')],
-      bid: [B('−', 'step'), B(`زايد · ${next}`), B('+', 'step'), B('انسحب', 'no')],
-      bidlong: [B('−', 'step'), B(`زايد · ${next}`), B('+', 'step'), B('انسحب', 'no')],
+      open: [B(`زايد · ${next}`), ...full],
+      bid: [B(`زايد · ${next}`), ...full, B('توقّف', 'no')],
+      bidlong: [B(`زايد · ${next}`), ...full, B('توقّف', 'no')],
       ready: [B('ابدأ'), B('صحيح · +1')],
       run: [B('صحيح · +1'), B('توقّف', 'no')],
       runfull: [B('صحيح · +1'), B('توقّف', 'no')],
-      complete: [B('صحيح · +1'), B('توقّف', 'no')],
     }[id] ?? [];
     $('near').innerHTML = near.join('');
     // بعد الحكم: «الموضوع التالي» في البطاقة بجوار الموضوع، لا في صف الشارات (design/auction.md 4: يبقى المسرح للحقل)
@@ -173,7 +176,7 @@
     canvas.classList.toggle('running', !!st.run);
     if (st.run) { $('c1').textContent = $('c2').textContent = st.run; }
     if (st.screen === 'intro') {
-      $('rule').textContent = 'زايدوا على ما تقدرون على ذكره، ثم أوفوا';
+      $('rule').textContent = 'زايدوا رقماً رقماً، ثم أوفوا';
       $('starter').innerHTML = `يفتتح المزايدة <b class="tn t1">${esc(NAMES[1])}</b>`;
     }
     if (st.screen === 'end') {
@@ -182,7 +185,11 @@
       box({ next: 'التالي: عجلة البونص' });
     }
     if (!st.screen) {
-      $('topic').textContent = st.topic ?? (id === 'runfull' || id === 'revlong' ? 'دول قارة أفريقيا' : TOPIC);
+      $('topic').textContent = st.topic ?? (id === 'runfull' || id === 'revlong' ? 'دول قارة أفريقيا' : st.short && !LONG ? 'الأشهر الهجرية' : TOPIC);
+      // في المزايدة: عدد القائمة إشارةً صغيرة بجانب الموضوع، للقائمة حتى 20 وحدها (الوثيقة 5.5)
+      const len = (st.short ? MONTHS : (st.list ?? ARAB)).length;
+      $('tsize').hidden = !(st.bids && len <= 20);
+      $('tsize').innerHTML = `في القائمة <span class="ltr">${len}</span>`;
       // المزايدة: الأحدث أعلى رقم وأكبرها، والأقدم يسقط من اليمين إن لم يتسع الصف (يُحسب في الصفحة)
       const bids = st.bids ?? [];
       $('bids').innerHTML = bids.map(([t, n], i) => `<span class="bid t${t}${i === bids.length - 1 ? ' top' : ''}"><i></i><span>${n}</span></span>`).join('');
@@ -267,7 +274,7 @@
       svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
       svg.querySelector('polygon').setAttribute('points', `${o},0 ${w + o},0 ${w - o},${h} ${-o},${h}`);
       // إطار الوقت متآكل بقدر ما مضى (للصورة الثابتة)
-      const st = STATES[q.get('s')], total = st?.turn === 2 && q.get('s') === 'complete' ? 15 : 60;
+      const st = STATES[q.get('s')], total = 60;
       svg.querySelector('polygon').style.strokeDashoffset = st?.run ? 100 * (1 - st.run / total) : 0;
     }
   }

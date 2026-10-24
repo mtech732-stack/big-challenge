@@ -5,9 +5,14 @@
 /* 1. قسم المزاد في البطاقة: رأس (الموضوع والعدّ) ثم صف تحته (المزايدة أو ما ذُكر). في وسط البطاقة رأسياً */
 .scr.auc { flex-direction: column; align-items: stretch; justify-content: center; gap: 24px; }
 .auc .ahead { display: flex; align-items: center; gap: 48px; min-height: 104px; }
-.auc .topic { flex: 1; min-width: 0; margin: 0; color: var(--text); font-size: var(--fs-question); font-weight: 700; line-height: 88px;
+.auc .topic { flex: 0 1 auto; min-width: 0; margin: 0; color: var(--text); font-size: var(--fs-question); font-weight: 700; line-height: 88px;
   white-space: nowrap; overflow: clip; }
-/* العدّ: ما ذُكر من الالتزام. الرقم بلون صاحب العنصر الأخير (الملتزم ثم الخصم)، و«من 12» بالحبر المحايد */
+/* في المزايدة: عدد القائمة حتى 20 إشارةً صغيرة بجانب الموضوع، بحبر الموضوع وأصغر خط (الوثيقة 5.5) */
+.auc .size { flex: none; margin: 0; color: var(--text); font-size: var(--fs-badge); font-weight: 700; line-height: 1; white-space: nowrap; }
+.auc .size[hidden] { display: none; }
+/* الموضوع بعرض نصه، فتلاصقه الإشارة، والعدّ وزر «الموضوع التالي» إلى اليسار */
+.auc .tally, .auc .ahead > .ctl { margin-inline-start: auto; }
+/* العدّ: ما ذُكر من الالتزام. الرقم بلون الملتزم، و«من 12» بالحبر المحايد */
 .auc .tally { flex: none; display: flex; align-items: baseline; gap: 24px; color: var(--text); white-space: nowrap; }
 .auc .tally[hidden] { display: none; }
 .auc .tally .n { font-size: 104px; font-weight: 900; line-height: 104px; direction: ltr; }
@@ -60,9 +65,6 @@
 @keyframes itin { from { scale: .8; opacity: 0; } }
 .anim .auc .tally.bump .n { animation: gain .5s ease-out; }
 @media (prefers-reduced-motion: reduce) { .auc .bid, .auc .it, .auc .tally .n { animation: none !important; } }
-
-/* 5. النافذة الواحدة: «−» و«+» حول «زايد» مربعان 72 */
-.ctl-near .cbtn.step { min-width: 88px; padding: 0; font-size: 48px; }
 
 
 /* 6. حكم المزاد بلا مربع (1.5): الشارة والسطر على الطرف، كـ «نهاية الجولة» (letter.css .box.bare). والشارة بيضاء بنص صاحبها كي تُقرأ على طرفه */
