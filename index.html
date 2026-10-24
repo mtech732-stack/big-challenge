@@ -613,7 +613,8 @@
     $('undoScore').disabled = playing ? !match.round?.history.length : !match.history.length;
     renderStage(error);
     const wait = held();
-    document.querySelectorAll('[data-step="play"] button').forEach(b => b.classList.toggle('held', wait));
+    // عناصر قائمة المزاد خارج الإمهال: لا يأتي زر آخر مكانها، فنقرها بعد «ابدأ» أو «توقّف» مباشرة يُحسب (ملاحظة المعاين 30).
+    document.querySelectorAll('[data-step="play"] button').forEach(b => b.classList.toggle('held', wait && !b.closest('#aRef')));
   }
 
   // ===== الجولة في نافذة المقدّم: من presenter() و actions() في وحدة النمط (design/letter.md 4 وdesign/shared.md 6) =====
