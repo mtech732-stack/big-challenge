@@ -4,7 +4,7 @@
 .canvas > *, .team > *, .card-wrap > *, .particles > *, .check-layer > * { position: absolute; }
 
 /* 1. المسرح بطرفين بلوني الفريقين (1.3، design/system.md 15.1–15.2): الأعلى للأول والأسفل للثاني، والحدّ بينهما مائل 6°.
-   الحدّ عند وسط الشاشة على 586 خلف البطاقة، ويكتسح لصاحب الدور وقت العدّاد (وفي القرعة): الأول 1140 (رُفع من 1110 كي يبلغ حقله 55%، قرار المصمّم PR #95)، والثاني −30.
+   الحدّ عند وسط الشاشة على 586 خلف البطاقة، ويكتسح لصاحب الدور وقت العدّاد (وفي القرعة): الأول 1170 (رُفع من 1110 ثم 1140 كي يبلغ حقله 55%، قرارا المصمّم PR #95 و#105)، والثاني −30.
    وأربع حزم ضوء تعبر من اليسار، وسرعتها من الكود بالحالة (playbackRate). وكل ما هنا شفاف لا نص فيه. */
 .stagebg { inset: 0; pointer-events: none; }
 .stagebg > * { position: absolute; }
@@ -15,7 +15,7 @@
 .stagebg .e { left: -240px; width: 2400px; top: 584px; height: 4px; transform: rotate(calc(-1 * var(--tilt)));
   background: rgba(255,255,255,.7); box-shadow: 0 4px 12px rgba(14,44,134,.6); transition: translate .76s cubic-bezier(.3,1.15,.4,1); }
 .stagebg .e::before { content: ""; position: absolute; left: 0; right: 0; top: -18px; height: 2px; background: rgba(255,90,102,.6); }
-.turn-1 .stagebg .f, .turn-1 .stagebg .e { translate: 0 554px; }
+.turn-1 .stagebg .f, .turn-1 .stagebg .e { translate: 0 584px; }
 .turn-2 .stagebg .f, .turn-2 .stagebg .e { translate: 0 -616px; }
 .turn-1 .stagebg .f1, .turn-2 .stagebg .f2 { filter: brightness(1.15); animation: arrive .7s ease-out .65s both; }
 /* الحافة تتسع وتتوهّج أثناء الاكتساح، وطرف صاحب الدور يومض عند الوصول ثم يستقر على 115% */

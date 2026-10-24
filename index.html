@@ -113,6 +113,49 @@
   /* بعد تسليم المباراة لنافذة المقدّم: إن أُغلقت تلك النافذة، تُتابَع المباراة من هنا */
   #resume { position: fixed; z-index: 8; bottom: 1rem; right: 1rem; }
   body.one { overflow: hidden; }
+
+  /* ===== المزاد (design/auction.md 5، من design/presenter-auction.html): الموضوع والعدّ، والقائمة المرجعية أزراراً، والمزايدة ===== */
+  .auc { grid-template-columns: 1fr auto; align-items: center; align-content: center; gap: 0.5rem 1.25rem; }
+  .auc .topic { font-size: 1.25rem; font-weight: 800; line-height: 1.3; }
+  .auc .tally { display: flex; align-items: baseline; gap: 0.5rem; font-weight: 800; white-space: nowrap; }
+  .auc .tally[hidden], .auc .size[hidden], .bids[hidden] { display: none; }
+  .auc .tally b { font-size: 2.5rem; font-weight: 900; line-height: 1; direction: ltr; }
+  .auc .tally.t1 b { color: var(--team-1); }
+  .auc .tally.t2 b { color: var(--team-2-ink); }
+  /* في المزايدة: طول القائمة مكان العدّ، للمقدّم وحده */
+  .auc .size { font-weight: 700; white-space: nowrap; }
+  /* المزايدة: الأرقام بلون أصحابها، والأحدث أكبرها */
+  .bids { grid-column: 1 / -1; display: flex; gap: 0.75rem; align-items: center; min-height: 2.5rem; flex-wrap: wrap; }
+  .bids:empty { display: none; }
+  .bids .bid { position: relative; min-width: 2.5rem; height: 2rem; padding: 0 0.75rem; display: flex; align-items: center; justify-content: center;
+    color: var(--card); font-weight: 900; direction: ltr; }
+  .bids .bid i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); }
+  .bids .bid span { position: relative; }
+  .bids .bid.t1 i { background: var(--team-1); }
+  .bids .bid.t2 i { background: var(--team-2-ink); }
+  .bids .bid.top { height: 2.5rem; font-size: 1.5rem; padding: 0 1rem; }
+  /* القائمة المرجعية: كل عنصر زر بعرض عمودين من 12 (ستة في الصف)، الاسم ثم صيغه البديلة */
+  .ref { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-flow: dense; gap: 0.375rem 0.75rem; }
+  .ref button { min-width: 0; overflow: hidden; min-height: 2rem; padding: 0 0.5rem; background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink);
+    display: flex; align-items: center; justify-content: center; gap: 0.25rem; font-size: 1rem; line-height: 1.1; white-space: nowrap; text-align: center; }
+  .ref button small { font-size: 1rem; font-weight: 400; }
+  /* القائمة الطويلة (أكثر من 24 عنصراً) بارتفاع 1.5rem. وبصيغها البديلة لا تتسع تسعة أعمدة (أفريقيا 54 بخمس عشرة صيغة: عشرة صفوف)،
+     فهي على 12 عموداً من الشبكة، وكل عنصر بعدد ما يلزم اسمه منها (docs/open-questions.md، للمصمّم) */
+  .ref.dense { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0.25rem 0.375rem; }
+  .ref.dense button { min-height: 1.5rem; padding: 0 0.25rem; }
+  .ref button.t1, .ref button.t2 { color: var(--card); box-shadow: none; pointer-events: none; }
+  .ref button.t1 { background: var(--team-1); }
+  .ref button.t2 { background: var(--team-2-ink); }
+  /* في المزايدة: القائمة للاطلاع، لا تُنقر */
+  .ref.view button { pointer-events: none; cursor: default; }
+  /* أزرار المزايدة: «−» و«+» عمودان لكل منهما، و«زايد» أربعة، و«انسحب» أربعة */
+  #app .bidrow { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0.75rem; }
+  #app .bidrow:empty { display: none; }
+  #app .bidrow button { min-height: 5rem; font-size: 1.5rem; margin: 0; }
+  #app .bidrow .step { grid-column: span 2; font-size: 2.5rem; }
+  #app .bidrow .go { grid-column: span 4; }
+  #app .bidrow .no { grid-column: span 4; background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
+  #app .bidrow button:disabled { opacity: .45; cursor: default; }
 </style>
 </head>
 <body>
@@ -192,6 +235,26 @@
     </div>
   </section>
 
+  <!-- المزاد (design/auction.md 5): الموضوع والعدّ، والمزايدة، والقائمة المرجعية (للمقدّم وحده)، ثم الدور وأزرار المزايدة -->
+  <section class="panel auc" data-step="play" data-part="auc" hidden>
+    <p class="topic" id="aTopic"></p>
+    <p class="tally" id="aTally" hidden><b id="aTn"></b><span>من <span class="ltr" id="aTof"></span></span></p>
+    <p class="size" id="aSize" hidden></p>
+    <div class="bids" id="aBids"></div>
+    <div class="ref view" id="aRef"></div>
+  </section>
+  <section class="panel" data-step="play" data-part="auc" hidden>
+    <!-- «تراجع» لا «تراجع عن آخر حكم»: يتراجع عن آخر رقم أيضاً، وبالنص الطويل ينكسر الصف بأطول اسم ورقم من خانتين (docs/open-questions.md) -->
+    <div class="row">
+      <p class="who" id="aWho"></p>
+      <p class="state grow" id="aState"></p>
+      <button class="alt" id="aUndo">تراجع</button>
+      <button class="alt" data-new>مباراة جديدة</button>
+    </div>
+    <div class="bidrow" id="aCtl"></div>
+    <p id="aLater" hidden>الوفاء والعدّ يُبنيان في المرحلة التالية من الشريحة <span class="ltr">4</span>.</p>
+  </section>
+
   <!-- نهاية الجولة -->
   <section class="panel" data-step="play" data-part="end" hidden>
     <h2 id="endHead"></h2>
@@ -236,7 +299,7 @@
   import { createLink } from './js/sync.js';
   import { fetchPinRecord, checkPin, watchPin } from './js/pin.js';
   import { loadPacks } from './js/content.js';
-  import { matchModes, pickableModes, MODES } from './js/modes/index.js';
+  import { matchModes, pickableModes, MODES as BUILT, DRAFTS } from './js/modes/index.js';
   import * as M from './js/match.js';
   import * as P from './js/play.js';
 
@@ -347,9 +410,11 @@
   // الأنماط التي يختار منها الفريقان: المبنية وحدها، ولها ملف أسئلة في الحزمة، وما لم تستثنه (ملاحظة تدقيق ش1، البند 6).
   // و«?preview» في الرابط يضيف إليها معاينة ما لم يُبنَ بعد، للتجربة أثناء البناء وحدها، لا في مباراة تُلعب.
   const PREVIEW = query.has('preview');
-  const modesOf = p => (!p ? [] : PREVIEW ? matchModes({ pack: p, files: p.files }) : pickableModes({ pack: p, files: p.files }));
+  // والنمط الذي تُبنى مراحله الآن (DRAFTS، ش4: المزاد) يُلعب في رابط المعاينة وحده حتى تكتمل شريحته.
+  const MODES = PREVIEW ? [...BUILT, ...DRAFTS] : BUILT;
+  const modesOf = p => (!p ? [] : PREVIEW ? matchModes({ modes: MODES, pack: p, files: p.files }) : pickableModes({ modes: MODES, pack: p, files: p.files }));
   const modes = () => modesOf(pack());
-  const modeName = id => (pack() ? matchModes({ pack: pack(), files: pack().files }) : []).find(m => m.id === id)?.name ?? id;
+  const modeName = id => (pack() ? matchModes({ modes: MODES, pack: pack(), files: pack().files }) : []).find(m => m.id === id)?.name ?? id;
   // عدد أنماط أكبر مما في الحزمة لا يُختار: يصير 2 في الإعداد، فلا تعلق المباراة في اختيار الأنماط.
   // مباراة محفوظة بدأت في رابط المعاينة ثم فُتح الرابط العادي، ولم تبدأ مواجهتها: إن كان فيها نمط لا يُختار هنا،
   // أو عدد أنماطها أكبر مما في الحزمة، عادت إلى الإعداد بالاسمين، كي لا يقف الاختيار (تقرير المعاين ش3).
@@ -480,7 +545,8 @@
   }
   // نافذة المقدّم: تُفتح من نقرة على الشاشة المشتركة. إن منعها المتصفح بقيت المشتركة وظهر السبب في البطاقة.
   function openPresenter() {
-    const win = window.open('index.html?host', PRESENTER, 'popup,width=1280,height=800');
+    // ورابط المعاينة يبقى معاينة في نافذة المقدّم، فيُلعب فيها ما يُبنى الآن.
+    const win = window.open('index.html?host' + (PREVIEW ? '&preview' : ''), PRESENTER, 'popup,width=1280,height=800');
     faceError = win ? '' : 'منع المتصفح نافذة المقدّم. اسمح بالنوافذ المنبثقة أو ابدأ بنافذة واحدة.';
     if (!win) render();
     return !!win;
@@ -572,15 +638,15 @@
     if (!mode) return;
     const st = match.round.state, pr = mode.presenter(st), acts = mode.actions(st);
     const label = id => acts.find(a => a.id === id)?.label;
-    const part = pr.screen === 'intro' ? 'intro' : pr.screen === 'end' ? 'end' : 'q';
+    const part = pr.screen === 'intro' ? 'intro' : pr.screen === 'end' ? 'end' : pr.screen === 'topic' ? 'auc' : 'q';
     document.querySelectorAll(`[data-part="${part}"]`).forEach(s => s.hidden = false);
     const n = match.round.n, title = `الجولة ${n} · ${mode.name}`;
-    $('roundChip').querySelector('span').innerHTML = num(`الجولة ${n} من ${M.rounds(match)} · ${mode.name}`);
+    $('roundChip').querySelector('span').innerHTML = num(part === 'auc' ? `${mode.name} · الموضوع ${pr.n} من ${pr.count}` : `الجولة ${n} من ${M.rounds(match)} · ${mode.name}`);
     $('pips').innerHTML = pr.track.map(x => `<i class="pip t${x.owner}${x.result === null ? '' : x.result ? ' won' + x.result : ' none'}${x.now ? ' now' : ''}"></i>`).join('');
 
     if (part === 'intro') {
       $('introHead').innerHTML = num(title);
-      $('introWho').innerHTML = `${mk(pr.turn)} يبدأ ${tn(pr.turn)} (اختير عشوائياً). الافتتاح معروض الآن على الجمهور.`;
+      $('introWho').innerHTML = `${mk(pr.turn)} ${esc(pr.starter ?? 'يبدأ')} ${tn(pr.turn)} (اختير عشوائياً). الافتتاح معروض الآن على الجمهور.`;
       $('introBrief').innerHTML = num(pr.brief);
       $('showQ').innerHTML = num(label('show') ?? '');
     }
@@ -610,6 +676,7 @@
       }
       $('undo').disabled = !match.round.history.length;
     }
+    if (part === 'auc') renderAuction(pr, acts);
     if (part === 'end') {
       $('endHead').innerHTML = num(`انتهت ${title}`);
       $('sum').innerHTML = [1, 2].map(k => `<span>${mk(k)} ${tn(k)}</span><span class="pts">+${pr.totals[k]}</span><span>${num('الرصيد ' + match.round.scores[k])}</span>`).join('');
@@ -621,6 +688,74 @@
       $('endUndo').disabled = !match.round.history.length;
     }
   }
+
+  // ===== المزاد في نافذة المقدّم (design/auction.md 5) =====
+  // الرقم المقترح على «زايد»: من الوحدة (أعلى رقم + 1، و5 في الافتتاح)، ويغيّره المقدّم بـ «−» و«+» قبل أن يُرسل.
+  // في هذه النافذة وحدها، فلا يصل إلى الجمهور إلا الرقم الذي زايد به الفريق.
+  let offer = 0, offerKey = '';
+  const bidAction = () => {
+    const st = match.round?.state, mode = roundMode();
+    const b = mode && st && mode.actions(st).find(a => a.id === 'bid');
+    if (!b) return null;
+    const key = `${match.round.n}/${st.index}/${st.bids?.length}`;
+    if (key !== offerKey) { offerKey = key; offer = b.offer; }
+    offer = Math.min(b.max, Math.max(b.min, offer));
+    return b;
+  };
+  const step = d => { const b = bidAction(); if (!b) return; offer = Math.min(b.max, Math.max(b.min, offer + d)); render(); };
+  const bid = () => { if (bidAction()) roundAct('bid:' + offer); };
+  const count = (n, one) => (n >= 3 && n <= 10 ? `${n} عناصر` : n === 2 ? 'عنصران' : n === 1 ? one : `${n} عنصراً`);
+  function renderAuction(pr, acts) {
+    $('aTopic').textContent = pr.topic;
+    const t = pr.tally;
+    $('aTally').hidden = !t;
+    if (t) { $('aTn').textContent = t.n; $('aTof').textContent = t.of; $('aTally').className = `tally t${t.team}`; }
+    $('aSize').hidden = pr.phase !== 'bid';
+    $('aSize').innerHTML = num(`في القائمة ${count(pr.size, 'عنصر واحد')}`);
+    const bids = pr.phase === 'bid' ? pr.bids : [];
+    $('aBids').hidden = pr.phase !== 'bid';
+    $('aBids').innerHTML = bids.map((b, i) => `<span class="bid t${b.team}${i === bids.length - 1 ? ' top' : ''}"><i></i><span>${b.n}</span></span>`).join('');
+    const ref = $('aRef');
+    const key = pr.items.map(x => x.name).join('|');
+    ref.classList.toggle('dense', pr.items.length > 24);
+    if (ref.dataset.key !== key) {
+      ref.dataset.key = key;
+      ref.innerHTML = pr.items.map(x => `<button tabindex="-1">${esc(x.name)}${x.alts.length ? ` <small>· ${esc(x.alts.join(' · '))}</small>` : ''}</button>`).join('');
+      fitRef();
+      document.fonts?.ready.then(fitRef);
+    }
+    $('aWho').innerHTML = `${mk(pr.turn)} دور ${tn(pr.turn)}`;
+    const top = pr.bids.length ? pr.bids[pr.bids.length - 1].n : 0;
+    $('aState').innerHTML = pr.phase === 'bid' ? (pr.bids.length ? num(`يزايد على ${top} أو ينسحب`) : 'يفتتح المزايدة برقم')
+      : pr.phase === 'ready' ? num(`التزم بـ ${pr.commit.n} · ${pr.clock} ثانية`) : '';
+    const b = bidAction();
+    const canPass = acts.some(a => a.id === 'pass');
+    $('aCtl').innerHTML = pr.phase !== 'bid' ? '' : (b ? `<button class="step" data-offer="-1"${offer <= b.min ? ' disabled' : ''}>−</button>` +
+      `<button class="go" id="aBid">${num('زايد · ' + offer)}</button>` +
+      `<button class="step" data-offer="1"${offer >= b.max ? ' disabled' : ''}>+</button>` : '') +
+      `<button class="no" id="aPass"${canPass ? '' : ' disabled'}>انسحب</button>`;
+    $('aLater').hidden = pr.phase !== 'ready';
+    $('aUndo').disabled = !match.round.history.length;
+  }
+  // العنصر الذي لا يتسع اسمه بصيغه في خانة يأخذ خانتين، فإن لم يتسع فثلاثاً، وهكذا حتى يتسع (design/auction.md 5).
+  // ويُعاد القياس بعد تحميل الخط وعند تغيّر عرض النافذة.
+  function fitRef() {
+    const ref = $('aRef'), cols = getComputedStyle(ref).gridTemplateColumns.split(' ').length;
+    for (const b of ref.children) {
+      b.style.gridColumn = '';
+      for (let k = 2; k <= cols && b.scrollWidth > b.clientWidth + 1; k++) b.style.gridColumn = `span ${k}`;
+    }
+  }
+  // بعد تحميل الخط (عرضه غير عرض الخط البديل)، وكلما تغيّر عرض القائمة.
+  document.fonts?.addEventListener('loadingdone', fitRef);
+  new ResizeObserver(fitRef).observe($('aRef'));
+  $('aCtl').addEventListener('click', e => {
+    const el = e.target.closest('button');
+    if (!el || el.disabled) return;
+    if (el.dataset.offer) step(+el.dataset.offer);
+    else if (el.id === 'aBid') bid();
+    else if (el.id === 'aPass') roundAct('pass');
+  });
 
   // ===== الشاشة المشتركة: شاشة الجمهور في هذه النافذة، وأزرارها (design/shared.md 3 و4) =====
   function renderStage(error) {
@@ -685,7 +820,11 @@
       const st = match.round.state, acts = mode.actions(st), screen = mode.audience(st).screen;
       const act = (id, label, kind) => acts.some(a => a.id === id) ? [{ cmd: 'act:' + id, label: label ?? acts.find(a => a.id === id).label, kind, off: wait }] : [];
       if (screen === 'intro') c.card = act('show');
-      const last = st.index === st.questions.length - 1;
+      const last = st.index === (st.questions ?? st.topics).length - 1;
+      // المزاد (design/auction.md 4): «−» · «زايد · N» · «+» · «انسحب»، ولا انسحاب في الافتتاح.
+      const b = screen === 'topic' && bidAction();
+      if (b) c.near = [{ cmd: 'offer:-1', label: '−', kind: 'step', off: wait || offer <= b.min }, { cmd: 'act:bid', label: `زايد · ${offer}`, off: wait },
+        { cmd: 'offer:1', label: '+', kind: 'step', off: wait || offer >= b.max }, { cmd: 'act:pass', label: 'انسحب', kind: 'no', off: wait || !acts.some(a => a.id === 'pass') }];
       if (screen === 'ask') c.near = [...act('start', 'ابدأ'), ...act('correct'), ...act('wrong', null, 'no'), ...act('next', last ? 'إنهاء الجولة' : 'السؤال التالي')];
       if (screen === 'end') { const nb = nextButton(); c.card = [{ cmd: 'next', label: nb.text, off: !!nb.off || wait }]; }
       c.scores = true;
@@ -735,7 +874,8 @@
     if (cmd === 'back' && !drawing) update(M.backToSetup(match));
     if (cmd === 'begin') begin(false);
     if (cmd === 'single') begin(true);
-    if (cmd === 'act') roundAct(arg);
+    if (cmd === 'act') arg === 'bid' ? bid() : roundAct(arg);
+    if (cmd === 'offer') step(+arg);
     if (cmd === 'next') actions[nextButton().act]?.();
     if (cmd === 'mute') toggleMute();
     if (cmd === 'presenter') toPresenter();
@@ -777,7 +917,7 @@
   $('lostSingle').onclick = () => update({ ...match, single: true });
   $('showQ').onclick = () => roundAct('show');
   document.querySelectorAll('#judge [data-act], #nextQ').forEach(b => b.onclick = () => roundAct(b.dataset.act));
-  $('undo').onclick = $('endUndo').onclick = actions.undo;
+  $('undo').onclick = $('endUndo').onclick = $('aUndo').onclick = actions.undo;
   $('endNext').onclick = () => actions[nextButton().act]?.();
   $('mute').onclick = toggleMute;
   document.querySelectorAll('[data-new]').forEach(b => b.onclick = newMatch);
