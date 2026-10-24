@@ -16,6 +16,8 @@
 <link rel="stylesheet" href="../css/shared.css">
 <link rel="stylesheet" href="auction.css">
 <style>
+  /* §15.2 (ش4): حدّ دور الأول 1170 (كان 1140). هنا حتى ينقله المهندس إلى css/stage.css */
+  .turn-1 .stagebg .f, .turn-1 .stagebg .e { translate: 0 584px; }
   .menu { position: fixed; inset: 0; z-index: 20; overflow: auto; background: #050E2E; color: #fff; padding: 32px 48px; font-size: 20px; line-height: 1.6; }
   .menu h1 { font-size: 32px; margin: 0 0 16px; }
   .menu a { color: #FFC300; }
@@ -49,6 +51,7 @@
           <div class="ahead">
             <p class="topic" id="topic" data-fit="الموضوع"></p>
             <p class="tally" id="tally" data-fit="العدّ"><b class="n" id="tn"></b><span class="of">من <b class="ltr" id="tof"></b></span></p>
+            <div class="ctl" id="aucCtl"></div>
           </div>
           <div class="bids" id="bids"></div>
           <div class="items" id="items"></div>
@@ -145,9 +148,10 @@
       run: [B('صحيح · +1'), B('توقّف', 'no')],
       runfull: [B('صحيح · +1'), B('توقّف', 'no')],
       complete: [B('صحيح · +1'), B('توقّف', 'no')],
-      won: [B('الموضوع التالي')], taken: [B('الموضوع التالي')], none: [B('الموضوع التالي')], revlong: [B('إنهاء الجولة')],
     }[id] ?? [];
     $('near').innerHTML = near.join('');
+    // بعد الحكم: «الموضوع التالي» في البطاقة بجوار الموضوع، لا في صف الشارات (design/auction.md 4: يبقى المسرح للحقل)
+    $('aucCtl').innerHTML = st.reveal ? B(id === 'revlong' ? 'إنهاء الجولة' : 'الموضوع التالي') : '';
     if (id === 'intro') $('introCtl').innerHTML = B('اعرض الموضوع 1');
     if (id === 'end') $('endCtl').innerHTML = B('إلى عجلة البونص');
   }
