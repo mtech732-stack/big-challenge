@@ -225,7 +225,8 @@
     $('next').hidden = !next; $('next').innerHTML = next ? num(next) : '';
     $('box').hidden = !(v || answer || told || face || next);
     // «التالي» في نهاية الجولة نص أبيض على الطرف بلا مربع، فلا يتجاوز الأبيض سقفه (15.4 و15.12).
-    $('box').classList.toggle('bare', !!next && !v && !answer && !told && !face);
+    // وحكم المزاد (سطره told) بلا مربع كذلك، فالقائمة القصيرة لا ترفع الأبيض فوق 35 (design/auction.md 1.5).
+    $('box').classList.toggle('bare', (!!next && !v && !answer && !face) || (!!told && !answer && !face));
     placeBox();
   }
   // الملاحظة 27 (15.4): المربع يضيق بقدر ما يبقى بعد لوحة الثاني. حافته اليمنى ثابتة على 1794، وعرضه الأصغر من 659
@@ -427,12 +428,16 @@
     const items = said.map((x, i) => it(x, `t${x.team}${fresh && i === said.length - 1 ? ' new' : ''}`));
     if (reveal) items.push(...a.list.filter(x => !x.by).map(x => it(x, 'left')));
     $('items').innerHTML = items.join('');
+    // بعد الحكم: القائمة القصيرة بشارات المزايدة الكبيرة إن اتسعت كلها في صفين، وإلا فبالحجم المعتاد (design/auction.md 7.6)
+    $('auc').classList.toggle('big', reveal);
+    if (reveal && !fitsAll($('items'))) $('auc').classList.remove('big');
     fitItems($('items'), reveal);
     if (fresh) replay($('tally'), 'bump');
   }
   let shownSaid = 0;
   // ما ذُكر: أثناء العدّ يبقى الأحدث (يسقط الأقدم). وبعد الحكم يبقى كل ما ذُكر، ويسقط من غير المذكور آخره،
   // وفي آخر الصف «و N غيرها» (design/auction.md 7.2، fitItems في design/auction.html).
+  const fitsAll = box => !box.lastElementChild || rect(box.lastElementChild).bottom <= rect(box).bottom + 1;
   function fitItems(box, reveal) {
     const all = [...box.children];
     const fits = () => !box.lastElementChild || rect(box.lastElementChild).bottom <= rect(box).bottom + 1;
