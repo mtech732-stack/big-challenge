@@ -1,0 +1,60 @@
+/* التحدي الكبير · ش6 · عجلة البونص: شاشة الجمهور (design/wheel.md)
+   طبقة فوق css/ المبنية (1.3): تضيف قسم العجلة في البطاقة، ومربع الخانة في شاشة التحدي. كل ما سواهما (المسرح والاكتساح،
+   واللوحتان والرقم وإطار الوقت، ومربع الإعلان، والشارات، وأزرار النافذة الواحدة) من css/ كما هو. ينقلها المهندس إلى css/wheel.css. */
+
+/* 1. قسم العجلة في البطاقة: سطر من يدير العجلة، ثم الخانات العشر في صف واحد.
+   المحتوى من أعلى البطاقة: 24 + السطر 64 + 24 + الشريط 216 + 24 = 352. والسطر 64 يرسم علاماته نحو 17 فوقه و19 تحته (ش5، الملاحظة 33)،
+   فتبقى أعلاها 7 تحت حافة البطاقة، وأدناها 5 فوق الشريط، و19 فوق أعلى خانة (الإطار حولها خفيّ إلا للخانة المضاءة) */
+.scr.whl { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 24px; padding-top: 24px; }
+.whl .whead { margin: 0; height: 64px; color: var(--text); font-size: var(--fs-question); font-weight: 700; line-height: 64px;
+  white-space: nowrap; overflow-x: clip; overflow-y: visible; }
+
+/* 2. الشريط: عشر خانات متساوية بفراغ 40 في عرض البطاقة (1570): (1570 − 9×32) ÷ 10 = 128 للخانة.
+   والخانة 188 مائلة 14° فيزيد ميلها 23 من كل جانب، فتبقى أبعد خانة 25 داخل حافة البطاقة.
+   والترتيب من اليمين (بداية القراءة)، والأولى في أقصى اليمين */
+.whl .band { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 0 32px; height: 216px; align-items: center; }
+/* الخانة: شكل مائل تحته، ونصها مستقيم فوقه (system.md 5.2): كلمة 32 ثم رقمها 64 */
+.whl .ws { position: relative; height: 188px; min-width: 0; isolation: isolate; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 8px; color: var(--text); white-space: nowrap; }
+.whl .ws::before { content: ""; position: absolute; z-index: -1; inset: 0; background: var(--card); box-shadow: inset 0 0 0 4px var(--text);
+  transform: skewX(calc(-1 * var(--lean))); }
+.whl .ws > span { font-size: var(--fs-badge); font-weight: 800; line-height: 1; }
+.whl .ws > b { font-size: var(--fs-question); font-weight: 900; line-height: 1; direction: ltr; }
+/* النص قائم، لكن مركزه يتبع ميل الخانة: الكلمة في نصفها الأعلى تُزاح 8 نحو اليمين، والرقم في نصفها الأسفل 8 نحو اليسار،
+   فلا تلامس «هدية» و«اسرق» حافتها المائلة (في الأعلى تميل الحافة اليسرى إلى الداخل) */
+.whl .ws > span { translate: 8px 0; }
+.whl .ws > b { translate: -8px 0; }
+/* خانة الحظ: إطارها متقطع، فتتميّز عن التحدي بلا لون جديد (الأحمر للأول، والأزرق الداكن للثاني على البطاقة، والأصفر للإبراز) */
+.whl .ws.luck::before { box-shadow: none; border: 4px dashed var(--text); }
+
+/* 3. المؤشر: الخانة المضاءة تمتلئ بلون من يدير العجلة، ونصها أبيض، وحولها إطار بلونه يبعد 8 (سماكته 6).
+   فالإطار 14 خارج الخانة، ويبقى 18 من الخانتين المجاورتين. وهو المؤشر نفسه في الدوران والوقوف */
+.whl .ws.t1 { --c: var(--team-1); }
+.whl .ws.t2 { --c: var(--team-2-ink); }
+.whl .ws.t1, .whl .ws.t2 { color: var(--on-stage); }
+.whl .ws.t1::before, .whl .ws.t2::before { background: var(--c); box-shadow: none; border: 0; }
+.whl .ws.t1::after, .whl .ws.t2::after { content: ""; position: absolute; z-index: -1; inset: -14px; border: 6px solid var(--c);
+  transform: skewX(calc(-1 * var(--lean))); }
+
+/* 4. شاشة الخانة بعد الوقوف: كشاشة السؤال (مربع الحرف ثم النص 64)، والمربع خانة العجلة نفسها بلون من أدارها، لا بالأصفر
+   (الأصفر للحرف وحده). فيُقرأ التحدي أو خانة الحظ بمقاس السؤال، ثلاثة أسطر حداً أقصى */
+.letter.slot { flex-direction: column; gap: 16px; background: var(--c); color: var(--on-stage); }
+.letter.slot.t1 { --c: var(--team-1); }
+.letter.slot.t2 { --c: var(--team-2-ink); }
+.letter.slot > span { font-size: 48px; font-weight: 800; line-height: 1; }
+.letter.slot > b { font-size: 104px; font-weight: 900; line-height: 1; direction: ltr; }
+
+/* 5. لحظات الحركة */
+/* الدوران: المؤشر ينتقل خانةً خانة (تضيفه الوحدة وتزيله)، فلا حركة على الخانة نفسها غير ظهورها مضاءة */
+/* الوقوف (لحظة انفعالية، الوثيقة 7.3): إطار الخانة ينبض ثلاث مرات، والخانة تكبر قليلاً ثم تستقر */
+.anim .whl .ws.stop::after { animation: wstop .3s ease-in-out 3; }
+@keyframes wstop { 50% { inset: -22px; border-width: 10px; } }
+.anim .whl .ws.stop { animation: wgrow .9s cubic-bezier(.3,1.3,.5,1) both; }
+@keyframes wgrow { 30% { scale: 1.08; } }
+/* شاشة الخانة: المربع يدخل من موضعه بلمعة قصيرة */
+.anim .letter.slot { animation: chipin .32s cubic-bezier(.3,1.3,.5,1) both; }
+@keyframes chipin { from { scale: .6; } }
+@media (prefers-reduced-motion: reduce) { .whl .ws, .whl .ws::after, .letter.slot { animation: none !important; } }
+
+/* 6. الوقت في لوحة صاحب الدور: «1:42» لا «102»، لأن التحدي دقيقتان (الوثيقة 5.7). والمقاس والأصفر كما هما (15.3)،
+   والرقم في <span class="ltr"> لا اتجاه على .cnt نفسها (يعكس موضع الخط الفاصل) */
