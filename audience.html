@@ -372,7 +372,8 @@
     if (a.screen === 'intro') {
       showScreen('intro');
       $('rule').textContent = a.rule;
-      $('starter').innerHTML = `${esc(a.starter ?? 'يبدأ')} ${tn(a.turn)}`;
+      // ولا مفتتح في المزاد (design/auction.md 3.0): «ثلاثة مواضيع» وحدها.
+      $('starter').innerHTML = a.turn ? `${esc(a.starter ?? 'يبدأ')} ${tn(a.turn)}` : esc(a.starter ?? '');
       setBadges(`الجولة ${p.n} من ${p.total}`);
     } else if (a.screen === 'end') {
       showScreen('end');
@@ -401,7 +402,7 @@
     // والعدّاد يعمل: إطار الوقت حول لوحة صاحب الدور يتآكل، والثواني فيها، والحزم تخفت (.running وحده).
     const running = !!count && !count.test;
     setRunning(running);
-    // وفي المزاد لصاحب الدور في المزايدة، ثم للملتزم (design/auction.md 2).
+    // وفي المزاد في المنتصف أثناء المزايدة (turn 0)، ثم للملتزم من «ابدأ» (design/auction.md 2، 3.0).
     setSide(!asking ? 0 : v ? v.team || 0 : a.turn);
     if (running && count.id !== drained) { drained = count.id; drain(a.turn, (count.endAt - Date.now()) / 1000, p.timer.seconds); }
     if (!running && drained) { drained = 0; drain(0); }
@@ -409,15 +410,14 @@
   }
   let drained = 0;
 
-  // ===== المزاد (design/auction.md 2): الموضوع، وكل رقم شارة بلون صاحبه والأحدث أكبرها، ومن الالتزام العدّ =====
+  // ===== المزاد (design/auction.md 2): الموضوع، ورقما الفريقين كلٌّ بلونه والأعلى أكبرهما (3.0)، ومن الالتزام العدّ =====
   function renderAuction(a) {
     $('topic').textContent = a.topic;
     // في المزايدة: «في القائمة 12» للقائمة حتى 20 وحدها (الوثيقة 5.5، design/auction.md 2.1).
     $('tsize').hidden = !a.size;
     $('tsize').innerHTML = a.size ? `في القائمة <span class="ltr">${a.size}</span>` : '';
     const bids = a.phase === 'bid' ? a.bids : [];
-    $('bids').innerHTML = bids.map((b, i) => `<span class="bid t${b.team}${i === bids.length - 1 ? ' top' : ''}"><i></i><span>${num(b.n)}</span></span>`).join('');
-    dropOld($('bids'), '.bid');
+    $('bids').innerHTML = bids.map(b => `<span class="bid t${b.team}${b.top ? ' top' : ''}"><i></i><span>${num(b.n)}</span></span>`).join('');
     const t = a.tally;
     $('tally').hidden = !t;
     if (t) { $('tn').textContent = t.n; $('tof').textContent = t.of; $('tally').className = `tally t${t.team}`; }
@@ -456,13 +456,6 @@
       el.remove(); hidden++;
       more.innerHTML = `<span>و <span class="ltr">${hidden}</span> غيرها</span>`;
     }
-  }
-  // ما زاد على صف المزايدة يسقط من أوله (اليمين)، فيبقى الأحدث دائماً. بحدود العناصر لا scrollWidth:
-  // ما يُقصّ بـ overflow: clip لا يُحسب فيه (design/auction.md 7.2).
-  function dropOld(row, sel) {
-    const els = [...row.querySelectorAll(sel)];
-    const fits = () => rect(els[els.length - 1]).left >= rect(row).left - 1;
-    while (els.length > 1 && !fits()) els.shift().remove();
   }
 
   // ===== أزرار الشاشة المشتركة (design/shared.md 3): المقدّم يقرر ما يظهر (ctl)، وهنا موضعه =====

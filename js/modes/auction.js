@@ -1,9 +1,9 @@
 // النمط الثالث: «المزاد» (القسم 5.5 من الوثيقة، وتصميمه design/auction.md). وحدة تلتزم «عقد الوحدة».
-// 3 مواضيع في الجولة: سهل ثم متوسط ثم صعب، ويتناوب الفريقان على افتتاح المزايدة.
-// المزايدة رقماً رقماً (قاعدة المالك المصحّحة، 5.5 وdesign/auction.md 2.0): من 1، ويزيد كل فريق في دوره واحداً بالتناوب،
-// حتى يتوقف أحدهما فيلتزم الآخر بآخر رقم. ولا يتوقف المفتتح في دوره الأول.
-// القائمة حتى 20: عددها ظاهر، ولكل فريق في دوره «العدد كاملاً» فيُقفل المزاد له. وفوق 20 عددها مخفي.
-// ويُقفل المزاد تلقائياً إن بلغ الرقم طول القائمة. والقائمة المرجعية لا تصل إلى الجمهور قبل الحكم (7.1).
+// 3 مواضيع في الجولة: سهل ثم متوسط ثم صعب.
+// المزايدة حرة فوق رقم الخصم (قاعدة المالك، 5.5 وdesign/auction.md 3.0): لكل فريق رقم يبدأ 0، ونقرة زره «raise:1» ترفعه
+// إلى max(رقمه + 1، رقم خصمه + 1)، فأول نقرة رقم الخصم + 1 وكل نقرة بعدها +1، ولا تساوي. ولا يتجاوز رقمٌ طول القائمة.
+// و«ابدأ» يرسي المزاد على الأعلى ويبدأ عدّاد الوفاء فوراً. والقائمة حتى 20 عددها ظاهر للجمهور، وفوقها مخفي.
+// والقائمة المرجعية لا تصل إلى الجمهور قبل الحكم (7.1).
 // ثم الوفاء والعدّ: يُحسب كل عنصر يذكره الملتزم (+1)، فإن بلغ ما التزم به أخذ نقاطه، وإلا أخذ الخصم نقطتين (لا إكمال).
 // ثم «الموضوع التالي» حتى الثالث، و«إنهاء الجولة».
 import { freshFirst } from '../round.js';
@@ -11,23 +11,24 @@ import { freshFirst } from '../round.js';
 // وقت الوفاء 60 (45 مقترحة تُضبط في ش8)، ونقاط الخصم إن لم يفِ الملتزم (قيمة مبدئية تُضبط في ش8).
 export const FULFIL_SECONDS = 60;
 export const FAIL_POINTS = 2;
-// القائمة حتى هذا الطول عددها ظاهر، ومعها «العدد كاملاً» (5.5).
+// القائمة حتى هذا الطول عددها ظاهر للجمهور (5.5).
 export const SHOW_SIZE = 20;
 const LEVELS = ['easy', 'medium', 'hard'];
 const other = team => (team === 1 ? 2 : 1);
 
-// الحالات: intro افتتاح الجولة · bid المزايدة · ready الالتزام قبل «ابدأ» · fulfil عدّاد الملتزم
-// · decided انتهى الموضوع · end انتهت الجولة. (و complete من نسخة سابقة فيها «إكمال الخصم»: تُحسم بـ «توقّف».)
-// bids: الأرقام بأصحابها بالترتيب، و full: true لـ «العدد كاملاً» · commit: { team, n } الملتزم ورقمه
+// الحالات: intro افتتاح الجولة · bid المزايدة · fulfil عدّاد الملتزم · decided انتهى الموضوع · end انتهت الجولة.
+// (و ready من نسخة سابقة: الالتزام قبل «ابدأ»، و complete فيها «إكمال الخصم»: تُكملان كما كانتا.)
+// nums: [رقم الأول، رقم الثاني] في المزايدة (0 لمن لم يزايد) · team: 0 في المزايدة (الحدّ في المنتصف)، ثم الملتزم
+// · commit: { team, n } من رسا عليه المزاد ورقمه
 // · said: ما ذُكر بالترتيب { i, team }، وi موضع العنصر في القائمة، أو null إن عُدّ دون اسم («صحيح · +1» في النافذة الواحدة)
 // · results[i]: { team, points } من أخذ نقاط الموضوع i (team 0 إن لم يأخذها أحد)، أو null ما لم ينتهِ.
 function setup({ content, first, seen = [], rng = Math.random }) {
   const bank = content?.topics ?? [];
   const topics = LEVELS.map((l, i) => {
     const t = freshFirst(bank.filter(x => x.level === l), seen, 1, rng)[0];
-    return t && { id: t.id, level: t.level, topic: t.topic, items: t.items.map(x => ({ name: x.name, alts: x.alts ?? [] })), note: t.note ?? '', opener: i % 2 ? other(first) : first };
+    return t && { id: t.id, level: t.level, topic: t.topic, items: t.items.map(x => ({ name: x.name, alts: x.alts ?? [] })), note: t.note ?? '' };
   }).filter(Boolean);
-  return { first, topics, index: 0, phase: 'intro', team: first, bids: [], commit: null, said: [], results: topics.map(() => null) };
+  return { first, topics, index: 0, phase: 'intro', team: 0, nums: [0, 0], commit: null, said: [], results: topics.map(() => null) };
 }
 
 const current = s => s.topics[s.index];
@@ -35,20 +36,24 @@ const current = s => s.topics[s.index];
 const saidOf = s => s.said ?? [];
 // من ذكر العنصر i من الموضوع الحالي، أو 0.
 const by = (s, i) => saidOf(s).find(x => x.i === i)?.team ?? 0;
-const top = s => (s.bids.length ? s.bids[s.bids.length - 1].n : 0);
+// رقما الفريقين. وحالة محفوظة من نسخة «رقماً رقماً» (bids بأصحابها): أعلى رقم لكل فريق.
+const numsOf = s => s.nums ?? [1, 2].map(t => Math.max(0, ...(s.bids ?? []).filter(b => b.team === t).map(b => b.n)));
 const size = s => current(s).items.length;
-// القائمة حتى 20: عددها ظاهر، و«العدد كاملاً» متاح.
+// القائمة حتى 20: عددها ظاهر للجمهور.
 const shown = s => size(s) <= SHOW_SIZE;
+// ما تجعله نقرة زر الفريق رقماً له: أعلى من رقمه ومن رقم خصمه.
+const raised = (s, team) => { const [a, b] = numsOf(s); const own = team === 1 ? a : b, opp = team === 1 ? b : a; return Math.max(own, opp) + 1; };
+const leader = s => { const [a, b] = numsOf(s); return a === b ? 0 : a > b ? 1 : 2; };
+const topNum = s => Math.max(...numsOf(s));
 
 function actions(s) {
   if (s.phase === 'intro') return [{ id: 'show', label: `اعرض الموضوع ${s.index + 1}` }];
   if (s.phase === 'bid') {
-    // «زايد · N» بالرقم التالي وحده، ويصل الفعل «bid:N» (فنقرة متأخرة برقم سابق تُهمل).
-    const n = top(s) + 1;
-    const acts = [{ id: 'bid', label: `زايد · ${n}`, n }];
-    if (shown(s)) acts.push({ id: 'full', label: `العدد كاملاً · ${size(s)}`, short: `كاملاً · ${size(s)}`, n: size(s) });
-    // لا توقف في الدور الأول للمفتتح: لا رقم يلتزم به الخصم بعد.
-    if (s.bids.length) acts.push({ id: 'stop', label: 'توقّف' });
+    // زر كل فريق يُظهر رقمه («زايد» قبل أول رقم)، ويصل الفعل «raise:1» أو «raise:2». ويغيب زر من بلغ طول القائمة.
+    // و«ابدأ» بعد أول رقم.
+    const nums = numsOf(s), acts = [];
+    for (const team of [1, 2]) if (raised(s, team) <= size(s)) acts.push({ id: 'raise', team, label: nums[team - 1] ? String(nums[team - 1]) : 'زايد', n: nums[team - 1], next: raised(s, team) });
+    if (leader(s)) acts.push({ id: 'start', label: 'ابدأ' });
     return acts;
   }
   // الوفاء: العنصر يُعدّ قبل «ابدأ» أيضاً (قد يبدأ الفريق قبل العدّاد، كزرّي الحكم في ش2).
@@ -67,26 +72,25 @@ function act(s, action) {
   if (id === 'next' && s.phase === 'decided') {
     const index = s.index + 1;
     if (index >= s.topics.length) return { state: { ...s, phase: 'end' }, events: [] };
-    return { state: { ...s, index, phase: 'bid', team: s.topics[index].opener, bids: [], commit: null, said: [] }, events: [] };
+    return { state: { ...s, index, phase: 'bid', team: 0, nums: [0, 0], commit: null, said: [] }, events: [] };
   }
-  if (id === 'show') return { state: { ...s, phase: 'bid', team: current(s).opener, bids: [], commit: null, said: [] }, events: [] };
-  if (s.phase === 'bid' && (id === 'bid' || id === 'full')) {
-    const full = id === 'full';
-    if (full ? !shown(s) : Number(arg) !== top(s) + 1) return { state: s, events: [] };
-    const n = full ? size(s) : top(s) + 1;
-    const bids = [...s.bids, { team: s.team, n, ...(full ? { full: true } : {}) }];
-    const events = [{ type: 'moment', name: 'bid', team: s.team }];
-    // «العدد كاملاً»، أو بلغ الرقم طول القائمة: يُقفل المزاد لصاحبه، فيلتزم به (5.5).
-    if (n >= size(s)) return { state: { ...s, bids, phase: 'ready', commit: { team: s.team, n }, said: [] }, events };
-    // والدور (والحدّ معه) إلى الخصم مع كل رقم.
-    return { state: { ...s, bids, team: other(s.team) }, events };
+  if (id === 'show') return { state: { ...s, phase: 'bid', team: 0, nums: [0, 0], commit: null, said: [] }, events: [] };
+  // زر الفريق: رقمه فوق رقمه ورقم خصمه بواحد، ولا يتجاوز طول القائمة. والحدّ ثابت في المنتصف (3.0).
+  if (id === 'raise' && s.phase === 'bid') {
+    const team = Number(arg);
+    if (team !== 1 && team !== 2) return { state: s, events: [] };
+    const n = raised(s, team);
+    if (n > size(s)) return { state: s, events: [] };
+    const nums = numsOf(s).map((x, k) => (k === team - 1 ? n : x));
+    return { state: { ...s, nums }, events: [{ type: 'moment', name: 'bid', team }] };
   }
-  // توقّف صاحب الدور: يلتزم خصمه بآخر رقم ذكره، ويتحول الدور إليه.
-  if (id === 'stop' && s.phase === 'bid' && s.bids.length) {
-    const last = s.bids[s.bids.length - 1];
-    return { state: { ...s, phase: 'ready', team: last.team, commit: { team: last.team, n: last.n }, said: [] }, events: [] };
+  // «ابدأ»: يرسو المزاد على الأعلى، فيلتزم به ويبدأ عدّاد الوفاء فوراً.
+  if (id === 'start' && s.phase === 'bid') {
+    const team = leader(s);
+    if (!team) return { state: s, events: [] };
+    return { state: { ...s, phase: 'fulfil', team, commit: { team, n: topNum(s) }, said: [] }, events: [{ type: 'timer', seconds: FULFIL_SECONDS, resume: true }] };
   }
-  if (id === 'start') return { state: { ...s, phase: 'fulfil' }, events: [{ type: 'timer', seconds: FULFIL_SECONDS, resume: true }] };
+  if (id === 'start' && s.phase === 'ready') return { state: { ...s, phase: 'fulfil' }, events: [{ type: 'timer', seconds: FULFIL_SECONDS, resume: true }] };
   if (id === 'item' || id === 'count') {
     const i = id === 'item' ? Number(arg) : null;
     // لا مكرر (5.5): العنصر الذي ذُكر لا يُحسب ثانية، ولا موضع خارج القائمة.
@@ -129,7 +133,7 @@ function totals(s) {
 function audience(s) {
   const t = current(s);
   const base = { first: s.first, count: s.topics.length, totals: totals(s) };
-  if (s.phase === 'intro') return { ...base, screen: 'intro', turn: current(s)?.opener ?? s.first, rule: 'زايدوا رقماً رقماً، ثم أوفوا', starter: 'يفتتح المزايدة', unit: 'الموضوع' };
+  if (s.phase === 'intro') return { ...base, screen: 'intro', turn: 0, rule: 'زايدوا على ما تقدرون على ذكره، ثم أوفوا', starter: 'ثلاثة مواضيع', unit: 'الموضوع' };
   if (s.phase === 'end' || !t) return { ...base, screen: 'end', turn: 0 };
   const result = s.phase === 'decided' ? s.results[s.index] : null;
   return {
@@ -138,10 +142,10 @@ function audience(s) {
     phase: s.phase,
     n: s.index + 1,
     topic: t.topic,
-    owner: t.opener,
-    // بعد الحكم: الحدّ عند من أخذ النقاط، أو في المنتصف.
+    // بعد الحكم: الحدّ عند من أخذ النقاط. وفي المزايدة في المنتصف (team 0).
     turn: result ? result.team : s.team,
-    bids: s.bids.map(b => ({ ...b })),
+    // رقما الفريقين في المزايدة، ومن لم يزايد بعد لا رقم له. والأعلى top.
+    bids: s.phase === 'bid' ? numsOf(s).map((n, k) => ({ team: k + 1, n, top: n > 0 && n === topNum(s) })).filter(b => b.n) : [],
     commit: s.commit && { ...s.commit },
     // طول القائمة في المزايدة لقائمة حتى 20 وحدها.
     size: s.phase === 'bid' && shown(s) ? size(s) : undefined,
@@ -169,8 +173,8 @@ function presenter(s) {
     items: hidden ? [] : t.items.map((x, i) => ({ name: x.name, alts: [...x.alts], by: by(s, i) })),
     size: hidden ? 0 : t.items.length,
     note: hidden ? '' : t.note,
-    brief: `3 مواضيع، ويتناوب الفريقان على افتتاح المزايدة. المزايدة رقماً رقماً من 1 حتى يتوقف أحدهما، وفي القائمة حتى ${SHOW_SIZE} «العدد كاملاً» يُقفلها. وللملتزم ${FULFIL_SECONDS} ثانية ليوفي، فإن لم يفِ أخذ خصمه ${FAIL_POINTS === 2 ? 'نقطتين' : `${FAIL_POINTS} نقاط`}.`,
-    track: s.topics.map((x, i) => ({ owner: x.opener, result: s.results[i] === null ? null : s.results[i].team, now: !hidden && i === s.index })),
+    brief: `3 مواضيع. يزايد كل فريق فوق رقم خصمه بما يشاء (زرّه بلونه، كل نقرة +1)، و«ابدأ» يرسي على الأعلى. ولمن رسا عليه ${FULFIL_SECONDS} ثانية ليوفي، فإن لم يفِ أخذ خصمه ${FAIL_POINTS === 2 ? 'نقطتين' : `${FAIL_POINTS} نقاط`}.`,
+    track: s.topics.map((x, i) => ({ owner: 0, result: s.results[i] === null ? null : s.results[i].team, now: !hidden && i === s.index })),
   };
 }
 

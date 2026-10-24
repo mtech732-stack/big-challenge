@@ -57,6 +57,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
     const body = await audience.evaluate(ns => { let t = document.querySelector('.canvas').innerText;
       for (const b of document.querySelectorAll('.cbtn')) t = t.replace(b.innerText, '');
       t = t.replace(document.getElementById('topic').innerText, '').replace(document.getElementById('tsize').innerText, '');
+      for (const c of ['c1', 'c2']) t = t.replace(document.getElementById(c)?.innerText ?? '', ''); // ثواني العدّاد ليست طول القائمة
       for (const n of ns) t = t.split(n).join(''); return t; }, [...LONG, ...shown]);
     if (/سرقة|سهل|متوسط|صعب|انسحب|في القائمة|عنصر/.test(body)) { leak = true; fails.push(`${label}: نص ممنوع على الجمهور`); }
     const unsaid = items.filter((x, i) => !said.has(i)).flatMap(x => [x.name, ...(x.alts ?? [])]);
@@ -99,40 +100,38 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const at = async i => presenter.$eval(`#aRef button[data-i="${i}"]`, e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
   const tap = async i => { const p = await at(i); await presenter.mouse.click(p.x, p.y); };
 
-  // 1. إلى الالتزام رقماً رقماً: يذكر الخصم 30، ويتوقف المفتتح، فيلتزم الخصم بـ 30 (القائمة 54، فلا «العدد كاملاً»).
+  // 1. إلى الوفاء: يزايد فريق (عشوائي) بزرّه حتى 30، ثم «ابدأ» يرسي عليه ويبدأ العدّاد فوراً (3.0؛ القائمة 54، فالعدد مخفي).
   await audience.waitForSelector('[data-cmd="draw"]', { timeout: 6000 });
   await sharedToFace(audience, { names: LONG, picks: ['auction', 'letter'] });
   await wait(2700);
   presenter = await beginTwo(context, audience);
   await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 6000 });
   await audience.waitForSelector('.scr.show[data-s="intro"]', { timeout: 5000 });
-  const starter = (await st()).topics[0].opener, opener = starter === 1 ? 2 : 1;
+  const opener = Math.random() < 0.5 ? 1 : 2;
   await presenter.click('#showQ');
   await audience.waitForSelector('.scr.show[data-s="auc"]');
   await wait(800);
-  for (let n = 1; n <= N; n++) { await presenter.click('#aBid'); await wait(760); }
-  await presenter.click('#aCtl [data-act="stop"]'); await wait(900);
-  let s = await st();
-  check(`الالتزام: ${LONG[opener - 1]} بـ ${N}`, s.phase === 'ready' && s.commit.team === opener && s.commit.n === N);
+  for (let n = 1; n <= N; n++) { await presenter.click(`#aCtl [data-raise="${opener}"]`); await wait(80); }
+  await wait(600);
+  check(`المزايدة: ${LONG[opener - 1]} بـ ${N} («المزايدة · الأعلى ${N}»)`, (await st()).nums[opener - 1] === N && (await text(presenter, '#aWho')) === `المزايدة · الأعلى ${N}`);
+  check('المقدّم: القائمة للاطلاع في المزايدة', await presenter.$eval('#aRef', e => e.classList.contains('view')));
 
-  // 2. قبل «ابدأ»: القائمة تُنقر، و«ابدأ العدّاد» و«توقّف · لم يفِ».
-  check('المقدّم: القائمة أزرار تُنقر (لا «للاطلاع»)، وزرّا الوفاء', !(await presenter.$eval('#aRef', e => e.classList.contains('view')))
-    && (await presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim()).join(' | '))) === 'ابدأ العدّاد | توقّف · لم يفِ');
-  await tap(0); await wait(600);
-  check('عنصر قبل «ابدأ»: «1 من 30» بلون الملتزم، واسمه شارة بلونه', (await tally()) === `1/${N}` && await audience.$eval('#tally', (e, t) => e.classList.contains('t' + t), opener)
-    && JSON.stringify(await chips()) === JSON.stringify([{ name: items[0].name, t: opener, left: false, more: false }]));
-  check('المقدّم: العنصر ممتلئ بلون الملتزم', await presenter.$eval('#aRef button[data-i="0"]', (e, t) => e.classList.contains('t' + t), opener));
-  check('الجمهور: لا عدّاد يعمل قبل «ابدأ»', !(await audience.$eval('#canvas', c => c.classList.contains('running'))));
-  await both('الوفاء قبل ابدأ');
-
-  // 3. «ابدأ العدّاد»: يعدّ 60 ثانية، و«توقّف» وحده.
+  // 2. «ابدأ»: يرسو على ${N} ويعدّ 60 ثانية فوراً، و«توقّف · لم يفِ» وحده، والقائمة تُنقر.
   await presenter.click('#aCtl [data-act="start"]');
   await wait(1300);
-  check('«ابدأ»: الجمهور يعدّ (الإطار يتآكل حول لوحة الملتزم)', await audience.$eval('#canvas', (c, t) => c.classList.contains('running') && c.classList.contains('turn-' + t), opener));
-  check(`المقدّم: «0:5x · بقي ${N - 1}» (الوقت في حاوية ltr) و«توقّف · لم يفِ» وحده`, /^0:5\d · بقي 29$/.test(await text(presenter, '#aState'))
+  let s = await st();
+  check(`«ابدأ»: ${LONG[opener - 1]} ملتزم بـ ${N}، والجمهور يعدّ (الإطار يتآكل حول لوحته)`, s.phase === 'fulfil' && s.commit.team === opener && s.commit.n === N
+    && await audience.$eval('#canvas', (c, t) => c.classList.contains('running') && c.classList.contains('turn-' + t), opener));
+  check(`المقدّم: «0:5x · بقي ${N}» (الوقت في حاوية ltr) و«توقّف · لم يفِ» وحده`, new RegExp(`^0:5\\d · بقي ${N}$`).test(await text(presenter, '#aState'))
     && /^0:5\d$/.test(await presenter.$eval('#aState .ltr', e => e.textContent))
     && (await presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim()).join(' | '))) === 'توقّف · لم يفِ');
+  check('المقدّم: القائمة أزرار تُنقر (لا «للاطلاع»)', !(await presenter.$eval('#aRef', e => e.classList.contains('view'))));
   const timer = (await stored()).round.timer.id;
+  await tap(0); await wait(600);
+  check(`أول عنصر: «1 من ${N}» بلون الملتزم، واسمه شارة بلونه`, (await tally()) === `1/${N}` && await audience.$eval('#tally', (e, t) => e.classList.contains('t' + t), opener)
+    && JSON.stringify(await chips()) === JSON.stringify([{ name: items[0].name, t: opener, left: false, more: false }]));
+  check('المقدّم: العنصر ممتلئ بلون الملتزم', await presenter.$eval('#aRef button[data-i="0"]', (e, t) => e.classList.contains('t' + t), opener));
+  await both('الوفاء · أول عنصر');
 
   // 4. نقرات متتابعة على عناصر مختلفة (0.1 ثانية بينها) تُحسب كلها، ونقرتان على العنصر نفسه عنصر واحد.
   for (const i of [1, 2, 3]) { await tap(i); await wait(100); }

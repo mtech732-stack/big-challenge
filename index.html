@@ -142,11 +142,12 @@
   #app .bidrow:empty { display: none; }
   #app .bidrow button { min-height: 5rem; font-size: 1.5rem; margin: 0; }
   /* المزايدة رقماً رقماً (2.0): «زايد · 4» أربعة أعمدة، و«العدد كاملاً · 12» خمسة، و«توقّف» ثلاثة. وفوق 20 عنصراً «زايد» ثمانية و«توقّف» أربعة */
-  #app .bidrow .go { grid-column: span 4; }
-  #app .bidrow .go.wide { grid-column: span 8; }
-  #app .bidrow .full { grid-column: span 5; }
+  /* المزايدة (design/auction.md 5، 3.0): زر كل فريق بلونه يُظهر رقمه (5 أعمدة)، و«ابدأ» أبيض بإطار بينهما (عمودان) */
+  #app .bidrow .bidt { grid-column: span 5; color: var(--card); font-size: 2.5rem; font-weight: 900; box-shadow: none; }
+  #app .bidrow .bidt.t1 { background: var(--team-1); }
+  #app .bidrow .bidt.t2 { background: var(--team-2-ink); }
+  #app .bidrow .go2 { grid-column: span 2; }
   #app .bidrow .no { grid-column: span 3; background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
-  #app .bidrow .go.wide + .no { grid-column: span 4; }
   #app .bidrow .half { grid-column: span 6; }
   #app .bidrow button:disabled { opacity: .45; cursor: default; }
 </style>
@@ -640,7 +641,9 @@
 
     if (part === 'intro') {
       $('introHead').innerHTML = num(title);
-      $('introWho').innerHTML = `${mk(pr.turn)} ${esc(pr.starter ?? 'يبدأ')} ${tn(pr.turn)} (اختير عشوائياً). الافتتاح معروض الآن على الجمهور.`;
+      // ولا مفتتح في المزاد (design/auction.md 3.0): «ثلاثة مواضيع» وحدها.
+      $('introWho').innerHTML = pr.turn ? `${mk(pr.turn)} ${esc(pr.starter ?? 'يبدأ')} ${tn(pr.turn)} (اختير عشوائياً). الافتتاح معروض الآن على الجمهور.`
+        : `${esc(pr.starter ?? '')}. الافتتاح معروض الآن على الجمهور.`;
       $('introBrief').innerHTML = num(pr.brief);
       $('showQ').innerHTML = num(label('show') ?? '');
     }
@@ -684,13 +687,9 @@
   }
 
   // ===== المزاد في نافذة المقدّم (design/auction.md 5) =====
-  // المزايدة رقماً رقماً (design/auction.md 2.0): «زايد · N» بالرقم التالي من الوحدة، ويُرسل «bid:N»،
-  // فنقرة ثانية متأخرة بالرقم نفسه تُهمل (صار التالي N+1).
-  const bidAction = () => {
-    const st = match.round?.state, mode = roundMode();
-    return (mode && st && mode.actions(st).find(a => a.id === 'bid')) || null;
-  };
-  const bid = () => { const b = bidAction(); if (b) roundAct('bid:' + b.n); };
+  // المزايدة الحرة (design/auction.md 3.0): زر كل فريق يرسل «raise:1» أو «raise:2»، وكل نقرة +1 فوق رقمه ورقم خصمه.
+  // فالنقرات المتتابعة تُحسب كلها (لا إمهال بينها: الحالة لا تتغير، والزر في مكانه). و«ابدأ» بالإمهال كغيره.
+  const raise = team => roundAct('raise:' + team, true);
   const count = (n, one) => (n >= 3 && n <= 10 ? `${n} عناصر` : n === 2 ? 'عنصران' : n === 1 ? one : `${n} عنصراً`);
   function renderAuction(pr, acts) {
     $('aTopic').textContent = pr.topic;
@@ -715,14 +714,17 @@
     }
     pr.items.forEach((x, i) => { const el = ref.children[i]; el.classList.toggle('t1', x.by === 1); el.classList.toggle('t2', x.by === 2); });
     const v = pr.verdict;
-    $('aWho').innerHTML = v ? (v.team ? `${mk(v.team)} ${tn(v.team)} · ${num('+' + v.points)}` : 'لا نقاط') : `${mk(pr.turn)} دور ${tn(pr.turn)}`;
+    // في المزايدة لا دور (الحدّ في المنتصف): «المزايدة · الأعلى 11» مكان الدور، ولا سطر حالة (design/auction.md 5، 3.0).
+    const top = Math.max(0, ...pr.bids.map(b => b.n));
+    $('aWho').innerHTML = v ? (v.team ? `${mk(v.team)} ${tn(v.team)} · ${num('+' + v.points)}` : 'لا نقاط')
+      : pr.phase === 'bid' ? `<span class="done">${top ? num(`المزايدة · الأعلى ${top}`) : 'المزايدة · لا رقم بعد'}</span>` : `${mk(pr.turn)} دور ${tn(pr.turn)}`;
     auctionState(pr);
     const ctl = id => acts.find(a => a.id === id);
-    const b = ctl('bid'), full = ctl('full');
-    // المزايدة (design/auction.md 5، 2.0): «زايد · 4» · «العدد كاملاً · 12» (للقائمة حتى 20) · «توقّف» (معطّل في دور المفتتح الأول).
-    $('aCtl').innerHTML = pr.phase === 'bid' ? (b ? `<button class="go${full ? '' : ' wide'}" id="aBid">${num(b.label)}</button>` : '') +
-      (full ? `<button class="full" data-act="full">${num(full.label)}</button>` : '') +
-      `<button class="no" data-act="stop"${ctl('stop') ? '' : ' disabled'}>توقّف</button>`
+    // المزايدة (design/auction.md 5، 3.0): زر الأول بلونه برقمه · «ابدأ» (معطّل قبل أول رقم) · زر الثاني بلونه.
+    // ويُعطَّل زر من بلغ رقمه طول القائمة.
+    const tb = t => { const r = acts.find(a => a.id === 'raise' && a.team === t), n = pr.bids.find(x => x.team === t)?.n;
+      return `<button class="bidt t${t}" data-raise="${t}"${r ? '' : ' disabled'}>${n ? num(n) : 'زايد'}</button>`; };
+    $('aCtl').innerHTML = pr.phase === 'bid' ? tb(1) + `<button class="alt go2" data-act="start"${ctl('start') ? '' : ' disabled'}>ابدأ</button>` + tb(2)
       // الوفاء (design/auction.md 5): «ابدأ العدّاد» و«توقّف · لم يفِ» قبل «ابدأ»، و«توقّف» وحده والعدّاد يعدّ.
       // وبعد الحكم «الموضوع التالي» أو «إنهاء الجولة» (design/auction.md 5).
       : ['start', 'stop', 'next'].filter(ctl).map(id => `<button class="${id === 'stop' ? 'no' : id === 'start' ? 'alt' : ''} half" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
@@ -731,9 +733,8 @@
   // سطر الحالة: في الوفاء الوقت الباقي كما على الشاشة (يصل كل ثانية من نافذة الجمهور) وما بقي من العدد.
   let tickText = '';
   function auctionState(pr) {
-    const top = pr.bids.length ? pr.bids[pr.bids.length - 1].n : 0;
     const left = pr.tally ? pr.tally.of - pr.tally.n : 0;
-    $('aState').innerHTML = pr.phase === 'bid' ? (pr.bids.length ? num(`يزايد على ${top} أو يتوقّف`) : pr.shown ? 'يفتتح بـ 1 أو بالعدد كاملاً' : 'يفتتح بـ 1')
+    $('aState').innerHTML = pr.phase === 'bid' ? ''
       : pr.phase === 'ready' ? num(`التزم بـ ${pr.commit.n} · ${pr.clock} ثانية${pr.tally.n ? ` · بقي ${left}` : ''}`)
       // الوقت «0:38» في حاوية ltr كاملاً، وإلا انقلب في السطر العربي («38:0»).
       : pr.phase === 'fulfil' ? `<span class="ltr">${esc(tickText || '1:00')}</span> · ${num(`بقي ${left}`)}`
@@ -756,7 +757,7 @@
   $('aCtl').addEventListener('click', e => {
     const el = e.target.closest('button');
     if (!el || el.disabled) return;
-    if (el.id === 'aBid') bid();
+    if (el.dataset.raise) raise(Number(el.dataset.raise));
     else if (el.dataset.act) roundAct(el.dataset.act);
   });
   // عنصر ذكره الفريق: يُحسب لصاحب الدور (+1). نقرات متتابعة على عناصر مختلفة تُحسب كلها (لا إمهال بينها)،
@@ -831,9 +832,14 @@
       const act = (id, label, kind) => acts.some(a => a.id === id) ? [{ cmd: 'act:' + id, label: label ?? acts.find(a => a.id === id).label, kind, off: wait }] : [];
       if (screen === 'intro') c.card = act('show');
       const last = st.index === (st.questions ?? st.topics).length - 1;
-      // المزاد (design/auction.md 4، 2.0): «زايد · N» · «كاملاً · 12» (للقائمة حتى 20) · «توقّف»، ولا «توقّف» في دور المفتتح الأول.
-      const b = screen === 'topic' && bidAction();
-      if (b) c.near = [...act('bid'), ...act('full', acts.find(a => a.id === 'full')?.short), ...act('stop', 'توقّف', 'no')];
+      // المزاد (design/auction.md 4، 3.0): زر كل فريق بلونه برقمه («زايد» قبل أول رقم) · «ابدأ» بينهما (معطّل قبل أول رقم).
+      const b = screen === 'topic' && st.phase === 'bid';
+      if (b) {
+        const nums = mode.audience(st).bids;
+        const tb = t => { const r = acts.some(a => a.id === 'raise' && a.team === t), n = nums.find(x => x.team === t)?.n;
+          return { cmd: 'raise:' + t, label: n ? String(n) : 'زايد', kind: 'bidt t' + t, off: !r }; };
+        c.near = [tb(1), { cmd: 'act:start', label: 'ابدأ', off: !acts.some(a => a.id === 'start') || wait }, tb(2)];
+      }
       // الوفاء (design/auction.md 4): «ابدأ» · «صحيح · +1» قبل العدّاد، و«صحيح · +1» · «توقّف» والعدّاد يعدّ. يُعدّ دون أسماء (القائمة سرّ).
       // وبعد الحكم «الموضوع التالي» في البطاقة لا في صف الشارات (design/auction.md 4، 1.1).
       if (screen === 'topic' && st.phase === 'decided') c.card = act('next');
@@ -887,7 +893,8 @@
     if (cmd === 'back' && !drawing) update(M.backToSetup(match));
     if (cmd === 'begin') begin(false);
     if (cmd === 'single') begin(true);
-    if (cmd === 'act') arg === 'bid' ? bid() : roundAct(arg);
+    if (cmd === 'act') roundAct(arg);
+    if (cmd === 'raise') raise(Number(arg));
     if (cmd === 'next') actions[nextButton().act]?.();
     if (cmd === 'mute') toggleMute();
     if (cmd === 'presenter') toPresenter();

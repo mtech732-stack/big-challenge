@@ -108,7 +108,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const round = async () => (await stored()).round;
   const ctl = () => presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim()).join(' | '));
   // المزايدة رقماً رقماً حتى n، ثم يتوقف صاحب الدور، فيلتزم من ذكر n.
-  const bidTo = async n => { for (let k = 1; k <= n; k++) { await presenter.click('#aBid'); await wait(760); } await presenter.click('#aCtl [data-act="stop"]'); await wait(900); };
+  // يزايد الفريق t بزرّه حتى n (خصمه بلا رقم)، ثم «ابدأ» يرسي عليه ويبدأ الوفاء (3.0).
+  const bidTo = async (n, t) => { for (let k = 1; k <= n; k++) { await presenter.click(`#aCtl [data-raise="${t}"]`); await wait(150); } await wait(500); await presenter.click('#aCtl [data-act="start"]'); await wait(900); };
   // بعد الحكم: المربع بلا خلفية، والشارة بيضاء بنص صاحبها، والسطر ظاهر. والقائمة كبيرة أو معتادة.
   const look = () => audience.evaluate(() => {
     const box = document.getElementById('box'), chip = document.getElementById('verdict'), cs = getComputedStyle(document.documentElement);
@@ -121,7 +122,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const color = c => audience.evaluate(c => { const d = document.createElement('i'); d.style.color = c; document.body.append(d); const v = getComputedStyle(d).color; d.remove(); return v; }, c);
   const shot = async name => { await wait(400); await stage.screenshot({ path: `${shots}/${name}.png` }); };
 
-  // 1. الموضوع 1 «القصيرة الأولى» (10): يذكر الآخر 4 فيلتزم، ويذكر 2 ثم يتوقف، فللمفتتح نقطتان (2.0: failshort).
+  // 1. الموضوع 1 «القصيرة الأولى» (10): يرسو على الآخر بـ 4، فيذكر 2 ثم يتوقف، فللأول نقطتان (2.0: failshort).
   await audience.waitForSelector('[data-cmd="draw"]', { timeout: 6000 });
   await sharedToFace(audience, { names: LONG, picks: ['auction', 'letter'] });
   await wait(2700);
@@ -129,14 +130,13 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 6000 });
   await audience.waitForSelector('.scr.show[data-s="intro"]', { timeout: 5000 });
   let s = await st();
-  const first = s.topics[0].opener, win = first;
+  const first = Math.random() < 0.5 ? 1 : 2, win = first;
   check(`المواضيع: قائمتان قصيرتان (${SHORT}) ثم أطول قائمة (${LONGEST})`, s.topics.map(t => t.topic).join('،') === keep.join('،'));
   await presenter.click('#showQ');
   await audience.waitForSelector('.scr.show[data-s="auc"]');
   await wait(800);
-  await bidTo(4);
+  await bidTo(4, other(first));
   check(`القصيرة الأولى: الفريق ${other(first)} ملتزم بـ 4`, (await st()).commit.team === other(first) && (await st()).commit.n === 4);
-  await presenter.click('#aCtl [data-act="start"]'); await wait(900);
   await tap(0); await wait(100); await tap(1); await wait(700);
   await presenter.click('#aCtl [data-act="stop"]'); await wait(1600);
   let l = await look();
@@ -148,10 +148,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await both('القصيرة الأولى · لم يفِ');
   await shot(`s4-short-1-fail-t${win}`);
 
-  // 2. الموضوع 2 «القصيرة الثانية» (10): يفتتحه الآخر، ويذكر المفتتح الأول 2 فيلتزم ويفي (2.0: wonshort).
+  // 2. الموضوع 2 «القصيرة الثانية» (10): يرسو على الأول بـ 2 فيفي (2.0: wonshort).
   await presenter.click('#aCtl [data-act="next"]'); await wait(1200);
-  await bidTo(2);
-  await presenter.click('#aCtl [data-act="start"]'); await wait(900);
+  await bidTo(2, first);
   await tap(0); await wait(100); await tap(1); await wait(1500);
   l = await look();
   check(`القصيرة الثانية: وفى الفريق ${win} بـ 2 (رصيده 4)`, (await st()).phase === 'decided' && (await round()).scores[win] === 4);
@@ -159,10 +158,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await both('القصيرة الثانية · بعد الحكم');
   await shot(`s4-short-2-t${win}`);
 
-  // 3. الموضوع 3 «أطول قائمة»: يذكر الآخر 2 فيلتزم ويفي، والقائمة بالحجم المعتاد و«و N غيرها».
+  // 3. الموضوع 3 «أطول قائمة»: يرسو على الآخر بـ 2 فيفي، والقائمة بالحجم المعتاد و«و N غيرها».
   await presenter.click('#aCtl [data-act="next"]'); await wait(1200);
-  await bidTo(2);
-  await presenter.click('#aCtl [data-act="start"]'); await wait(900);
+  await bidTo(2, other(first));
   await tap(0); await wait(100); await tap(1); await wait(1500);
   l = await look();
   check(`أطول قائمة: الحكم بلا مربع، والقائمة بالحجم المعتاد 44 و«و N غيرها» (${l.h}، ${l.rows} صفوف)`, l.bare && l.bg === 'none' && !l.big && l.h === 44 && l.more && l.rows <= 4);

@@ -1,5 +1,5 @@
 // اختبار آلي لمرحلة «تتابع الجولة» في المزاد (ش4، القسم 5.5) بالنافذتين وبالنافذة الواحدة، بالبنك الحقيقي، في الرابط العادي:
-// ثلاثة مواضيع (سهل ثم متوسط ثم صعب) والافتتاح بالتناوب، و«الموضوع التالي» يعرض الموضوع فوراً للمزايدة بمفتتحه،
+// ثلاثة مواضيع (سهل ثم متوسط ثم صعب) بلا مفتتح (3.0)، و«الموضوع التالي» يعرض الموضوع فوراً للمزايدة والحدّ في المنتصف،
 // ومسار المواضيع بمن أخذ كلاً منها (ومنه الخصم بنقطتيه إن لم يفِ الملتزم، 2.0)، و«إنهاء الجولة» بعد الثالث فشاشة النهاية بحصيلة كل فريق، والتراجع عن النهاية،
 // وفي النافذة الواحدة «الموضوع التالي» و«إنهاء الجولة» في البطاقة. وفحص التداخل ونافذة المقدّم في كل حالة.
 const fs = require('fs');
@@ -101,8 +101,10 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const round = async () => (await stored()).round;
   const ui = async () => ({ badge: await text(audience, '#b1'), topic: await text(audience, '#topic'), chip: await text(presenter, '#roundChip'),
     pips: await presenter.$$eval('#pips .pip', els => els.map(e => e.className.replace('pip ', ''))), ctl: await presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim()).join(' | ')) });
-  // المزايدة رقماً رقماً حتى n، ثم يتوقف صاحب الدور، فيلتزم من ذكر n.
-  const bidTo = async n => { for (let k = 1; k <= n; k++) { await presenter.click('#aBid'); await wait(760); } await presenter.click('#aCtl [data-act="stop"]'); await wait(900); };
+  // يزايد الفريق t بزرّه حتى n (خصمه بلا رقم)، ثم «ابدأ» يرسي عليه ويبدأ الوفاء (3.0).
+  const bidTo = async (n, t) => { for (let k = 1; k <= n; k++) { await presenter.click(`#aCtl [data-raise="${t}"]`); await wait(150); } await wait(500); await presenter.click('#aCtl [data-act="start"]'); await wait(900); };
+  const ctlOff = () => presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim() + (e.disabled ? '(معطّل)' : '')).join(' | '));
+  const centered = () => audience.$eval('#canvas', c => !c.classList.contains('turn-1') && !c.classList.contains('turn-2'));
 
   // 1. إلى الموضوع الأول.
   await audience.waitForSelector('[data-cmd="draw"]', { timeout: 6000 });
@@ -112,47 +114,45 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 6000 });
   await audience.waitForSelector('.scr.show[data-s="intro"]', { timeout: 5000 });
   let s = await st();
-  const first = s.topics[0].opener;
-  check('ثلاثة مواضيع: سهل ثم متوسط ثم صعب، والافتتاح بالتناوب', s.topics.map(t => t.level).join(',') === 'easy,medium,hard' && s.topics.map(t => t.opener).join(',') === [first, other(first), first].join(','));
+  const first = Math.random() < 0.5 ? 1 : 2;
+  check('ثلاثة مواضيع: سهل ثم متوسط ثم صعب، بلا مفتتح', s.topics.map(t => t.level).join(',') === 'easy,medium,hard' && s.topics.every(t => !('opener' in t)));
   await presenter.click('#showQ');
   await audience.waitForSelector('.scr.show[data-s="auc"]');
   await wait(800);
 
-  // 2. الموضوع الأول: المفتتح يذكر 3 (1 ثم 2 ثم 3) فيتوقف الآخر، ويفي المفتتح.
-  await bidTo(3);
-  await presenter.click('#aCtl [data-act="start"]'); await wait(900);
+  // 2. الموضوع الأول: يزايد فريق بـ 3 فيرسو عليه، ويفي.
+  await bidTo(3, first);
   await tap(0); await wait(100); await tap(1); await wait(100); await tap(2); await wait(1200);
   let u = await ui();
-  check(`الموضوع 1: وفى المفتتح (+3)، و«الموضوع التالي» وحده (${u.ctl})`, (await st()).phase === 'decided' && (await round()).scores[first] === 3 && u.ctl === 'الموضوع التالي');
+  check(`الموضوع 1: وفى من رسا عليه (+3)، و«الموضوع التالي» وحده (${u.ctl})`, (await st()).phase === 'decided' && (await round()).scores[first] === 3 && u.ctl === 'الموضوع التالي');
   check('مسار المواضيع: الأول بلون من أخذه، والثاني والثالث لم يُلعبا', u.pips[0].includes('won' + first) && !/won|none/.test(u.pips[1]) && !/won|none/.test(u.pips[2]));
   await both('الموضوع 1 · بعد الحكم');
 
-  // 3. «الموضوع التالي»: الموضوع 2 يظهر فوراً للمزايدة، ويفتتحه الآخر.
+  // 3. «الموضوع التالي»: الموضوع 2 يظهر فوراً للمزايدة، والحدّ في المنتصف.
   await presenter.click('#aCtl [data-act="next"]'); await wait(1200);
   s = await st(); u = await ui();
   check('الموضوع 2: «الموضوع 2 من 3» على الشاشة وفي المقدّم، ونصّه، والمزايدة فوراً', s.index === 1 && s.phase === 'bid' && u.badge === 'الموضوع 2 من 3'
     && u.chip === 'المزاد · الموضوع 2 من 3' && u.topic === s.topics[1].topic);
-  check(`الموضوع 2: يفتتحه الآخر، والحدّ عنده، ولا أرقام ولا عدّ ولا قائمة`, s.team === other(first) && await audience.$eval('#canvas', (c, t) => c.classList.contains('turn-' + t), other(first))
+  check(`الموضوع 2: الحدّ في المنتصف، ولا أرقام ولا عدّ ولا قائمة`, s.team === 0 && s.nums.join(',') === '0,0' && await centered()
     && !(await audience.isVisible('#tally')) && !(await chips()).length && !(await audience.$$('#bids .bid')).length && !(await audience.isVisible('#verdict')));
-  check('المقدّم: «يفتتح بـ 1 أو بالعدد كاملاً» و«زايد · 1» (القائمة المتوسطة حتى 20)، والقائمة الجديدة بالأسماء وحدها', (await text(presenter, '#aState')) === 'يفتتح بـ 1 أو بالعدد كاملاً' && (await text(presenter, '#aBid')) === 'زايد · 1'
+  check(`المقدّم: «المزايدة · لا رقم بعد» و«زايد» · «ابدأ» معطّل · «زايد» (${await ctlOff()})، والقائمة الجديدة بالأسماء وحدها`, (await text(presenter, '#aWho')) === 'المزايدة · لا رقم بعد' && (await ctlOff()) === 'زايد | ابدأ(معطّل) | زايد'
     && (await presenter.$$('#aRef button')).length === s.topics[1].items.length && !(await presenter.$('#aRef small')));
   await both('الموضوع 2 · الافتتاح');
   await stage.screenshot({ path: `${shots}/s4-topic2.png` });
 
-  // 4. الموضوع 2: يذكر مفتتحه 3 فيلتزم، ولا يفي، فيأخذ خصمه (المفتتح الأول) نقطتين.
-  await bidTo(3);
+  // 4. الموضوع 2: يرسو على الآخر بـ 3، ولا يفي، فيأخذ خصمه نقطتين.
+  await bidTo(3, other(first));
   await presenter.click('#aCtl [data-act="stop"]'); await wait(1200);
   u = await ui();
-  check('الموضوع 2: لم يفِ مفتتحه، فللأول نقطتان (رصيده 5)، والمسار باسمه', (await st()).phase === 'decided' && (await round()).scores[first] === 5 && (await round()).scores[other(first)] === 0 && u.pips[1].includes('won' + first));
+  check('الموضوع 2: لم يفِ الآخر، فللأول نقطتان (رصيده 5)، والمسار باسمه', (await st()).phase === 'decided' && (await round()).scores[first] === 5 && (await round()).scores[other(first)] === 0 && u.pips[1].includes('won' + first));
 
-  // 5. الموضوع 3 (الصعب، أفريقيا 54): يفتتحه الأول ويلتزم بـ 1، ولا يفي، فللآخر نقطتان، ثم «إنهاء الجولة».
+  // 5. الموضوع 3 (الصعب، أطول قائمة): يرسو على الأول بـ 1، ولا يفي، فللآخر نقطتان، ثم «إنهاء الجولة».
   await presenter.click('#aCtl [data-act="next"]'); await wait(1200);
   s = await st();
-  check('الموضوع 3: صعب بقائمة أفريقيا، ويفتتحه الأول', s.index === 2 && s.team === first && s.topics[2].items.length > 30 && (await text(audience, '#b1')) === 'الموضوع 3 من 3');
+  check('الموضوع 3: صعب بأطول قائمة، والحدّ في المنتصف', s.index === 2 && s.team === 0 && await centered() && s.topics[2].items.length > 30 && (await text(audience, '#b1')) === 'الموضوع 3 من 3');
   await both('الموضوع 3 · الافتتاح');
-  check('الموضوع 3: «يفتتح بـ 1» و«زايد · 1» وحده (فوق 20، العدد مخفي)', (await text(presenter, '#aState')) === 'يفتتح بـ 1'
-    && (await presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim() + (e.disabled ? '(معطّل)' : '')).join(' | '))) === 'زايد · 1 | توقّف(معطّل)');
-  await bidTo(1);
+  check(`الموضوع 3: «زايد» · «ابدأ» معطّل · «زايد» (${await ctlOff()})، ولا «في القائمة» (فوق 20، العدد مخفي)`, (await ctlOff()) === 'زايد | ابدأ(معطّل) | زايد' && !(await audience.isVisible('#tsize')));
+  await bidTo(1, first);
   await both('الموضوع 3 · الالتزام');
   await presenter.click('#aCtl [data-act="stop"]'); await wait(1200);
   u = await ui();
@@ -193,8 +193,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   for (let i = 0; i < 12 && !((await st()).index === 1 && (await st()).phase === 'decided'); i++) { await cmd(audience, 'undo'); await wait(800); }
   check(`النافذة الواحدة: «الموضوع التالي» في البطاقة بعد حكم الموضوع 2 (${await card()})`, (await st()).index === 1 && (await card()) === 'الموضوع التالي');
   await cmd(audience, 'act:next'); await wait(1200);
-  check('النافذة الواحدة: الموضوع 3 للمزايدة، و«زايد · 1» وحده في صف الشارات (فوق 20، ولا «توقّف» للمفتتح)', (await st()).index === 2 && (await st()).phase === 'bid' && (await text(audience, '#b1')) === 'الموضوع 3 من 3'
-    && (await audience.$$eval('#near .cbtn', els => els.map(e => e.textContent.trim()).join(' | '))) === 'زايد · 1');
+  check('النافذة الواحدة: الموضوع 3 للمزايدة، و«زايد» · «ابدأ» معطّل · «زايد» في صف الشارات', (await st()).index === 2 && (await st()).phase === 'bid' && (await text(audience, '#b1')) === 'الموضوع 3 من 3'
+    && (await audience.$$eval('#near .cbtn', els => els.map(e => e.textContent.trim() + (e.classList.contains('off') ? '(معطّل)' : '')).join(' | '))) === 'زايد | ابدأ(معطّل) | زايد');
 
   check(`فحص التداخل والشبكة في كل حالة سليم${layoutOk ? '' : ' · ' + fails.filter(f => !f.startsWith('المقدّم')).join(' | ')}`, layoutOk);
   check(`نافذة المقدّم على 1366×768 و1280×800 و1920×1080 بلا تمرير ولا فيض ولا نص أصغر من 32${presenterOk ? '' : ' · ' + fails.filter(f => f.startsWith('المقدّم')).join(' | ')}`, presenterOk);
