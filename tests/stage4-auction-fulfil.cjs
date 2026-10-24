@@ -199,6 +199,12 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await wait(600);
   await stage.click('#resume');
   await wait(1200);
+  // ما بقي من الوقت بعد التراجع قليل (نحو 8 ثوانٍ)، وخطوات النافذة الواحدة أطول منه، فينتهي فيُحكم آلياً.
+  // فيُعاد عدّاد الوفاء الجاري كاملاً (60) من الآن، في الحالة المحفوظة، ثم تُعاد الشاشة. لا تغيير في اللعبة.
+  await stage.evaluate(() => { const m = JSON.parse(localStorage.getItem('big-challenge.match'));
+    m.round.timer = { ...m.round.timer, seconds: 60 }; m.timerAt = Date.now(); localStorage.setItem('big-challenge.match', JSON.stringify(m)); });
+  await stage.reload();
+  await unlock(stage).catch(() => {});
   audience = await stageFrame(stage);
   await wait(800);
   const near = () => audience.$$eval('#near .cbtn', els => els.map(e => e.textContent.trim() + (e.classList.contains('off') ? '(معطّل)' : '')).join(' | '));
