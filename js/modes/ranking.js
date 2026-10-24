@@ -4,21 +4,23 @@
 // ونهاية القائمة حين تنكشف العشرة، أو بـ «أنهِ القائمة» حين يعجز الفريقان، ثم تنكشف بقيتها والمراكز المخفية للجميع.
 // والقائمة لا تصل إلى الجمهور قبل نهايتها: ما كُشف وحده (7.1).
 // والمراكز 11 و12 و13 فخاخ: من ذكر عنصرها خُصم منه 3 و2 و1، ولا ينزل رصيده تحت الصفر.
-// (ش5 · الفخاخ: انتقال الإجابة، ومهلة القائمة والقائمة الثانية في المراحل التالية.)
+// والخطأ (ليس في القائمة، أو مكرر، أو انتهى الوقت) ينقل الإجابة إلى الخصم ليسرق في 5 ثوانٍ.
+// (ش5 · السرقة: مهلة القائمة والقائمة الثانية في المرحلة التالية.)
 import { freshFirst, besides } from '../round.js';
 import { sharedItems, CLASH_MIN } from '../content-check.js';
 
 // وقت الإجابة (مبدئي، يُضبط في ش8).
 export const ANSWER_SECONDS = 15;
+export const STEAL_SECONDS = 5;
 export const SLOTS = 10;
 // خصم الفخ بمركزه (5.6).
 export const PENALTY = { 11: 3, 12: 2, 13: 1 };
 const LEVELS = ['easy', 'hard'];
 const other = team => (team === 1 ? 2 : 1);
 
-// الحالات: intro افتتاح الجولة · read ظهور القائمة قبل «ابدأ» · ask عدّاد صاحب الدور · decided بعد الحكم
+// الحالات: intro افتتاح الجولة · read ظهور القائمة قبل «ابدأ» · ask عدّاد صاحب الدور · steal عدّاد الخصم بعد الخطأ · decided بعد الحكم
 // · listend نهاية القائمة (تنكشف كلها) · end انتهت الجولة.
-// team: صاحب الدور الآن · got[i]: ما كُشف من القائمة i بالترتيب { rank, team, points } (والفخ بما خُصم منه فعلاً) · verdict: حكم الإجابة الأخيرة
+// team: صاحب الدور الآن (والسارق في steal) · steal: { team, reason } من انتقلت إليه الإجابة ولماذا ('wrong' أو 'timeout') · got[i]: ما كُشف من القائمة i بالترتيب { rank, team, points } (والفخ بما خُصم منه فعلاً) · verdict: حكم الإجابة الأخيرة
 // { team, points, rank } (team 0 ورتبة 0 إن لم يأخذ أحد شيئاً، ورتبة فوق 10 للفخ) · starts[i]: من بدأ القائمة i.
 // avoid: قوائم تتقاطع مع موضوع مزاد أو سؤال اختير في المباراة (تدقيق ش5 «ثالثاً» و«رابعاً»).
 // والقائمة الثانية لا تشترك مع الأولى في 7 عناصر فأكثر («خامساً»)، فلا تكشف الأولى إجابات الثانية.
@@ -31,7 +33,7 @@ function setup({ content, first, seen = [], avoid = [], rng = Math.random }) {
     if (t) picked.push(t);
   }
   const lists = picked.map(t => ({ id: t.id, level: t.level, title: t.title, items: t.items.map(x => ({ name: x.name, alts: x.alts ?? [] })) }));
-  return { first, lists, index: 0, phase: 'intro', team: first, got: lists.map(() => []), verdict: null, starts: [first] };
+  return { first, lists, index: 0, phase: 'intro', team: first, got: lists.map(() => []), verdict: null, steal: null, starts: [first] };
 }
 
 const current = s => s.lists[s.index];
@@ -45,7 +47,8 @@ function actions(s) {
   const finish = { id: 'finish', label: 'أنهِ القائمة' };
   if (s.phase === 'read') return [{ id: 'start', label: `ابدأ العدّاد · ${ANSWER_SECONDS} ثانية` }, finish];
   // في العدّاد: ينقر المقدّم ما قاله الفريق (item:رتبته، والفخ 11 إلى 13)، أو «خطأ» لما ليس في القائمة أو المكرر. وانتهاء الوقت خطأ.
-  if (s.phase === 'ask') return [{ id: 'item', label: 'عنصر' }, { id: 'wrong', label: 'خطأ · ليس في القائمة أو مكرر' }];
+  // وفي السرقة الأزرار نفسها للسارق.
+  if (s.phase === 'ask' || s.phase === 'steal') return [{ id: 'item', label: 'عنصر' }, { id: 'wrong', label: 'خطأ · ليس في القائمة أو مكرر' }];
   // بعد الحكم: دور الخصم، أو نهاية القائمة. وإن انكشفت العشرة فنهايتها وحدها (5.6).
   if (s.phase === 'decided') return found(s) >= SLOTS ? [finish] : [{ id: 'next', label: 'التالي' }, finish];
   if (s.phase === 'listend') return [{ id: 'next', label: 'إنهاء الجولة' }];
@@ -58,7 +61,7 @@ function act(s, action, scores = {}) {
   if (id === 'show' && s.phase === 'intro') return { state: { ...s, phase: 'read', team: s.starts[s.index] ?? s.first, verdict: null }, events: [] };
   if (id === 'start' && s.phase === 'read') return { state: { ...s, phase: 'ask' }, events: [{ type: 'timer', seconds: ANSWER_SECONDS }] };
   // العنصر الصحيح: يُكشف في خانته بلون صاحب الدور، ونقاطه رتبته. ولا يُكشف ثانية (المكرر خطأ، تحكم به «خطأ»).
-  if (id === 'item' && s.phase === 'ask') {
+  if (id === 'item' && (s.phase === 'ask' || s.phase === 'steal')) {
     const rank = Number(arg);
     if (!/^\d+$/.test(arg ?? '') || rank < 1 || rank > current(s).items.length || isGot(s, rank)) return { state: s, events: [] };
     // الفخ: يُخصم بمركزه، وبما عند الفريق إن كان أقل. والخانة تبقى بخصمها الأصلي، والحكم بما خُصم فعلاً.
@@ -66,18 +69,27 @@ function act(s, action, scores = {}) {
     const points = trap ? -Math.min(PENALTY[rank], scores[s.team] ?? PENALTY[rank]) : rank;
     const hit = { rank, team: s.team, points };
     return {
-      state: { ...s, phase: 'decided', got: s.got.map((g, i) => (i === s.index ? [...g, hit] : g)), verdict: { team: s.team, points, rank } },
+      state: { ...s, phase: 'decided', got: s.got.map((g, i) => (i === s.index ? [...g, hit] : g)), verdict: { team: s.team, points, rank }, steal: null },
       events: [
         ...(points ? [{ type: 'score', team: s.team, points }] : []),
         { type: 'moment', name: trap ? 'trap' : 'right', team: s.team, rank },
       ],
     };
   }
-  // خطأ أو انتهى الوقت: لا نقاط ولا خانة. (انتقال الإجابة إلى الخصم في مرحلة «السرقة».)
+  // خطأ أو انتهى الوقت: لا نقاط، وتنتقل الإجابة إلى الخصم ليسرق في 5 ثوانٍ (5.6). لا حكم يُعلن بعد، فالقائمة كما هي.
   if ((id === 'wrong' || id === 'timeout') && s.phase === 'ask') {
-    return { state: { ...s, phase: 'decided', verdict: { team: 0, points: 0, rank: 0 } }, events: [{ type: 'moment', name: 'none' }] };
+    const thief = other(s.team), reason = id;
+    return {
+      state: { ...s, phase: 'steal', team: thief, steal: { team: thief, reason } },
+      events: [{ type: 'timer', seconds: STEAL_SECONDS }, { type: 'moment', name: 'steal', reason, team: thief }],
+    };
+  }
+  // وأخطأ السارق أو انتهى وقته: لا نقاط، و«لم تُكشف خانة».
+  if ((id === 'wrong' || id === 'timeout') && s.phase === 'steal') {
+    return { state: { ...s, phase: 'decided', verdict: { team: 0, points: 0, rank: 0 }, steal: null }, events: [{ type: 'moment', name: 'none' }] };
   }
   // التالي: دور الخصم، وعدّاده يبدأ فوراً (القائمة ظاهرة من قبل، فلا قراءة بين الإجابتين).
+  // والخصم خصم آخر من أجاب: بعد السرقة يعود الدور إلى من أخطأ، فالإجابات بالتتابع (5.6) والسرقة إجابة السارق.
   if (id === 'next' && s.phase === 'decided' && found(s) < SLOTS) {
     return { state: { ...s, phase: 'ask', team: other(s.team), verdict: null }, events: [{ type: 'timer', seconds: ANSWER_SECONDS }] };
   }
@@ -120,8 +132,8 @@ function audience(s) {
     fresh: v?.rank || 0,
     // بعد الحكم: الحدّ عند من أخذ النقاط، أو في المنتصف (لا نقاط، والفخ). وفي نهاية القائمة في المنتصف.
     turn: v ? (v.rank > SLOTS ? 0 : v.team) : reveal ? 0 : s.team,
-    // العدّاد ثابت بوقته قبل «ابدأ».
-    clock: ANSWER_SECONDS,
+    // العدّاد ثابت بوقته قبل «ابدأ»، و5 في السرقة.
+    clock: s.phase === 'steal' ? STEAL_SECONDS : ANSWER_SECONDS,
     verdict: v ? { ...v } : null,
     found: found(s),
     of: SLOTS,
@@ -138,8 +150,10 @@ function presenter(s) {
     level: hidden ? undefined : t?.level,
     // بعد الحكم: من دوره بعد «التالي» (الخصم).
     upNext: s.phase === 'decided' ? other(s.team) : 0,
+    // في السرقة: لماذا انتقلت الإجابة (سطر الحالة «بعد الخطأ · 0:03»).
+    steal: s.phase === 'steal' ? { ...s.steal } : null,
     items: hidden ? [] : t.items.map((x, i) => ({ rank: i + 1, name: x.name, alts: [...x.alts], trap: i >= SLOTS, by: by.get(i + 1) ?? 0 })),
-    brief: `قائمتان. إجابة لكل فريق بالتتابع، ${ANSWER_SECONDS} ثانية لكل إجابة. انقر ما قاله الفريق فتنكشف خانته بنقاط رقمها، والفخاخ 11 و12 و13 تخصم 3 و2 و1، أو «خطأ» لما ليس فيها أو المكرر.`,
+    brief: `قائمتان. إجابة لكل فريق بالتتابع، ${ANSWER_SECONDS} ثانية لكل إجابة. انقر ما قاله الفريق فتنكشف خانته بنقاط رقمها، والفخاخ 11 و12 و13 تخصم 3 و2 و1، أو «خطأ» لما ليس فيها أو المكرر، فتنتقل الإجابة إلى الخصم ${STEAL_SECONDS} ثوانٍ.`,
     track: s.lists.map((x, i) => ({ owner: s.starts[i] ?? 0, result: null, now: !hidden && i === s.index })),
   };
 }

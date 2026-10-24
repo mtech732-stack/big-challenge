@@ -168,18 +168,28 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo } = require
     await shot('right');
 
     if (!LONGRUN) {
-      // 6. التالي: دور الخصم وعدّاده فوراً. ثم «خطأ»: لا نقاط.
+      // 6. التالي: دور الخصم وعدّاده فوراً. ثم «خطأ»: تنتقل الإجابة إلى صاحب الدور الأول ليسرق في 5 ثوانٍ، ثم «خطأ» ثانية: لا نقاط.
       await act('next');
       check('«التالي»: دور الخصم والعدّاد يعمل فوراً', (await side()) === opp && await audience.$eval('#canvas', c => c.classList.contains('running')) && (await text(presenter, '#rWho')) === `دور ${NAMES[opp - 1]}`);
       check('المكشوف لا يُنقر ثانية', await presenter.$eval('#rRef button[data-r="7"]', e => getComputedStyle(e).pointerEvents === 'none'));
+      await act('wrong');
+      check(`السرقة: الحدّ والعدّاد عند السارق، ولا مربع حكم، والمقدّم «بعد الخطأ · 0:0x» و«خطأ» (${await text(presenter, '#rState')})`, (await side()) === starter
+        && await audience.$eval('#canvas', c => c.classList.contains('running')) && /^بعد الخطأ · 0:0[0-5]$/.test(await text(presenter, '#rState'))
+        && (await text(presenter, '#rWho')) === `دور ${NAMES[starter - 1]}` && (await ctl()) === 'خطأ · ليس في القائمة أو مكرر'
+        && !(await presenter.$eval('#rRef', e => e.classList.contains('view'))) && (await st()).phase === 'steal');
+      check('السرقة: لا كلمة «سرقة» على التلفاز', !(await audience.$eval('#canvas', c => c.innerText)).includes('سرق'));
+      await both('السرقة');
+      await shot('steal');
       await act('wrong');
       check('«خطأ»: «لا نقاط» و«لم تُكشف خانة»، والحدّ في المنتصف', (await text(audience, '#vtext')) === 'لا نقاط' && (await text(audience, '#say')) === 'لم تُكشف خانة' && (await side()) === 0
         && (await text(presenter, '#rWho')) === 'لا نقاط · لم تُكشف خانة');
       await both('لا نقاط');
       await shot('none');
-      // 7. التراجع: يعود العدّاد للخصم.
+      // 7. التراجع: إلى السرقة، ثم إلى دور الخصم وعدّاده.
       await presenter.click('#rUndo'); await wait(900);
-      check('التراجع عن «خطأ»: يعود الدور للخصم والعدّاد', (await st()).phase === 'ask' && (await side()) === opp);
+      check('التراجع عن خطأ السارق: تعود السرقة وعدّادها', (await st()).phase === 'steal' && (await side()) === starter);
+      await presenter.click('#rUndo'); await wait(900);
+      check('والتراجع ثانية: يعود الدور للخصم والعدّاد', (await st()).phase === 'ask' && (await side()) === opp);
       await pick(2);
       // 8. إعادة تحميل الشاشة والمقدّم: الخانتان كما هما.
       await stage.reload(); await unlock(stage).catch(() => {});
@@ -203,13 +213,28 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo } = require
         && (await ctl()) === `التالي · دور ${NAMES[opp - 1]} | أنهِ القائمة`);
       await both('فخ');
       await shot('trap');
+      await presenter.screenshot({ path: `${shots}/s5-presenter-trap.png` });
+      // الإشارة يسار الرقم كما تُرسم (تقرير المعاين ش5، 34: «2-»). مواضع الحروف (Range) لا تكفي، فتُقرأ صورة العازل نفسه:
+      // أول عمود داكن من اليسار في وسط السطر وحده (شرطة) لا في أعلاه (رقم).
+      const minusLeft = async (page, sel) => {
+        const el = await page.evaluateHandle(s => [...document.querySelectorAll(s + ' .ltr')].find(e => /−\d/.test(e.textContent)), sel);
+        if (!(await el.evaluate(e => !!e))) return false;
+        const png = (await el.asElement().screenshot()).toString('base64');
+        return page.evaluate(async src => {
+          const img = new Image(); img.src = 'data:image/png;base64,' + src; await img.decode();
+          const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+          const d = g.getImageData(0, 0, c.width, c.height).data, bg = [...d.slice(0, 3)];
+          const ink = (x, y) => { const k = (y * c.width + x) * 4; return Math.abs(d[k] - bg[0]) + Math.abs(d[k + 1] - bg[1]) + Math.abs(d[k + 2] - bg[2]) > 200; };
+          for (let x = 0; x < c.width; x++) { const ys = []; for (let y = 0; y < c.height; y++) if (ink(x, y)) ys.push(y); if (ys.length) return Math.min(...ys) > c.height * 0.35; }
+          return false; }, png); };
+      check('الخصم «−2» بإشارته يسار الرقم كما يُرسم: في سطر الحالة بالمقدّم، وفي مربع الإعلان', await minusLeft(presenter, '#rWho') && await minusLeft(audience, '#vtext'));
       // 10. «أنهِ القائمة»: تنكشف كلها والفخاخ، بلا مربع: «كُشف 2 من 10».
       await act('finish');
       sl = await slots();
       check('نهاية القائمة: الثلاث عشرة بأسمائها، والفخاخ ظاهرة بخصمها، وما لم يُذكر .left', sl.every((x, i) => x.name === items[i].name && !x.hidden)
         && sl.slice(10).map(x => x.b).join(',') === '−3,−2,−1' && sl[0].cls.includes('left') && !sl[6].cls.includes('left'));
       check('نهاية القائمة: «كُشف 2 من 10» بلا مربع، والحدّ في المنتصف', (await text(audience, '#next')) === 'كُشف 2 من 10' && await audience.$eval('#box', e => e.classList.contains('bare'))
-        && (await side()) === 0 && await audience.$eval('#rnk', e => e.classList.contains('reveal')));
+        && (await side()) === 0);
       check(`المقدّم: «انتهت القائمة 1 · كُشف 2 من 10» و«إنهاء الجولة» (${await ctl()})`, (await text(presenter, '#rWho')) === 'انتهت القائمة 1 · كُشف 2 من 10' && (await ctl()) === 'إنهاء الجولة');
       await both('نهاية القائمة');
       await shot('listend');
@@ -218,6 +243,12 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo } = require
       await both('نهاية الجولة');
     } else {
       // أطول محتوى: تنكشف العشرة كلها بالتناوب، ثم نهاية القائمة (أسوأ حالة للون في هذه المرحلة).
+      // وانتهاء الوقت: تنتقل الإجابة، وسطر الحالة «بعد الخطأ» (انتهاء الوقت خطأ) بأطول اسم.
+      await act('next'); await wait(15600);
+      check(`الأطول · انتهى الوقت: السرقة بسببها (${await text(presenter, '#rState')})`, (await st()).phase === 'steal' && (await st()).steal?.reason === 'timeout'
+        && /^بعد الخطأ · 0:0[0-5]$/.test(await text(presenter, '#rState')));
+      await both('سرقة بعد انتهاء الوقت');
+      await act('wrong');
       // ومعها فخ باسمه الأطول: الحكم الأطول في المقدّم «[أطول اسم] · −3 · فخّ المركز 11».
       await act('next'); await pick(11);
       check('الأطول · الفخ: خانة 11 ظاهرة باسمها، وحكم المقدّم بخصمه', (await slots())[10].name === items[10].name && (await text(presenter, '#rWho')).endsWith('· فخّ المركز 11'));

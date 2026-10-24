@@ -470,16 +470,14 @@
     const at = a.title.indexOf(' · ');
     $('rtitle').textContent = at < 0 ? a.title : a.title.slice(0, at);
     $('rsub').innerHTML = at < 0 ? '' : num(a.title.slice(at + 3));
-    const reveal = a.phase === 'listend';
-    $('rnk').classList.toggle('reveal', reveal);
     // الخانة التي كُشفت الآن تتحرك مرة واحدة: لا تُعاد حركتها بإعادة رسم الحالة نفسها.
     const key = `${a.n}/${a.fresh}/${a.slots.filter(x => x.team).length}`;
     const fresh = a.fresh && key !== shownFresh ? a.fresh : 0;
     shownFresh = key;
     $('board').innerHTML = a.slots.map(x => {
-      if (!x.rank) return '<p class="sl trap"><i></i></p>';
+      if (!x.rank) return '<p class="sl trap"></p>';
       const cls = ['sl', x.trap && 'trap', x.team && 't' + x.team, !x.team && x.name && 'left', x.rank === fresh && 'new'].filter(Boolean).join(' ');
-      return `<p class="${cls}"><i></i><b>${x.trap ? '−' + PEN[x.rank] : x.rank}</b>${x.name ? `<span data-fit="خانة ${x.rank}">${esc(x.name)}</span>` : ''}</p>`;
+      return `<p class="${cls}"><b>${x.trap ? '−' + PEN[x.rank] : x.rank}</b>${x.name ? `<span data-fit="خانة ${x.rank}">${esc(x.name)}</span>` : ''}</p>`;
     }).join('');
   }
   // مربع الإعلان في الترتيب: الحكم بالمربع («[الاسم] · +7» و«المركز 7»)، و«لا نقاط» و«لم تُكشف خانة».

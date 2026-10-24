@@ -841,7 +841,7 @@
     const b = (id, cls, label) => `<button class="${cls}" data-act="${id}">${num(label ?? ctl(id).label)}</button>`;
     const next = ctl('next'), finish = ctl('finish');
     $('rCtl').innerHTML = pr.phase === 'read' ? b('start', '') + b('finish', 'alt')
-      : pr.phase === 'ask' ? b('wrong', 'no full')
+      : pr.phase === 'ask' || pr.phase === 'steal' ? b('wrong', 'no full')
       // بعد الحكم: «التالي · دور [الخصم]» و«أنهِ القائمة». وإن انكشفت العشرة فنهايتها وحدها.
       : pr.phase === 'decided' ? (next ? `<button class="next" data-act="next">التالي · دور ${esc(match.teams[pr.upNext])}</button>` : '') + (finish ? b('finish', next ? 'alt' : 'alt full') : '')
       : pr.phase === 'listend' ? b('next', 'full') : '';
@@ -850,7 +850,9 @@
   // سطر الحالة: في العدّاد الوقت الباقي كما على الشاشة (يصل كل ثانية من نافذة الجمهور).
   function rankState(pr) {
     $('rState').innerHTML = pr.phase === 'read' ? 'يقرأ الفريق القائمة'
-      : pr.phase === 'ask' ? `<span class="ltr">${esc(tickText || '0:15')}</span>` : '';
+      : pr.phase === 'ask' ? `<span class="ltr">${esc(tickText || '0:15')}</span>`
+      // السرقة: «بعد الخطأ» ووقت السارق (design/ranking.md 5). وانتهاء الوقت خطأ (5.6)، و«بعد انتهاء الوقت» يكسر الصف بأطول اسم.
+      : pr.phase === 'steal' ? `بعد الخطأ · <span class="ltr">${esc(tickText || '0:05')}</span>` : '';
   }
   $('rCtl').addEventListener('click', e => { const el = e.target.closest('button[data-act]'); if (el) roundAct(el.dataset.act); });
   // ما قاله الفريق: يُحكم فوراً، خانته بنقاطها أو فخه بخصمه.
@@ -1004,7 +1006,7 @@
         tickText = data.text;
         const st = match?.round?.state, mode = st && roundMode();
         if (mode?.id === 'auction' && st.phase === 'fulfil') auctionState(mode.presenter(st));
-        if (mode?.id === 'ranking' && st.phase === 'ask') rankState(mode.presenter(st));
+        if (mode?.id === 'ranking' && (st.phase === 'ask' || st.phase === 'steal')) rankState(mode.presenter(st));
       }
       // انتهى عدّاد في نافذة الجمهور: يُطبَّق إن طابق رقمه العدّاد الجاري، وإلا أُهمل (عقد الوحدة 5).
       if (type === 'timeout' && match && $('gate').hidden) roundUpdate(P.act(match, MODES, 'timeout', data.id));
