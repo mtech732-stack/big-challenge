@@ -230,7 +230,7 @@
     if (v) {
       $('verdict').className = `chip${v.team ? ' t' + v.team : ''}`;
       // الفريق الذي أخذ النقاط باسمه (الوثيقة 1.1، 7.1). وخصم الفخ «−2» بما خُصم فعلاً (design/ranking.md 7.7).
-      $('vtext').innerHTML = v.team ? `${esc(name(v.team))} · ${num(v.points < 0 ? '−' + -v.points : '+' + v.points)}` : 'لا نقاط';
+      $('vtext').innerHTML = v.team ? `${esc(name(v.team))} · ${num(v.points < 0 ? '−' + -v.points : v.points ? '+' + v.points : '0')}` : 'لا نقاط';
     }
     $('reveal').hidden = !answer; $('answer').textContent = answer ?? '';
     $('told').hidden = !told; $('told').innerHTML = told ? num(told) : '';
@@ -391,7 +391,9 @@
     } else if (a.screen === 'end') {
       showScreen('end');
       $('e1').textContent = name(1); $('e2').textContent = name(2);
-      $('r1').textContent = '+' + a.totals[1]; $('r2').textContent = '+' + a.totals[2];
+      // حصيلة الجولة بإشارتها: قد تنقص في الترتيب بفخ.
+      const sign = n => (n < 0 ? '−' + -n : '+' + n);
+      $('r1').textContent = sign(a.totals[1]); $('r2').textContent = sign(a.totals[2]);
       setBadges(`انتهت الجولة ${p.n}`);
     } else if (a.screen === 'topic') {
       showScreen('auc');
@@ -420,7 +422,8 @@
     const running = !!count && !count.test;
     setRunning(running);
     // وفي المزاد في المنتصف أثناء المزايدة (turn 0)، ثم للملتزم من «ابدأ» (design/auction.md 2، 3.0).
-    setSide(!asking ? 0 : v ? v.team || 0 : a.turn);
+    // والترتيب يقرر حدّه بعد الحكم بنفسه (turn): في المنتصف بعد الفخ وإن كان للحكم صاحب (design/ranking.md 2).
+    setSide(!asking ? 0 : v && a.screen !== 'list' ? v.team || 0 : a.turn);
     if (running && count.id !== drained) { drained = count.id; drain(a.turn, (count.endAt - Date.now()) / 1000, p.timer.seconds); }
     if (!running && drained) { drained = 0; drain(0); }
     renderCtl();
@@ -601,7 +604,7 @@
     const key = `${p.n}/${a.screen}/${a.n ?? ''}`;
     const changed = key !== shownKey;
     shownKey = key;
-    for (const m of moments) if (m.name === 'right') sound('right'); else if ((m.name === 'steal' || m.name === 'fail') && m.reason === 'wrong') sound('wrong');
+    for (const m of moments) if (m.name === 'right') sound('right'); else if (m.name === 'trap' || ((m.name === 'steal' || m.name === 'fail') && m.reason === 'wrong')) sound('wrong');
     if (still() || (!moments.length && !changed)) return;
     canvas.classList.remove('anim'); void canvas.offsetWidth; canvas.classList.add('anim');
     for (const m of moments) {
@@ -618,6 +621,12 @@
         const w = m.team, to = p.scores[w];
         setScore(w, prev.scores[w]); replay($('cardWrap'), 'shake'); setTurn(0);
         later(240, () => { replay($('shine'), 'go'); setTurn(w); setScore(w, to); bump(w); moment(w, 'gain'); });
+      }
+      // الترتيب، فخ (design/ranking.md 2.5): البطاقة تهتز والحدّ في المنتصف، ثم ينقص رقم من وقع فيه بما خُصم ويخفت.
+      if (m.name === 'trap' && prev) {
+        const w = m.team, to = p.scores[w];
+        setScore(w, prev.scores[w]); replay($('cardWrap'), 'shake'); setTurn(0);
+        later(480, () => { setScore(w, to); moment(w, 'lose'); });
       }
       if (m.name === 'lead') later(700, () => { moment(m.team, 'lead'); moment(other(m.team), 'lose'); });
       if (m.name === 'steal') {
