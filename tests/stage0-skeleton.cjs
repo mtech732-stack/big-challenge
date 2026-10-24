@@ -81,11 +81,20 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   const [aud] = await Promise.all([context.waitForEvent('page'), presenter.click('#open')]);
   await aud.setViewportSize({ width: 1920, height: 1080 });
   await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 5000 });
-  await wait(300);
   // من ش1: قبل أول سؤال تظهر اللوحتان والبطاقة وحدها (design/start.md، القسم 2)، والباقي مع العدّاد.
-  check('بعد الاتصال: اللوحتان والشعار ظاهرة، ولا شريط ولا عدّاد ولا رقم قبل أول سؤال',
-    (await Promise.all(['.team.t1', '.team.t2', '.card', '.logo'].map(s => aud.isVisible(s)))).every(Boolean)
-    && !(await Promise.all(['.strip.t1', '.strip.t2', '.badge.mode', '.team .cnt', '.team .score', '.giant'].map(s => aud.isVisible(s)))).some(Boolean));
+  // الملاحظة 37: «متصل» في المقدّم يسبق أحياناً أول عرض يصل الجمهور، فكانت مهلة 300 ثابتة تفحص قبله على جهاز أبطأ.
+  // فننتظر عرض الجمهور نفسه (حتى 5 ثوانٍ) ثم نفحص، ونذكر ما خالف إن خالف.
+  const shown = ['.team.t1', '.team.t2', '.card', '.logo'], hiddenSel = ['.strip.t1', '.strip.t2', '.badge.mode', '.team .cnt', '.team .score', '.giant'];
+  const skeleton = () => aud.evaluate(([shown, hiddenSel]) => {
+    const vis = s => [...document.querySelectorAll(s)].some(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden');
+    return [...shown.filter(s => !vis(s)).map(s => 'لا يظهر ' + s), ...hiddenSel.filter(vis).map(s => 'يظهر ' + s)];
+  }, [shown, hiddenSel]);
+  await aud.waitForFunction(([shown, hiddenSel]) => {
+    const vis = s => [...document.querySelectorAll(s)].some(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden');
+    return shown.every(vis) && !hiddenSel.some(vis);
+  }, [shown, hiddenSel], { timeout: 5000 }).catch(() => {});
+  const wrong = await skeleton();
+  check(`بعد الاتصال: اللوحتان والشعار ظاهرة، ولا شريط ولا عدّاد ولا رقم قبل أول سؤال${wrong.length ? ` (${wrong.join('، ')})` : ''}`, !wrong.length);
   await aud.screenshot({ path: `${shots}/skeleton-audience-live.png` });
 
   // 5. حواف الخطر في آخر 3 ثوانٍ فقط، وتختفي عند 0:00.
