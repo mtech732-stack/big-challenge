@@ -1,6 +1,6 @@
 // اختبار آلي لوحدة «الترتيب» (js/modes/ranking.js) في مرحلة «اللوحة والكشف» (5.6، design/ranking.md)، دون متصفح:
 // قائمتان سهلة ثم صعبة، والعدّاد 15 ثانية، والعنصر الصحيح يُكشف في خانته بنقاط رقمها، والتناوب، ونهاية القائمة بالعشرة أو «أنهِ القائمة»،
-// ولا اسم ولا فخ ولا مستوى على الجمهور قبل نهاية القائمة. والفخاخ بخصمها وبما خُصم فعلاً (مرحلة «الفخاخ»). وحدود الفاحص الثلاثة.
+// ولا اسم ولا فخ ولا مستوى على الجمهور قبل نهاية القائمة. والفخاخ بخصمها وبما خُصم فعلاً (مرحلة «الفخاخ»). والسرقة في 5 ثوانٍ (مرحلة «السرقة»). وحدود الفاحص الثلاثة.
 const fs = require('fs');
 const path = require('path');
 const { reporter } = require('./helpers.cjs');
@@ -84,14 +84,30 @@ const { reporter } = require('./helpers.cjs');
   round = R.undo(round); s = round.state;
   check('التراجع عن الفخ يعيد السؤال وعدّاده', s.phase === 'ask' && round.timer?.seconds === ANSWER_SECONDS && !s.got[0].some(g => g.rank === 11));
   check('رتبة خارج 1–13 أو بلا رقم تُهمل', go('item:0').state.phase === 'ask' && go('item:x').state.phase === 'ask');
-  const timerId = round.timer.id;
-  go('timeout', timerId);
-  check('انتهى الوقت: لا نقاط، و«لم تُكشف خانة»، والحدّ في المنتصف', s.phase === 'decided' && a.verdict.team === 0 && a.turn === 0 && round.scores[1] === 0);
-  // تراجع: يعود العدّاد.
+  // السرقة (5.6): انتهى وقت الأول، فتنتقل الإجابة إلى الثاني في 5 ثوانٍ.
+  const { STEAL_SECONDS } = await import(path.join(root, 'js/modes/ranking.js'));
+  go('timeout', round.timer.id);
+  check('انتهى الوقت: تنتقل الإجابة إلى الخصم بعدّاد 5 ثوانٍ، بلا حكم ولا نقاط', s.phase === 'steal' && s.team === 2 && s.steal.reason === 'timeout' && round.timer?.seconds === STEAL_SECONDS
+    && STEAL_SECONDS === 5 && !a.verdict && round.scores[1] === 0 && round.scores[2] === 7);
+  check('السرقة: الحدّ عند السارق، والعدّاد 5، ولحظة «انتقال» بسببها، ولا كلمة «سرقة» على الجمهور', a.turn === 2 && a.clock === 5
+    && round.events.some(e => e.type === 'moment' && e.name === 'steal' && e.team === 2 && e.reason === 'timeout') && !JSON.stringify(a).includes('سرق'));
+  check('السرقة: «عنصر» و«خطأ» للسارق، والمقدّم يعرف السبب', ranking.actions(s).map(x => x.id).join() === 'item,wrong' && ranking.presenter(s).steal?.reason === 'timeout');
+  go('item:3');
+  check('سرق الثاني المركز 3: +3 له، والخانة بلونه، والتالي دور من أخطأ', s.phase === 'decided' && round.scores[2] === 10 && a.verdict.team === 2 && a.slots[2].team === 2
+    && ranking.presenter(s).upNext === 1 && !s.steal);
   round = R.undo(round); s = round.state;
-  check('التراجع يعيد السؤال وعدّاده', s.phase === 'ask' && round.timer?.seconds === ANSWER_SECONDS);
+  check('التراجع عن السرقة يعيدها بعدّاد 5', s.phase === 'steal' && s.team === 2 && round.timer?.seconds === STEAL_SECONDS && round.scores[2] === 7);
   go('wrong');
-  check('«خطأ»: لا نقاط', s.phase === 'decided' && s.verdict.team === 0);
+  check('أخطأ السارق: لا نقاط و«لم تُكشف خانة»، والحدّ في المنتصف، والتالي دور من أخطأ أولاً', s.phase === 'decided' && a.verdict.team === 0 && a.turn === 0
+    && ranking.presenter(s).upNext === 1 && round.scores[2] === 7);
+  round = R.undo(round); round = R.undo(round); s = round.state;
+  check('التراجع مرتين يعيد السؤال للأول وعدّاده', s.phase === 'ask' && s.team === 1 && round.timer?.seconds === ANSWER_SECONDS);
+  go('wrong');
+  check('«خطأ»: تنتقل الإجابة إلى الخصم بسبب الخطأ', s.phase === 'steal' && s.team === 2 && s.steal.reason === 'wrong'
+    && round.events.some(e => e.type === 'moment' && e.name === 'steal' && e.reason === 'wrong'));
+  check('والفخ في السرقة يُخصم من السارق', (() => { const t = R.act(ranking, round, 'item:13'); return t.state.verdict.team === 2 && t.scores[2] === 6 && t.state.verdict.points === -1; })());
+  go('timeout', round.timer.id);
+  check('انتهى وقت السارق: لا نقاط', s.phase === 'decided' && s.verdict.team === 0 && round.scores[1] === 0 && round.scores[2] === 7);
 
   // العشرة كلها: يُكشف ما بقي بالتناوب، ثم نهاية القائمة وحدها.
   for (const r of [1, 2, 3, 4, 5, 6, 8, 9, 10]) { go('next'); go('item:' + r); }
