@@ -2,7 +2,7 @@
 // 3 مواضيع في الجولة: سهل ثم متوسط ثم صعب، ويتناوب الفريقان على افتتاح المزايدة. يزايد الفريق برقم، ويزيد عليه خصمه
 // أو ينسحب، فيلتزم صاحب أعلى رقم بالوفاء. والقائمة المرجعية وطولها لا يصلان إلى الجمهور قبل الحكم (7.1، design/auction.md 1).
 // ش4 · المزايدة، ثم الوفاء والعدّ: يُحسب كل عنصر يذكره الملتزم (+1)، فإن بلغ ما التزم به أخذ نقاطه.
-// وإكمال الخصم وتتابع الجولة في المرحلتين التاليتين.
+// فإن لم يفِ أكمل خصمه الناقص في 15 ثانية دون تكرار، فإن أكمل أخذ النقاط كاملة، وإلا لا نقاط. وتتابع الجولة في المرحلة التالية.
 import { freshFirst } from '../round.js';
 
 export const FULFIL_SECONDS = 60;
@@ -14,7 +14,7 @@ const LEVELS = ['easy', 'medium', 'hard'];
 const other = team => (team === 1 ? 2 : 1);
 
 // الحالات: intro افتتاح الجولة · bid المزايدة · ready الالتزام قبل «ابدأ» · fulfil عدّاد الملتزم
-// · short لم يفِ (إكمال الخصم في المرحلة التالية) · decided انتهى الموضوع · end انتهت الجولة.
+// · complete إكمال الخصم · decided انتهى الموضوع · end انتهت الجولة.
 // bids: الأرقام بأصحابها بالترتيب · commit: { team, n } الملتزم ورقمه
 // · said: ما ذُكر بالترتيب { i, team }، وi موضع العنصر في القائمة، أو null إن عُدّ دون اسم («صحيح · +1» في النافذة الواحدة)
 // · results[i]: { team, points } من أخذ نقاط الموضوع i (team 0 إن لم يأخذها أحد)، أو null ما لم ينتهِ.
@@ -51,6 +51,7 @@ function actions(s) {
   const count = [{ id: 'item', label: 'عنصر' }, { id: 'count', label: 'صحيح · +1' }];
   if (s.phase === 'ready') return [{ id: 'start', label: 'ابدأ العدّاد' }, ...count, { id: 'stop', label: 'توقّف · لم يفِ' }];
   if (s.phase === 'fulfil') return [...count, { id: 'stop', label: 'توقّف · لم يفِ' }];
+  if (s.phase === 'complete') return [...count, { id: 'stop', label: 'توقّف · لا نقاط' }];
   return [];
 }
 
@@ -84,9 +85,19 @@ function act(s, action) {
     // والعدّاد يبقى يعدّ.
     return { state: { ...s, said }, events: [{ type: 'keep-timer' }, { type: 'moment', name: 'said', team: s.team }] };
   }
-  // لم يفِ («توقّف» أو انتهى الوقت): يقف العدّاد، وإكمال الخصم في المرحلة التالية.
+  // لم يفِ («توقّف» أو انتهى الوقت): ينتقل الدور إلى الخصم فوراً بعدّاد 15 ثانية، ويكمل العدّ من حيث وقف (5.5).
+  // والبطاقة تهتز في الحالتين (design/auction.md 2.5)، ثم اللمعة والاكتساح كانتقال الإجابة في ش2.
   if ((id === 'stop' || id === 'timeout') && (s.phase === 'ready' || s.phase === 'fulfil')) {
-    return { state: { ...s, phase: 'short', short: id === 'timeout' ? 'timeout' : 'stop' }, events: [] };
+    const team = other(s.team);
+    return {
+      state: { ...s, phase: 'complete', team },
+      events: [{ type: 'timer', seconds: COMPLETE_SECONDS, resume: true }, { type: 'moment', name: 'steal', reason: id === 'timeout' ? 'timeout' : 'wrong', shake: true, team }],
+    };
+  }
+  // والخصم لم يكمل: لا يأخذ أحد شيئاً.
+  if ((id === 'stop' || id === 'timeout') && s.phase === 'complete') {
+    const result = { team: 0, points: 0 };
+    return { state: { ...s, phase: 'decided', results: s.results.map((r, k) => (k === s.index ? result : r)) }, events: [{ type: 'moment', name: 'none' }] };
   }
   return { state: s, events: [] };
 }
@@ -120,7 +131,8 @@ function audience(s) {
     tally: s.commit ? { n: saidOf(s).length, of: s.commit.n, team: saidOf(s).length ? saidOf(s)[saidOf(s).length - 1].team : s.commit.team } : null,
     // ما ذُكر بأسمائه وأصحابه (قاله الفريق أمام القاعة). وما عُدّ دون اسم لا يظهر إلا في العدّ.
     said: saidOf(s).filter(x => x.i !== null).map(x => ({ name: t.items[x.i].name, team: x.team })),
-    clock: FULFIL_SECONDS,
+    // العدّاد ثابت بوقته قبل «ابدأ»، و15 في إكمال الخصم.
+    clock: s.phase === 'complete' ? COMPLETE_SECONDS : FULFIL_SECONDS,
     verdict: result ? { ...result } : null,
     // بعد الحكم وحده: القائمة كلها (الإجابة، 7.1)، وكل عنصر بمن ذكره أو 0.
     list: result ? t.items.map((x, i) => ({ name: x.name, by: by(s, i) })) : undefined,

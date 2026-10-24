@@ -730,9 +730,8 @@
       `<button class="no" id="aPass"${canPass ? '' : ' disabled'}>انسحب</button>`
       // الوفاء (design/auction.md 5): «ابدأ العدّاد» و«توقّف · لم يفِ» قبل «ابدأ»، و«توقّف» وحده والعدّاد يعدّ.
       : ['start', 'stop'].filter(ctl).map(id => `<button class="${id === 'stop' ? 'no' : 'alt'} half" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
-    $('aLater').hidden = !['short', 'decided'].includes(pr.phase);
-    $('aLater').innerHTML = pr.phase === 'short' ? 'إكمال الخصم يُبنى في المرحلة التالية من الشريحة <span class="ltr">4</span>.'
-      : 'الموضوع التالي يُبنى في مرحلة «تتابع الجولة» من الشريحة <span class="ltr">4</span>.';
+    $('aLater').hidden = pr.phase !== 'decided';
+    $('aLater').innerHTML = 'الموضوع التالي يُبنى في مرحلة «تتابع الجولة» من الشريحة <span class="ltr">4</span>.';
     $('aUndo').disabled = !match.round.history.length;
   }
   // سطر الحالة: في الوفاء الوقت الباقي كما على الشاشة (يصل كل ثانية من نافذة الجمهور) وما بقي من العدد.
@@ -744,7 +743,7 @@
       : pr.phase === 'ready' ? num(`التزم بـ ${pr.commit.n} · ${pr.clock} ثانية${pr.tally.n ? ` · بقي ${left}` : ''}`)
       // الوقت «0:38» في حاوية ltr كاملاً، وإلا انقلب في السطر العربي («38:0»).
       : pr.phase === 'fulfil' ? `<span class="ltr">${esc(tickText || '1:00')}</span> · ${num(`بقي ${left}`)}`
-      : pr.phase === 'short' ? num(`لم يفِ · ذُكر ${pr.tally.n} من ${pr.tally.of}`)
+      : pr.phase === 'complete' ? `يكمل · <span class="ltr">${esc(tickText || '0:15')}</span> · ${num(`بقي ${left}`)}`
       : pr.phase === 'decided' ? num(`ذُكر ${pr.tally.n} من ${pr.tally.of}`) : '';
   }
   // العنصر الذي لا يتسع اسمه بصيغه في خانة يأخذ خانتين، فإن لم يتسع فثلاثاً، وهكذا حتى يتسع (design/auction.md 5).
@@ -910,7 +909,7 @@
         $('mirror').textContent = data.text;
         tickText = data.text;
         const st = match?.round?.state, mode = st && roundMode();
-        if (mode?.id === 'auction' && st.phase === 'fulfil') auctionState(mode.presenter(st));
+        if (mode?.id === 'auction' && (st.phase === 'fulfil' || st.phase === 'complete')) auctionState(mode.presenter(st));
       }
       // انتهى عدّاد في نافذة الجمهور: يُطبَّق إن طابق رقمه العدّاد الجاري، وإلا أُهمل (عقد الوحدة 5).
       if (type === 'timeout' && match && $('gate').hidden) roundUpdate(P.act(match, MODES, 'timeout', data.id));
