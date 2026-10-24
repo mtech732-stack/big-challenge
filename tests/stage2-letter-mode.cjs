@@ -126,7 +126,7 @@ const { reporter } = require('./helpers.cjs');
   // تتابع المباراة: المواجهة ← الجولة ← ما بعدها.
   let m = { ...M.newMatch({ pack: 'general', method: 'short' }), step: 'face', teams: { 1: 'الصقور', 2: 'النجوم' }, winner: 1,
     picks: [{ mode: 'letter', by: 1 }, { mode: 'auction', by: 2 }] };
-  const name = id => ({ letter: 'الحرف المعيّن', 'last-two': 'آخر حرفين', auction: 'المزاد' })[id];
+  const name = id => ({ letter: 'الحرف المعيّن', 'last-two': 'آخر حرفين', auction: 'المزاد', ranking: 'الترتيب' })[id];
   check('المواجهة: التالي جولة مبنية «start»', P.nextKind(m, MODES) === 'start');
   m = P.startNext(m, { modes: MODES, content, seen: [], rng });
   check('بدء الجولة 1: الخطوة «play»، والجولة 1 للحرف المعيّن', m.step === 'play' && m.round.n === 1 && m.round.mode === 'letter' && m.played === 1);
@@ -144,7 +144,10 @@ const { reporter } = require('./helpers.cjs');
   }
   check('بعد الجولة 1 في القصيرة: «التالي: عجلة البونص»', P.nextText(m, name) === 'التالي: عجلة البونص' && P.nextKind(m, MODES) === 'skip');
   m = P.skipNext(m, MODES);
-  check('بعد تخطّي العجلة: «التالي: الجولة 2 · المزاد»، ولم يُبنَ فيُتخطى', P.nextText(m, name) === 'التالي: الجولة 2 · المزاد' && P.nextKind(m, MODES) === 'skip');
+  check('بعد تخطّي العجلة: «التالي: الجولة 2 · المزاد»، وهو مبنيّ فيبدأ (ش4)', P.nextText(m, name) === 'التالي: الجولة 2 · المزاد' && P.nextKind(m, MODES) === 'start');
+  // وجولة نمط لم يُبنَ بعد (الترتيب، ش5) تُتخطى، ثم النتيجة النهائية.
+  m = { ...m, picks: m.picks.map(p => (p.mode === 'auction' ? { ...p, mode: 'ranking' } : p)) };
+  check('ولو كانت «الترتيب» (لم يُبنَ): تُتخطى', P.nextText(m, name) === 'التالي: الجولة 2 · الترتيب' && P.nextKind(m, MODES) === 'skip');
   m = P.skipNext(m, MODES);
   check('بعدها: «التالي: النتيجة النهائية» (ش7)', P.nextText(m, name) === 'التالي: النتيجة النهائية' && P.nextKind(m, MODES) === 'final' && P.skipNext(m, MODES) === m);
   check('الجولة المنتهية تبقى ورصيدها', m.round.n === 1 && m.scores[1] > 0);

@@ -1,4 +1,4 @@
-// اختبار آلي لمرحلة «تتابع الجولة» في المزاد (ش4، القسم 5.5) بالنافذتين وبالنافذة الواحدة، بالبنك الحقيقي، في رابط المعاينة:
+// اختبار آلي لمرحلة «تتابع الجولة» في المزاد (ش4، القسم 5.5) بالنافذتين وبالنافذة الواحدة، بالبنك الحقيقي، في الرابط العادي:
 // ثلاثة مواضيع (سهل ثم متوسط ثم صعب) والافتتاح بالتناوب، و«الموضوع التالي» يعرض الموضوع فوراً للمزايدة بمفتتحه،
 // ومسار المواضيع بمن أخذ كلاً منها، و«إنهاء الجولة» بعد الثالث فشاشة النهاية بحصيلة كل فريق، والتراجع عن النهاية،
 // وفي النافذة الواحدة «الموضوع التالي» و«إنهاء الجولة» في البطاقة. وفحص التداخل ونافذة المقدّم في كل حالة.
@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
 const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = require('./helpers.cjs');
 
 (async () => {
-  const base = (process.argv[2] || 'http://localhost:8000/') + '?preview';
+  const base = process.argv[2] || 'http://localhost:8000/'; // الرابط العادي: المزاد في MODES منذ اكتمال ش4
   const shots = process.argv[3] || require('os').tmpdir();
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   const { check, finish } = reporter();

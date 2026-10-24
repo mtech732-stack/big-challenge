@@ -20,13 +20,13 @@ const { reporter } = require('./helpers.cjs');
   const rng = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const ids = list => list.map(a => a.id).join(',');
 
-  // العقد والسجل: يُلعب في رابط المعاينة وحده حتى تكتمل الشريحة.
+  // العقد والسجل: اكتملت الشريحة بالتدقيق الأخير، فانتقل من DRAFTS إلى MODES ويُلعب في الرابط العادي.
   check('الوحدة تلتزم «عقد الوحدة»', checkMode(auction).length === 0);
   check('ملف أسئلته auction.json، وترتيبه 3', auction.contentKey === 'auction.json' && auction.order === 3 && auction.name === 'المزاد');
-  check('في DRAFTS لا في MODES: لا يُختار في مباراة تُلعب قبل اكتمال الشريحة', DRAFTS.includes(auction) && !MODES.includes(auction)
-    && !pickableModes({ pack: { excludeModes: [] }, files: content }).some(m => m.id === 'auction'));
-  const draft = matchModes({ modes: [...MODES, ...DRAFTS], pack: { excludeModes: [] }, files: content });
-  check('في المعاينة: مبنيّ في موضعه الثالث، والترتيب وحده معاينة', ids(draft) === 'letter,last-two,auction,ranking' && !draft[2].preview && draft[3].preview);
+  check('في MODES لا في DRAFTS: يُختار في مباراة تُلعب', MODES.includes(auction) && !DRAFTS.includes(auction)
+    && pickableModes({ pack: { excludeModes: [] }, files: content }).some(m => m.id === 'auction'));
+  const draft = matchModes({ pack: { excludeModes: [] }, files: content });
+  check('في الرابط العادي: مبنيّ في موضعه الثالث، والترتيب وحده معاينة', ids(draft) === 'letter,last-two,auction,ranking' && !draft[2].preview && draft[3].preview);
   check('حزمة تستثنيه لا يظهر فيها', !matchModes({ modes: [...MODES, ...DRAFTS], pack: { excludeModes: ['auction'] }, files: content }).some(m => m.id === 'auction'));
 
   // الإعداد: 3 مواضيع، سهل ثم متوسط ثم صعب، والافتتاح بالتناوب.
@@ -106,10 +106,10 @@ const { reporter } = require('./helpers.cjs');
   check('المقدّم: القائمة المرجعية بصيغها، وطولها، والمستوى', pr.items.length === states[3].state.topics[0].items.length && pr.size === pr.items.length && pr.level === 'easy');
   check('مسار المواضيع للمقدّم: ثلاثة بأصحاب الافتتاح، والأول الآن', pr.track.map(x => x.owner).join(',') === '1,2,1' && pr.track[0].now && pr.track.every(x => x.result === null));
 
-  // تتابع المباراة: المزاد يبدأ جولته في المعاينة (والعادي يتخطاه).
+  // تتابع المباراة: المزاد يبدأ جولته في الرابط العادي وفي المعاينة.
   const match = { ...M.newMatch({ pack: 'general', method: 'short' }), teams: { 1: 'أ', 2: 'ب' }, step: 'face', winner: 1,
     picks: [{ mode: 'auction', by: 1 }, { mode: 'letter', by: 2 }] };
-  check('رابط عادي: جولة المزاد تُتخطى', P.nextKind(match, MODES) === 'skip');
+  check('رابط عادي: جولة المزاد تبدأ', P.nextKind(match, MODES) === 'start');
   const all = [...MODES, ...DRAFTS];
   check('رابط المعاينة: جولة المزاد تبدأ', P.nextKind(match, all) === 'start');
   const m1 = P.startNext(match, { modes: all, content, rng });
