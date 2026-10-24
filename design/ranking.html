@@ -121,12 +121,13 @@
     intro:   { t: 'افتتاح الجولة', screen: 'intro', turn: 0, badge: 'الجولة 4 من 4' },
     read:    { t: 'القائمة 1: ظهور القائمة، ولا خانة مكشوفة (دور الأول)', turn: 1, got: [], clock: '5:00' },
     run:     { t: 'العدّاد يعمل (دور الثاني)، أربع خانات مكشوفة', turn: 2, run: 9, got: G4, clock: '3:42' },
-    right:   { t: 'بعد الحكم: أصاب الثاني المركز 7 (+7)', turn: 2, got: [...G4, [7, 2]], isnew: 7, clock: '3:36', verdict: { team: 2, points: '+7', line: 7 } },
-    steal:   { t: 'انتقلت الإجابة إلى الثاني بعد خطأ الأول (5 ثوانٍ)', turn: 2, run: 3, total: 5, got: G4, clock: '3:30', shine: true },
-    trap:    { t: 'بعد الحكم: وقع الأول في المركز 12 (−2)', turn: 0, got: [...G4, [12, 1]], isnew: 12, clock: '3:20', verdict: { team: 1, points: '−2', line: 12 }, danger: true },
-    none:    { t: 'بعد الحكم: لا نقاط (أخطأ الفريقان)', turn: 0, got: G4, clock: '3:10', verdict: { team: 0, line: 'لم تُكشف خانة' } },
+    right:   { t: 'بعد الحكم: أصاب الثاني المركز 7 (+7)', two: true, turn: 2, got: [...G4, [7, 2]], isnew: 7, clock: '3:36', verdict: { team: 2, points: '+7', line: 7 } },
+    steal:   { t: 'انتقلت الإجابة إلى الثاني بعد خطأ الأول (5 ثوانٍ)', two: true, turn: 2, run: 3, total: 5, got: G4, clock: '3:30', shine: true },
+    trap:    { t: 'بعد الحكم: وقع الأول في المركز 12 (−2)', two: true, turn: 0, got: [...G4, [12, 1]], isnew: 12, clock: '3:20', verdict: { team: 1, points: '−2', line: 12 }, danger: true },
+    none:    { t: 'بعد الحكم: لا نقاط (أخطأ الفريقان)', two: true, turn: 0, got: G4, clock: '3:10', verdict: { team: 0, line: 'لم تُكشف خانة' } },
     full:    { t: 'العدّاد يعمل: تسع خانات وفخّ مكشوفة', turn: 1, run: 12, got: [[1, 2], [2, 1], [3, 2], [4, 1], [5, 1], [6, 2], [8, 2], [9, 1], [10, 2], [11, 1]], clock: '0:41' },
     allend:  { t: 'نهاية القائمة: الخانات الثلاث عشرة مكشوفة', turn: 0, got: [[1, 2], [2, 1], [3, 2], [4, 1], [5, 1], [6, 2], [7, 1], [8, 2], [9, 1], [10, 2], [11, 2], [12, 1], [13, 2]], clock: '', reveal: true, endLine: 'كُشف 10 من 10' },
+    mark:    { t: 'النافذة الواحدة: بعد نهاية القائمة، المقارنة بالتسجيل (ينقر المقدّم كل خانة لمن قالها أولاً)', one: true, turn: 0, got: [[1, 2], [4, 1], [6, 2], [9, 1], [12, 1]], clock: '', reveal: true, mark: true, endLine: 'المقارنة بالتسجيل' },
     listend: { t: 'نهاية القائمة: تنكشف بقيتها والفخاخ', turn: 0, got: [...G4, [7, 2], [12, 1], [3, 1], [10, 2]], clock: '', reveal: true, endLine: 'كُشف 7 من 10' },
     timeup:  { t: 'نهاية القائمة بانقضاء وقتها (5 دقائق)', turn: 0, got: [[1, 2], [2, 1], [5, 2], [8, 1]], clock: '', reveal: true, endLine: 'انتهى وقت القائمة · كُشف 4 من 10' },
     end:     { t: 'نهاية الجولة', screen: 'end', turn: 0, badge: 'انتهت الجولة 4', totals: { 1: 21, 2: 30 } },
@@ -141,15 +142,14 @@
     $('cornerB').innerHTML = `<div class="ctl">${B('المقدّم', 'alt')}${B('ملء الشاشة', 'alt')}</div>`;
     $('cornerC').innerHTML = `<div class="ctl">${B('الرصيد', 'alt')}${B('مباراة جديدة', 'alt')}</div>`;
     canvas.classList.add('has-a');
-    // القائمة سرّ حتى تنتهي، فلا يراها المقدّم هنا: يكتب ما قاله الفريق فتطابقه اللعبة بالقائمة وصيغها (design/ranking.md 4)
-    const said = `<input class="said" placeholder="ما قاله الفريق">${B('تحقّق')}${B('خطأ', 'no')}`;
+    // القائمة سرّ حتى تنتهي، فلا يُحكم في أثنائها (جواب المالك، design/ranking.md 4): تُسجَّل أصوات الفريقين خارجياً،
+    // و«التالي» ينقل الدور. وبعد نهاية القائمة تنكشف كلها، فيقارنها المقدّم بالتسجيل وينقر كل خانة لمن قالها أولاً
+    const play = [B('التالي'), B('أنهِ القائمة', 'alt')];
     const near = {
       read: [B('ابدأ')],
-      run: [said], steal: [said], full: [said],
-      right: [B('التالي'), B('أنهِ القائمة', 'alt')],
+      run: play, full: play,
+      mark: [B('اعتمد النقاط')],
       listend: [B('القائمة 2')], timeup: [B('القائمة 2')], allend: [B('القائمة 2')],
-      trap: [B('التالي'), B('أنهِ القائمة', 'alt')],
-      none: [B('التالي'), B('أنهِ القائمة', 'alt')],
     }[id] ?? [];
     $('near').innerHTML = near.join('');
     if (id === 'intro') $('introCtl').innerHTML = B('اعرض القائمة 1');
@@ -165,7 +165,11 @@
   }
 
   function render(id) {
-    const st = STATES[id];
+    // النافذة الواحدة: لا حكم في أثناء القائمة، فحالات الحكم للنافذتين وحدهما، ولا تنكشف خانة قبل النهاية
+    let st = STATES[id];
+    if (SINGLE && st.two) st = STATES.run;
+    if (!SINGLE && st.one) st = STATES.listend;
+    if (SINGLE && !st.reveal && st.got) st = { ...st, got: [] };
     $('n1').textContent = NAMES[1]; $('n2').textContent = NAMES[2];
     for (const k of [1, 2]) { $('s' + k).textContent = SCORES[k]; $('s' + k).classList.toggle('three', String(SCORES[k]).length >= 3); }
     document.querySelectorAll('.card .scr').forEach(s => s.classList.toggle('show', s.dataset.s === (st.screen ?? 'rnk')));
@@ -198,10 +202,18 @@
         box({ verdict: v, line: typeof r === 'number' ? (r > 10 ? `فخّ المركز ${r}` : `المركز ${r}`) : r });
       }
       if (st.reveal) box({ next: st.endLine });
+      $('rnk').classList.toggle('mark', !!(SINGLE && st.mark));
     }
     single(id, st);
     placeBadges(); placeNear(); fitRings();
   }
+
+  // المقارنة (النافذة الواحدة): النقر يدوّر صاحب الخانة: لا أحد ← الأول ← الثاني ← لا أحد. والنقاط تُحسب من الخانات عند «اعتمد»
+  $('board').addEventListener('click', e => {
+    const s = e.target.closest('.mark .sl'); if (!s) return;
+    const now = s.classList.contains('t1') ? 1 : s.classList.contains('t2') ? 2 : 0, next = (now + 1) % 3;
+    s.classList.remove('t1', 't2', 'left'); s.classList.add(next ? 't' + next : 'left');
+  });
 
   function box({ verdict, line, next }) {
     $('box').hidden = false;
