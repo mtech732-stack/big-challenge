@@ -16,6 +16,9 @@ export const PACK_NAME_MAX = 30;
 export const ANSWER_MAX = 20;
 export const ALTS_MAX = 50;
 export const altsText = alts => (alts ?? []).join('، ');
+// حدّا ش4 (design/auction.md 3): موضوع المزاد سطر واحد بجوار العدّ «12 من 12»، واسم العنصر في شارته. تنبيهان لا خطآن.
+export const TOPIC_MAX = 32;
+export const ITEM_MAX = 20;
 // أسئلة كل مستوى في الجولة لكل فريق سؤال (5.3 و5.4)، فسؤالان من كل مستوى في جولة «آخر حرفين» بنهاية واحدة.
 export const ROUND_PER_LEVEL = 2;
 const length = text => [...String(text)].length;
@@ -194,8 +197,12 @@ export function checkContent({ index, packs, wheel }) {
           checkSources(where, item.sources, 0);
           needText(where, item, 'topic');
           checkLength(where, item, 'topic');
+          if (typeof item.topic === 'string' && length(item.topic) > TOPIC_MAX) warn(where, `الموضوع ${length(item.topic)} حرفاً، والحد ${TOPIC_MAX} (سطر واحد بجوار العدّ)`);
           if (!Array.isArray(item.items) || item.items.length < 3) err(where, '«items» قائمة مرجعية كاملة (3 عناصر على الأقل)');
-          else checkNames(where, item.items);
+          else {
+            checkNames(where, item.items);
+            item.items.forEach((it, k) => { if (typeof it?.name === 'string' && length(it.name) > ITEM_MAX) warn(`${where} · العنصر ${k + 1}`, `«${it.name}» ${length(it.name)} حرفاً، والحد ${ITEM_MAX} (شارة العنصر)`); });
+          }
           tally(mode, item.level);
         }
 

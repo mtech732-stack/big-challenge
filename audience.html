@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="css/stage.css">
 <link rel="stylesheet" href="css/start.css">
 <link rel="stylesheet" href="css/letter.css">
+<link rel="stylesheet" href="css/auction.css">
 <link rel="stylesheet" href="css/shared.css">
 <style>
   /* اللعبة مغلقة أو بانتظار المقدّم: لا يبقى على الشاشة إلا الخلفية والبطاقة. */
@@ -47,6 +48,17 @@
       <div class="card">
         <!-- السؤال، وتحته الإجابة النموذجية بعد الحكم الأخير وحده (الوثيقة 1.1، 7.1) -->
         <div class="scr q show" data-s="q"><div class="letter" id="letter"></div><div class="qcol"><p class="question" id="label" data-fit="السؤال">نافذة الجمهور · بانتظار المقدّم</p></div></div>
+        <!-- المزاد (ش4، design/auction.md 2): الموضوع والعدّ، ثم المزايدة أو ما ذُكر. لا القائمة ولا طولها قبل الحكم -->
+        <div class="scr auc" data-s="auc" id="auc">
+          <div class="ahead">
+            <p class="topic" id="topic" data-fit="الموضوع"></p>
+            <p class="tally" id="tally" data-fit="العدّ" hidden><b class="n" id="tn"></b><span class="of">من <b class="ltr" id="tof"></b></span></p>
+            <!-- بعد الحكم: «الموضوع التالي» هنا في النافذة الواحدة، لا في صف الشارات (design/auction.md 4) -->
+            <div class="ctl" id="aucCtl"></div>
+          </div>
+          <div class="bids" id="bids"></div>
+          <div class="items" id="items"></div>
+        </div>
         <!-- الجولة (ش2): افتتاحها ونهايتها. والسؤال في القسم الأول نفسه -->
         <div class="scr intro" data-s="intro">
           <p class="rule" id="rule"></p>
@@ -119,6 +131,7 @@
 
   const $ = id => document.getElementById(id);
   const canvas = $('canvas');
+  const rect = el => el.getBoundingClientRect();
   const query = new URLSearchParams(location.search);
   const embed = query.has('embed');
   if (embed) document.body.classList.add('embed');
@@ -354,13 +367,17 @@
     if (a.screen === 'intro') {
       showScreen('intro');
       $('rule').textContent = a.rule;
-      $('starter').innerHTML = `يبدأ ${tn(a.turn)}`;
+      $('starter').innerHTML = `${esc(a.starter ?? 'يبدأ')} ${tn(a.turn)}`;
       setBadges(`الجولة ${p.n} من ${p.total}`);
     } else if (a.screen === 'end') {
       showScreen('end');
       $('e1').textContent = name(1); $('e2').textContent = name(2);
       $('r1').textContent = '+' + a.totals[1]; $('r2').textContent = '+' + a.totals[2];
       setBadges(`انتهت الجولة ${p.n}`);
+    } else if (a.screen === 'topic') {
+      showScreen('auc');
+      renderAuction(a);
+      setBadges(`الموضوع ${a.n} من ${a.count}`);
     } else {
       showScreen('q');
       setBox(a);
@@ -369,7 +386,8 @@
     }
 
     // بعد الحكم الأخير: الحكم والإجابة في مربع الإعلان حتى السؤال التالي. و«التالي» فيه في نهاية الجولة.
-    const v = a.screen === 'ask' ? a.verdict : null;
+    const asking = a.screen === 'ask' || a.screen === 'topic';
+    const v = asking ? a.verdict : null;
     announce(a.screen === 'end' ? { next: p.next } : { verdict: v, answer: a.answer });
     syncTimer(p.timer, a);
     setTurn(a.turn);
@@ -378,12 +396,33 @@
     // والعدّاد يعمل: إطار الوقت حول لوحة صاحب الدور يتآكل، والثواني فيها، والحزم تخفت (.running وحده).
     const running = !!count && !count.test;
     setRunning(running);
-    setSide(a.screen !== 'ask' ? 0 : v ? v.team || 0 : a.turn);
+    // وفي المزاد لصاحب الدور في المزايدة، ثم للملتزم (design/auction.md 2).
+    setSide(!asking ? 0 : v ? v.team || 0 : a.turn);
     if (running && count.id !== drained) { drained = count.id; drain(a.turn, (count.endAt - Date.now()) / 1000, p.timer.seconds); }
     if (!running && drained) { drained = 0; drain(0); }
     renderCtl();
   }
   let drained = 0;
+
+  // ===== المزاد (design/auction.md 2): الموضوع، وكل رقم شارة بلون صاحبه والأحدث أكبرها، ومن الالتزام العدّ =====
+  function renderAuction(a) {
+    $('topic').textContent = a.topic;
+    const bids = a.phase === 'bid' ? a.bids : [];
+    $('bids').innerHTML = bids.map((b, i) => `<span class="bid t${b.team}${i === bids.length - 1 ? ' top' : ''}"><i></i><span>${num(b.n)}</span></span>`).join('');
+    dropOld($('bids'), '.bid');
+    const t = a.tally;
+    $('tally').hidden = !t;
+    if (t) { $('tn').textContent = t.n; $('tof').textContent = t.of; $('tally').className = `tally t${t.team}`; }
+    $('auc').classList.toggle('reveal', false);
+    $('items').innerHTML = '';
+  }
+  // ما زاد على صف المزايدة يسقط من أوله (اليمين)، فيبقى الأحدث دائماً. بحدود العناصر لا scrollWidth:
+  // ما يُقصّ بـ overflow: clip لا يُحسب فيه (design/auction.md 7.2).
+  function dropOld(row, sel) {
+    const els = [...row.querySelectorAll(sel)];
+    const fits = () => rect(els[els.length - 1]).left >= rect(row).left - 1;
+    while (els.length > 1 && !fits()) els.shift().remove();
+  }
 
   // ===== أزرار الشاشة المشتركة (design/shared.md 3): المقدّم يقرر ما يظهر (ctl)، وهنا موضعه =====
   // ctl: { card, near, a, b, c: أزرار (c الصف الثالث في الجولة) · count: خانتا العدد · names: اللوحتان حقلان · pick: الخانات تُنقر · scores · error }
@@ -420,7 +459,9 @@
   function placeNear() {
     const near = $('near'), badges = [...document.querySelectorAll('.badge')].filter(b => b.getClientRects().length);
     if (!near.children.length || !badges.length) return;
-    near.style.left = (Math.min(...badges.map(b => b.offsetLeft)) - 32 - near.offsetWidth) + 'px';
+    // بحدود الشارة الفعلية لا offsetLeft: يُقرَّب كسر الميل فيصير الفراغ 23 (design/auction.md 7.5). والقياس على مقاس 1920.
+    const c = rect(canvas), k = c.width / 1920 || 1;
+    near.style.left = Math.floor(Math.min(...badges.map(b => (rect(b).left - c.left) / k)) - 32 - near.offsetWidth) + 'px';
   }
   const send = (cmd, data = {}) => parent.postMessage({ bc: 'cmd', cmd, ...data }, location.origin);
   if (embed) {

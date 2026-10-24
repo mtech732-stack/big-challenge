@@ -1,0 +1,61 @@
+/* التحدي الكبير · ش4 · المزاد: قسم المزاد في بطاقة شاشة الجمهور، منقول من design/auction.css كما هو (design/auction.md 7.1).
+   فوق css/ المبنية (1.3)، وكل ما سواه منها. */
+
+/* 1. قسم المزاد في البطاقة: رأس (الموضوع والعدّ) ثم صف تحته (المزايدة أو ما ذُكر). في وسط البطاقة رأسياً */
+.scr.auc { flex-direction: column; align-items: stretch; justify-content: center; gap: 24px; }
+.auc .ahead { display: flex; align-items: center; gap: 48px; min-height: 104px; }
+.auc .topic { flex: 1; min-width: 0; margin: 0; color: var(--text); font-size: var(--fs-question); font-weight: 700; line-height: 88px;
+  white-space: nowrap; overflow: clip; }
+/* العدّ: ما ذُكر من الالتزام. الرقم بلون صاحب العنصر الأخير (الملتزم ثم الخصم)، و«من 12» بالحبر المحايد */
+.auc .tally { flex: none; display: flex; align-items: baseline; gap: 24px; color: var(--text); white-space: nowrap; }
+.auc .tally[hidden] { display: none; }
+.auc .tally .n { font-size: 104px; font-weight: 900; line-height: 104px; direction: ltr; }
+.auc .tally .of { font-size: 48px; font-weight: 800; line-height: 1; }
+.auc .tally .of b { font-weight: 900; }
+.auc .tally.t1 .n { color: var(--team-1); }
+.auc .tally.t2 .n { color: var(--team-2-ink); }
+
+/* 2. المزايدة: كل رقم شارة مائلة 14° بلون صاحبه، من اليمين (أول رقم) إلى اليسار (أحدث رقم).
+   الأحدث أعلى رقم في المزاد، أكبر من غيره. وما زاد على ما يتسع يسقط من أوله (اليمين) */
+.auc .bids { flex: none; display: flex; align-items: center; gap: 32px; height: 136px; padding: 0 24px; overflow: clip; }
+.auc .bids:empty { display: none; }
+.auc .bid { position: relative; flex: none; height: 88px; min-width: 120px; padding: 0 32px; display: flex; align-items: center; justify-content: center;
+  color: var(--on-stage); font-size: 56px; font-weight: 900; line-height: 1; direction: ltr; }
+.auc .bid > i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); }
+.auc .bid > span { position: relative; }
+.auc .bid.t1 > i { background: var(--team-1); }
+.auc .bid.t2 > i { background: var(--team-2-ink); }
+.auc .bid.top { height: 136px; min-width: 184px; padding: 0 48px; font-size: 104px; }
+
+/* 3. ما ذُكر: كل عنصر شارة مائلة بلون من ذكره، نص أبيض 32. في ثلاثة صفوف حداً أقصى (48 ارتفاعاً، 16 بينها) */
+.auc .items { flex: none; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 16px 32px; max-height: 176px; overflow: clip; padding: 0 8px; }
+.auc .items:empty { display: none; }
+.auc .it { position: relative; flex: none; height: 48px; padding: 0 20px; display: flex; align-items: center;
+  color: var(--on-stage); font-size: 32px; font-weight: 700; line-height: 1; white-space: nowrap; }
+.auc .it > i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); }
+.auc .it > span { position: relative; }
+.auc .it.t1 > i { background: var(--team-1); }
+.auc .it.t2 > i { background: var(--team-2-ink); }
+/* بعد الحكم: ما لم يُذكر من القائمة بإطار داكن 3 ونص داكن، فيُقرأ أنه الإجابة لا ما قيل */
+.auc .it.left { color: var(--ink); font-weight: 800; }
+.auc .it.left > i { background: var(--card); box-shadow: inset 0 0 0 4px var(--ink); }
+/* وما لا يتسع في الصفوف الثلاثة: «و 14 غيرها» في آخرها */
+.auc .it.more { color: var(--text); padding: 0 8px; }
+
+/* بعد الحكم يتسع القسم لصفوف أربعة: الرأس أقصر بلا عدّ كبير (العدّ ينتقل إلى مربع الإعلان) */
+.auc.reveal .ahead { min-height: 88px; }
+.auc.reveal .tally { display: none; }
+.auc.reveal { gap: 16px; }
+.auc.reveal .items { max-height: 212px; gap: 12px 32px; }
+.auc.reveal .it { height: 44px; }
+
+/* 4. لحظات الحركة: الرقم الجديد يدخل من اليسار، والعنصر الجديد يظهر، والعدّ ينبض */
+.anim .auc .bid.top { animation: bidin .32s cubic-bezier(.3,1.3,.5,1) both; }
+@keyframes bidin { from { translate: -48px 0; opacity: 0; } }
+.anim .auc .it.new { animation: itin .2s ease-out both; }
+@keyframes itin { from { scale: .8; opacity: 0; } }
+.anim .auc .tally.bump .n { animation: gain .5s ease-out; }
+@media (prefers-reduced-motion: reduce) { .auc .bid, .auc .it, .auc .tally .n { animation: none !important; } }
+
+/* 5. النافذة الواحدة: «−» و«+» حول «زايد» مربعان 72 */
+.ctl-near .cbtn.step { min-width: 88px; padding: 0; font-size: 48px; }
