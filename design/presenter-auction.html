@@ -127,12 +127,14 @@
   .ref button.t2 { background: var(--team-2-ink); }
   /* في المزايدة وبعد الحكم: القائمة للاطلاع، لا تُنقر */
   .ref.view button { pointer-events: none; }
-  /* أزرار المزايدة: «−» و«+» عمود لكل منهما، و«زايد» أربعة، و«انسحب» أربعة. والعدّ: «ابدأ» و«توقّف» */
+  /* أزرار المزايدة (رقماً رقماً): «زايد · 4» أربعة أعمدة، و«العدد كاملاً · 12» خمسة، و«توقّف» ثلاثة. وفوق 20 عنصراً «زايد» ثمانية و«توقّف» أربعة. والعدّ: «ابدأ» و«توقّف» */
   #app .bidrow { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0.75rem; }
   #app .bidrow button { min-height: 5rem; font-size: 1.5rem; margin: 0; }
-  #app .bidrow .step { grid-column: span 2; font-size: 2.5rem; }
   #app .bidrow .go { grid-column: span 4; }
-  #app .bidrow .no { grid-column: span 4; background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
+  #app .bidrow .go.wide { grid-column: span 8; }
+  #app .bidrow .full { grid-column: span 5; }
+  #app .bidrow .no { grid-column: span 3; background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
+  #app .bidrow .go.wide + .no { grid-column: span 4; }
   #app .bidrow .half { grid-column: span 6; }
   .menu { padding: 1rem; line-height: 1.8; }
   .menu a { color: var(--hl); }
@@ -174,15 +176,18 @@
     'الكونغو', 'الكونغو الديمقراطية', 'أنغولا', 'زامبيا', 'زيمبابوي', 'موزمبيق', 'ملاوي', 'مدغشقر', 'موريشيوس', 'سيشل', 'ناميبيا',
     'بوتسوانا', 'جنوب أفريقيا', 'ليسوتو', 'إسواتيني', 'غينيا', 'غينيا بيساو', 'غينيا الاستوائية', 'سيراليون', 'ليبيريا',
     'ساحل العاج', 'بوركينا فاسو', 'توغو', 'بنين', 'غامبيا', 'الرأس الأخضر', 'جنوب السودان', 'أفريقيا الوسطى', 'ساو تومي وبرينسيب'].map(x => [x]);
+  const MONTHS = ['محرم', 'صفر', 'ربيع الأول', ['ربيع الآخر', 'ربيع الثاني'], 'جمادى الأولى', ['جمادى الآخرة', 'جمادى الثانية'], 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'].map(x => [].concat(x));
   const B = (label, cls = '') => `<button class="${cls}">${num(label)}</button>`;
   const STATES = {
-    bid:      { t: 'المزايدة: الدور على الثاني', turn: 2, bids: [[1, 5], [2, 7], [1, 9]], next: 10,
-                who: 2, state: 'يزايد على 9 أو ينسحب', ctl: [B('−', 'step'), B('زايد · 10', 'go'), B('+', 'step'), B('انسحب', 'no')] },
-    open:     { t: 'المزايدة: الافتتاح', turn: 1, bids: [], who: 1, state: 'يفتتح المزايدة برقم', ctl: [B('−', 'step'), B('زايد · 5', 'go'), B('+', 'step'), B('انسحب', 'no held')] },
+    // المزايدة رقماً رقماً (الوثيقة 5.5): «زايد» بالرقم التالي، و«العدد كاملاً» للقائمة حتى 20 يُقفل المزاد، و«توقّف» إلا للمفتتح في دوره الأول
+    open:     { t: 'المزايدة: الافتتاح (قائمة 12)', turn: 1, bids: [], list: MONTHS, who: 1, state: 'يفتتح بـ 1 أو بالعدد كاملاً', ctl: [B('زايد · 1', 'go'), B('العدد كاملاً · 12', 'full'), B('توقّف', 'no held')] },
+    bid:      { t: 'المزايدة: الدور على الثاني (قائمة 12)', turn: 2, bids: [[1, 1], [2, 2], [1, 3]], list: MONTHS,
+                who: 2, state: 'يزايد على 3 أو يتوقّف', ctl: [B('زايد · 4', 'go'), B('العدد كاملاً · 12', 'full'), B('توقّف', 'no')] },
+    bidhidden:{ t: 'المزايدة: قائمة فوق 20 (لا «العدد كاملاً»)', turn: 2, bids: [[1, 1], [2, 2], [1, 3]],
+                who: 2, state: 'يزايد على 3 أو يتوقّف', ctl: [B('زايد · 4', 'go wide'), B('توقّف', 'no')] },
     ready:    { t: 'الوفاء قبل «ابدأ»', turn: 1, of: 12, said: [], who: 1, state: 'التزم بـ 12 · 60 ثانية', ctl: [B('ابدأ العدّاد', 'alt half'), B('توقّف · لم يفِ', 'no half')] },
     run:      { t: 'الوفاء: العدّاد يعمل', turn: 1, of: 12, said: [0, 1, 2, 3, 4, 5, 6].map(i => [1, i]), who: 1, state: '0:38 · بقي 5', ctl: [B('توقّف · لم يفِ', 'no half')] },
-    complete: { t: 'إكمال الخصم', turn: 2, of: 12, said: [...[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => [1, i]), [2, 9]], who: 2, state: 'يكمل · 0:11 · بقي 2', ctl: [B('توقّف · لا نقاط', 'no half')] },
-    decided:  { t: 'بعد الحكم', turn: 0, of: 12, said: [...[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => [1, i]), [2, 9]], done: 'لا نقاط · ذُكر 10 من 12', ctl: [B('الموضوع التالي · 3 من 3', 'half')] },
+    decided:  { t: 'بعد الحكم: لم يفِ الأول', turn: 0, of: 12, said: [0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => [1, i]), done: 'لم يفِ · النجوم +2 · ذُكر 9 من 12', ctl: [B('الموضوع التالي · 3 من 3', 'half')] },
     long:     { t: 'أطول قائمة (54) أثناء العدّ', turn: 1, of: 30, said: [...Array(21).keys()].map(i => [1, i * 2]), list: AFRICA, who: 1, state: '0:09 · بقي 9', ctl: [B('توقّف · لم يفِ', 'no half')] },
   };
   const id = q.get('s'), st = STATES[id];
@@ -191,7 +196,7 @@
       `<p>${esc(s.t)}: <a href="?s=${k}">مثال</a> · <a href="?s=${k}&long=1">أطول اسمين</a></p>`).join('') + '</div>';
   } else {
     const list = st.list ?? ARAB;
-    $('topic').textContent = st.list ? 'دول قارة أفريقيا' : 'الدول العربية';
+    $('topic').textContent = st.list === AFRICA ? 'دول قارة أفريقيا' : st.list === MONTHS ? 'الأشهر الهجرية' : 'الدول العربية';
     $('pips').innerHTML = [1, 2, 1].map((t, i) => `<span class="pip t${t}${i === 1 ? ' now' : ''}${i === 0 ? ' won1' : ''}"></span>`).join('');
     $('tally').hidden = !st.said;
     if (st.said) { $('tn').textContent = st.said.length; $('tof').textContent = st.of; $('tally').className = `tally t${st.said.length ? st.said[st.said.length - 1][0] : st.turn}`; }
