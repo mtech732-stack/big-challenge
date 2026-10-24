@@ -23,7 +23,8 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
   check('نمطان والمتاح 1: خطأ', M.setupErrors({ ...ready, method: 'short' }, two.slice(0, 1))[0]?.text === 'المباراة تحتاج نمطين على الأقل، والمتاح 1.');
   check('4 أنماط والمتاح 4: لا خطأ، وبلا قائمة كما كانت', M.setupErrors(ready, [...two, { id: 'a' }, { id: 'b' }]).length === 0 && M.setupErrors(ready).length === 0);
   const files = { 'letter.json': {}, 'last-two.json': {}, 'auction.json': {} };
-  check('قائمة الاختيار: المبنيّ وله ملف وحده (ملف المزاد لا يجعله يُختار قبل بنائه)', pickableModes({ pack: { excludeModes: [] }, files }).map(m => m.id).join(',') === 'letter,last-two');
+  check('قائمة الاختيار: المبنيّ وله ملف وحده (المزاد مبني منذ ش4، وبلا ملفه لا يُختار)', pickableModes({ pack: { excludeModes: [] }, files }).map(m => m.id).join(',') === 'letter,last-two,auction'
+    && pickableModes({ pack: { excludeModes: [] }, files: { 'letter.json': {}, 'last-two.json': {} } }).map(m => m.id).join(',') === 'letter,last-two');
   check('المعاينة: الأنماط الأربعة إلا ما تستثنيه الحزمة', matchModes({ pack: { excludeModes: ['ranking'] }, files }).map(m => m.id).join(',') === 'letter,last-two,auction');
 
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
@@ -61,7 +62,7 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
   await wait(150);
   check('النقر على 4 لا يختارها', await sel('short') && !(await sel('full')));
   await toPick();
-  check(`الاختيار: «الحرف المعيّن» و«آخر حرفين» وحدهما (${await tiles()})`, (await tiles()) === 'letter,last-two');
+  check(`الاختيار: المبنية الثلاثة وحدها، بلا «الترتيب» (${await tiles()})`, (await tiles()) === 'letter,last-two,auction');
   await cmd(frame, 'pick:last-two');
   await cmd(frame, 'pick:letter');
   await cmd(frame, 'toFace');
@@ -91,13 +92,14 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
   check('قرعة بـ4 من رابط المعاينة: تعود إلى الإعداد', await frame.isVisible('[data-cmd="draw"]') && await sel('short'));
   await saved('pick', { method: 'short', picks: [{ mode: 'letter', by: 1 }] });
   await reopen();
-  check('اختيار سليم (2، الحرف المعيّن): يبقى كما هو، وخانة واحدة تُنقر', (await frame.$$('#tiles .tile[data-cmd]')).length === 1 && !(await frame.isVisible('[data-cmd="draw"]')));
-  await saved('face', { picks: [{ mode: 'auction', by: 1 }, { mode: 'letter', by: 2 }, { mode: 'last-two', by: 1 }, { mode: 'ranking', by: 0 }] });
+  check('اختيار سليم (2، الحرف المعيّن): يبقى كما هو، وخانتان تُنقران (آخر حرفين والمزاد)', (await frame.$$('#tiles .tile[data-cmd]')).length === 2 && !(await frame.isVisible('[data-cmd="draw"]')));
+  // (المزاد صار مبنياً في ش4، فالجولة 1 هنا «الترتيب» غير المبني.)
+  await saved('face', { picks: [{ mode: 'ranking', by: 1 }, { mode: 'letter', by: 2 }, { mode: 'last-two', by: 1 }, { mode: 'auction', by: 0 }] });
   await reopen();
   check('مواجهة من رابط المعاينة: تبقى، والجولة غير المبنية بزر «تخطَّ الجولة 1»', (await text('.scr.show [data-cmd="next"]')) === 'تخطَّ الجولة 1');
   // ملاحظة المعاين 1: أسماء الأنماط غير المبنية بالعربية في خانات المسار، لا معرّفاتها.
   const segs = await frame.$$eval('#track .seg .mname', e => e.map(x => x.textContent).join(' | '));
-  check(`مواجهة من رابط المعاينة: الأنماط بأسمائها العربية (${segs})`, segs === 'المزاد | الحرف المعيّن | آخر حرفين | الترتيب');
+  check(`مواجهة من رابط المعاينة: الأنماط بأسمائها العربية (${segs})`, segs === 'الترتيب | الحرف المعيّن | آخر حرفين | المزاد');
 
   // 2. المعاينة للتجربة: «?preview» يعيد الأنماط الأربعة و4.
   await open(base + '?preview');
@@ -114,8 +116,8 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
   await cmd(frame, 'pick:auction');
   check('اكتمل الاختيار بجولتين و«إلى المواجهة» متاح', await frame.waitForSelector('[data-cmd="toFace"]', { timeout: 3000 }).then(() => true, () => false));
 
-  // 4. حزمة تستثني «آخر حرفين»: نمط مبني واحد، فلا تبدأ مباراة، ويقول السبب.
-  packJson.excludeModes = ['last-two'];
+  // 4. حزمة تستثني «آخر حرفين» و«المزاد»: نمط مبني واحد، فلا تبدأ مباراة، ويقول السبب.
+  packJson.excludeModes = ['last-two', 'auction'];
   await open(base);
   await frame.fill('#i1', 'الصقور');
   await frame.fill('#i2', 'النجوم');

@@ -1,4 +1,4 @@
-// اختبار آلي لمرحلة «المزايدة» في المزاد (والوفاء في stage4-auction-fulfil.cjs) (ش4، design/auction.md) بالنافذتين وبالنافذة الواحدة، في رابط المعاينة:
+// اختبار آلي لمرحلة «المزايدة» في المزاد (والوفاء في stage4-auction-fulfil.cjs) (ش4، design/auction.md) بالنافذتين وبالنافذة الواحدة، في الرابط العادي:
 // الافتتاح، والموضوع، و«زايد» بـ «−» و«+»، وشارات المزايدة بألوان أصحابها والأحدث أكبرها، وسقوط الأقدم، والانسحاب والالتزام،
 // والتراجع، وإعادة التحميل، ولا قائمة ولا طولها على الجمهور، وفحص التداخل في كل حالة، ونافذة المقدّم على ثلاثة مقاسات.
 const fs = require('fs');
@@ -7,7 +7,7 @@ const { chromium } = require('playwright');
 const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = require('./helpers.cjs');
 
 (async () => {
-  const base = (process.argv[2] || 'http://localhost:8000/') + '?preview';
+  const base = process.argv[2] || 'http://localhost:8000/'; // الرابط العادي: المزاد في MODES منذ اكتمال ش4
   const shots = process.argv[3] || require('os').tmpdir();
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   const { check, finish } = reporter();

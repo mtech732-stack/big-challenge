@@ -1,4 +1,4 @@
-// اختبار آلي لمرحلة «الوفاء والعدّ» في المزاد (ش4، design/auction.md) بالنافذتين وبالنافذة الواحدة، في رابط المعاينة:
+// اختبار آلي لمرحلة «الوفاء والعدّ» في المزاد (ش4، design/auction.md) بالنافذتين وبالنافذة الواحدة، في الرابط العادي:
 // الملتزم قبل «ابدأ» وبعده، ونقر عناصر القائمة في نافذة المقدّم (+1 بلون الملتزم، لا مكرر، ونقرات متتابعة تُحسب كلها)،
 // وما ذُكر على الجمهور وسقوط أقدمه، والعدّاد يبقى يعدّ، والتراجع، والحكم التلقائي عند بلوغ العدد (النقاط، والقائمة كلها، و«ذُكر N من N»)،
 // وإعادة التحميل، و«صحيح · +1» و«توقّف» في النافذة الواحدة (وإكمال الخصم في stage4-auction-complete.cjs)، ولا عنصر لم يُذكر على الجمهور قبل الحكم، وفحص التداخل ونافذة المقدّم.
@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
 const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = require('./helpers.cjs');
 
 (async () => {
-  const base = (process.argv[2] || 'http://localhost:8000/') + '?preview';
+  const base = process.argv[2] || 'http://localhost:8000/'; // الرابط العادي: المزاد في MODES منذ اكتمال ش4
   const shots = process.argv[3] || require('os').tmpdir();
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   const { check, finish } = reporter();

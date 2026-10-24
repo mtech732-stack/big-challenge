@@ -1,4 +1,4 @@
-// اختبار آلي لـ«بعد الحكم» بقائمة قصيرة في المزاد (design/auction.md 1.5 و7.6) بالنافذتين وبالنافذة الواحدة، بالبنك الحقيقي، في رابط المعاينة:
+// اختبار آلي لـ«بعد الحكم» بقائمة قصيرة في المزاد (design/auction.md 1.5 و7.6) بالنافذتين وبالنافذة الواحدة، بالبنك الحقيقي، في الرابط العادي:
 // الحكم بلا مربع (الشارة بيضاء بنص صاحبها، والسطر على الطرف)، والقائمة القصيرة بشارات كبيرة إن اتسعت في صفين،
 // وأفريقيا (54) بالحجم المعتاد و«و N غيرها». وفحص التداخل ونافذة المقدّم في كل حالة، وصور لـ ratio.cjs.
 const fs = require('fs');
@@ -7,7 +7,7 @@ const { chromium } = require('playwright');
 const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = require('./helpers.cjs');
 
 (async () => {
-  const base = (process.argv[2] || 'http://localhost:8000/') + '?preview';
+  const base = process.argv[2] || 'http://localhost:8000/'; // الرابط العادي: المزاد في MODES منذ اكتمال ش4
   const shots = process.argv[3] || require('os').tmpdir();
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   const { check, finish } = reporter();

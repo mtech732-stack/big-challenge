@@ -116,7 +116,7 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   // 3. اختيار الأنماط بالنقر على خاناتها
   await cmd(frame, 'toPick');
   await wait(200);
-  check('الاختيار: الخانتان تُنقران، و«يختار نمط الجولة 1»', (await frame.$$('#tiles .tile[data-cmd]')).length === 2 && (await text('#pickHead')) === `${names[W]} يختار نمط الجولة 1`);
+  check('الاختيار: الخانات الثلاث المبنية تُنقر (المزاد منذ ش4)، و«يختار نمط الجولة 1»', (await frame.$$('#tiles .tile[data-cmd]')).length === 3 && (await text('#pickHead')) === `${names[W]} يختار نمط الجولة 1`);
   await stageCheck('الاختيار');
   await cmd(frame, 'pick:last-two');
   await wait(200);

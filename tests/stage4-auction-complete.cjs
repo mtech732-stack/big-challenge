@@ -1,4 +1,4 @@
-// اختبار آلي لمرحلة «إكمال الخصم» في المزاد (ش4، القسم 5.5 وdesign/auction.md) بالنافذتين وبالنافذة الواحدة، في رابط المعاينة:
+// اختبار آلي لمرحلة «إكمال الخصم» في المزاد (ش4، القسم 5.5 وdesign/auction.md) بالنافذتين وبالنافذة الواحدة، في الرابط العادي:
 // «توقّف · لم يفِ» ينقل الدور إلى الخصم فوراً بعدّاد 15 ثانية (الاكتساح واهتزاز البطاقة)، والعدّ يكمل من حيث وقف بلون الخصم،
 // وما ذكره الملتزم لا يُنقر ثانية، وأكمل الخصم فأخذ النقاط كاملة، أو «توقّف · لا نقاط» وانتهاء وقته فلا نقاط والحدّ في المنتصف،
 // والتراجع يعيد ما بقي من الوقت، وفحص التداخل ونافذة المقدّم بقائمة أفريقيا (54) على المقاسات الثلاثة، ولا عنصر لم يُذكر قبل الحكم.
@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
 const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = require('./helpers.cjs');
 
 (async () => {
-  const base = (process.argv[2] || 'http://localhost:8000/') + '?preview';
+  const base = process.argv[2] || 'http://localhost:8000/'; // الرابط العادي: المزاد في MODES منذ اكتمال ش4
   const shots = process.argv[3] || require('os').tmpdir();
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   const { check, finish } = reporter();

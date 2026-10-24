@@ -398,7 +398,7 @@
   // الأنماط التي يختار منها الفريقان: المبنية وحدها، ولها ملف أسئلة في الحزمة، وما لم تستثنه (ملاحظة تدقيق ش1، البند 6).
   // و«?preview» في الرابط يضيف إليها معاينة ما لم يُبنَ بعد، للتجربة أثناء البناء وحدها، لا في مباراة تُلعب.
   const PREVIEW = query.has('preview');
-  // والنمط الذي تُبنى مراحله الآن (DRAFTS، ش4: المزاد) يُلعب في رابط المعاينة وحده حتى تكتمل شريحته.
+  // والنمط الذي تُبنى مراحله الآن (DRAFTS) يُلعب في رابط المعاينة وحده حتى تكتمل شريحته.
   const MODES = PREVIEW ? [...BUILT, ...DRAFTS] : BUILT;
   const modesOf = p => (!p ? [] : PREVIEW ? matchModes({ modes: MODES, pack: p, files: p.files }) : pickableModes({ modes: MODES, pack: p, files: p.files }));
   const modes = () => modesOf(pack());
