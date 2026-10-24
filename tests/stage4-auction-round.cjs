@@ -181,7 +181,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check(`الجمهور: «0 من ${top}» بلون الملتزم، ولا أرقام`, (await text(audience, '#tn')) === '0' && (await text(audience, '#tof')) === String(top) && await audience.$eval('#tally', (e, t) => e.classList.contains('t' + t), committed) && (await bids(audience)).length === 0);
   check('الجمهور: الحدّ عند الملتزم، ولا عدّاد يعمل', await audience.$eval('#canvas', (c, t) => c.classList.contains('turn-' + t) && !c.classList.contains('running'), committed));
   check(`المقدّم: «التزم بـ ${top} · 60 ثانية» ولا أزرار مزايدة، بل «ابدأ العدّاد» و«توقّف · لم يفِ»`, (await text(presenter, '#aState')) === `التزم بـ ${top} · 60 ثانية`
-    && (await presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim()).join(' | '))) === 'ابدأ العدّاد | توقّف · لم يفِ' && !(await presenter.isVisible('#aLater')));
+    && (await presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim()).join(' | '))) === 'ابدأ العدّاد | توقّف · لم يفِ');
   check('المقدّم: من الالتزام تظهر الصيغ البديلة، ولا نص يُقصّ', await presenter.$$eval('#aRef small', e => e.length) === bank.topics[0].items.filter(i => i.alts?.length).length);
   await both('الالتزام');
   await stage.screenshot({ path: `${shots}/s4-ready.png` });

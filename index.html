@@ -241,7 +241,6 @@
       <button class="alt" data-new>مباراة جديدة</button>
     </div>
     <div class="bidrow" id="aCtl"></div>
-    <p id="aLater" hidden>الوفاء والعدّ يُبنيان في المرحلة التالية من الشريحة <span class="ltr">4</span>.</p>
   </section>
 
   <!-- نهاية الجولة -->
@@ -729,9 +728,8 @@
       `<button class="step" data-offer="1"${offer >= b.max ? ' disabled' : ''}>+</button>` : '') +
       `<button class="no" id="aPass"${canPass ? '' : ' disabled'}>انسحب</button>`
       // الوفاء (design/auction.md 5): «ابدأ العدّاد» و«توقّف · لم يفِ» قبل «ابدأ»، و«توقّف» وحده والعدّاد يعدّ.
-      : ['start', 'stop'].filter(ctl).map(id => `<button class="${id === 'stop' ? 'no' : 'alt'} half" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
-    $('aLater').hidden = pr.phase !== 'decided';
-    $('aLater').innerHTML = 'الموضوع التالي يُبنى في مرحلة «تتابع الجولة» من الشريحة <span class="ltr">4</span>.';
+      // وبعد الحكم «الموضوع التالي» أو «إنهاء الجولة» (design/auction.md 5).
+      : ['start', 'stop', 'next'].filter(ctl).map(id => `<button class="${id === 'stop' ? 'no' : id === 'start' ? 'alt' : ''} half" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
     $('aUndo').disabled = !match.round.history.length;
   }
   // سطر الحالة: في الوفاء الوقت الباقي كما على الشاشة (يصل كل ثانية من نافذة الجمهور) وما بقي من العدد.
@@ -843,6 +841,8 @@
       if (b) c.near = [{ cmd: 'offer:-1', label: '−', kind: 'step', off: wait || offer <= b.min }, { cmd: 'act:bid', label: `زايد · ${offer}`, off: wait },
         { cmd: 'offer:1', label: '+', kind: 'step', off: wait || offer >= b.max }, { cmd: 'act:pass', label: 'انسحب', kind: 'no', off: wait || !acts.some(a => a.id === 'pass') }];
       // الوفاء (design/auction.md 4): «ابدأ» · «صحيح · +1» قبل العدّاد، و«صحيح · +1» · «توقّف» والعدّاد يعدّ. يُعدّ دون أسماء (القائمة سرّ).
+      // وبعد الحكم «الموضوع التالي» في البطاقة لا في صف الشارات (design/auction.md 4، 1.1).
+      if (screen === 'topic' && st.phase === 'decided') c.card = act('next');
       if (screen === 'topic' && !b) c.near = st.phase === 'ready' ? [...act('start', 'ابدأ'), ...act('count')] : [...act('count'), ...act('stop', 'توقّف', 'no')];
       if (screen === 'ask') c.near = [...act('start', 'ابدأ'), ...act('correct'), ...act('wrong', null, 'no'), ...act('next', last ? 'إنهاء الجولة' : 'السؤال التالي')];
       if (screen === 'end') { const nb = nextButton(); c.card = [{ cmd: 'next', label: nb.text, off: !!nb.off || wait }]; }

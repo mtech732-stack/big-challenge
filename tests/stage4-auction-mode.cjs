@@ -193,6 +193,32 @@ const { reporter } = require('./helpers.cjs');
   const gnu = R.undo(R.act(auction, gs, 'stop', undefined, T + 26000), T + 30000);
   check('التراجع عن «لا نقاط» بعد 6 ثوانٍ من الإكمال: يعود الإكمال بـ 9 ثوانٍ', gnu.state.phase === 'complete' && Math.round(gnu.timer.seconds) === 9);
 
+  // تتابع الجولة: «الموضوع التالي» يعرض الموضوع التالي فوراً للمزايدة بمفتتحه، وبعد الثالث «إنهاء الجولة».
+  let q = commitAt(2, 1);
+  q = R.act(auction, R.act(auction, q, 'item:0'), 'item:1');
+  check('بعد الحكم: «الموضوع التالي» وحده', ids(auction.actions(q.state)) === 'next' && auction.actions(q.state)[0].label === 'الموضوع التالي');
+  q = R.act(auction, q, 'next');
+  a = auction.audience(q.state);
+  check('الموضوع 2: يظهر للمزايدة فوراً، ويفتتحه الثاني، بلا أرقام ولا عدّ', q.state.index === 1 && a.screen === 'topic' && a.phase === 'bid' && a.n === 2 && a.turn === 2 && a.owner === 2
+    && !a.bids.length && a.tally === null && !a.said.length && a.verdict === null && a.list === undefined && a.topic === q.state.topics[1].topic);
+  check('الموضوع 2 متوسط، والثالث صعب', q.state.topics[1].level === 'medium' && q.state.topics[2].level === 'hard');
+  check('التراجع عن «الموضوع التالي»: يعود الحكم', R.undo(q).state.index === 0 && R.undo(q).state.phase === 'decided');
+  // الثاني يلتزم بـ 3 ولا يفي، والأول يكمل: النقاط كاملة للأول.
+  q = R.act(auction, R.act(auction, R.act(auction, q, 'bid:3'), 'pass'), 'start');
+  q = R.act(auction, R.act(auction, q, 'item:0'), 'stop');
+  q = R.act(auction, R.act(auction, q, 'item:1'), 'item:2');
+  check('الموضوع 2: أكمل الأول ما التزم به الثاني، فأخذ 3', q.state.phase === 'decided' && q.scores[1] === 5 && q.scores[2] === 0);
+  q = R.act(auction, q, 'next');
+  check('الموضوع 3: يفتتحه الأول، و«إنهاء الجولة» بعد حكمه', q.state.index === 2 && auction.audience(q.state).turn === 1);
+  q = R.act(auction, R.act(auction, R.act(auction, q, 'bid:4'), 'pass'), 'stop');
+  q = R.act(auction, q, 'stop');
+  check('الموضوع 3: لا نقاط، و«إنهاء الجولة»', q.state.phase === 'decided' && auction.actions(q.state)[0].label === 'إنهاء الجولة' && q.scores[1] === 5);
+  check('مسار المواضيع: الأول · الأول · لا أحد', auction.presenter(q.state).track.map(x => x.result).join(',') === '1,1,0');
+  q = R.act(auction, q, 'next');
+  a = auction.audience(q.state);
+  check('نهاية الجولة: الحصيلة الأول 5 والثاني 0، وانتهت', a.screen === 'end' && a.totals[1] === 5 && a.totals[2] === 0 && auction.finished(q.state) && !auction.actions(q.state).length);
+  check('بعد النهاية: لا فعل يُقبل', R.act(auction, q, 'next').state === q.state);
+
   // حالة محفوظة من «المزايدة» (بلا said) تكمل بعد التحديث.
   const old = commitAt(2); const { said, ...rest } = old.state;
   check('حالة محفوظة بلا said: العدّ 0 ويُعدّ عنصر', auction.audience(rest).tally.n === 0 && auction.audience(R.act(auction, { ...old, state: rest }, 'item:0').state).tally.n === 1);
