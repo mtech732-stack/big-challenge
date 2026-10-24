@@ -342,6 +342,18 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const corners = () => frame.$$eval('.ctl-corner .cbtn', b => b.map(x => x.textContent.trim()).join(' | '));
   const rowsText = () => frame.$$eval('.ctl-corner', r => r.map(x => [...x.querySelectorAll('.cbtn')].map(b => b.textContent.trim()).join(' | ')).join(' // '));
   await wait(300);
+  // الملاحظة 28: عدّاد السرقة 5 ثوانٍ، وقد ينقضي أثناء الانقطاع وفتح النافذة الواحدة (على الرابط المنشور أبطأ).
+  // فتبدأ السرقة من جديد هنا بعدّادها كاملاً: من السرقة «تراجع» ثم «خاطئة»، ومن حكم انقضائها «تراجع» يعيدها كاملة.
+  // وما حدث يُطبع صراحةً في سطر فحص، فلا يمرّ بصمت.
+  const stealLog = [];
+  const freshSteal = async label => {
+    const phase = (await st()).phase;
+    if (phase === 'steal') { await cmd(frame, 'undo'); await wait(800); await cmd(frame, 'act:wrong'); }
+    else { await cmd(frame, 'undo'); }
+    await wait(500);
+    stealLog.push(`${label}: كانت ${phase === 'steal' ? 'السرقة جارية' : `انقضت (${phase})`}، ثم ${(await st()).phase}`);
+  };
+  await freshSteal('قبل الخطوة 12');
   check('لا شريط سفلي', !(await presenter.$('#band')));
   check('بجانب العدّاد بعد انتقال الإجابة: «صحيحة · +1» «خاطئة»', (await near()) === 'صحيحة · +1 | خاطئة');
   check('الزاوية ثلاثة صفوف (الملاحظة 26): «تراجع» «الصوت» · «المقدّم» «ملء الشاشة» · «الرصيد» «مباراة جديدة»', (await rowsText()) === 'تراجع | الصوت // المقدّم | ملء الشاشة // الرصيد | مباراة جديدة'
@@ -380,6 +392,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('الأزرار لا تعرض الإجابة', !(await near()).includes(qs.answer) && !(await corners()).includes(qs.answer));
   await audienceCheck(frame, 'نافذة واحدة · انتقال الإجابة');
   await presenter.screenshot({ path: `${shots}/s2-single-steal.png` });
+  // إن انقضى العدّاد أثناء الفحوص أعلاه، تُعاد السرقة مرة واحدة ويُسجَّل ذلك.
+  if ((await st()).phase !== 'steal') await freshSteal('قبل «صحيحة»');
+  check(`الملاحظة 28: السرقة بعدّادها كاملاً في النافذة الواحدة (${stealLog.join(' · ')})`, (await st()).phase === 'steal' && stealLog.length <= 2);
   await cmd(frame, 'act:correct');
   await wait(800);
   check('النافذة الواحدة: بعد الحكم «السؤال التالي» بجانب الحكم، والإجابة والاسم على الشاشة', (await near()) === 'السؤال التالي' && (await text(frame, '#reveal')) === `الإجابة: ${qs.answer}`
