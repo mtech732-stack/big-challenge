@@ -116,9 +116,52 @@ const { reporter } = require('./helpers.cjs');
   check('النقاط بقدر الرتب: 55 للعشرة', sum === 55);
   go('finish');
   check('نهاية القائمة: القائمة كلها بأسمائها والفخاخ، و«كُشف 10 من 10»، والحدّ في المنتصف', s.phase === 'listend' && a.slots.every(x => x.name) && a.found === 10 && a.of === 10 && a.turn === 0 && !a.verdict);
-  check('نهاية القائمة: «إنهاء الجولة»', ranking.actions(s).map(x => x.label).join() === 'إنهاء الجولة');
+  check('نهاية القائمة الأولى: «القائمة 2 · الأخيرة»', ranking.actions(s).map(x => x.label).join() === 'القائمة 2 · الأخيرة');
+  // القائمة الثانية (الصعبة): تظهر مباشرة، ويبدأها الفريق الآخر.
   go('next');
-  check('نهاية الجولة: حصيلتا الفريقين', s.phase === 'end' && ranking.finished(s) && a.screen === 'end' && a.totals[1] + a.totals[2] === 55);
+  check('القائمة الثانية: تظهر مباشرة بعنوانها، و«القائمة 2 من 2»، والدور للآخر (بدأ الثاني الأولى)', s.phase === 'read' && s.index === 1 && a.n === 2 && a.title === s.lists[1].title
+    && s.team === 1 && a.turn === 1 && ranking.presenter(s).level === 'hard' && a.slots.every(x => !x.name && !x.team) && !round.timer && a.listClock && !a.listEnds);
+  check('القائمة الثانية: مسار القائمتين بلون من بدأ كلاً منهما', ranking.presenter(s).track.map(x => x.owner).join() === '2,1');
+  const s1 = round.scores[1];
+  go('start'); go('item:10');
+  check('القائمة الثانية تُلعب كالأولى: +10 للأول', round.scores[1] === s1 + 10 && s.got[1].length === 1 && a.found === 1);
+  go('finish');
+  check('نهاية القائمة الثانية: «إنهاء الجولة»', ranking.actions(s).map(x => x.label).join() === 'إنهاء الجولة');
+  go('next');
+  check('نهاية الجولة: حصيلتا الفريقين في القائمتين', s.phase === 'end' && ranking.finished(s) && a.screen === 'end' && a.totals[1] + a.totals[2] === 65);
+
+  // وقت القائمة (5.6): 5 دقائق من «ابدأ» بلا توقف، فإن انقضت انتهت القائمة. والمشغّل يمرّر ساعة الجهاز.
+  {
+    const { LIST_SECONDS } = await import(path.join(root, 'js/modes/ranking.js'));
+    const T = 1_000_000;
+    let r = R.startRound(ranking, { content, first: 1, rng });
+    const run = (x, id, at = T) => (r = R.act(ranking, r, x, id, at));
+    run('show');
+    let a = ranking.audience(r.state);
+    check('وقت القائمة 5 دقائق، ثابت قبل «ابدأ»', LIST_SECONDS === 300 && a.listClock && !a.listEnds && a.listSeconds === 300);
+    run('start');
+    a = ranking.audience(r.state);
+    check('«ابدأ»: وقت القائمة يجري حتى 5 دقائق من الآن', r.state.listEnds === T + 300000 && a.listEnds === T + 300000);
+    check('«انتهى وقت القائمة» قبل وقته يُهمل', run('timeup', undefined, T + 200000).state.phase === 'ask');
+    run('item:4', undefined, T + 30000); run('next', undefined, T + 40000);
+    check('ولا يقف بين الإجابتين ولا بعد الحكم', r.state.listEnds === T + 300000);
+    run('timeup', undefined, T + 300000);
+    a = ranking.audience(r.state);
+    check('انقضى وقت القائمة في العدّاد: تنتهي القائمة وتنكشف، ويقف العدّاد، ووقتها يُخفى', r.state.phase === 'listend' && r.state.timeup && a.timeup && !r.timer && a.slots.every(x => x.name)
+      && !a.listClock && !a.listEnds && a.found === 1);
+    r = R.undo(r);
+    check('التراجع عن انقضاء الوقت يعيد العدّاد', r.state.phase === 'ask' && !r.state.timeup && r.timer?.seconds === ANSWER_SECONDS);
+    run('wrong', undefined, T + 299000);
+    check('وفي السرقة: ينهيها انقضاء الوقت', r.state.phase === 'steal' && run('timeup', undefined, T + 300500).state.phase === 'listend');
+    run('next', undefined, T + 310000);
+    check('القائمة الثانية بعد انقضاء وقت الأولى: وقتها لم يبدأ، ويبدأها الآخر', r.state.index === 1 && r.state.phase === 'read' && !r.state.listEnds && !r.state.timeup && r.state.team === 2);
+    run('start:one', undefined, T + 320000);
+    check('وقت القائمة الثانية من «ابدأ» نفسها', r.state.listEnds === T + 620000 && r.state.one);
+    run('timeup', undefined, T + 620000);
+    check('بنافذة واحدة: انقضاء الوقت يفتح المقارنة', r.state.phase === 'mark' && r.state.timeup && !r.timer);
+    run('mark:2'); run('commit');
+    check('ثم «اعتمد النقاط» و«انتهى وقت القائمة»، و«إنهاء الجولة»', r.state.phase === 'listend' && ranking.audience(r.state).timeup && ranking.actions(r.state)[0].label === 'إنهاء الجولة');
+  }
 
   // الفخاخ بخصمها: −3 و−2 و−1، ولا ينزل الرصيد تحت الصفر، والحكم بما خُصم فعلاً (design/ranking.md 7.7).
   {
@@ -142,7 +185,7 @@ const { reporter } = require('./helpers.cjs');
     check('الفخ لا يُنقر ثانية (المكرر خطأ)', run('item:12').state.phase === 'ask');
     run('item:13');
     check('فخ 13 ورصيده 0: لا خصم، والحكم 0', r.scores[1] === 0 && r.state.verdict.points === 0 && r.state.verdict.rank === 13);
-    run('finish'); run('next');
+    run('finish'); run('next'); run('finish'); run('next');
     const t = ranking.audience(r.state);
     check('حصيلة الجولة بما خُصم: الأول −1 والثاني −2', ranking.finished(r.state) && t.totals[1] === -1 && t.totals[2] === -2);
   }

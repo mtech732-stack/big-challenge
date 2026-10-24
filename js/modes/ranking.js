@@ -7,13 +7,16 @@
 // والخطأ (ليس في القائمة، أو مكرر، أو انتهى الوقت) ينقل الإجابة إلى الخصم ليسرق في 5 ثوانٍ.
 // والنافذة الواحدة (المالك، design/ranking.md 4): لا حكم في أثناء القائمة لأن المقدّم لا يراها. «ابدأ» فيها `start:one`،
 // و«التالي» ينقل الدور، وبعد النهاية «المقارنة»: ينقر المقدّم كل خانة لمن قالها أولاً (التسجيل خارج اللعبة)، ثم «اعتمد النقاط».
-// (ش5: مهلة القائمة والقائمة الثانية في المرحلة الأخيرة.)
+// ولكل قائمة 5 دقائق تجري من «ابدأ» حتى نهايتها بلا توقف (5.6، design/ranking.md 7.8)، فإن انقضت انتهت القائمة.
+// والقائمة الثانية بعد الأولى، يبدأها الفريق الآخر.
 import { freshFirst, besides } from '../round.js';
 import { sharedItems, CLASH_MIN } from '../content-check.js';
 
 // وقت الإجابة (مبدئي، يُضبط في ش8).
 export const ANSWER_SECONDS = 15;
 export const STEAL_SECONDS = 5;
+// وقت القائمة (5.6): القائمتان معاً لا تتجاوزان 10 دقائق، حدّ الجولة.
+export const LIST_SECONDS = 300;
 export const SLOTS = 10;
 // خصم الفخ بمركزه (5.6).
 export const PENALTY = { 11: 3, 12: 2, 13: 1 };
@@ -22,7 +25,8 @@ const other = team => (team === 1 ? 2 : 1);
 
 // الحالات: intro افتتاح الجولة · read ظهور القائمة قبل «ابدأ» · ask عدّاد صاحب الدور · steal عدّاد الخصم بعد الخطأ · decided بعد الحكم
 // · mark المقارنة بالتسجيل في النافذة الواحدة · listend نهاية القائمة (تنكشف كلها) · end انتهت الجولة.
-// one: القائمة تُلعب بنافذة واحدة · marks: { رتبة: فريق } في المقارنة.
+// one: القائمة تُلعب بنافذة واحدة · marks: { رتبة: فريق } في المقارنة · listEnds: متى ينقضي وقت القائمة (ms بساعة الجهاز)
+// · timeup: انتهت القائمة بانقضاء وقتها.
 // team: صاحب الدور الآن (والسارق في steal) · steal: { team, reason } من انتقلت إليه الإجابة ولماذا ('wrong' أو 'timeout') · got[i]: ما كُشف من القائمة i بالترتيب { rank, team, points } (والفخ بما خُصم منه فعلاً) · verdict: حكم الإجابة الأخيرة
 // { team, points, rank } (team 0 ورتبة 0 إن لم يأخذ أحد شيئاً، ورتبة فوق 10 للفخ) · starts[i]: من بدأ القائمة i.
 // avoid: قوائم تتقاطع مع موضوع مزاد أو سؤال اختير في المباراة (تدقيق ش5 «ثالثاً» و«رابعاً»).
@@ -36,7 +40,7 @@ function setup({ content, first, seen = [], avoid = [], rng = Math.random }) {
     if (t) picked.push(t);
   }
   const lists = picked.map(t => ({ id: t.id, level: t.level, title: t.title, items: t.items.map(x => ({ name: x.name, alts: x.alts ?? [] })) }));
-  return { first, lists, index: 0, phase: 'intro', team: first, got: lists.map(() => []), verdict: null, steal: null, one: false, marks: {}, starts: [first] };
+  return { first, lists, index: 0, phase: 'intro', team: first, got: lists.map(() => []), verdict: null, steal: null, one: false, marks: {}, listEnds: null, timeup: false, starts: [first, other(first)] };
 }
 
 const current = s => s.lists[s.index];
@@ -58,15 +62,25 @@ function actions(s) {
   if (s.phase === 'decided') return found(s) >= SLOTS ? [finish] : [{ id: 'next', label: 'التالي' }, finish];
   // المقارنة: الخانة تُنقر (mark:رتبتها) فيدوّر صاحبها، ثم «اعتمد النقاط».
   if (s.phase === 'mark') return [{ id: 'mark', label: 'خانة' }, { id: 'commit', label: 'اعتمد النقاط' }];
-  if (s.phase === 'listend') return [{ id: 'next', label: 'إنهاء الجولة' }];
+  if (s.phase === 'listend') return [{ id: 'next', label: last(s) ? 'إنهاء الجولة' : `القائمة ${s.index + 2} · الأخيرة` }];
   return [];
 }
 
 // scores: رصيد الفريقين قبل الفعل، يمرّره مشغّل الجولة، فيُكتب خصم الفخ بما خُصم فعلاً (design/ranking.md 7.7).
-function act(s, action, scores = {}) {
+// now: ساعة الجهاز (ms) من المشغّل، لوقت القائمة.
+function act(s, action, scores = {}, now = Date.now()) {
   const [id, arg] = String(action).split(':');
   if (id === 'show' && s.phase === 'intro') return { state: { ...s, phase: 'read', team: s.starts[s.index] ?? s.first, verdict: null }, events: [] };
-  if (id === 'start' && s.phase === 'read') return { state: { ...s, phase: 'ask', one: arg === 'one' }, events: [{ type: 'timer', seconds: ANSWER_SECONDS }] };
+  // «ابدأ»: يبدأ عدّاد الإجابة، ووقت القائمة (5 دقائق) معه.
+  if (id === 'start' && s.phase === 'read') {
+    return { state: { ...s, phase: 'ask', one: arg === 'one', listEnds: now + LIST_SECONDS * 1000 }, events: [{ type: 'timer', seconds: ANSWER_SECONDS }] };
+  }
+  // انقضى وقت القائمة (يرسله المقدّم حين يحين): تنتهي القائمة أياً كانت حالها، أو تبدأ المقارنة بنافذة واحدة.
+  // ولا يُقبل قبل وقته (ثانية للفرق بين الساعتين).
+  if (id === 'timeup' && ['ask', 'steal', 'decided'].includes(s.phase) && s.listEnds && now >= s.listEnds - 1000) {
+    const end = s.one ? { phase: 'mark', marks: {} } : { phase: 'listend' };
+    return { state: { ...s, ...end, team: 0, verdict: null, steal: null, timeup: true }, events: [] };
+  }
   // النافذة الواحدة: «التالي» أو انتهاء الوقت ينقل الدور ويعيد عدّاد الإجابة. لا خطأ يُعرف قبل النهاية، فلا انتقال للإجابة.
   if ((id === 'pass' || id === 'timeout') && s.phase === 'ask' && s.one) {
     return { state: { ...s, team: other(s.team) }, events: [{ type: 'timer', seconds: ANSWER_SECONDS }] };
@@ -129,6 +143,11 @@ function act(s, action, scores = {}) {
   }
   // نهاية القائمة: يعجز الفريقان («أنهِ القائمة») أو تنكشف العشرة. فتنكشف القائمة كلها للجميع.
   if (id === 'finish' && (s.phase === 'read' || s.phase === 'decided')) return { state: { ...s, phase: 'listend', team: 0, verdict: null }, events: [] };
+  // بعد نهاية القائمة: القائمة الثانية تظهر مباشرة لمن يبدأها (الفريق الآخر)، أو نهاية الجولة.
+  if (id === 'next' && s.phase === 'listend' && !last(s)) {
+    const index = s.index + 1;
+    return { state: { ...s, index, phase: 'read', team: s.starts[index], verdict: null, steal: null, one: false, marks: {}, listEnds: null, timeup: false }, events: [] };
+  }
   if (id === 'next' && s.phase === 'listend') return { state: { ...s, phase: 'end', team: 0 }, events: [] };
   return { state: s, events: [] };
 }
@@ -174,6 +193,11 @@ function audience(s) {
     of: SLOTS,
     // تُلعب بنافذة واحدة (لا حكم في أثنائها، والمقارنة بعدها).
     one: !!s.one,
+    // وقت القائمة: 5:00 ثابتاً قبل «ابدأ»، ثم يجري حتى listEnds، ويُخفى بعد النهاية. وtimeup: انتهت بانقضائه.
+    listSeconds: LIST_SECONDS,
+    listEnds: ['ask', 'steal', 'decided'].includes(s.phase) ? s.listEnds : null,
+    listClock: s.phase === 'read' || ['ask', 'steal', 'decided'].includes(s.phase),
+    timeup: !!s.timeup,
   };
 }
 
@@ -191,7 +215,7 @@ function presenter(s) {
     // في السرقة: لماذا انتقلت الإجابة (سطر الحالة «بعد الخطأ · 0:03»).
     steal: s.phase === 'steal' ? { ...s.steal } : null,
     items: hidden ? [] : t.items.map((x, i) => ({ rank: i + 1, name: x.name, alts: [...x.alts], trap: i >= SLOTS, by: by.get(i + 1) ?? 0 })),
-    brief: `قائمتان. إجابة لكل فريق بالتتابع، ${ANSWER_SECONDS} ثانية لكل إجابة. انقر ما قاله الفريق فتنكشف خانته بنقاط رقمها، والفخاخ 11 و12 و13 تخصم 3 و2 و1، أو «خطأ» لما ليس فيها أو المكرر، فتنتقل الإجابة إلى الخصم ${STEAL_SECONDS} ثوانٍ.`,
+    brief: `قائمتان، لكل منهما ${LIST_SECONDS / 60} دقائق. إجابة لكل فريق بالتتابع، ${ANSWER_SECONDS} ثانية لكل إجابة. انقر ما قاله الفريق فتنكشف خانته بنقاط رقمها، والفخاخ تخصم 3 و2 و1، أو «خطأ» فتنتقل الإجابة إلى الخصم ${STEAL_SECONDS} ثوانٍ.`,
     track: s.lists.map((x, i) => ({ owner: s.starts[i] ?? 0, result: null, now: !hidden && i === s.index })),
   };
 }
