@@ -742,7 +742,8 @@
     const left = pr.tally ? pr.tally.of - pr.tally.n : 0;
     $('aState').innerHTML = pr.phase === 'bid' ? (pr.bids.length ? num(`يزايد على ${top} أو ينسحب`) : 'يفتتح المزايدة برقم')
       : pr.phase === 'ready' ? num(`التزم بـ ${pr.commit.n} · ${pr.clock} ثانية${pr.tally.n ? ` · بقي ${left}` : ''}`)
-      : pr.phase === 'fulfil' ? num(`${tickText || '1:00'} · بقي ${left}`)
+      // الوقت «0:38» في حاوية ltr كاملاً، وإلا انقلب في السطر العربي («38:0»).
+      : pr.phase === 'fulfil' ? `<span class="ltr">${esc(tickText || '1:00')}</span> · ${num(`بقي ${left}`)}`
       : pr.phase === 'short' ? num(`لم يفِ · ذُكر ${pr.tally.n} من ${pr.tally.of}`)
       : pr.phase === 'decided' ? num(`ذُكر ${pr.tally.n} من ${pr.tally.of}`) : '';
   }
