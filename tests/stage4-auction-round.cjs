@@ -128,9 +128,14 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('«−» لا ينزل تحت 1 ثم يُعطَّل', (await text(presenter, '#aBid')) === 'زايد · 1' && await presenter.$eval('[data-offer="-1"]', e => e.disabled));
   for (let i = 0; i < 5; i++) await plus();
   check('لا يصل الرقم المقترح إلى الجمهور قبل «زايد»', (await bids(audience)).length === 0);
-  await presenter.click('#aBid');
-  await wait(400);
+  await presenter.$eval('#aBid', e => e.click());
+  // نقرة ثانية متأخرة (تقرير المعاين ش4، التعثّر 1): الزر نفسه صار زرّ الخصم، فتُهمل.
+  const at = await presenter.$eval('#aBid', e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  await wait(150); await presenter.mouse.click(at.x, at.y);
+  await wait(150); await presenter.mouse.click(at.x, at.y);
+  await wait(100);
   let b = await bids(audience);
+  check('نقرتان متأخرتان بالفأرة على «زايد» (0.15 و0.3 ثانية) لا تسجّلان رقماً للخصم', b.length === 1);
   check('زايد المفتتح بـ 6: شارة بلونه، وهي الأحدث الأكبر (136)', b.length === 1 && b[0].n === '6' && b[0].t === opener && b[0].top && b[0].h === 136);
   check('الجمهور: الحدّ يكتسح للخصم، ودوره', await audience.$eval('#canvas', (c, t) => c.classList.contains('turn-' + t), other(opener)) && await audience.$eval('#p' + other(opener), e => e.classList.contains('on')));
   check('الرقم الجديد يدخل بحركته', await audience.$eval('#bids .bid.top', e => getComputedStyle(e).animationName === 'bidin'));
@@ -212,7 +217,12 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('«+» في النافذة الواحدة: «زايد · 20»', (await near()).includes('زايد · 20'));
   await both('نافذة واحدة · المزايدة');
   await stage.screenshot({ path: `${shots}/s4-single-bid.png` });
-  await cmd(audience, 'act:bid'); await wait(900);
+  const nb = (await audience.$$('#near .cbtn'))[1], box = await nb.boundingBox();
+  await stage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await wait(150); await stage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await wait(150); await stage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await wait(900);
+  check('ثلاث نقرات على «زايد» في النافذة الواحدة بفاصل 0.15 ثانية تسجّل رقماً واحداً', (await bids(audience)).slice(-2).map(x => x.n).join(',') === '18,20');
   check('«زايد» في النافذة الواحدة يسجّل 20', (await bids(audience)).pop().n === '20');
   await cmd(audience, 'act:pass'); await wait(900);
   check('«انسحب» في النافذة الواحدة: العدّ «0 من 20» ولا أزرار مزايدة', (await text(audience, '#tn')) === '0' && (await text(audience, '#tof')) === '20' && !(await audience.$$('#near .cbtn')).length);
