@@ -464,7 +464,8 @@
   }
   const fitMethod = m => (m?.step === 'setup' && M.METHODS[m.method].rounds > modesOf(packs.find(p => p.id === m.pack)).length ? { ...m, method: 'short' } : m);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const num = s => esc(s).replace(/(\+?\d+)/g, '<span class="ltr">$1</span>');
+  // الرقم بإشارته، والمدى والوقت بشرطته أو نقطتيه («2025–2026»، «0:15»)، معزولة يساراً فلا تنقلب (تقرير المعاين ش5، 32).
+  const num = s => esc(s).replace(/([+−]?\d+(?:[:–]\d+)?)/g, '<span class="ltr">$1</span>');
   const tn = t => `<b class="tn t${t}">${esc(match.teams[t])}</b>`;
   // «لـ» مع الاسم: «للمستقبل» إن بدأ بـ«ال» (تُحذف الألف بعد اللام)، و«لـفريق النخبة» في غيره.
   const toTeam = t => { const n = match.teams[t]; return `<b class="tn t${t}">${esc(n.startsWith('ال') ? 'لل' + n.slice(2) : 'لـ' + n)}</b>`; };
@@ -723,7 +724,7 @@
     if (part === 'rnk') renderRanking(pr, acts);
     if (part === 'end') {
       $('endHead').innerHTML = num(`انتهت ${title}`);
-      $('sum').innerHTML = [1, 2].map(k => `<span>${mk(k)} ${tn(k)}</span><span class="pts">+${pr.totals[k]}</span><span>${num('الرصيد ' + match.round.scores[k])}</span>`).join('');
+      $('sum').innerHTML = [1, 2].map(k => `<span>${mk(k)} ${tn(k)}</span><span class="pts">${pr.totals[k] < 0 ? '−' + -pr.totals[k] : '+' + pr.totals[k]}</span><span>${num('الرصيد ' + match.round.scores[k])}</span>`).join('');
       const nb = nextButton();
       $('endNext').innerHTML = nb.label;
       $('endNext').disabled = !!nb.off;
@@ -833,7 +834,7 @@
     pr.items.forEach((x, i) => { const el = ref.children[i]; el.classList.toggle('t1', x.by === 1); el.classList.toggle('t2', x.by === 2); });
     const v = pr.verdict;
     $('rWho').innerHTML = pr.phase === 'listend' ? `<span class="done">${num(`انتهت القائمة ${pr.n} · كُشف ${pr.found} من ${pr.of}`)}</span>`
-      : v ? `<span class="done">${v.team ? `${esc(match.teams[v.team])} · ${num(`+${v.points} · المركز ${v.rank}`)}` : 'لا نقاط · لم تُكشف خانة'}</span>`
+      : v ? `<span class="done">${!v.team ? 'لا نقاط · لم تُكشف خانة' : `${esc(match.teams[v.team])} · ${num(v.rank > 10 ? `${v.points ? '−' + -v.points : '0'} · فخّ المركز ${v.rank}` : `+${v.points} · المركز ${v.rank}`)}`}</span>`
       : `${mk(pr.turn)} دور ${tn(pr.turn)}`;
     rankState(pr);
     const ctl = id => acts.find(a => a.id === id);
@@ -852,10 +853,10 @@
       : pr.phase === 'ask' ? `<span class="ltr">${esc(tickText || '0:15')}</span>` : '';
   }
   $('rCtl').addEventListener('click', e => { const el = e.target.closest('button[data-act]'); if (el) roundAct(el.dataset.act); });
-  // ما قاله الفريق: يُحكم فوراً (خانته بنقاطها). والفخاخ في المرحلة التالية من ش5.
+  // ما قاله الفريق: يُحكم فوراً، خانته بنقاطها أو فخه بخصمه.
   $('rRef').addEventListener('click', e => {
     const el = e.target.closest('button[data-r]');
-    if (!el || $('rRef').classList.contains('view') || el.classList.contains('trap')) return;
+    if (!el || $('rRef').classList.contains('view')) return;
     roundAct('item:' + el.dataset.r);
   });
 

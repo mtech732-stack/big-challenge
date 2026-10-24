@@ -1,5 +1,5 @@
 // اختبار آلي لمرحلة «اللوحة والكشف» في الترتيب (5.6، design/ranking.md) بالنافذتين، في رابط المعاينة:
-// الافتتاح، وظهور القائمة (العنوان وإشارته، والعشر برتبها، والفخاخ مخفية)، و«ابدأ» وعدّاد 15 ثانية، ونقر ما قاله الفريق فتنكشف خانته
+// الافتتاح، وظهور القائمة (العنوان وإشارته، والعشر برتبها، والفخاخ مخفية حتى يقع فيها فريق)، و«ابدأ» وعدّاد 15 ثانية، ونقر ما قاله الفريق فتنكشف خانته
 // بلونه ونقاط رقمها، والتناوب، و«خطأ» بلا نقاط، والتراجع، وإعادة التحميل، ونهاية القائمة (تنكشف كلها) ونهاية الجولة،
 // ولا اسم على الجمهور قبل أن يُكشف، وفحص التداخل في كل حالة، ونافذة المقدّم على ثلاثة مقاسات.
 // ثم أطول محتوى (العنوان 32 وإشارته 31، وأعرض الأسماء، وأطول اسمين، ورقمان من ثلاث خانات) حتى تنكشف العشرة.
@@ -136,6 +136,10 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo } = require
     check(tag + 'المقدّم: «الترتيب · القائمة 1 من 2»، والعنوان، والقائمة كلها (13) بصيغها للاطلاع', (await text(presenter, '#roundChip')) === 'الترتيب · القائمة 1 من 2'
       && (await text(presenter, '#rTitle')).startsWith(main) && (await presenter.$$('#rRef button')).length === 13 && await presenter.$eval('#rRef', e => e.classList.contains('view'))
       && await presenter.$$eval('#rRef button.trap', e => e.length) === 3 && await presenter.$$eval('#rRef small', e => e.length) === items.filter(i => i.alts?.length).length);
+    // المدى بشرطته يُعزل كله يساراً في المقدّم كما في الجمهور، فلا تنقلب السنتان (تقرير المعاين ش5، 32).
+    const ranges = sub.match(/\d+[–:]\d+/g) ?? [];
+    check(tag + `المقدّم: إشارة العنوان «${sub}» بسنتيها في ترتيبهما`, ranges.length > 0 && await presenter.$eval('#rTitle small', (e, rs) => {
+      const iso = [...e.querySelectorAll('.ltr')].map(x => x.textContent); return rs.every(r => iso.includes(r)); }, ranges));
     check(tag + `المقدّم: «دور [صاحب الدور]» و«ابدأ العدّاد · 15 ثانية» و«أنهِ القائمة» (${await ctl()})`, (await text(presenter, '#rWho')) === `دور ${NAMES[starter - 1]}`
       && (await ctl()) === 'ابدأ العدّاد · 15 ثانية | أنهِ القائمة');
     await both('ظهور القائمة');
@@ -185,7 +189,21 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo } = require
       sl = await slots();
       check('إعادة تحميل النافذتين: الخانتان 2 و7 بلونيهما وأسمائهما', sl[1].cls.includes('t' + opp) && sl[1].name === items[1].name && sl[6].name === items[6].name
         && await presenter.$eval('#rRef button[data-r="2"]', (e, t) => e.classList.contains('t' + t), opp));
-      // 9. «أنهِ القائمة»: تنكشف كلها والفخاخ، بلا مربع: «كُشف 2 من 10».
+      // 9. الفخ: صاحب الدور (رصيده 7) يذكر عنصر المركز 12، فيُخصم منه 2.
+      await act('next');
+      const was = (await scores())[starter];
+      await pick(12);
+      sl = await slots();
+      check('الفخ: خانة 12 تظهر بلون من وقع فيه واسمها وخصمها «−2»، والفخان الآخران مخفيان', sl[11].cls.includes('t' + starter) && sl[11].name === items[11].name && sl[11].b === '−2'
+        && !sl[11].hidden && sl[10].hidden && sl[12].hidden && sl[11].cls.includes('new'));
+      check(`الفخ: الرصيد −2، ومربع الإعلان «[الاسم] · −2» و«فخّ المركز 12»، والحدّ في المنتصف`, (await scores())[starter] === was - 2
+        && (await text(audience, '#vtext')) === `${NAMES[starter - 1]} · −2` && (await text(audience, '#say')) === 'فخّ المركز 12' && (await side()) === 0);
+      check(`المقدّم: «[الاسم] · −2 · فخّ المركز 12»، والفخ بلونه (${await text(presenter, '#rWho')})`, (await text(presenter, '#rWho')) === `${NAMES[starter - 1]} · −2 · فخّ المركز 12`
+        && await presenter.$eval('#rRef button[data-r="12"]', (e, t) => e.classList.contains('t' + t), starter)
+        && (await ctl()) === `التالي · دور ${NAMES[opp - 1]} | أنهِ القائمة`);
+      await both('فخ');
+      await shot('trap');
+      // 10. «أنهِ القائمة»: تنكشف كلها والفخاخ، بلا مربع: «كُشف 2 من 10».
       await act('finish');
       sl = await slots();
       check('نهاية القائمة: الثلاث عشرة بأسمائها، والفخاخ ظاهرة بخصمها، وما لم يُذكر .left', sl.every((x, i) => x.name === items[i].name && !x.hidden)
@@ -196,10 +214,14 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo } = require
       await both('نهاية القائمة');
       await shot('listend');
       await act('next');
-      check('نهاية الجولة: الحصيلتان', await audience.isVisible('.scr.show[data-s="end"]') && (await text(audience, `#r${starter}`)) === '+7' && (await text(audience, `#r${opp}`)) === '+2');
+      check('نهاية الجولة: الحصيلتان', await audience.isVisible('.scr.show[data-s="end"]') && (await text(audience, `#r${starter}`)) === '+5' && (await text(audience, `#r${opp}`)) === '+2');
       await both('نهاية الجولة');
     } else {
       // أطول محتوى: تنكشف العشرة كلها بالتناوب، ثم نهاية القائمة (أسوأ حالة للون في هذه المرحلة).
+      // ومعها فخ باسمه الأطول: الحكم الأطول في المقدّم «[أطول اسم] · −3 · فخّ المركز 11».
+      await act('next'); await pick(11);
+      check('الأطول · الفخ: خانة 11 ظاهرة باسمها، وحكم المقدّم بخصمه', (await slots())[10].name === items[10].name && (await text(presenter, '#rWho')).endsWith('· فخّ المركز 11'));
+      await both('فخ'); await shot('trap');
       for (const r of [1, 2, 3, 4, 5, 6, 8, 9, 10]) { await act('next'); await pick(r); if (r === 9) await both('تسع خانات'); }
       check('الأطول · انكشفت العشرة: «أنهِ القائمة» وحدها', (await ctl()) === 'أنهِ القائمة');
       await shot('full');

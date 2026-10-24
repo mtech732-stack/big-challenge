@@ -59,7 +59,8 @@ const leader = s => (s[1] > s[2] ? 1 : s[2] > s[1] ? 2 : 0);
 export function act(mode, round, action, timerId, now = Date.now()) {
   if (mode.finished(round.state)) return ignored(round);
   if (action === 'timeout' ? !round.timer || round.timer.id !== timerId : !mode.actions(round.state).some(a => a.id === String(action).split(':')[0])) return ignored(round);
-  const { state, events = [] } = mode.act(round.state, action);
+  // والرصيد قبل الفعل للوحدة التي تكتب حكمها بما خُصم فعلاً (فخ الترتيب).
+  const { state, events = [] } = mode.act(round.state, action, round.scores);
   if (state === round.state) return ignored(round);
   const scores = applyEvents(round.scores, events);
   const lead = leader(scores) && leader(scores) !== leader(round.scores) ? [{ type: 'moment', name: 'lead', team: leader(scores) }] : [];
