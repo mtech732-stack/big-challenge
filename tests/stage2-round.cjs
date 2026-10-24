@@ -199,9 +199,11 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await both('انتقال الإجابة');
   await stage.screenshot({ path: `${shots}/s2-steal.png` });
   await presenter.screenshot({ path: `${shots}/s2-presenter-steal.png` });
-  await wait(2700);
-  check('آخر 3 ثوانٍ: حواف الخطر', await audience.$eval('#canvas', e => e.classList.contains('meta-danger')));
-  await wait(2600);
+  // الملاحظة 28: يُنتظر ظهور حواف الخطر نفسها لا مدة ثابتة، فلا يسبقها الانقضاء إن أبطأت اللقطات.
+  const danger = await audience.waitForFunction(() => document.getElementById('canvas').classList.contains('meta-danger'), null, { timeout: 5000, polling: 100 }).then(() => true, () => false);
+  check('آخر 3 ثوانٍ: حواف الخطر', danger);
+  await audience.waitForFunction(() => document.getElementById('vtext')?.textContent.trim() === 'لا نقاط', null, { timeout: 6000, polling: 100 }).catch(() => {});
+  await wait(300);
   check('انتهى الوقت: «لا نقاط» والإجابة تحت السؤال، وحواف الخطر تختفي', (await text(audience, '#vtext')) === 'لا نقاط' && (await text(audience, '#reveal')) === `الإجابة: ${q1[1].answer}`
     && !(await audience.$eval('#canvas', e => e.classList.contains('meta-danger'))) && (await text(presenter, '#qDone')) === 'لا نقاط في هذا السؤال.');
   check('لا نقاط: الحدّ يعود إلى المنتصف (1.3)', await audience.$eval('#canvas', c => !c.classList.contains('turn-1') && !c.classList.contains('turn-2')));
