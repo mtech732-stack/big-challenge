@@ -1,6 +1,7 @@
 // اختبار آلي لـ«بعد الحكم» بقائمة قصيرة في المزاد (design/auction.md 1.5 و7.6) بالنافذتين وبالنافذة الواحدة، بالبنك الحقيقي، في الرابط العادي:
 // الحكم بلا مربع (الشارة بيضاء بنص صاحبها، والسطر على الطرف)، والقائمة القصيرة بشارات كبيرة إن اتسعت في صفين،
-// وأفريقيا (54) بالحجم المعتاد و«و N غيرها». وفحص التداخل ونافذة المقدّم في كل حالة، وصور لـ ratio.cjs.
+// وأفريقيا (54) بالحجم المعتاد و«و N غيرها». وبقاعدة 2.0: «لم يفِ» في «أركان الإيمان» (للخصم +2) ووفاء في «أولو العزم».
+// وفحص التداخل ونافذة المقدّم في كل حالة، وصور لـ ratio.cjs.
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
@@ -54,12 +55,15 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
     const shown = [...said].flatMap(i => [items[i].name, ...(items[i].alts ?? [])]).sort((a, b) => b.length - a.length);
     const body = await audience.evaluate(ns => { let t = document.querySelector('.canvas').innerText;
       for (const b of document.querySelectorAll('.cbtn')) t = t.replace(b.innerText, '');
-      t = t.replace(document.getElementById('topic').innerText, '');
+      t = t.replace(document.getElementById('topic').innerText, '').replace(document.getElementById('tsize').innerText, '');
       for (const n of ns) t = t.split(n).join(''); return t; }, [...LONG, ...shown]);
     if (/سرقة|سهل|متوسط|صعب|انسحب|في القائمة|عنصر/.test(body)) { leak = true; fails.push(`${label}: نص ممنوع على الجمهور`); }
     const unsaid = items.filter((x, i) => !said.has(i)).flatMap(x => [x.name, ...(x.alts ?? [])]);
     if (unsaid.some(n => body.includes(n))) { leak = true; fails.push(`${label}: عنصر لم يُذكر على الجمهور (${unsaid.find(n => body.includes(n))})`); }
-    if (body.includes(String(items.length))) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
+    // «في القائمة N» في المزايدة للقائمة حتى 20 وحدها (5.5، design/auction.md 2.0).
+    const tsize = await audience.evaluate(() => { const e = document.getElementById('tsize'); return e.hidden ? null : e.innerText.replace(/\s+/g, ' ').trim(); });
+    if (tsize !== (s.phase === 'bid' && items.length <= 20 ? `في القائمة ${items.length}` : null)) { leak = true; fails.push(`${label}: «في القائمة» (${tsize})`); }
+    if (body.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
   };
   const presenterCheck = async label => {
     const r = await presenter.evaluate(() => {
@@ -95,7 +99,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
 
   const round = async () => (await stored()).round;
   const ctl = () => presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim()).join(' | '));
-  const offer = async n => { for (let i = 0; i < 12 && (await text(presenter, '#aBid')) !== `زايد · ${n}`; i++) await presenter.click('[data-offer="-1"]'); };
+  // المزايدة رقماً رقماً حتى n، ثم يتوقف صاحب الدور، فيلتزم من ذكر n.
+  const bidTo = async n => { for (let k = 1; k <= n; k++) { await presenter.click('#aBid'); await wait(760); } await presenter.click('#aCtl [data-act="stop"]'); await wait(900); };
   // بعد الحكم: المربع بلا خلفية، والشارة بيضاء بنص صاحبها، والسطر ظاهر. والقائمة كبيرة أو معتادة.
   const look = () => audience.evaluate(() => {
     const box = document.getElementById('box'), chip = document.getElementById('verdict'), cs = getComputedStyle(document.documentElement);
@@ -108,7 +113,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const color = c => audience.evaluate(c => { const d = document.createElement('i'); d.style.color = c; document.body.append(d); const v = getComputedStyle(d).color; d.remove(); return v; }, c);
   const shot = async name => { await wait(400); await stage.screenshot({ path: `${shots}/${name}.png` }); };
 
-  // 1. الموضوع 1 «أركان الإيمان» (6): المفتتح يلتزم بـ 4 ولا يفي، فيكمل الآخر بـ 4 ويأخذها (حالة المدقّق، docs/audits/ش4.md رابعاً).
+  // 1. الموضوع 1 «أركان الإيمان» (6): يذكر الآخر 4 فيلتزم، ويذكر 2 ثم يتوقف، فللمفتتح نقطتان (2.0: failshort).
   await audience.waitForSelector('[data-cmd="draw"]', { timeout: 6000 });
   await sharedToFace(audience, { names: LONG, picks: ['auction', 'letter'] });
   await wait(2700);
@@ -116,47 +121,45 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 6000 });
   await audience.waitForSelector('.scr.show[data-s="intro"]', { timeout: 5000 });
   let s = await st();
-  const first = s.topics[0].opener, win = other(first);
+  const first = s.topics[0].opener, win = first;
   check('المواضيع: أركان الإيمان ثم أولو العزم ثم أفريقيا', s.topics.map(t => t.topic).join('،') === keep.join('،'));
   await presenter.click('#showQ');
   await audience.waitForSelector('.scr.show[data-s="auc"]');
   await wait(800);
-  await offer(4); await presenter.click('#aBid'); await wait(800);
-  await presenter.click('#aPass'); await wait(900);
-  await presenter.click('#aCtl [data-act="stop"]'); await wait(1000);
-  for (const i of [0, 1, 2, 3]) { await tap(i); await wait(100); }
-  await wait(1400);
+  await bidTo(4);
+  check(`أركان الإيمان: الفريق ${other(first)} ملتزم بـ 4`, (await st()).commit.team === other(first) && (await st()).commit.n === 4);
+  await presenter.click('#aCtl [data-act="start"]'); await wait(900);
+  await tap(0); await wait(100); await tap(1); await wait(700);
+  await presenter.click('#aCtl [data-act="stop"]'); await wait(1600);
   let l = await look();
-  check(`أركان الإيمان: أكمل الفريق ${win} بـ 4 فأخذها (${await ctl()})`, (await st()).phase === 'decided' && (await round()).scores[win] === 4 && (await round()).scores[first] === 0);
-  check(`الحكم بلا مربع: الشارة والسطر «ذُكر 4 من 4» ظاهران، وخلفية المربع مخفية (${l.bg})`, l.bare && l.bg === 'none' && l.shown && l.told === 'ذُكر 4 من 4');
+  check(`أركان الإيمان: لم يفِ، فللفريق ${win} نقطتان (${await ctl()})`, (await st()).phase === 'decided' && (await round()).scores[win] === 2 && (await round()).scores[other(win)] === 0);
+  check(`الحكم بلا مربع: الشارة والسطر «ذُكر 2 من 4» ظاهران، وخلفية المربع مخفية (${l.bg})`, l.bare && l.bg === 'none' && l.shown && l.told === 'ذُكر 2 من 4');
   check(`الشارة بيضاء (${l.chipBg})`, l.chipBg === await color('var(--card)'));
   check(`نص الشارة بلون صاحبها: ${win === 1 ? 'الأول بلونه' : 'الثاني بالحبر'} (${l.chipInk})`, win === 1 ? l.chipInk === await color('var(--team-1)') : l.chipInk === await color('var(--ink)'));
   check(`القائمة القصيرة (6) بشارات كبيرة 88 في صفين على الأكثر (${l.h}، ${l.rows} صف)`, l.big && l.h === 88 && l.rows <= 2 && l.n === 6 && !l.more);
-  await both('أركان الإيمان · بعد الحكم');
-  await shot(`s4-short-iman-t${win}`);
+  await both('أركان الإيمان · لم يفِ');
+  await shot(`s4-short-iman-fail-t${win}`);
 
-  // 2. الموضوع 2 «أولو العزم» (5): يفتتحه الآخر ويلتزم بـ 2 ويفي (حالة المدقّق).
+  // 2. الموضوع 2 «أولو العزم» (5): يفتتحه الآخر، ويذكر المفتتح الأول 2 فيلتزم ويفي (2.0: wonshort).
   await presenter.click('#aCtl [data-act="next"]'); await wait(1200);
-  await offer(2); await presenter.click('#aBid'); await wait(800);
-  await presenter.click('#aPass'); await wait(900);
+  await bidTo(2);
   await presenter.click('#aCtl [data-act="start"]'); await wait(900);
   await tap(0); await wait(100); await tap(1); await wait(1500);
   l = await look();
-  check(`أولو العزم: وفى الفريق ${win} بـ 2`, (await st()).phase === 'decided' && (await round()).scores[win] === 6);
+  check(`أولو العزم: وفى الفريق ${win} بـ 2 (رصيده 4)`, (await st()).phase === 'decided' && (await round()).scores[win] === 4);
   check(`أولو العزم: الحكم بلا مربع، والقائمة (5) كبيرة (${l.h}، ${l.rows} صف)`, l.bare && l.bg === 'none' && l.big && l.h === 88 && l.rows <= 2 && l.n === 5);
   await both('أولو العزم · بعد الحكم');
   await shot(`s4-short-ulul-t${win}`);
 
-  // 3. الموضوع 3 «أفريقيا» (54): يفي مفتتحه بـ 2، والقائمة بالحجم المعتاد و«و N غيرها».
+  // 3. الموضوع 3 «أفريقيا» (54): يذكر الآخر 2 فيلتزم ويفي، والقائمة بالحجم المعتاد و«و N غيرها».
   await presenter.click('#aCtl [data-act="next"]'); await wait(1200);
-  await offer(2); await presenter.click('#aBid'); await wait(800);
-  await presenter.click('#aPass'); await wait(900);
+  await bidTo(2);
   await presenter.click('#aCtl [data-act="start"]'); await wait(900);
   await tap(0); await wait(100); await tap(1); await wait(1500);
   l = await look();
   check(`أفريقيا: الحكم بلا مربع، والقائمة بالحجم المعتاد 44 و«و N غيرها» (${l.h}، ${l.rows} صفوف)`, l.bare && l.bg === 'none' && !l.big && l.h === 44 && l.more && l.rows <= 4);
   await both('أفريقيا · بعد الحكم');
-  await shot(`s4-long-africa-t${first}`);
+  await shot(`s4-long-africa-t${other(first)}`);
 
   // 4. «إنهاء الجولة» ثم التراجع عنه.
   await presenter.click('#aCtl [data-act="next"]'); await wait(1200);
@@ -174,7 +177,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   l = await look();
   check('النافذة الواحدة · أفريقيا: بلا مربع وبالحجم المعتاد', l.bare && !l.big && l.more);
   await both('نافذة واحدة · أفريقيا');
-  await shot(`s4-single-africa-t${first}`);
+  await shot(`s4-single-africa-t${other(first)}`);
   for (let i = 0; i < 12 && !((await st()).index === 1 && (await st()).phase === 'decided'); i++) { await cmd(audience, 'undo'); await wait(800); }
   await wait(800);
   l = await look();

@@ -52,6 +52,7 @@
         <div class="scr auc" data-s="auc" id="auc">
           <div class="ahead">
             <p class="topic" id="topic" data-fit="الموضوع"></p>
+            <p class="size" id="tsize" hidden></p>
             <p class="tally" id="tally" data-fit="العدّ" hidden><b class="n" id="tn"></b><span class="of">من <b class="ltr" id="tof"></b></span></p>
             <!-- بعد الحكم: «الموضوع التالي» هنا في النافذة الواحدة، لا في صف الشارات (design/auction.md 4) -->
             <div class="ctl" id="aucCtl"></div>
@@ -411,6 +412,9 @@
   // ===== المزاد (design/auction.md 2): الموضوع، وكل رقم شارة بلون صاحبه والأحدث أكبرها، ومن الالتزام العدّ =====
   function renderAuction(a) {
     $('topic').textContent = a.topic;
+    // في المزايدة: «في القائمة 12» للقائمة حتى 20 وحدها (الوثيقة 5.5، design/auction.md 2.1).
+    $('tsize').hidden = !a.size;
+    $('tsize').innerHTML = a.size ? `في القائمة <span class="ltr">${a.size}</span>` : '';
     const bids = a.phase === 'bid' ? a.bids : [];
     $('bids').innerHTML = bids.map((b, i) => `<span class="bid t${b.team}${i === bids.length - 1 ? ' top' : ''}"><i></i><span>${num(b.n)}</span></span>`).join('');
     dropOld($('bids'), '.bid');
@@ -556,7 +560,7 @@
     const key = `${p.n}/${a.screen}/${a.n ?? ''}`;
     const changed = key !== shownKey;
     shownKey = key;
-    for (const m of moments) if (m.name === 'right') sound('right'); else if (m.name === 'steal' && m.reason === 'wrong') sound('wrong');
+    for (const m of moments) if (m.name === 'right') sound('right'); else if ((m.name === 'steal' || m.name === 'fail') && m.reason === 'wrong') sound('wrong');
     if (still() || (!moments.length && !changed)) return;
     canvas.classList.remove('anim'); void canvas.offsetWidth; canvas.classList.add('anim');
     for (const m of moments) {
@@ -567,6 +571,12 @@
         // جهة الكاسب تومض: الحدّ عنده غالباً من قبل، فلا تكفي ومضة الوصول.
         replay($('stagebg').querySelector('.f' + w), 'blink');
         later(250, () => { setScore(w, to); bump(w); moment(w, 'gain'); });
+      }
+      // المزاد، لم يفِ الملتزم (design/auction.md 2.5، 2.0): البطاقة تهتز، ثم يكتسح الحدّ إلى الخصم ويزيد رقمه بنقطتيه.
+      if (m.name === 'fail' && prev) {
+        const w = m.team, to = p.scores[w];
+        setScore(w, prev.scores[w]); replay($('cardWrap'), 'shake'); setTurn(0);
+        later(240, () => { replay($('shine'), 'go'); setTurn(w); setScore(w, to); bump(w); moment(w, 'gain'); });
       }
       if (m.name === 'lead') later(700, () => { moment(m.team, 'lead'); moment(other(m.team), 'lose'); });
       if (m.name === 'steal') {
