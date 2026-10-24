@@ -1,7 +1,7 @@
 // اختبار آلي لمرحلة «الوفاء والعدّ» في المزاد (ش4، design/auction.md) بالنافذتين وبالنافذة الواحدة، في الرابط العادي:
 // الملتزم قبل «ابدأ» وبعده، ونقر عناصر القائمة في نافذة المقدّم (+1 بلون الملتزم، لا مكرر، ونقرات متتابعة تُحسب كلها)،
 // وما ذُكر على الجمهور وسقوط أقدمه، والعدّاد يبقى يعدّ، والتراجع، والحكم التلقائي عند بلوغ العدد (النقاط، والقائمة كلها، و«ذُكر N من N»)،
-// وإعادة التحميل، و«صحيح · +1» و«توقّف» في النافذة الواحدة (وإكمال الخصم في stage4-auction-complete.cjs)، ولا عنصر لم يُذكر على الجمهور قبل الحكم، وفحص التداخل ونافذة المقدّم.
+// وإعادة التحميل، و«صحيح · +1» و«توقّف» في النافذة الواحدة (و«لم يفِ» في stage4-auction-fail.cjs)، ولا عنصر لم يُذكر على الجمهور قبل الحكم، وفحص التداخل ونافذة المقدّم.
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
@@ -56,12 +56,15 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
     const shown = [...said].flatMap(i => [items[i].name, ...(items[i].alts ?? [])]).sort((a, b) => b.length - a.length);
     const body = await audience.evaluate(ns => { let t = document.querySelector('.canvas').innerText;
       for (const b of document.querySelectorAll('.cbtn')) t = t.replace(b.innerText, '');
-      t = t.replace(document.getElementById('topic').innerText, '');
+      t = t.replace(document.getElementById('topic').innerText, '').replace(document.getElementById('tsize').innerText, '');
       for (const n of ns) t = t.split(n).join(''); return t; }, [...LONG, ...shown]);
     if (/سرقة|سهل|متوسط|صعب|انسحب|في القائمة|عنصر/.test(body)) { leak = true; fails.push(`${label}: نص ممنوع على الجمهور`); }
     const unsaid = items.filter((x, i) => !said.has(i)).flatMap(x => [x.name, ...(x.alts ?? [])]);
     if (unsaid.some(n => body.includes(n))) { leak = true; fails.push(`${label}: عنصر لم يُذكر على الجمهور (${unsaid.find(n => body.includes(n))})`); }
-    if (body.includes(String(items.length))) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
+    // «في القائمة N» في المزايدة للقائمة حتى 20 وحدها (5.5، design/auction.md 2.0).
+    const tsize = await audience.evaluate(() => { const e = document.getElementById('tsize'); return e.hidden ? null : e.innerText.replace(/\s+/g, ' ').trim(); });
+    if (tsize !== (s.phase === 'bid' && items.length <= 20 ? `في القائمة ${items.length}` : null)) { leak = true; fails.push(`${label}: «في القائمة» (${tsize})`); }
+    if (body.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
   };
   const presenterCheck = async label => {
     const r = await presenter.evaluate(() => {
@@ -94,20 +97,19 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const at = async i => presenter.$eval(`#aRef button[data-i="${i}"]`, e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
   const tap = async i => { const p = await at(i); await presenter.mouse.click(p.x, p.y); };
 
-  // 1. إلى الالتزام: المفتتح يزايد بـ 30، وخصمه ينسحب.
+  // 1. إلى الالتزام رقماً رقماً: يذكر الخصم 30، ويتوقف المفتتح، فيلتزم الخصم بـ 30 (القائمة 54، فلا «العدد كاملاً»).
   await audience.waitForSelector('[data-cmd="draw"]', { timeout: 6000 });
   await sharedToFace(audience, { names: LONG, picks: ['auction', 'letter'] });
   await wait(2700);
   presenter = await beginTwo(context, audience);
   await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 6000 });
   await audience.waitForSelector('.scr.show[data-s="intro"]', { timeout: 5000 });
-  const opener = (await st()).topics[0].opener;
+  const starter = (await st()).topics[0].opener, opener = starter === 1 ? 2 : 1;
   await presenter.click('#showQ');
   await audience.waitForSelector('.scr.show[data-s="auc"]');
   await wait(800);
-  for (let i = 5; i < N; i++) await presenter.click('[data-offer="1"]');
-  await presenter.click('#aBid'); await wait(800);
-  await presenter.click('#aPass'); await wait(900);
+  for (let n = 1; n <= N; n++) { await presenter.click('#aBid'); await wait(760); }
+  await presenter.click('#aCtl [data-act="stop"]'); await wait(900);
   let s = await st();
   check(`الالتزام: ${LONG[opener - 1]} بـ ${N}`, s.phase === 'ready' && s.commit.team === opener && s.commit.n === N);
 
@@ -210,8 +212,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await stage.screenshot({ path: `${shots}/s4-single-fulfil.png` });
   await cmd(audience, 'act:stop'); await wait(900);
   s = await st();
-  check(`«توقّف»: لم يفِ، فالدور للخصم (إكمال الخصم، stage4-auction-complete) بـ «صحيح · +1» · «توقّف» (${await near()})`, s.phase === 'complete' && (await near()) === 'صحيح · +1 | توقّف');
-  await both('نافذة واحدة · إكمال الخصم');
+  check(`«توقّف»: لم يفِ، فللخصم نقطتان، و«الموضوع التالي» في البطاقة (stage4-auction-fail)`, s.phase === 'decided' && s.results[0].team === other(opener) && s.results[0].points === 2 && !(await near()));
+  await both('نافذة واحدة · لم يفِ');
   await cmd(audience, 'undo'); await wait(900);
   await cmd(audience, 'act:count'); await wait(1200);
   s = await st();

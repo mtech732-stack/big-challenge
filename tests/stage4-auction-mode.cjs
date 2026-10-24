@@ -1,4 +1,5 @@
-// اختبار آلي لوحدة «المزاد» (js/modes/auction.js) في مرحلة «المزايدة»، دون متصفح.
+// اختبار آلي لوحدة «المزاد» (js/modes/auction.js) بقاعدة المالك المصحّحة (5.5، design/auction.md 2.0)، دون متصفح:
+// المزايدة رقماً رقماً من 1، و«العدد كاملاً» والإقفال للقائمة حتى 20، والإقفال بطول القائمة فوقها، و+2 للخصم إن لم يفِ الملتزم.
 const fs = require('fs');
 const path = require('path');
 const { reporter } = require('./helpers.cjs');
@@ -6,7 +7,7 @@ const { reporter } = require('./helpers.cjs');
 (async () => {
   const root = path.join(__dirname, '..');
   const auction = (await import(path.join(root, 'js/modes/auction.js'))).default;
-  const { OPEN_OFFER, MAX_BID, FULFIL_SECONDS, COMPLETE_SECONDS } = await import(path.join(root, 'js/modes/auction.js'));
+  const { FULFIL_SECONDS, FAIL_POINTS, SHOW_SIZE } = await import(path.join(root, 'js/modes/auction.js'));
   const { checkMode } = await import(path.join(root, 'js/modes/contract.js'));
   const { MODES, DRAFTS, matchModes, pickableModes } = await import(path.join(root, 'js/modes/index.js'));
   const R = await import(path.join(root, 'js/round.js'));
@@ -16,6 +17,10 @@ const { reporter } = require('./helpers.cjs');
   const read = f => JSON.parse(fs.readFileSync(path.join(root, 'content/packs/general', f), 'utf8'));
   const bank = read('auction.json');
   const content = { 'letter.json': read('letter.json'), 'last-two.json': read('last-two.json'), 'auction.json': bank };
+  // بنك ثابت لما بعد الإعداد: «أركان الإيمان» (6، سهل) و«أولو العزم» (5، متوسط) و«دول قارة أفريقيا» (54، صعب).
+  const pick3 = ['أركان الإيمان', 'أولو العزم', 'دول قارة أفريقيا'];
+  const small = { ...bank, topics: bank.topics.filter(t => pick3.includes(t.topic)) };
+  const fixed = { ...content, 'auction.json': small };
   let seed = 11;
   const rng = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const ids = list => list.map(a => a.id).join(',');
@@ -39,89 +44,113 @@ const { reporter } = require('./helpers.cjs');
   check('used: المواضيع الثلاثة', auction.used(s0).length === 3);
 
   // الافتتاح.
-  const start = first => R.startRound(auction, { content, scores: { 1: 0, 2: 0 }, first, rng });
+  const start = first => R.startRound(auction, { content: fixed, scores: { 1: 0, 2: 0 }, first, rng });
   let r = start(1);
   let a = auction.audience(r.state);
-  check('الافتتاح: سطر القاعدة و«يفتتح المزايدة» للمفتتح', a.screen === 'intro' && a.rule === 'زايدوا على ما تقدرون على ذكره، ثم أوفوا' && a.starter === 'يفتتح المزايدة' && a.turn === 1);
+  check('الافتتاح: «زايدوا رقماً رقماً، ثم أوفوا» و«يفتتح المزايدة» للمفتتح', a.screen === 'intro' && a.rule === 'زايدوا رقماً رقماً، ثم أوفوا' && a.starter === 'يفتتح المزايدة' && a.turn === 1);
   check('الافتتاح: «اعرض الموضوع 1»', ids(auction.actions(r.state)) === 'show' && auction.actions(r.state)[0].label === 'اعرض الموضوع 1');
+  check('البنك الثابت: 6 ثم 5 ثم 54', r.state.topics.map(t => t.items.length).join(',') === '6,5,54');
 
-  // المزايدة.
+  // المزايدة رقماً رقماً (القائمة 6، حتى 20).
   r = R.act(auction, r, 'show');
   a = auction.audience(r.state);
   const t0 = r.state.topics[0];
-  check('الموضوع: نصه، والدور للمفتتح، ولا رقم بعد', a.screen === 'topic' && a.phase === 'bid' && a.topic === t0.topic && a.turn === 1 && a.bids.length === 0);
+  check('الموضوع: نصه، والدور للمفتتح، ولا رقم بعد، و«في القائمة 6»', a.screen === 'topic' && a.phase === 'bid' && a.topic === t0.topic && a.turn === 1 && a.bids.length === 0 && a.size === 6);
   check('لا عدّ قبل الالتزام', a.tally === null);
   let acts = auction.actions(r.state);
-  check(`الافتتاح: «زايد» وحده (لا انسحاب)، يقترح ${OPEN_OFFER} وأقله 1`, ids(acts) === 'bid' && acts[0].offer === OPEN_OFFER && acts[0].min === 1 && acts[0].max === MAX_BID);
-  check('«انسحب» في الافتتاح يُهمل', R.act(auction, r, 'pass').state === r.state);
-  check('رقم 0 أو كسر أو فوق الحد يُهمل', ['bid:0', 'bid:2.5', 'bid:abc', `bid:${MAX_BID + 1}`].every(x => R.act(auction, r, x).state === r.state));
-  r = R.act(auction, r, 'bid:5');
+  check('الافتتاح: «زايد · 1» و«العدد كاملاً · 6»، ولا «توقّف»', ids(acts) === 'bid,full' && acts[0].label === 'زايد · 1' && acts[0].n === 1 && acts[1].label === 'العدد كاملاً · 6' && acts[1].short === 'كاملاً · 6');
+  check('«توقّف» في الدور الأول للمفتتح يُهمل', R.act(auction, r, 'stop').state === r.state);
+  check('رقم غير التالي يُهمل: 0 و2 و5 وكسر ونص', ['bid:0', 'bid:2', 'bid:5', 'bid:1.5', 'bid:abc', 'bid'].every(x => R.act(auction, r, x).state === r.state));
+  r = R.act(auction, r, 'bid:1');
   a = auction.audience(r.state);
-  check('زايد الأول بـ 5: يُسجَّل بلونه، والدور للثاني', a.bids.length === 1 && a.bids[0].team === 1 && a.bids[0].n === 5 && a.turn === 2);
+  check('زايد الأول بـ 1: يُسجَّل بلونه، والدور (والحدّ) للثاني', a.bids.length === 1 && a.bids[0].team === 1 && a.bids[0].n === 1 && a.turn === 2);
   check('لحظة «bid» للرقم الجديد', r.events.some(e => e.type === 'moment' && e.name === 'bid' && e.team === 1));
   acts = auction.actions(r.state);
-  check('بعده: «زايد» يبدأ بـ 6 ولا ينزل تحته، و«انسحب»', ids(acts) === 'bid,pass' && acts[0].min === 6 && acts[0].offer === 6);
-  check('رقم لا يزيد على أعلى رقم يُهمل', R.act(auction, r, 'bid:5').state === r.state && R.act(auction, r, 'bid:4').state === r.state);
-  r = R.act(auction, r, 'bid:7');
-  r = R.act(auction, r, 'bid:9');
+  check('بعده: «زايد · 2» و«العدد كاملاً · 6» و«توقّف»', ids(acts) === 'bid,full,stop' && acts[0].label === 'زايد · 2');
+  check('نقرة متأخرة بالرقم السابق (bid:1) تُهمل، وقفزة (bid:4) تُهمل', R.act(auction, r, 'bid:1').state === r.state && R.act(auction, r, 'bid:4').state === r.state);
+  r = R.act(auction, r, 'bid:2');
+  r = R.act(auction, r, 'bid:3');
   a = auction.audience(r.state);
-  check('ثلاثة أرقام بأصحابها بالتناوب: 5 ثم 7 ثم 9', a.bids.map(b => `${b.team}:${b.n}`).join(',') === '1:5,2:7,1:9' && a.turn === 2);
+  check('ثلاثة أرقام بالتناوب: 1 ثم 2 ثم 3، والدور للثاني', a.bids.map(b => `${b.team}:${b.n}`).join(',') === '1:1,2:2,1:3' && a.turn === 2);
   check('النقاط لا تتغير في المزايدة', r.scores[1] === 0 && r.scores[2] === 0);
-
-  // التراجع يعيد الرقم السابق والدور.
   const back = R.undo(r);
   check('التراجع: يعود آخر رقم ويعود الدور', auction.audience(back.state).bids.length === 2 && auction.audience(back.state).turn === 1);
 
-  // الانسحاب: يلتزم صاحب أعلى رقم.
-  r = R.act(auction, r, 'pass');
-  a = auction.audience(r.state);
-  check('انسحب الثاني: الأول ملتزم بـ 9، والدور له', a.phase === 'ready' && a.commit.team === 1 && a.commit.n === 9 && a.turn === 1);
-  check('العدّ «0 من 9» بلون الملتزم، والعدّاد ثابت 60', a.tally.n === 0 && a.tally.of === 9 && a.tally.team === 1 && a.clock === FULFIL_SECONDS);
-  check('لا عدّاد يبدأ مع الالتزام (يبدأ بـ «ابدأ»)', r.timer === null);
-  check('لا أزرار مزايدة بعد الالتزام', !auction.actions(r.state).some(x => x.id === 'bid' || x.id === 'pass'));
+  // التوقف: يلتزم الخصم بآخر رقم ذكره.
+  let rs = R.act(auction, r, 'stop');
+  a = auction.audience(rs.state);
+  check('توقّف الثاني: الأول ملتزم بـ 3، والدور له، ولا «في القائمة»', a.phase === 'ready' && a.commit.team === 1 && a.commit.n === 3 && a.turn === 1 && a.size === undefined);
+  check('العدّ «0 من 3» بلون الملتزم، والعدّاد ثابت 60', a.tally.n === 0 && a.tally.of === 3 && a.tally.team === 1 && a.clock === FULFIL_SECONDS && FULFIL_SECONDS === 60);
+  check('لا عدّاد يبدأ مع الالتزام (يبدأ بـ «ابدأ»)', rs.timer === null);
+  check('لا أزرار مزايدة بعد الالتزام', !auction.actions(rs.state).some(x => x.id === 'bid' || x.id === 'full'));
 
-  // الثاني يفتتح والأول ينسحب.
-  let r2 = R.act(auction, start(2), 'show');
-  r2 = R.act(auction, r2, 'bid:12');
-  r2 = R.act(auction, r2, 'pass');
-  check('افتتح الثاني بـ 12 وانسحب الأول: الثاني ملتزم بـ 12', auction.audience(r2.state).commit.team === 2 && auction.audience(r2.state).commit.n === 12);
-  // أعلى رقم ممكن: لا «زايد» بعده، والانسحاب وحده.
-  let r3 = R.act(auction, R.act(auction, start(1), 'show'), `bid:${MAX_BID}`);
-  check(`بعد ${MAX_BID}: «انسحب» وحده`, ids(auction.actions(r3.state)) === 'pass');
+  // «العدد كاملاً»: من المفتتح في دوره الأول، ومن الخصم في دوره.
+  let rf = R.act(auction, R.act(auction, start(2), 'show'), 'full');
+  a = auction.audience(rf.state);
+  check('«العدد كاملاً» من المفتتح (الثاني): يُقفل المزاد له بـ 6', a.phase === 'ready' && a.commit.team === 2 && a.commit.n === 6 && a.bids.length === 1 && a.bids[0].n === 6 && a.bids[0].full && a.turn === 2);
+  rf = R.act(auction, R.act(auction, R.act(auction, start(1), 'show'), 'bid:1'), 'full');
+  check('«العدد كاملاً» من الخصم في دوره: يُقفل له', auction.audience(rf.state).commit.team === 2 && auction.audience(rf.state).commit.n === 6);
+  // الإقفال التلقائي: بلغت المزايدة العدد.
+  let ra = R.act(auction, start(1), 'show');
+  for (let n = 1; n <= 5; n++) ra = R.act(auction, ra, `bid:${n}`);
+  check('بعد 5 من 6: «زايد · 6» ما زال', auction.actions(ra.state)[0].label === 'زايد · 6' && ra.state.phase === 'bid');
+  ra = R.act(auction, ra, 'bid:6');
+  check('بلغت المزايدة 6 من 6 (الثاني): أُقفل المزاد له تلقائياً', ra.state.phase === 'ready' && ra.state.commit.team === 2 && ra.state.commit.n === 6);
 
-  // لا القائمة ولا طولها ولا عناصرها في أي حالة من حالات الجمهور.
+  // القائمة فوق 20 (أفريقيا 54): العدد مخفي، ولا «العدد كاملاً»، والإقفال بطولها.
+  let rh = R.act(auction, start(1), 'show');
+  rh = { ...rh, state: { ...rh.state, index: 2, team: 1 } };
+  acts = auction.actions(rh.state);
+  check('فوق 20: «زايد · 1» وحده في الافتتاح، ولا عدد للجمهور', ids(acts) === 'bid' && auction.audience(rh.state).size === undefined && !JSON.stringify(auction.audience(rh.state)).includes('54'));
+  check('فوق 20: «العدد كاملاً» يُهمل', R.act(auction, rh, 'full').state === rh.state);
+  check('المقدّم يرى الطول دائماً (54)، وshown خطأ', auction.presenter(rh.state).size === 54 && auction.presenter(rh.state).shown === false && auction.presenter(r.state).shown === true);
+  for (let n = 1; n <= 53; n++) rh = R.act(auction, rh, `bid:${n}`);
+  check('فوق 20 بعد 53: «زايد · 54» و«توقّف»', ids(auction.actions(rh.state)) === 'bid,stop' && auction.actions(rh.state)[0].n === 54);
+  rh = R.act(auction, rh, 'bid:54');
+  check('بلغ الرقم طول القائمة (54): أُقفل المزاد تلقائياً', rh.state.phase === 'ready' && rh.state.commit.n === 54);
+
+  // لا القائمة ولا عناصرها في أي حالة من حالات الجمهور، ولا طولها إلا «في القائمة» للقائمة حتى 20 في المزايدة.
   const leaks = [];
   let rr = start(1);
   const states = [rr];
-  for (const x of ['show', 'bid:3', 'bid:4', 'bid:8', 'pass']) { rr = R.act(auction, rr, x); states.push(rr); }
+  for (const x of ['show', 'bid:1', 'bid:2', 'bid:3', 'stop', 'start', 'item:0']) { rr = R.act(auction, rr, x); states.push(rr); }
   for (const s of states) {
-    const text = JSON.stringify(auction.audience(s.state));
+    const au = auction.audience(s.state);
+    const text = JSON.stringify(au);
     const t = s.state.topics[s.state.index];
-    if (/"items"|"size"|"level"|"alts"|"note"/.test(text)) leaks.push('حقل');
-    if (t.items.some(i => text.includes(`"${i.name}"`))) leaks.push('عنصر');
-    if (text.includes(`"of":${t.items.length}`) && s.state.commit?.n !== t.items.length) leaks.push('طول');
+    if (/"items"|"level"|"alts"|"note"/.test(text)) leaks.push('حقل');
+    if ('size' in au && au.size !== undefined && !(s.state.phase === 'bid' && t.items.length <= SHOW_SIZE)) leaks.push('طول');
+    const said = new Set((s.state.said ?? []).map(x => x.i));
+    if (t.items.some((i, k) => !said.has(k) && text.includes(`"${i.name}"`))) leaks.push('عنصر');
   }
-  check(`لا قائمة ولا طولها ولا مستوى على الجمهور (${leaks.join(',') || 'سليم'})`, leaks.length === 0);
+  check(`لا قائمة ولا عنصر لم يُذكر ولا مستوى على الجمهور، والطول في المزايدة وحدها (${leaks.join(',') || 'سليم'})`, leaks.length === 0);
   const pr = auction.presenter(states[3].state);
   check('المقدّم: القائمة المرجعية بصيغها، وطولها، والمستوى', pr.items.length === states[3].state.topics[0].items.length && pr.size === pr.items.length && pr.level === 'easy');
   check('مسار المواضيع للمقدّم: ثلاثة بأصحاب الافتتاح، والأول الآن', pr.track.map(x => x.owner).join(',') === '1,2,1' && pr.track[0].now && pr.track.every(x => x.result === null));
 
-  // تتابع المباراة: المزاد يبدأ جولته في الرابط العادي وفي المعاينة.
+  // تتابع المباراة: المزاد يبدأ جولته في الرابط العادي.
   const match = { ...M.newMatch({ pack: 'general', method: 'short' }), teams: { 1: 'أ', 2: 'ب' }, step: 'face', winner: 1,
     picks: [{ mode: 'auction', by: 1 }, { mode: 'letter', by: 2 }] };
   check('رابط عادي: جولة المزاد تبدأ', P.nextKind(match, MODES) === 'start');
   const all = [...MODES, ...DRAFTS];
-  check('رابط المعاينة: جولة المزاد تبدأ', P.nextKind(match, all) === 'start');
   const m1 = P.startNext(match, { modes: all, content, rng });
   check('بدأت جولة المزاد بالافتتاح', m1.round.mode === 'auction' && auction.audience(m1.round.state).screen === 'intro');
-  const m2 = P.act(P.act(m1, all, 'show'), all, 'bid:6');
-  check('أفعال المزايدة تمرّ بالمشغّل: «bid:6»', auction.audience(m2.round.state).bids[0].n === 6);
+  const m2 = P.act(P.act(m1, all, 'show'), all, 'bid:1');
+  check('أفعال المزايدة تمرّ بالمشغّل: «bid:1»', auction.audience(m2.round.state).bids[0].n === 1);
+  check('والمشغّل يهمل «bid:3» في دور الثاني', P.act(m2, all, 'bid:3').round.state === m2.round.state);
 
   // الوفاء والعدّ (5.5): للملتزم 60 ثانية، وكل عنصر يذكره +1، فإن بلغ ما التزم به أخذ نقاطه.
-  const commitAt = (n, first = 1) => { let x = R.act(auction, start(first), 'show'); x = R.act(auction, x, `bid:${n}`); return R.act(auction, x, 'pass'); };
+  // commitAt(n, first): المفتتح يزايد حتى يذكر n (بالتناوب)، ثم يتوقف الآخر.
+  const commitAt = (n, first = 1, topic = 0) => {
+    let x = R.act(auction, start(first), 'show');
+    if (topic) x = { ...x, state: { ...x.state, index: topic, team: first } };
+    // يبدأ المفتتح بـ 1، والأرقام بالتناوب: إن كان n زوجياً ذكره الخصم، فيلتزم الخصم.
+    for (let k = 1; k <= n; k++) x = R.act(auction, x, `bid:${k}`);
+    return R.act(auction, x, 'stop');
+  };
   let f = commitAt(3);
   const ft = f.state.topics[0];
-  check('الملتزم قبل «ابدأ»: «ابدأ العدّاد» والعدّ و«توقّف · لم يفِ»', ids(auction.actions(f.state)) === 'start,item,count,stop');
+  check('الملتزم قبل «ابدأ»: «ابدأ العدّاد» والعدّ و«توقّف · لم يفِ»', ids(auction.actions(f.state)) === 'start,item,count,stop' && f.state.commit.team === 1 && f.state.commit.n === 3);
   f = R.act(auction, f, 'start');
   check(`«ابدأ»: عدّاد ${FULFIL_SECONDS} ثانية`, f.state.phase === 'fulfil' && f.timer?.seconds === FULFIL_SECONDS && f.events.some(e => e.type === 'timer' && e.seconds === FULFIL_SECONDS));
   const timerId = f.timer.id;
@@ -143,11 +172,11 @@ const { reporter } = require('./helpers.cjs');
   a = auction.audience(f.state);
   check('بلغ العدّ 3 من 3: يُحكم تلقائياً، +3 للملتزم، ولحظة «صحيحة»', f.state.phase === 'decided' && f.scores[1] === 3 && f.scores[2] === 0 && a.verdict.team === 1 && a.verdict.points === 3 && f.events.some(e => e.name === 'right'));
   check('يقف العدّاد مع الحكم', f.timer === null && f.events.some(e => e.type === 'stop-timer'));
-  check('بعد الحكم: القائمة كلها، كل عنصر بمن ذكره (2 و0 للأول، والباقي 0)', a.list.length === ft.items.length && a.list[2].by === 1 && a.list[0].by === 1 && a.list.filter(x => x.by).length === 2);
+  check('بعد الحكم: القائمة كلها، كل عنصر بمن ذكره', a.list.length === ft.items.length && a.list[2].by === 1 && a.list[0].by === 1 && a.list.filter(x => x.by).length === 2);
   check('بعد الحكم: الحدّ عند من أخذ النقاط، ولا أزرار عدّ', a.turn === 1 && !auction.actions(f.state).some(x => x.id === 'item' || x.id === 'count'));
   check('مسار المواضيع: الموضوع الأول للأول', auction.presenter(f.state).track[0].result === 1);
 
-  // التراجع عن الحكم أو عن «توقّف» يعيد الوفاء بما بقي من الوقت لا بوقته كاملاً (تقرير المعاين ش4، الوفاء والعدّ).
+  // التراجع عن الحكم يعيد الوفاء بما بقي من الوقت لا بوقته كاملاً.
   const T = 1_000_000;
   let h = R.act(auction, commitAt(2), 'start', undefined, T);
   h = R.act(auction, h, 'item:0', undefined, T + 5000);
@@ -156,67 +185,55 @@ const { reporter } = require('./helpers.cjs');
   check('التراجع عن الحكم بعد 10 ثوانٍ: يعود الوفاء بـ 50 ثانية', hu.state.phase === 'fulfil' && Math.round(hu.timer.seconds) === 50 && hu.events.some(e => e.type === 'timer' && Math.round(e.seconds) === 50));
   const hu2 = R.undo(hu, T + 25000);
   check('ثم التراجع عن عنصر: العدّاد نفسه يبقى (لا وقت زائد)', hu2.timer.id === hu.timer.id && hu2.events.length === 0 && auction.audience(hu2.state).tally.n === 0);
-  const hs = R.undo(R.act(auction, h, 'stop', undefined, T + 8000), T + 30000);
-  check('التراجع عن «توقّف» بعد 8 ثوانٍ: يعود الوفاء بـ 52 ثانية', hs.state.phase === 'fulfil' && Math.round(hs.timer.seconds) === 52);
   check('التراجع عن «ابدأ»: لا عدّاد', R.undo(R.act(auction, commitAt(2), 'start', undefined, T), T + 3000).timer === null);
 
-  // لم يفِ («توقّف» أو انتهى الوقت): إكمال الخصم في 15 ثانية، من حيث وقف العدّ، دون تكرار (5.5).
-  let g = R.act(auction, commitAt(5, 2), 'start', undefined, T);
+  // لم يفِ («توقّف» أو انتهى الوقت): الخصم يأخذ نقطتين ثابتتين، ولا إكمال (5.5، المالك).
+  let g = commitAt(5, 2);
+  check('المفتتح الثاني ذكر 5 وتوقف الأول: الثاني ملتزم بـ 5', g.state.commit.team === 2 && g.state.commit.n === 5);
+  g = R.act(auction, g, 'start', undefined, T);
   g = R.act(auction, g, 'item:1', undefined, T + 1000);
   g = R.act(auction, g, 'item:2', undefined, T + 2000);
   const gs = R.act(auction, g, 'stop', undefined, T + 20000);
   a = auction.audience(gs.state);
-  check(`«توقّف · لم يفِ»: الدور للخصم بعدّاد ${COMPLETE_SECONDS} ثانية، والعدّ «2 من 5» كما هو`, gs.state.phase === 'complete' && a.turn === 1 && gs.timer?.seconds === COMPLETE_SECONDS
-    && a.tally.n === 2 && a.tally.of === 5 && a.clock === COMPLETE_SECONDS);
-  check('لحظة الانتقال: «steal» للخصم، والبطاقة تهتز', gs.events.some(e => e.name === 'steal' && e.team === 1 && e.shake));
-  check('إكمال الخصم: «صحيح · +1» و«توقّف · لا نقاط»', ids(auction.actions(gs.state)) === 'item,count,stop' && auction.actions(gs.state)[2].label === 'توقّف · لا نقاط');
+  check(`«توقّف · لم يفِ»: +${FAIL_POINTS} للخصم (الأول)، ولا شيء للملتزم، والحكم فوراً`, FAIL_POINTS === 2 && gs.state.phase === 'decided' && gs.scores[1] === 2 && gs.scores[2] === 0
+    && a.verdict.team === 1 && a.verdict.points === 2 && a.turn === 1);
+  check('لا عدّاد بعدها، ولحظة «fail» للخصم (بهزة «خاطئة»)', gs.timer === null && gs.events.some(e => e.type === 'stop-timer') && gs.events.some(e => e.name === 'fail' && e.team === 1 && e.reason === 'wrong')
+    && !gs.events.some(e => e.type === 'timer'));
+  check('بعد الحكم: «الموضوع التالي» وحده، والعدّ «2 من 5» والقائمة كلها', ids(auction.actions(gs.state)) === 'next' && a.tally.n === 2 && a.tally.of === 5 && a.tally.team === 2 && a.list.length === gs.state.topics[0].items.length);
   const gt = R.act(auction, g, 'timeout', g.timer.id, T + 60000);
-  check('انتهى وقت الملتزم: كـ «توقّف»، والانتقال بلا «خاطئة»', gt.state.phase === 'complete' && gt.events.some(e => e.name === 'steal' && e.reason === 'timeout'));
+  check('انتهى وقت الملتزم: +2 للخصم كـ «توقّف»، بلا «خاطئة»', gt.state.phase === 'decided' && gt.scores[1] === 2 && gt.events.some(e => e.name === 'fail' && e.reason === 'timeout'));
   check('«انتهى الوقت» من عدّاد قديم يُهمل', R.act(auction, g, 'timeout', g.timer.id + 1).state === g.state);
-  check('«توقّف» قبل «ابدأ» أيضاً', R.act(auction, commitAt(4), 'stop').state.phase === 'complete');
-  check('ما ذكره الملتزم لا يُحسب للخصم ثانية', R.act(auction, gs, 'item:1').state === gs.state);
-  let gc = R.act(auction, gs, 'item:0', undefined, T + 21000);
-  a = auction.audience(gc.state);
-  check('عنصر من الخصم: «3 من 5» بلونه، والعدّاد يبقى', a.tally.n === 3 && a.tally.team === 1 && a.said[2].team === 1 && gc.timer.id === gs.timer.id);
-  gc = R.act(auction, R.act(auction, gc, 'item:3'), 'count');
-  a = auction.audience(gc.state);
-  check('أكمل الخصم: النقاط كاملة (5) له، ولا شيء للملتزم', gc.state.phase === 'decided' && gc.scores[1] === 5 && gc.scores[2] === 0 && a.verdict.team === 1 && a.verdict.points === 5 && a.turn === 1);
-  check('بعد الحكم: القائمة كلها، ما ذكره كل فريق بلونه', a.list[1].by === 2 && a.list[2].by === 2 && a.list[0].by === 1 && a.list[3].by === 1);
-  const gn = R.act(auction, gs, 'stop');
-  a = auction.audience(gn.state);
-  check('«توقّف · لا نقاط» من الخصم: لا يأخذ أحد شيئاً، والحدّ في المنتصف', gn.state.phase === 'decided' && gn.scores[1] === 0 && gn.scores[2] === 0 && a.verdict.team === 0 && a.turn === 0 && gn.timer === null);
-  check('انتهى وقت الخصم: لا نقاط', R.act(auction, gs, 'timeout', gs.timer.id).state.phase === 'decided' && auction.audience(R.act(auction, gs, 'timeout', gs.timer.id).state).verdict.team === 0);
-  check('مسار المواضيع: لا أحد', auction.presenter(gn.state).track[0].result === 0);
-  // التراجع: عن الانتقال يعود الوفاء بما بقي (40 ثانية)، وعن الحكم يعود الإكمال بما بقي.
+  const g0 = R.act(auction, commitAt(4), 'stop');
+  check('«توقّف» قبل «ابدأ» أيضاً: ذكر الثاني 4 فالتزم، والأول يأخذ 2', g0.state.commit?.team === 2 && g0.state.phase === 'decided' && g0.scores[1] === 2);
+  check('مسار المواضيع: الموضوع للخصم', auction.presenter(gs.state).track[0].result === 1);
   const gu = R.undo(gs, T + 25000);
-  check('التراجع عن الانتقال بعد 20 ثانية: الوفاء للملتزم بـ 40 ثانية', gu.state.phase === 'fulfil' && auction.audience(gu.state).turn === 2 && Math.round(gu.timer.seconds) === 40);
-  const gnu = R.undo(R.act(auction, gs, 'stop', undefined, T + 26000), T + 30000);
-  check('التراجع عن «لا نقاط» بعد 6 ثوانٍ من الإكمال: يعود الإكمال بـ 9 ثوانٍ', gnu.state.phase === 'complete' && Math.round(gnu.timer.seconds) === 9);
+  check('التراجع عن «لم يفِ» بعد 20 ثانية: الوفاء للملتزم بـ 40 ثانية، والنقطتان تعودان', gu.state.phase === 'fulfil' && auction.audience(gu.state).turn === 2 && Math.round(gu.timer.seconds) === 40 && gu.scores[1] === 0);
+  // حالة محفوظة في «إكمال الخصم» من نسخة سابقة: «توقّف» يحسمها بنقطتين لمن عليه الدور.
+  const oldc = { ...g, state: { ...g.state, phase: 'complete', team: 1 } };
+  check('حالة «إكمال» محفوظة: «توقّف» وحده، فيأخذ الخصم 2', ids(auction.actions(oldc.state)) === 'stop' && R.act(auction, oldc, 'stop').scores[1] === 2);
 
   // تتابع الجولة: «الموضوع التالي» يعرض الموضوع التالي فوراً للمزايدة بمفتتحه، وبعد الثالث «إنهاء الجولة».
-  let q = commitAt(2, 1);
-  q = R.act(auction, R.act(auction, q, 'item:0'), 'item:1');
-  check('بعد الحكم: «الموضوع التالي» وحده', ids(auction.actions(q.state)) === 'next' && auction.actions(q.state)[0].label === 'الموضوع التالي');
+  let q = commitAt(1, 1);
+  q = R.act(auction, q, 'item:0');
+  check('بعد الحكم: «الموضوع التالي» وحده', q.state.phase === 'decided' && ids(auction.actions(q.state)) === 'next' && auction.actions(q.state)[0].label === 'الموضوع التالي' && q.scores[1] === 1);
   q = R.act(auction, q, 'next');
   a = auction.audience(q.state);
-  check('الموضوع 2: يظهر للمزايدة فوراً، ويفتتحه الثاني، بلا أرقام ولا عدّ', q.state.index === 1 && a.screen === 'topic' && a.phase === 'bid' && a.n === 2 && a.turn === 2 && a.owner === 2
-    && !a.bids.length && a.tally === null && !a.said.length && a.verdict === null && a.list === undefined && a.topic === q.state.topics[1].topic);
-  check('الموضوع 2 متوسط، والثالث صعب', q.state.topics[1].level === 'medium' && q.state.topics[2].level === 'hard');
+  check('الموضوع 2: يظهر للمزايدة فوراً، ويفتتحه الثاني، بلا أرقام ولا عدّ، و«في القائمة 5»', q.state.index === 1 && a.screen === 'topic' && a.phase === 'bid' && a.n === 2 && a.turn === 2 && a.owner === 2
+    && !a.bids.length && a.tally === null && !a.said.length && a.verdict === null && a.list === undefined && a.topic === q.state.topics[1].topic && a.size === 5);
   check('التراجع عن «الموضوع التالي»: يعود الحكم', R.undo(q).state.index === 0 && R.undo(q).state.phase === 'decided');
-  // الثاني يلتزم بـ 3 ولا يفي، والأول يكمل: النقاط كاملة للأول.
-  q = R.act(auction, R.act(auction, R.act(auction, q, 'bid:3'), 'pass'), 'start');
+  // الثاني يأخذ العدد كاملاً (5) ولا يفي: للأول نقطتان.
+  q = R.act(auction, R.act(auction, q, 'full'), 'start');
   q = R.act(auction, R.act(auction, q, 'item:0'), 'stop');
-  q = R.act(auction, R.act(auction, q, 'item:1'), 'item:2');
-  check('الموضوع 2: أكمل الأول ما التزم به الثاني، فأخذ 3', q.state.phase === 'decided' && q.scores[1] === 5 && q.scores[2] === 0);
+  check('الموضوع 2: أخذ الثاني العدد كاملاً ولم يفِ، فللأول 2 (رصيده 3)', q.state.phase === 'decided' && q.scores[1] === 3 && q.scores[2] === 0);
   q = R.act(auction, q, 'next');
-  check('الموضوع 3: يفتتحه الأول، و«إنهاء الجولة» بعد حكمه', q.state.index === 2 && auction.audience(q.state).turn === 1);
-  q = R.act(auction, R.act(auction, R.act(auction, q, 'bid:4'), 'pass'), 'stop');
-  q = R.act(auction, q, 'stop');
-  check('الموضوع 3: لا نقاط، و«إنهاء الجولة»', q.state.phase === 'decided' && auction.actions(q.state)[0].label === 'إنهاء الجولة' && q.scores[1] === 5);
-  check('مسار المواضيع: الأول · الأول · لا أحد', auction.presenter(q.state).track.map(x => x.result).join(',') === '1,1,0');
+  check('الموضوع 3 (54): يفتتحه الأول، بلا «في القائمة»', q.state.index === 2 && auction.audience(q.state).turn === 1 && auction.audience(q.state).size === undefined);
+  q = R.act(auction, R.act(auction, R.act(auction, q, 'bid:1'), 'bid:2'), 'stop');
+  q = R.act(auction, R.act(auction, R.act(auction, q, 'start'), 'item:5'), 'item:9');
+  check('الموضوع 3: ذكر الثاني 2 فالتزم ووفى (+2)، و«إنهاء الجولة»', q.state.phase === 'decided' && q.scores[2] === 2 && auction.actions(q.state)[0].label === 'إنهاء الجولة');
+  check('مسار المواضيع: الأول · الأول · الثاني', auction.presenter(q.state).track.map(x => x.result).join(',') === '1,1,2');
   q = R.act(auction, q, 'next');
   a = auction.audience(q.state);
-  check('نهاية الجولة: الحصيلة الأول 5 والثاني 0، وانتهت', a.screen === 'end' && a.totals[1] === 5 && a.totals[2] === 0 && auction.finished(q.state) && !auction.actions(q.state).length);
+  check('نهاية الجولة: الحصيلة الأول 3 والثاني 2، وانتهت', a.screen === 'end' && a.totals[1] === 3 && a.totals[2] === 2 && auction.finished(q.state) && !auction.actions(q.state).length);
   check('بعد النهاية: لا فعل يُقبل', R.act(auction, q, 'next').state === q.state);
 
   // حالة محفوظة من «المزايدة» (بلا said) تكمل بعد التحديث.

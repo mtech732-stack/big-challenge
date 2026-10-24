@@ -141,9 +141,12 @@
   #app .bidrow { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0.75rem; }
   #app .bidrow:empty { display: none; }
   #app .bidrow button { min-height: 5rem; font-size: 1.5rem; margin: 0; }
-  #app .bidrow .step { grid-column: span 2; font-size: 2.5rem; }
+  /* المزايدة رقماً رقماً (2.0): «زايد · 4» أربعة أعمدة، و«العدد كاملاً · 12» خمسة، و«توقّف» ثلاثة. وفوق 20 عنصراً «زايد» ثمانية و«توقّف» أربعة */
   #app .bidrow .go { grid-column: span 4; }
-  #app .bidrow .no { grid-column: span 4; background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
+  #app .bidrow .go.wide { grid-column: span 8; }
+  #app .bidrow .full { grid-column: span 5; }
+  #app .bidrow .no { grid-column: span 3; background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
+  #app .bidrow .go.wide + .no { grid-column: span 4; }
   #app .bidrow .half { grid-column: span 6; }
   #app .bidrow button:disabled { opacity: .45; cursor: default; }
 </style>
@@ -681,20 +684,13 @@
   }
 
   // ===== المزاد في نافذة المقدّم (design/auction.md 5) =====
-  // الرقم المقترح على «زايد»: من الوحدة (أعلى رقم + 1، و5 في الافتتاح)، ويغيّره المقدّم بـ «−» و«+» قبل أن يُرسل.
-  // في هذه النافذة وحدها، فلا يصل إلى الجمهور إلا الرقم الذي زايد به الفريق.
-  let offer = 0, offerKey = '';
+  // المزايدة رقماً رقماً (design/auction.md 2.0): «زايد · N» بالرقم التالي من الوحدة، ويُرسل «bid:N»،
+  // فنقرة ثانية متأخرة بالرقم نفسه تُهمل (صار التالي N+1).
   const bidAction = () => {
     const st = match.round?.state, mode = roundMode();
-    const b = mode && st && mode.actions(st).find(a => a.id === 'bid');
-    if (!b) return null;
-    const key = `${match.round.n}/${st.index}/${st.bids?.length}`;
-    if (key !== offerKey) { offerKey = key; offer = b.offer; }
-    offer = Math.min(b.max, Math.max(b.min, offer));
-    return b;
+    return (mode && st && mode.actions(st).find(a => a.id === 'bid')) || null;
   };
-  const step = d => { const b = bidAction(); if (!b) return; offer = Math.min(b.max, Math.max(b.min, offer + d)); render(); };
-  const bid = () => { if (bidAction()) roundAct('bid:' + offer); };
+  const bid = () => { const b = bidAction(); if (b) roundAct('bid:' + b.n); };
   const count = (n, one) => (n >= 3 && n <= 10 ? `${n} عناصر` : n === 2 ? 'عنصران' : n === 1 ? one : `${n} عنصراً`);
   function renderAuction(pr, acts) {
     $('aTopic').textContent = pr.topic;
@@ -721,13 +717,12 @@
     const v = pr.verdict;
     $('aWho').innerHTML = v ? (v.team ? `${mk(v.team)} ${tn(v.team)} · ${num('+' + v.points)}` : 'لا نقاط') : `${mk(pr.turn)} دور ${tn(pr.turn)}`;
     auctionState(pr);
-    const b = bidAction();
-    const canPass = acts.some(a => a.id === 'pass');
     const ctl = id => acts.find(a => a.id === id);
-    $('aCtl').innerHTML = pr.phase === 'bid' ? (b ? `<button class="step" data-offer="-1"${offer <= b.min ? ' disabled' : ''}>−</button>` +
-      `<button class="go" id="aBid">${num('زايد · ' + offer)}</button>` +
-      `<button class="step" data-offer="1"${offer >= b.max ? ' disabled' : ''}>+</button>` : '') +
-      `<button class="no" id="aPass"${canPass ? '' : ' disabled'}>انسحب</button>`
+    const b = ctl('bid'), full = ctl('full');
+    // المزايدة (design/auction.md 5، 2.0): «زايد · 4» · «العدد كاملاً · 12» (للقائمة حتى 20) · «توقّف» (معطّل في دور المفتتح الأول).
+    $('aCtl').innerHTML = pr.phase === 'bid' ? (b ? `<button class="go${full ? '' : ' wide'}" id="aBid">${num(b.label)}</button>` : '') +
+      (full ? `<button class="full" data-act="full">${num(full.label)}</button>` : '') +
+      `<button class="no" data-act="stop"${ctl('stop') ? '' : ' disabled'}>توقّف</button>`
       // الوفاء (design/auction.md 5): «ابدأ العدّاد» و«توقّف · لم يفِ» قبل «ابدأ»، و«توقّف» وحده والعدّاد يعدّ.
       // وبعد الحكم «الموضوع التالي» أو «إنهاء الجولة» (design/auction.md 5).
       : ['start', 'stop', 'next'].filter(ctl).map(id => `<button class="${id === 'stop' ? 'no' : id === 'start' ? 'alt' : ''} half" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
@@ -738,12 +733,13 @@
   function auctionState(pr) {
     const top = pr.bids.length ? pr.bids[pr.bids.length - 1].n : 0;
     const left = pr.tally ? pr.tally.of - pr.tally.n : 0;
-    $('aState').innerHTML = pr.phase === 'bid' ? (pr.bids.length ? num(`يزايد على ${top} أو ينسحب`) : 'يفتتح المزايدة برقم')
+    $('aState').innerHTML = pr.phase === 'bid' ? (pr.bids.length ? num(`يزايد على ${top} أو يتوقّف`) : pr.shown ? 'يفتتح بـ 1 أو بالعدد كاملاً' : 'يفتتح بـ 1')
       : pr.phase === 'ready' ? num(`التزم بـ ${pr.commit.n} · ${pr.clock} ثانية${pr.tally.n ? ` · بقي ${left}` : ''}`)
       // الوقت «0:38» في حاوية ltr كاملاً، وإلا انقلب في السطر العربي («38:0»).
       : pr.phase === 'fulfil' ? `<span class="ltr">${esc(tickText || '1:00')}</span> · ${num(`بقي ${left}`)}`
-      : pr.phase === 'complete' ? `يكمل · <span class="ltr">${esc(tickText || '0:15')}</span> · ${num(`بقي ${left}`)}`
-      : pr.phase === 'decided' ? num(`ذُكر ${pr.tally.n} من ${pr.tally.of}`) : '';
+      // بعد الحكم: إن لم يفِ الملتزم «لم يفِ · ذُكر 9 من 12» (design/auction.md 5، 2.0). واسم الخصم ونقطتاه في «[الاسم] · +2» قبله،
+      // فلا يتكرر الاسم هنا: بأطول اسم ينكسر السطر وتطول النافذة عن الشاشة.
+      : pr.phase === 'decided' ? (pr.verdict && pr.verdict.team !== pr.commit.team ? 'لم يفِ · ' : '') + num(`ذُكر ${pr.tally.n} من ${pr.tally.of}`) : '';
   }
   // العنصر الذي لا يتسع اسمه بصيغه في خانة يأخذ خانتين، فإن لم يتسع فثلاثاً، وهكذا حتى يتسع (design/auction.md 5).
   // ويُعاد القياس بعد تحميل الخط وعند تغيّر عرض النافذة.
@@ -760,9 +756,7 @@
   $('aCtl').addEventListener('click', e => {
     const el = e.target.closest('button');
     if (!el || el.disabled) return;
-    if (el.dataset.offer) step(+el.dataset.offer);
-    else if (el.id === 'aBid') bid();
-    else if (el.id === 'aPass') roundAct('pass');
+    if (el.id === 'aBid') bid();
     else if (el.dataset.act) roundAct(el.dataset.act);
   });
   // عنصر ذكره الفريق: يُحسب لصاحب الدور (+1). نقرات متتابعة على عناصر مختلفة تُحسب كلها (لا إمهال بينها)،
@@ -837,10 +831,9 @@
       const act = (id, label, kind) => acts.some(a => a.id === id) ? [{ cmd: 'act:' + id, label: label ?? acts.find(a => a.id === id).label, kind, off: wait }] : [];
       if (screen === 'intro') c.card = act('show');
       const last = st.index === (st.questions ?? st.topics).length - 1;
-      // المزاد (design/auction.md 4): «−» · «زايد · N» · «+» · «انسحب»، ولا انسحاب في الافتتاح.
+      // المزاد (design/auction.md 4، 2.0): «زايد · N» · «كاملاً · 12» (للقائمة حتى 20) · «توقّف»، ولا «توقّف» في دور المفتتح الأول.
       const b = screen === 'topic' && bidAction();
-      if (b) c.near = [{ cmd: 'offer:-1', label: '−', kind: 'step', off: wait || offer <= b.min }, { cmd: 'act:bid', label: `زايد · ${offer}`, off: wait },
-        { cmd: 'offer:1', label: '+', kind: 'step', off: wait || offer >= b.max }, { cmd: 'act:pass', label: 'انسحب', kind: 'no', off: wait || !acts.some(a => a.id === 'pass') }];
+      if (b) c.near = [...act('bid'), ...act('full', acts.find(a => a.id === 'full')?.short), ...act('stop', 'توقّف', 'no')];
       // الوفاء (design/auction.md 4): «ابدأ» · «صحيح · +1» قبل العدّاد، و«صحيح · +1» · «توقّف» والعدّاد يعدّ. يُعدّ دون أسماء (القائمة سرّ).
       // وبعد الحكم «الموضوع التالي» في البطاقة لا في صف الشارات (design/auction.md 4، 1.1).
       if (screen === 'topic' && st.phase === 'decided') c.card = act('next');
@@ -895,7 +888,6 @@
     if (cmd === 'begin') begin(false);
     if (cmd === 'single') begin(true);
     if (cmd === 'act') arg === 'bid' ? bid() : roundAct(arg);
-    if (cmd === 'offer') step(+arg);
     if (cmd === 'next') actions[nextButton().act]?.();
     if (cmd === 'mute') toggleMute();
     if (cmd === 'presenter') toPresenter();
@@ -910,7 +902,7 @@
         $('mirror').textContent = data.text;
         tickText = data.text;
         const st = match?.round?.state, mode = st && roundMode();
-        if (mode?.id === 'auction' && (st.phase === 'fulfil' || st.phase === 'complete')) auctionState(mode.presenter(st));
+        if (mode?.id === 'auction' && st.phase === 'fulfil') auctionState(mode.presenter(st));
       }
       // انتهى عدّاد في نافذة الجمهور: يُطبَّق إن طابق رقمه العدّاد الجاري، وإلا أُهمل (عقد الوحدة 5).
       if (type === 'timeout' && match && $('gate').hidden) roundUpdate(P.act(match, MODES, 'timeout', data.id));
