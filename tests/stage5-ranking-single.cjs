@@ -9,7 +9,7 @@ const { chromium } = require('playwright');
 const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./helpers.cjs');
 
 (async () => {
-  const base = (process.argv[2] || 'http://localhost:8000/') + '?preview';
+  const base = process.argv[2] || 'http://localhost:8000/'; // الرابط العادي: الترتيب في MODES منذ نهاية ش5
   const shots = process.argv[3] || require('os').tmpdir();
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   const { check, finish } = reporter();

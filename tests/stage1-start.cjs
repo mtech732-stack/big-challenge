@@ -56,8 +56,9 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   check('الإعداد: أزرار الزاويتين مكان الشعار، وسطر الإرشاد في البطاقة، وحقلا الاسمين في اللوحتين', !(await vis('.logo')) && await vis('#cornerA .cbtn, #cornerB .cbtn')
     && (await text('.scr.show .guide')).startsWith('اكتب اسمَي الفريقين') && await vis('#i1') && await vis('#i2')
     && (await frame.getAttribute('#i1', 'placeholder')) === 'اكتب اسم الفريق الأول' && (await frame.getAttribute('#i2', 'placeholder')) === 'اكتب اسم الفريق الثاني');
-  check('الإعداد: «عدد الأنماط» بخانتين 2 و4، والمتاح نمطان فـ2 مختارة و4 معطّلة', (await text('#count .lbl')) === 'عدد الأنماط'
-    && await frame.$eval('[data-cmd="count:short"]', e => e.classList.contains('sel')) && await frame.$eval('[data-cmd="count:full"]', e => e.classList.contains('off')));
+  // منذ نهاية ش5 الأنماط الأربعة مبنية في الرابط العادي، فـ4 مختارة افتراضياً ومتاحة.
+  check('الإعداد: «عدد الأنماط» بخانتين 2 و4، والمتاح أربعة فـ4 مختارة، و2 متاحة', (await text('#count .lbl')) === 'عدد الأنماط'
+    && await frame.$eval('[data-cmd="count:full"]', e => e.classList.contains('sel') && !e.classList.contains('off')) && await frame.$eval('[data-cmd="count:short"]', e => !e.classList.contains('off')));
   check('الإعداد: «ابدأ القرعة» في البطاقة، و«ملء الشاشة» في الزاوية', await vis('.scr.show .ctl [data-cmd="draw"]') && await vis('#cornerB [data-cmd="fullscreen"]'));
   check('الإعداد: لا شارات ولا سطر تحت العنوان', !(await vis('#b1')) && !(await vis('#b2')) && !(await vis('.scr.title .sub')));
   await noWords('الإعداد');
@@ -85,9 +86,9 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   await frame.fill('#i2', 'النجوم');
   await wait(100);
   check('الاسمان محفوظان كما كُتبا', (await saved()).teams[1] === 'الصقور' && (await saved()).teams[2] === 'النجوم');
-  await frame.click('[data-cmd="count:full"]', { force: true });
+  await cmd(frame, 'count:short');
   await wait(100);
-  check('النقر على 4 المعطّلة لا يختارها', (await saved()).method === 'short');
+  check('النقر على 2 يختارها ويحفظها', (await saved()).method === 'short' && await frame.$eval('[data-cmd="count:short"]', e => e.classList.contains('sel')));
 
   // 2. القرعة: Enter في الحقل الثاني = «ابدأ القرعة»، والرقم السري يُتحقق منه.
   const before = pinFetches;
@@ -116,7 +117,7 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   // 3. اختيار الأنماط بالنقر على خاناتها
   await cmd(frame, 'toPick');
   await wait(200);
-  check('الاختيار: الخانات الثلاث المبنية تُنقر (المزاد منذ ش4)، و«يختار نمط الجولة 1»', (await frame.$$('#tiles .tile[data-cmd]')).length === 3 && (await text('#pickHead')) === `${names[W]} يختار نمط الجولة 1`);
+  check('الاختيار: الخانات الأربع المبنية تُنقر (المزاد منذ ش4، والترتيب منذ ش5)، و«يختار نمط الجولة 1»', (await frame.$$('#tiles .tile[data-cmd]')).length === 4 && (await text('#pickHead')) === `${names[W]} يختار نمط الجولة 1`);
   await stageCheck('الاختيار');
   await cmd(frame, 'pick:last-two');
   await wait(200);

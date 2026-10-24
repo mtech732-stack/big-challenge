@@ -34,7 +34,7 @@ const { reporter } = require('./helpers.cjs');
   check('في MODES لا في DRAFTS: يُختار في مباراة تُلعب', MODES.includes(auction) && !DRAFTS.includes(auction)
     && pickableModes({ pack: { excludeModes: [] }, files: content }).some(m => m.id === 'auction'));
   const draft = matchModes({ pack: { excludeModes: [] }, files: content });
-  check('في الرابط العادي: مبنيّ في موضعه الثالث، والترتيب وحده معاينة', ids(draft) === 'letter,last-two,auction,ranking' && !draft[2].preview && draft[3].preview);
+  check('في الرابط العادي: مبنيّ في موضعه الثالث (والترتيب بعده مبنيّ منذ ش5)', ids(draft).startsWith('letter,last-two,auction') && !draft[2].preview && !draft.some(m => m.preview));
   check('حزمة تستثنيه لا يظهر فيها', !matchModes({ modes: [...MODES, ...DRAFTS], pack: { excludeModes: ['auction'] }, files: content }).some(m => m.id === 'auction'));
 
   // الإعداد: 3 مواضيع، سهل ثم متوسط ثم صعب، ولا مفتتح (3.0).
