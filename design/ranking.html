@@ -129,7 +129,7 @@
     allend:  { t: 'نهاية القائمة: الخانات الثلاث عشرة مكشوفة', turn: 0, got: [[1, 2], [2, 1], [3, 2], [4, 1], [5, 1], [6, 2], [7, 1], [8, 2], [9, 1], [10, 2], [11, 2], [12, 1], [13, 2]], clock: '', reveal: true, endLine: 'كُشف 10 من 10' },
     mark:    { t: 'النافذة الواحدة: بعد نهاية القائمة، المقارنة بالتسجيل (ينقر المقدّم كل خانة لمن قالها أولاً)', one: true, turn: 0, got: [[1, 2], [4, 1], [6, 2], [9, 1], [12, 1]], clock: '', reveal: true, mark: true, endLine: 'المقارنة بالتسجيل' },
     listend: { t: 'نهاية القائمة: تنكشف بقيتها والفخاخ', turn: 0, got: [...G4, [7, 2], [12, 1], [3, 1], [10, 2]], clock: '', reveal: true, endLine: 'كُشف 7 من 10' },
-    timeup:  { t: 'نهاية القائمة بانقضاء وقتها (5 دقائق)', turn: 0, got: [[1, 2], [2, 1], [5, 2], [8, 1]], clock: '', reveal: true, endLine: 'انتهى وقت القائمة · كُشف 4 من 10' },
+    timeup:  { t: 'نهاية القائمة بانقضاء وقتها (5 دقائق)', turn: 0, got: [[1, 2], [2, 1], [5, 2], [8, 1]], clock: '', reveal: true, endLine: 'انتهى وقت القائمة\nكُشف 4 من 10' },
     end:     { t: 'نهاية الجولة', screen: 'end', turn: 0, badge: 'انتهت الجولة 4', totals: { 1: 21, 2: 30 } },
   };
 
@@ -222,14 +222,17 @@
       $('verdict').className = `chip${verdict.team ? ' t' + verdict.team : ''}`;
       $('vtext').innerHTML = verdict.team ? `${esc(NAMES[verdict.team])} · ${num(verdict.points)}` : 'لا نقاط';
     }
-    $('line').innerHTML = num(line ?? next);
+    // سطران صريحان («\n») لنهاية القائمة بانقضاء وقتها (الملاحظة 36): لا « · » معلّقة، ولا تلتقي ضمة «كُشف» بألف «انتهى»
+    const two = String(line ?? next).includes('\n');
+    $('line').innerHTML = String(line ?? next).split('\n').map(num).join('<br>');
+    $('box').classList.toggle('two', two);
     // «التالي» ونهاية القائمة نصاً على الطرف بلا مربع (15.10)، والحكم في المربع (15.4)
     $('box').classList.toggle('bare', !!next);
     const p2 = $('p2'), w = Math.min(659, 1794 - (p2.offsetLeft + p2.offsetWidth + 17 + 24 + 17));
     $('box').style.left = (1794 - w) + 'px'; $('box').style.width = w + 'px';
     // يُقاس السطر بلا انكسار (فالرسم الثاني بعد الخط لا يقيس سطراً منكسراً من الرسم الأول)
     $('box').classList.remove('wrap');
-    $('box').classList.toggle('wrap', $('line').scrollWidth > $('box').clientWidth - 96);
+    $('box').classList.toggle('wrap', !two && $('line').scrollWidth > $('box').clientWidth - 96);
   }
   function placeBadges() {
     const lean = Math.tan(14 * Math.PI / 180) * 64; let right = 104;
