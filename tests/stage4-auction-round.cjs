@@ -1,4 +1,4 @@
-// اختبار آلي لمرحلة «المزايدة» في المزاد (ش4، design/auction.md) بالنافذتين وبالنافذة الواحدة، في رابط المعاينة:
+// اختبار آلي لمرحلة «المزايدة» في المزاد (والوفاء في stage4-auction-fulfil.cjs) (ش4، design/auction.md) بالنافذتين وبالنافذة الواحدة، في رابط المعاينة:
 // الافتتاح، والموضوع، و«زايد» بـ «−» و«+»، وشارات المزايدة بألوان أصحابها والأحدث أكبرها، وسقوط الأقدم، والانسحاب والالتزام،
 // والتراجع، وإعادة التحميل، ولا قائمة ولا طولها على الجمهور، وفحص التداخل في كل حالة، ونافذة المقدّم على ثلاثة مقاسات.
 const fs = require('fs');
@@ -180,7 +180,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await wait(900);
   check(`الجمهور: «0 من ${top}» بلون الملتزم، ولا أرقام`, (await text(audience, '#tn')) === '0' && (await text(audience, '#tof')) === String(top) && await audience.$eval('#tally', (e, t) => e.classList.contains('t' + t), committed) && (await bids(audience)).length === 0);
   check('الجمهور: الحدّ عند الملتزم، ولا عدّاد يعمل', await audience.$eval('#canvas', (c, t) => c.classList.contains('turn-' + t) && !c.classList.contains('running'), committed));
-  check(`المقدّم: «التزم بـ ${top} · 60 ثانية» ولا أزرار مزايدة`, (await text(presenter, '#aState')) === `التزم بـ ${top} · 60 ثانية` && (await presenter.$$('#aCtl button')).length === 0 && await presenter.isVisible('#aLater'));
+  check(`المقدّم: «التزم بـ ${top} · 60 ثانية» ولا أزرار مزايدة، بل «ابدأ العدّاد» و«توقّف · لم يفِ»`, (await text(presenter, '#aState')) === `التزم بـ ${top} · 60 ثانية`
+    && (await presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim()).join(' | '))) === 'ابدأ العدّاد | توقّف · لم يفِ' && !(await presenter.isVisible('#aLater')));
   check('المقدّم: من الالتزام تظهر الصيغ البديلة، ولا نص يُقصّ', await presenter.$$eval('#aRef small', e => e.length) === bank.topics[0].items.filter(i => i.alts?.length).length);
   await both('الالتزام');
   await stage.screenshot({ path: `${shots}/s4-ready.png` });
@@ -225,7 +226,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('ثلاث نقرات على «زايد» في النافذة الواحدة بفاصل 0.15 ثانية تسجّل رقماً واحداً', (await bids(audience)).slice(-2).map(x => x.n).join(',') === '18,20');
   check('«زايد» في النافذة الواحدة يسجّل 20', (await bids(audience)).pop().n === '20');
   await cmd(audience, 'act:pass'); await wait(900);
-  check('«انسحب» في النافذة الواحدة: العدّ «0 من 20» ولا أزرار مزايدة', (await text(audience, '#tn')) === '0' && (await text(audience, '#tof')) === '20' && !(await audience.$$('#near .cbtn')).length);
+  check(`«انسحب» في النافذة الواحدة: العدّ «0 من 20»، و«ابدأ» · «صحيح · +1» مكان أزرار المزايدة (${await near()})`, (await text(audience, '#tn')) === '0' && (await text(audience, '#tof')) === '20' && (await near()) === 'ابدأ | صحيح · +1');
   await both('نافذة واحدة · الالتزام');
   await stage.screenshot({ path: `${shots}/s4-single-ready.png` });
   // افتتاح الموضوع في النافذة الواحدة: «انسحب» معطّل.
