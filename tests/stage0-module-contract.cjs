@@ -68,7 +68,9 @@ const { reporter } = require('./helpers.cjs');
   check('التراجع يعيد الحالة والرصيد كما كانا', JSON.stringify({ s: r.state, c: r.scores }) === JSON.stringify({ s: saved.state, c: saved.scores }));
   check('التراجع يوقف عدّاد السرقة ويعيد عدّاد صاحب السؤال كاملاً (15)', has(r, 'timer', { seconds: 15 }) && r.timer.seconds === 15 && r.timer.id !== t3);
   check('«انتهى الوقت» من عدّاد السرقة الملغى يُهمل', same(R.act(sample, r, 'timeout', t3), r));
-  check('الحالة بعد الحفظ والاستعادة (JSON) تكمل كما هي', JSON.stringify(R.act(sample, saved, 'timeout', t2)) === JSON.stringify(R.act(sample, live, 'timeout', t2)) && R.act(sample, saved, 'timeout', t2).state.phase === 'steal');
+  // لحظة واحدة للنتيجتين، فلا يختلف «at» في العدّاد بين استدعاءين (ملاحظة المدقّق).
+  const at = Date.now();
+  check('الحالة بعد الحفظ والاستعادة (JSON) تكمل كما هي', JSON.stringify(R.act(sample, saved, 'timeout', t2, at)) === JSON.stringify(R.act(sample, live, 'timeout', t2, at)) && R.act(sample, saved, 'timeout', t2, at).state.phase === 'steal');
   r = R.act(sample, r, 'timeout', r.timer.id);
   check('انتهاء الوقت الحالي: سرقة', r.state.phase === 'steal' && r.state.team === 1);
   r = R.act(sample, r, 'correct');

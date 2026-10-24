@@ -45,7 +45,8 @@ async function stageFrame(page) {
   await frame.waitForFunction(() => {
     const c = document.getElementById('canvas'), show = document.querySelector('.scr.show');
     return c && !c.classList.contains('locked') && show && !(show.dataset.s === 'q' && /^نافذة الجمهور ·/.test(document.getElementById('label').textContent));
-  }, null, { timeout: 10000 });
+  // فحص بالزمن لا بإطار الرسم: الصفحة قد لا تكون في المقدّمة فيتوقف requestAnimationFrame ولا يُعاد الفحص.
+  }, null, { timeout: 10000, polling: 100 });
   return frame;
 }
 const cmd = (frame, c) => frame.click(`[data-cmd="${c}"]`, { timeout: 8000 });
