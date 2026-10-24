@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>التحدي الكبير · ش5 · الترتيب · شاشة الجمهور</title>
+<link rel="icon" href="data:,">
+<!-- الصفحة المرجعية لتصميم الترتيب (design/ranking.md) فوق CSS اللعبة المبنية بالإصدار 1.3، فما يُرى هنا هو ما سيُبنى.
+     الحالة من الرابط: ?s=run&w=1&long=1 (s: الحالة · w=1 النافذة الواحدة · long=1 أطول اسمين ورقمان من ثلاث خانات · check=1 فحص التداخل).
+     وبلا ?s: قائمة الحالات. -->
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/base.css">
+<link rel="stylesheet" href="../css/stage.css">
+<link rel="stylesheet" href="../css/start.css">
+<link rel="stylesheet" href="../css/letter.css">
+<link rel="stylesheet" href="../css/shared.css">
+<link rel="stylesheet" href="../css/auction.css">
+<link rel="stylesheet" href="ranking.css">
+<style>
+  .menu { position: fixed; inset: 0; z-index: 20; overflow: auto; background: #050E2E; color: #fff; padding: 32px 48px; font-size: 20px; line-height: 1.6; }
+  .menu h1 { font-size: 32px; margin: 0 0 16px; }
+  .menu a { color: #FFC300; }
+  .menu table { border-collapse: collapse; }
+  .menu td { padding: 4px 16px 4px 0; vertical-align: top; }
+  .check-layer { inset: 0; pointer-events: none; z-index: 10; position: absolute; }
+  .check-out { position: fixed; z-index: 21; bottom: 0; left: 0; right: 0; background: #050E2E; color: #fff; font-size: 16px; padding: 8px 16px; white-space: pre-wrap; direction: rtl; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="canvas" id="canvas">
+    <div class="stagebg" id="stagebg"><div class="f f1"></div><div class="f f2"></div><div class="e" id="edge"></div>
+      <div class="beam"></div><div class="beam w"></div><div class="beam"></div><div class="beam w"></div></div>
+    <div class="particles" id="particles"></div>
+    <div class="logo" data-hud="الشعار" aria-label="التحدي الكبير"><span class="l1">التحدي</span><span class="l2"><i></i><b>الكبير</b></span></div>
+
+    <section class="team t1" id="p1" data-hud="لوحة الفريق الأول">
+      <div class="shape"></div><svg class="ring" preserveAspectRatio="none"><polygon pathLength="100"/></svg>
+      <div class="row" data-fit="لوحة الفريق الأول"><span class="name" id="n1"></span><span class="score" id="s1"></span><span class="cnt" id="c1"></span></div>
+    </section>
+
+    <div class="badge mode" data-hud="شارة النمط"><i></i><span>الترتيب</span></div>
+    <div class="badge plain" id="b1" data-hud="الشارة الأولى"><i></i><span></span></div>
+
+    <div class="card-wrap" id="cardWrap" data-hud="البطاقة">
+      <div class="plate"></div>
+      <div class="card">
+        <!-- المزاد: الموضوع والعدّ، ثم المزايدة أو ما ذُكر (design/auction.md 2) -->
+        <!-- الترتيب: العنوان، ثم اللوحة: 1–10 والفخاخ ووقت القائمة (design/ranking.md 2) -->
+        <div class="scr rnk" data-s="rnk" id="rnk">
+          <div class="rhead">
+            <p class="title" id="title" data-fit="عنوان القائمة"></p>
+            <p class="sub" id="tsub"></p>
+          </div>
+          <div class="board" id="board"></div>
+        </div>
+        <div class="scr intro" data-s="intro">
+          <p class="rule" id="rule"></p>
+          <div class="crow"><p class="head" id="starter" data-fit="سطر البدء"></p><div class="ctl" id="introCtl"></div></div>
+        </div>
+        <div class="scr end" data-s="end">
+          <div class="cols">
+            <div class="col"><p class="who t1" data-fit="اسم الفريق الأول"><i></i><span id="e1"></span></p><p class="pts tn t1" id="r1"></p></div>
+            <div class="col"><p class="who t2" data-fit="اسم الفريق الثاني"><i></i><span id="e2"></span></p><p class="pts tn t2" id="r2"></p></div>
+          </div>
+          <div class="crow"><div class="ctl" id="endCtl"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <section class="team t2" id="p2" data-hud="لوحة الفريق الثاني">
+      <div class="shape"></div><svg class="ring" preserveAspectRatio="none"><polygon pathLength="100"/></svg>
+      <div class="row" data-fit="لوحة الفريق الثاني"><span class="name" id="n2"></span><span class="score" id="s2"></span><span class="cnt" id="c2"></span></div>
+    </section>
+
+    <div class="box" id="box" data-hud="مربع الإعلان" hidden><i></i>
+      <p class="chip" id="verdict"><i></i><span id="vtext"></span></p>
+      <p class="line" id="line" data-fit="سطر الإعلان"></p>
+    </div>
+
+    <div class="ctl-near" id="near" data-hud="أزرار الترتيب"></div>
+    <div class="ctl-corner a" id="cornerA" data-hud="أزرار الزاوية العليا"></div>
+    <div class="ctl-corner b" id="cornerB" data-hud="أزرار الزاوية السفلى"></div>
+    <div class="ctl-corner c" id="cornerC" data-hud="أزرار الصف الثالث"></div>
+    <div class="shine" id="shine"></div>
+    <div class="danger"></div>
+  </div>
+</div>
+<script src="check.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const q = new URLSearchParams(location.search);
+  const canvas = $('canvas');
+  const fit = () => document.documentElement.style.setProperty('--scale', Math.min(innerWidth / 1920, innerHeight / 1080));
+  addEventListener('resize', fit); fit();
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const num = s => esc(s).replace(/([+−-]?\d+(?:[:–]\d+)?)/g, '<span class="ltr">$1</span>');
+
+  // ===== المحتوى المثال، وأطول محتوى (design/ranking.md 3) =====
+  const LONG = q.has('long');
+  const NAMES = LONG ? { 1: 'فريق النخبة الذهبي', 2: 'نجوم المستقبل معاً' } : { 1: 'الصقور', 2: 'النجوم' };
+  const SCORES = LONG ? { 1: 188, 2: 176 } : { 1: 14, 2: 9 };
+  // العنوان كما في content-format 4.4: ما قبل « · » سطر 64، وما بعده إشارة 32 بجانبه
+  const TITLE = LONG ? 'أكثر التطبيقات تحميلاً في العالم · الترتيب النهائي لموسم 2024–2025' : 'الدوري الإنجليزي · الترتيب النهائي لموسم 2024–2025';
+  // 13 عنصراً: 1–10 الخانات، و11–13 الفخاخ (الوثيقة 5.6)
+  const EPL = ['ليفربول', 'آرسنال', 'مانشستر سيتي', 'تشيلسي', 'نيوكاسل يونايتد', 'أستون فيلا', 'نوتنغهام فورست', 'برايتون', 'بورنموث', 'برينتفورد',
+    'فولهام', 'كريستال بالاس', 'إيفرتون'];
+  // أطول المحتوى لاختبار العرض (design/ranking.md 3): العنوان 32 حرفاً وإشارته 31، وأعرض الأسماء (حتى 20 حرفاً). ليس ترتيباً حقيقياً
+  const STRESS = ['جمهورية الدومينيكان', 'الكونغو الديمقراطية', 'ساو تومي وبرينسيب', 'الولايات المتحدة', 'بابوا غينيا الجديدة', 'نوتنغهام فورست', 'مانشستر يونايتد',
+    'جمهورية الدومينيكان', 'الكونغو الديمقراطية', 'ساو تومي وبرينسيب', 'جمهورية الدومينيكان', 'الكونغو الديمقراطية', 'ساو تومي وبرينسيب'];
+  const LIST = LONG ? STRESS : EPL;
+  const PEN = { 11: 3, 12: 2, 13: 1 };
+
+  // ===== الحالات (design/ranking.md 2) =====
+  // turn: صاحب الدور (الحدّ يكتسح له) · run: العدّاد يعمل (ثوانٍ من 15، أو من 5 بعد الانتقال) · got: [رتبة، فريق] ما كُشف
+  // isnew: الرتبة التي كُشفت الآن · clock: وقت القائمة · verdict: مربع الإعلان
+  const G4 = [[1, 2], [4, 1], [6, 2], [9, 1]];
+  const STATES = {
+    intro:   { t: 'افتتاح الجولة', screen: 'intro', turn: 0, badge: 'الجولة 4 من 4' },
+    read:    { t: 'القائمة 1: ظهور القائمة، ولا خانة مكشوفة (دور الأول)', turn: 1, got: [], clock: '5:00' },
+    run:     { t: 'العدّاد يعمل (دور الثاني)، أربع خانات مكشوفة', turn: 2, run: 9, got: G4, clock: '3:42' },
+    right:   { t: 'بعد الحكم: أصاب الثاني المركز 7 (+7)', turn: 2, got: [...G4, [7, 2]], isnew: 7, clock: '3:36', verdict: { team: 2, points: '+7', line: 7 } },
+    steal:   { t: 'انتقلت الإجابة إلى الثاني بعد خطأ الأول (5 ثوانٍ)', turn: 2, run: 3, total: 5, got: G4, clock: '3:30', shine: true },
+    trap:    { t: 'بعد الحكم: وقع الأول في المركز 12 (−2)', turn: 0, got: [...G4, [12, 1]], isnew: 12, clock: '3:20', verdict: { team: 1, points: '−2', line: 12 }, danger: true },
+    none:    { t: 'بعد الحكم: لا نقاط (أخطأ الفريقان)', turn: 0, got: G4, clock: '3:10', verdict: { team: 0, line: 'لم تُكشف خانة' } },
+    full:    { t: 'العدّاد يعمل: تسع خانات وفخّ مكشوفة', turn: 1, run: 12, got: [[1, 2], [2, 1], [3, 2], [4, 1], [5, 1], [6, 2], [8, 2], [9, 1], [10, 2], [11, 1]], clock: '0:41' },
+    listend: { t: 'نهاية القائمة: تنكشف بقيتها والفخاخ', turn: 0, got: [...G4, [7, 2], [12, 1], [3, 1], [10, 2]], clock: '', reveal: true, endLine: 'كُشف 7 من 10' },
+    timeup:  { t: 'نهاية القائمة بانقضاء وقتها (5 دقائق)', turn: 0, got: [[1, 2], [2, 1], [5, 2], [8, 1]], clock: '', reveal: true, endLine: 'انتهى وقت القائمة · كُشف 4 من 10' },
+    end:     { t: 'نهاية الجولة', screen: 'end', turn: 0, badge: 'انتهت الجولة 4', totals: { 1: 21, 2: 30 } },
+  };
+
+  // أزرار النافذة الواحدة (design/ranking.md 4): بجانب ما تتحكم فيه، في صف الشارات. والزاويتان كما في 1.3
+  const SINGLE = q.get('w') === '1';
+  const B = (label, kind = '') => `<button class="cbtn${kind ? ' ' + kind : ''}">${num(label)}</button>`;
+  function single(id, st) {
+    if (!SINGLE) return;
+    $('cornerA').innerHTML = `<div class="ctl">${B('تراجع', 'alt')}${B('الصوت', 'alt')}</div>`;
+    $('cornerB').innerHTML = `<div class="ctl">${B('المقدّم', 'alt')}${B('ملء الشاشة', 'alt')}</div>`;
+    $('cornerC').innerHTML = `<div class="ctl">${B('الرصيد', 'alt')}${B('مباراة جديدة', 'alt')}</div>`;
+    canvas.classList.add('has-a');
+    // القائمة سرّ حتى تنتهي، فلا يراها المقدّم هنا: يكتب ما قاله الفريق فتطابقه اللعبة بالقائمة وصيغها (design/ranking.md 4)
+    const said = `<input class="said" placeholder="ما قاله الفريق">${B('تحقّق')}${B('خطأ', 'no')}`;
+    const near = {
+      read: [B('ابدأ')],
+      run: [said], steal: [said], full: [said],
+      right: [B('التالي'), B('أنهِ القائمة', 'alt')],
+      listend: [B('القائمة 2')], timeup: [B('القائمة 2')],
+      trap: [B('التالي'), B('أنهِ القائمة', 'alt')],
+      none: [B('التالي'), B('أنهِ القائمة', 'alt')],
+    }[id] ?? [];
+    $('near').innerHTML = near.join('');
+    if (id === 'intro') $('introCtl').innerHTML = B('اعرض القائمة 1');
+    if (id === 'end') $('endCtl').innerHTML = B('النتيجة النهائية');
+  }
+
+  function slot(rank, st, by) {
+    const t = by.get(rank), trap = rank > 10, name = LIST[rank - 1];
+    const shown = t || st.reveal;
+    const cls = ['sl', trap && 'trap', t && 't' + t, !t && st.reveal && 'left', rank === st.isnew && 'new'].filter(Boolean).join(' ');
+    const lab = trap ? '−' + PEN[rank] : rank;
+    return `<p class="${cls}"><i></i><b>${lab}</b>${shown ? `<span data-fit="خانة ${rank}">${esc(name)}</span>` : ''}</p>`;
+  }
+
+  function render(id) {
+    const st = STATES[id];
+    $('n1').textContent = NAMES[1]; $('n2').textContent = NAMES[2];
+    for (const k of [1, 2]) { $('s' + k).textContent = SCORES[k]; $('s' + k).classList.toggle('three', String(SCORES[k]).length >= 3); }
+    document.querySelectorAll('.card .scr').forEach(s => s.classList.toggle('show', s.dataset.s === (st.screen ?? 'rnk')));
+    $('b1').querySelector('span').innerHTML = num(st.badge ?? 'القائمة 1 من 2');
+    canvas.classList.toggle('turn-1', st.turn === 1); canvas.classList.toggle('turn-2', st.turn === 2);
+    $('p1').classList.toggle('on', st.turn === 1); $('p2').classList.toggle('on', st.turn === 2);
+    canvas.classList.toggle('running', !!st.run);
+    canvas.classList.toggle('meta-danger', !!st.run && st.run <= 3);
+    if (st.run) { $('c1').textContent = $('c2').textContent = st.run; }
+    if (st.screen === 'intro') {
+      $('rule').textContent = 'اذكروا ما في القائمة: كلما بعُد عن الأول زادت نقاطه';
+      $('starter').textContent = 'قائمتان، وخلف كل قائمة ثلاثة فخاخ';
+    }
+    if (st.screen === 'end') {
+      $('e1').textContent = NAMES[1]; $('e2').textContent = NAMES[2];
+      $('r1').textContent = '+' + st.totals[1]; $('r2').textContent = '+' + st.totals[2];
+      box({ next: 'التالي: النتيجة النهائية' });
+    }
+    if (!st.screen) {
+      const [main, ...rest] = TITLE.split(' · ');
+      $('title').textContent = main; $('tsub').innerHTML = num(rest.join(' · '));
+      const by = new Map(st.got.map(([r, t]) => [r, t]));
+      // الأعمدة بالترتيب (grid-auto-flow: column): 1–5 ثم 6–10 ثم الفخاخ ثم وقت القائمة
+      const cells = [...Array(13).keys()].map(i => slot(i + 1, st, by));
+      cells.push(`<p class="clock" id="clock"${st.clock ? '' : ' hidden'}><span>بقي للقائمة</span><b>${esc(st.clock)}</b></p>`);
+      $('board').innerHTML = cells.join('');
+      if (st.verdict) {
+        const v = st.verdict, r = v.line;
+        // السطر رتبة الخانة وحدها: الاسم ظاهر في خانته نفسها، فلا يتكرر ولا ينكسر سطرين بأطول اسم
+        box({ verdict: v, line: typeof r === 'number' ? (r > 10 ? `فخّ المركز ${r}` : `المركز ${r}`) : r });
+      }
+      if (st.reveal) box({ next: st.endLine });
+    }
+    single(id, st);
+    placeBadges(); placeNear(); fitRings();
+  }
+
+  function box({ verdict, line, next }) {
+    $('box').hidden = false;
+    $('verdict').hidden = !verdict;
+    if (verdict) {
+      $('verdict').className = `chip${verdict.team ? ' t' + verdict.team : ''}`;
+      $('vtext').innerHTML = verdict.team ? `${esc(NAMES[verdict.team])} · ${num(verdict.points)}` : 'لا نقاط';
+    }
+    $('line').innerHTML = num(line ?? next);
+    // «التالي» ونهاية القائمة نصاً على الطرف بلا مربع (15.10)، والحكم في المربع (15.4)
+    $('box').classList.toggle('bare', !!next);
+    const p2 = $('p2'), w = Math.min(659, 1794 - (p2.offsetLeft + p2.offsetWidth + 17 + 24 + 17));
+    $('box').style.left = (1794 - w) + 'px'; $('box').style.width = w + 'px';
+    // يُقاس السطر بلا انكسار (فالرسم الثاني بعد الخط لا يقيس سطراً منكسراً من الرسم الأول)
+    $('box').classList.remove('wrap');
+    $('box').classList.toggle('wrap', $('line').scrollWidth > $('box').clientWidth - 96);
+  }
+  function placeBadges() {
+    const lean = Math.tan(14 * Math.PI / 180) * 64; let right = 104;
+    for (const el of [document.querySelector('.badge.mode'), $('b1')]) { el.style.right = right + 'px'; right += el.offsetWidth + 24 + lean; }
+  }
+  function placeNear() {
+    const near = $('near'); if (!near.children.length) return;
+    // بحدود الشارة الفعلية لا offsetLeft (يُقرَّب، فيصير الفراغ 23 بكسر الميل)
+    const c = canvas.getBoundingClientRect().left;
+    near.style.left = Math.floor(Math.min(...[...document.querySelectorAll('.badge')].map(b => b.getBoundingClientRect().left - c)) - 32 - near.offsetWidth) + 'px';
+  }
+  function fitRings() {
+    for (const team of [$('p1'), $('p2')]) {
+      const svg = team.querySelector('.ring'), w = team.offsetWidth, h = team.offsetHeight, o = Math.tan(14 * Math.PI / 180) * h / 2;
+      svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      svg.querySelector('polygon').setAttribute('points', `${o},0 ${w + o},0 ${w - o},${h} ${-o},${h}`);
+      // إطار الوقت متآكل بقدر ما مضى (للصورة الثابتة): 15 ثانية للإجابة، و5 بعد الانتقال
+      const st = STATES[q.get('s')], total = st?.total ?? 15;
+      svg.querySelector('polygon').style.strokeDashoffset = st?.run ? 100 * (1 - st.run / total) : 0;
+    }
+  }
+
+  // ===== الصفحة =====
+  (function particles() {
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 22; i++) {
+      const s = document.createElement('span');
+      s.style.left = Math.round(rnd() * 1900) + 'px'; s.style.top = Math.round(500 + rnd() * 600) + 'px';
+      s.style.animationDuration = (14 + rnd() * 10).toFixed(1) + 's'; s.style.animationDelay = (-rnd() * 20).toFixed(1) + 's';
+      const k = 6 + Math.round(rnd() * 8); s.style.width = s.style.height = k + 'px';
+      $('particles').appendChild(s);
+    }
+  })();
+
+  const id = q.get('s');
+  if (!STATES[id]) {
+    const m = document.createElement('div'); m.className = 'menu';
+    m.innerHTML = '<h1>ش5 · الترتيب · شاشة الجمهور</h1><table>' + Object.entries(STATES).map(([k, s]) =>
+      `<tr><td>${esc(s.t)}</td><td><a href="?s=${k}">نافذتان</a></td><td><a href="?s=${k}&w=1">نافذة واحدة</a></td><td><a href="?s=${k}&long=1">أطول محتوى</a></td><td><a href="?s=${k}&w=1&long=1&check=1">الأطول بنافذة واحدة مع الفحص</a></td><td><a href="?s=${k}&anim=1">الحركة</a></td></tr>`).join('') +
+      '</table><p>التفصيل في design/ranking.md. ونافذة المقدّم في <a href="presenter-ranking.html">presenter-ranking.html</a>.</p>';
+    document.body.append(m);
+  } else {
+    Promise.all(['700 32px Kufi', '900 104px Kufi'].map(f => document.fonts.load(f, 'الترتيب 0123456789+'))).then(() => document.fonts.ready).then(() => {
+      render(id);
+      requestAnimationFrame(() => {
+        render(id);
+        const st = STATES[id];
+        // الحركة (?anim=1): كشف الخانة، والفخ يهز البطاقة، ولمعة الانتقال
+        if (q.has('anim')) {
+          canvas.classList.add('anim');
+          if (st.danger) $('cardWrap').classList.add('shake');
+          if (st.shine) $('shine').classList.add('go');
+        }
+        window.__ready = true;
+        if (q.has('check')) {
+          const layer = document.createElement('div'); layer.className = 'check-layer'; canvas.append(layer);
+          const r = layoutCheck({ canvas, layer, grid: true });
+          window.__check = r;
+          const out = document.createElement('div'); out.className = 'check-out';
+          out.textContent = (r.ok ? 'سليم' : 'مشكلات: ' + r.problems.join(' · ')) + ` · أدنى فراغ ${Math.round(r.minGap)}`;
+          document.body.append(out);
+        }
+      });
+    });
+  }
+</script>
+</body>
+</html>
