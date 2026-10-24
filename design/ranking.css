@@ -1,0 +1,72 @@
+/* التحدي الكبير · ش5 · الترتيب: شاشة الجمهور (design/ranking.md)
+   طبقة فوق css/ المبنية (1.3): تضيف قسم الترتيب في البطاقة وحده. كل ما سواه (المسرح والاكتساح، واللوحتان والرقم وإطار الوقت،
+   ومربع الإعلان، والشارات، وأزرار النافذة الواحدة) من css/ كما هو. ينقلها المهندس إلى css/ranking.css. */
+
+/* 1. قسم الترتيب في البطاقة: العنوان ثم اللوحة تحته. البطاقة 1666×352 كما هي (لا تكبر لنمط) */
+.scr.rnk { flex-direction: column; align-items: stretch; justify-content: center; gap: 16px; }
+.rnk .rhead { display: flex; align-items: center; gap: 32px; height: 72px; }
+/* العنوان سؤال الترتيب: 64 سطراً واحداً بحبر السؤال (15.6). وما بعد « · » في العنوان سطر صغير بجانبه (التاريخ غالباً) */
+.rnk .title { flex: 0 1 auto; min-width: 0; margin: 0; color: var(--text); font-size: var(--fs-question); font-weight: 700; line-height: 72px;
+  white-space: nowrap; overflow-x: clip; overflow-y: visible; }
+.rnk .sub { flex: none; margin: 0; color: var(--text); font-size: var(--fs-badge); font-weight: 700; line-height: 1; white-space: nowrap; }
+.rnk .sub:empty { display: none; }
+
+/* 2. اللوحة: ثلاثة أعمدة بخمسة صفوف. الأيمن 1–5، والأوسط 6–10، والأيسر الفخاخ 11–13 ثم وقت القائمة.
+   الارتفاع: الرأس 72 + 16 + خمس خانات 44 + أربعة فراغات 8 = 340 من 352. والعرض: (1570 − 24 − 2×48) ÷ 3 = 483 للعمود */
+.rnk .board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(5, 44px); grid-auto-flow: column;
+  gap: 8px 48px; padding: 0 12px; }
+
+/* الخانة: شارة مائلة 14° (كعناصر المزاد)، فيها الرتبة ثم الاسم. المخفية بيضاء بإطار داكن ورتبتها وحدها */
+.rnk .sl { position: relative; min-width: 0; display: flex; align-items: center; gap: 16px; padding: 0 20px; color: var(--ink);
+  font-size: var(--fs-badge); font-weight: 700; line-height: 1; white-space: nowrap; }
+.rnk .sl > i { position: absolute; inset: 0; background: var(--card); box-shadow: inset 0 0 0 3px var(--ink); transform: skewX(calc(-1 * var(--lean))); }
+.rnk .sl > b, .rnk .sl > span { position: relative; }
+.rnk .sl > b { flex: none; min-width: 44px; text-align: center; font-size: 36px; font-weight: 900; direction: ltr; }
+/* القصّ أفقي وحده (1.1): الرأسي يقصّ نقطتي الياء وهمزتي أ/إ، فيتغير الاسم */
+.rnk .sl > span { min-width: 0; overflow-x: clip; overflow-y: visible; }
+/* المكشوفة: ممتلئة بلون من ذكرها، ونصها أبيض. والنقاط رتبتها (الوثيقة 5.6) */
+.rnk .sl.t1, .rnk .sl.t2 { color: var(--on-stage); }
+.rnk .sl.t1 > i { background: var(--team-1); box-shadow: none; }
+.rnk .sl.t2 > i { background: var(--team-2-ink); box-shadow: none; }
+/* بعد نهاية القائمة: ما لم يُذكر بإطاره ونصه الداكن، فيُقرأ أنه الإجابة لا ما قيل (كالمزاد) */
+.rnk .sl.left { font-weight: 800; }
+/* ونهاية القائمة شاشة محايدة، فالخانات الملوّنة كلها تُحسب حقلاً (§15.12): بثلاث عشرة ملوّنة بلغ 78.3% (تدقيق ش5 د).
+   فالمكشوفة فيها بيضاء بإطار لونها 4 واسمها بلونه، ورتبتها في شارة ممتلئة بلونه: يبقى صاحب كل خانة ظاهراً، ويقلّ اللون.
+   وما لم يُذكر رتبته بلا شارة ونصه بحبر السؤال */
+.rnk.reveal .sl.t1 { --c: var(--team-1); }
+.rnk.reveal .sl.t2 { --c: var(--team-2-ink); }
+.rnk.reveal .sl.t1, .rnk.reveal .sl.t2 { color: var(--c); font-weight: 800; gap: 28px; }
+.rnk.reveal .sl.t1 > i, .rnk.reveal .sl.t2 > i { background: var(--card); box-shadow: inset 0 0 0 4px var(--c); border: 0; }
+.rnk.reveal .sl.t1 > b, .rnk.reveal .sl.t2 > b { isolation: isolate; color: var(--on-stage); }
+.rnk.reveal .sl.t1 > b::before, .rnk.reveal .sl.t2 > b::before { content: ""; position: absolute; z-index: -1; inset: -6px -10px;
+  background: var(--c); transform: skewX(calc(-1 * var(--lean))); }
+.rnk.reveal .sl.left { color: var(--text); }
+
+/* الفخاخ: «خلفها 3 مراكز مخفية» (الوثيقة 5.6): لا تُرى حتى يقع فيها فريق أو تنتهي القائمة، فتظهر بإطار متقطع وخصمها مكان رتبتها.
+   والخصم بحبر الخانة لا بالأحمر، لأن الأحمر على اللوحة يعني الفريق الأول (7.3) */
+.rnk .sl.trap:not(.t1):not(.t2):not(.left) { visibility: hidden; }
+.rnk .sl.trap > i { box-shadow: none; border: 3px dashed var(--ink); }
+.rnk .sl.trap > b { min-width: 56px; }
+.rnk .sl.trap.t1 > i, .rnk .sl.trap.t2 > i { border: 0; }
+
+/* وقت القائمة (5 دقائق، الوثيقة 5.6) تحت الفخاخ: إشارة بحبر السؤال، لا أصفر (الأصفر لعدّاد الإجابة في لوحة صاحب الدور) */
+.rnk .clock { grid-row: 4 / span 2; display: flex; align-items: center; justify-content: flex-start; gap: 24px; padding: 0 20px; color: var(--text);
+  white-space: nowrap; }
+.rnk .clock > span { font-size: var(--fs-badge); font-weight: 700; line-height: 1; }
+.rnk .clock > b { font-size: 64px; font-weight: 900; line-height: 1; direction: ltr; }
+.rnk .clock[hidden] { display: none; }
+
+/* 3. لحظات الحركة */
+/* كشف خانة: تنقلب من الإطار إلى لون الفريق (يتسع اللون من جهة الرتبة)، ثم يظهر الاسم */
+.anim .rnk .sl.new > i { animation: slfill .32s cubic-bezier(.3,1.3,.5,1) both; transform-origin: right; }
+@keyframes slfill { from { scale: 0 1; } }
+.anim .rnk .sl.new > span { animation: slname .2s ease-out .24s both; }
+@keyframes slname { from { opacity: 0; translate: 16px 0; } }
+/* الفخ: الخانة تهتز مع البطاقة، ثم تمتلئ بلون من وقع فيها */
+.anim .rnk .sl.trap.new { animation: shake .24s linear .1s 2; }
+@media (prefers-reduced-motion: reduce) { .rnk .sl, .rnk .sl > i, .rnk .sl > span { animation: none !important; } }
+
+/* 4. النافذة الواحدة: حقل «ما قاله الفريق» في صف الشارات (design/ranking.md 4)، أبيض مستقيم بحجم الزر */
+.ctl-near .said { width: 320px; height: 72px; padding: 0 24px; border: 0; border-radius: 0; background: var(--card); color: var(--text);
+  font: inherit; font-size: 32px; font-weight: 700; line-height: 1; outline: none; }
+.ctl-near .said::placeholder { color: var(--text); opacity: .6; }
