@@ -100,20 +100,20 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const tap = async i => { const p = await at(i); await presenter.mouse.click(p.x, p.y); };
 
 
-  // 1. إلى الالتزام رقماً رقماً: المفتتح يذكر 5 (1 و3 و5)، وخصمه يتوقف، ثم «ابدأ» وعنصران.
+  // 1. إلى الوفاء: يزايد فريق (عشوائي) حتى 5 بزرّه، ثم «ابدأ» يرسي عليه ويبدأ العدّاد، وعنصران (3.0).
   await audience.waitForSelector('[data-cmd="draw"]', { timeout: 6000 });
   await sharedToFace(audience, { names: LONG, picks: ['auction', 'letter'] });
   await wait(2700);
   presenter = await beginTwo(context, audience);
   await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 6000 });
   await audience.waitForSelector('.scr.show[data-s="intro"]', { timeout: 5000 });
-  const opener = (await st()).topics[0].opener, rival = other(opener);
+  const opener = Math.random() < 0.5 ? 1 : 2, rival = other(opener);
   await presenter.click('#showQ');
   await audience.waitForSelector('.scr.show[data-s="auc"]');
   await wait(800);
-  for (let n = 1; n <= N; n++) { await presenter.click('#aBid'); await wait(760); }
-  await presenter.click('#aCtl [data-act="stop"]'); await wait(900);
-  // نقر عنصر بعد «ابدأ العدّاد» بـ 0.3 ثانية يُحسب (القائمة خارج إمهال الأزرار، ملاحظة المعاين 30).
+  for (let n = 1; n <= N; n++) { await presenter.click(`#aCtl [data-raise="${opener}"]`); await wait(200); }
+  await wait(600);
+  // نقر عنصر بعد «ابدأ» بـ 0.3 ثانية يُحسب (القائمة خارج إمهال الأزرار، ملاحظة المعاين 30).
   await presenter.click('#aCtl [data-act="start"]'); await wait(300);
   await tap(0); await wait(100); await tap(1); await wait(4000);
   check(`الوفاء: ${LONG[opener - 1]} ملتزم بـ ${N}، وعنصران بعد «ابدأ» بـ 0.3 ثانية يُحسبان`, (await st()).phase === 'fulfil' && (await st()).commit.team === opener && (await tally()) === `2/${N}`);
@@ -144,9 +144,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   sc = (await stored()).scores;
   check(`التراجع عن «لم يفِ»: يعود الوفاء بما بقي (${back} ثانية، لا 60)، والرصيد 0`, (await st()).phase === 'fulfil' && back > 0 && back < 59 && await audience.$eval('#canvas', c => c.classList.contains('running')) && sc[rival] === 0);
 
-  // 4. النافذة الواحدة: من الوفاء (عنصران للملتزم، والعدّاد لم يبدأ)، «توقّف» فللخصم نقطتان.
+  // 4. النافذة الواحدة: من المزايدة (الملتزم بـ 5 والخصم بلا رقم)، «ابدأ» ثم «توقّف» فللخصم نقطتان.
   await stage.evaluate(o => { const m = JSON.parse(localStorage.getItem('big-challenge.match')); const r = m.round, s = r.state;
-    Object.assign(s, { phase: 'ready', team: o, said: s.said.slice(0, 2), results: s.results.map(() => null) });
+    Object.assign(s, { phase: 'bid', team: 0, nums: o === 1 ? [5, 0] : [0, 5], commit: null, said: [], results: s.results.map(() => null) });
     m.scores = r.scores = { 1: 188, 2: 176 }; r.timer = null; r.history = []; localStorage.setItem('big-challenge.match', JSON.stringify(m)); }, opener);
   await presenter.close();
   presenter = null;
@@ -159,7 +159,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await wait(800);
   const near = () => audience.$$eval('#near .cbtn', els => els.map(e => e.textContent.trim() + (e.classList.contains('off') ? '(معطّل)' : '')).join(' | '));
   const card = () => audience.$$eval('.scr.show .ctl .cbtn', els => els.map(e => e.textContent.trim()).join(' | '));
-  check(`النافذة الواحدة قبل «ابدأ»: «ابدأ» · «صحيح · +1» (${await near()})`, (await near()) === 'ابدأ | صحيح · +1');
+  check(`النافذة الواحدة في المزايدة: زرّا الفريقين و«ابدأ» بينهما (${await near()})`, (await near()) === (opener === 1 ? '5 | ابدأ | زايد' : 'زايد | ابدأ | 5'));
   await cmd(audience, 'act:start'); await wait(1000);
   check(`النافذة الواحدة والعدّاد يعدّ: «صحيح · +1» · «توقّف» (${await near()})`, (await near()) === 'صحيح · +1 | توقّف');
   await cmd(audience, 'act:stop'); await wait(1400);
