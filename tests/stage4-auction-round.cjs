@@ -74,14 +74,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
       if (document.documentElement.scrollWidth > innerWidth + 1) problems.push('تمرير أفقي');
       return { ok: !problems.length, problems: [...new Set(problems)] };
     });
-    // قائمة أفريقيا (54) بصيغها البديلة أطول من النافذة: معلّق على المصمّم (docs/open-questions.md)، يُقاس ويُذكر ولا يُخفق به.
-    const tall = r.problems.filter(x => x.startsWith('أطول من النافذة')), rest = r.problems.filter(x => !tall.includes(x));
-    if (longList && tall.length) pending.push(`${label}: ${tall.join('، ')}`);
-    const bad = longList ? rest : r.problems;
-    if (bad.length) { presenterOk = false; fails.push(`المقدّم ${label}: ${bad.join('، ')}`); }
+    if (!r.ok) { presenterOk = false; fails.push(`المقدّم ${label}: ${r.problems.join('، ')}`); }
   };
-  let longList = true;
-  const pending = [];
   const sizes = async label => {
     for (const [w, h] of [[1366, 768], [1280, 800], [1920, 1080]]) { await presenter.setViewportSize({ width: w, height: h }); await wait(250); await presenterCheck(`${label} ${w}`); }
     await presenter.setViewportSize({ width: 1366, height: 768 });
@@ -118,8 +112,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('الجمهور: الحدّ عند المفتتح', await audience.$eval('#canvas', (c, t) => c.classList.contains('turn-' + t), opener));
   check('المقدّم: الرأس «المزاد · الموضوع 1 من 3» والموضوع وطول القائمة له وحده', (await text(presenter, '#roundChip')) === 'المزاد · الموضوع 1 من 3'
     && (await text(presenter, '#aTopic')) === TOPIC && (await text(presenter, '#aSize')) === `في القائمة ${bank.topics[0].items.length} عنصراً`);
-  check('المقدّم: القائمة المرجعية أزرار للاطلاع، تسعة في الصف (54)', (await presenter.$$('#aRef button')).length === bank.topics[0].items.length
-    && await presenter.$eval('#aRef', e => e.classList.contains('view') && e.classList.contains('dense')));
+  check('المقدّم: القائمة المرجعية أزرار للاطلاع، 12 عموداً (54)، والاسم وحده بلا صيغه في المزايدة', (await presenter.$$('#aRef button')).length === bank.topics[0].items.length
+    && await presenter.$eval('#aRef', e => e.classList.contains('view') && e.classList.contains('dense') && getComputedStyle(e).gridTemplateColumns.split(' ').length === 12 && !e.querySelector('small')));
   check('المقدّم: «يفتتح المزايدة برقم» و«زايد · 5»، و«انسحب» معطّل في الافتتاح', (await text(presenter, '#aState')) === 'يفتتح المزايدة برقم'
     && (await text(presenter, '#aBid')) === 'زايد · 5' && await presenter.$eval('#aPass', e => e.disabled));
   await both('الموضوع');
@@ -134,16 +128,21 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('«−» لا ينزل تحت 1 ثم يُعطَّل', (await text(presenter, '#aBid')) === 'زايد · 1' && await presenter.$eval('[data-offer="-1"]', e => e.disabled));
   for (let i = 0; i < 5; i++) await plus();
   check('لا يصل الرقم المقترح إلى الجمهور قبل «زايد»', (await bids(audience)).length === 0);
-  await presenter.click('#aBid');
-  await wait(400);
+  await presenter.$eval('#aBid', e => e.click());
+  // نقرة ثانية متأخرة (تقرير المعاين ش4، التعثّر 1): الزر نفسه صار زرّ الخصم، فتُهمل.
+  const at = await presenter.$eval('#aBid', e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  await wait(150); await presenter.mouse.click(at.x, at.y);
+  await wait(150); await presenter.mouse.click(at.x, at.y);
+  await wait(100);
   let b = await bids(audience);
+  check('نقرتان متأخرتان بالفأرة على «زايد» (0.15 و0.3 ثانية) لا تسجّلان رقماً للخصم', b.length === 1);
   check('زايد المفتتح بـ 6: شارة بلونه، وهي الأحدث الأكبر (136)', b.length === 1 && b[0].n === '6' && b[0].t === opener && b[0].top && b[0].h === 136);
   check('الجمهور: الحدّ يكتسح للخصم، ودوره', await audience.$eval('#canvas', (c, t) => c.classList.contains('turn-' + t), other(opener)) && await audience.$eval('#p' + other(opener), e => e.classList.contains('on')));
   check('الرقم الجديد يدخل بحركته', await audience.$eval('#bids .bid.top', e => getComputedStyle(e).animationName === 'bidin'));
   await wait(800);
   check('المقدّم: «يزايد على 6 أو ينسحب» و«زايد · 7»، و«−» معطّل عند 7، و«انسحب» مفعّل', (await text(presenter, '#aState')) === 'يزايد على 6 أو ينسحب'
     && (await text(presenter, '#aBid')) === 'زايد · 7' && await presenter.$eval('[data-offer="-1"]', e => e.disabled) && !(await presenter.$eval('#aPass', e => e.disabled)));
-  check('المقدّم: الدور للخصم، والرقم بلون صاحبه', (await text(presenter, '#aWho')) === `دور ${LONG[other(opener) - 1]}` && await presenter.$eval('#aBids .bid', (e, t) => e.classList.contains('t' + t), opener));
+  check('المقدّم: الدور للخصم، ولا صف أرقام (السلّم على الجمهور)', (await text(presenter, '#aWho')) === `دور ${LONG[other(opener) - 1]}`  && !(await presenter.$('#aBids')));
   await both('بعد رقم');
 
   // 5. ثلاثة أرقام ثم تبادل طويل: يسقط الأقدم ويبقى الأحدث.
@@ -171,7 +170,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await presenter.reload();
   await presenter.waitForSelector('#app:not([hidden])', { timeout: 10000 }).catch(() => {});
   await wait(1200);
-  check('إعادة تحميل المقدّم: الأرقام والدور كما هي', (await presenter.$$('#aBids .bid')).length === before && (await text(presenter, '#aBid')) === 'زايد · 19');
+  check('إعادة تحميل المقدّم: الرقم والدور كما هما', (await text(presenter, '#aState')).includes(String((await st()).bids.slice(-1)[0].n)) && (await text(presenter, '#aBid')) === 'زايد · 19');
 
   // 7. الانسحاب: صاحب الدور ينسحب، فيلتزم صاحب أعلى رقم.
   s = await st();
@@ -182,6 +181,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check(`الجمهور: «0 من ${top}» بلون الملتزم، ولا أرقام`, (await text(audience, '#tn')) === '0' && (await text(audience, '#tof')) === String(top) && await audience.$eval('#tally', (e, t) => e.classList.contains('t' + t), committed) && (await bids(audience)).length === 0);
   check('الجمهور: الحدّ عند الملتزم، ولا عدّاد يعمل', await audience.$eval('#canvas', (c, t) => c.classList.contains('turn-' + t) && !c.classList.contains('running'), committed));
   check(`المقدّم: «التزم بـ ${top} · 60 ثانية» ولا أزرار مزايدة`, (await text(presenter, '#aState')) === `التزم بـ ${top} · 60 ثانية` && (await presenter.$$('#aCtl button')).length === 0 && await presenter.isVisible('#aLater'));
+  check('المقدّم: من الالتزام تظهر الصيغ البديلة، ولا نص يُقصّ', await presenter.$$eval('#aRef small', e => e.length) === bank.topics[0].items.filter(i => i.alts?.length).length);
   await both('الالتزام');
   await stage.screenshot({ path: `${shots}/s4-ready.png` });
 
@@ -195,7 +195,6 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await presenter.reload();
   await presenter.waitForSelector('#app:not([hidden])', { timeout: 10000 }).catch(() => {});
   await wait(1200);
-  longList = false;
   check('قائمة 22 عنصراً: ستة في الصف لا تسعة', (await presenter.$$('#aRef button')).length === 22 && !(await presenter.$eval('#aRef', e => e.classList.contains('dense'))));
   await sizes('قائمة 22');
   await presenter.screenshot({ path: `${shots}/s4-presenter-22.png` });
@@ -218,7 +217,12 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('«+» في النافذة الواحدة: «زايد · 20»', (await near()).includes('زايد · 20'));
   await both('نافذة واحدة · المزايدة');
   await stage.screenshot({ path: `${shots}/s4-single-bid.png` });
-  await cmd(audience, 'act:bid'); await wait(900);
+  const nb = (await audience.$$('#near .cbtn'))[1], box = await nb.boundingBox();
+  await stage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await wait(150); await stage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await wait(150); await stage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await wait(900);
+  check('ثلاث نقرات على «زايد» في النافذة الواحدة بفاصل 0.15 ثانية تسجّل رقماً واحداً', (await bids(audience)).slice(-2).map(x => x.n).join(',') === '18,20');
   check('«زايد» في النافذة الواحدة يسجّل 20', (await bids(audience)).pop().n === '20');
   await cmd(audience, 'act:pass'); await wait(900);
   check('«انسحب» في النافذة الواحدة: العدّ «0 من 20» ولا أزرار مزايدة', (await text(audience, '#tn')) === '0' && (await text(audience, '#tof')) === '20' && !(await audience.$$('#near .cbtn')).length);
@@ -234,7 +238,6 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check(`فحص التداخل والشبكة في كل حالة سليم${layoutOk ? '' : ' · ' + fails.filter(f => !f.startsWith('المقدّم')).join(' | ')}`, layoutOk);
   check(`نافذة المقدّم على 1366×768 و1280×800 و1920×1080 بلا تمرير ولا فيض ولا نص أصغر من 32${presenterOk ? '' : ' · ' + fails.filter(f => f.startsWith('المقدّم')).join(' | ')}`, presenterOk);
   check('لا قائمة ولا طولها ولا نص قواعد على شاشة الجمهور', !leak);
-  if (pending.length) console.log(`معلّق على المصمّم · قائمة 54 بصيغها: ${pending.join(' | ')}`);
   check(`لا أخطاء في الصفحات${errors.length ? ': ' + errors.join(' | ') : ''}`, errors.length === 0);
   await browser.close();
   process.exit(finish() ? 0 : 1);
