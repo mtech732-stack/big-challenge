@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="css/start.css">
 <link rel="stylesheet" href="css/letter.css">
 <link rel="stylesheet" href="css/auction.css">
+<link rel="stylesheet" href="css/ranking.css">
 <link rel="stylesheet" href="css/shared.css">
 <style>
   /* اللعبة مغلقة أو بانتظار المقدّم: لا يبقى على الشاشة إلا الخلفية والبطاقة. */
@@ -60,6 +61,14 @@
           <div class="bids" id="bids"></div>
           <div class="items" id="items"></div>
         </div>
+        <!-- الترتيب (ش5، design/ranking.md 2): العنوان، ثم اللوحة: 1–10 والفخاخ. لا اسم قبل أن يُكشف -->
+        <div class="scr rnk" data-s="rnk" id="rnk">
+          <div class="rhead">
+            <p class="title" id="rtitle" data-fit="عنوان القائمة"></p>
+            <p class="sub" id="rsub"></p>
+          </div>
+          <div class="board" id="board"></div>
+        </div>
         <!-- الجولة (ش2): افتتاحها ونهايتها. والسؤال في القسم الأول نفسه -->
         <div class="scr intro" data-s="intro">
           <p class="rule" id="rule"></p>
@@ -108,6 +117,7 @@
       <p class="chip" id="faceChip" hidden><i></i><span>الفائز بالقرعة</span></p>
       <p class="line" id="reveal" data-fit="سطر الإجابة" hidden>الإجابة: <b id="answer"></b></p>
       <p class="line" id="told" data-fit="سطر ما ذُكر" hidden></p>
+      <p class="line" id="say" data-fit="سطر الحكم" hidden></p>
       <p class="line" id="faceWin" data-fit="اسم الفائز" hidden></p>
       <p class="line" id="next" data-fit="سطر التالي" hidden></p>
     </div>
@@ -159,7 +169,8 @@
   const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   // الأرقام معزولة من اليسار، ومعها علامة + إن سبقتها، فلا تنقلب «+2» إلى «2+» (design/letter.md 2.2).
-  const num = s => esc(s).replace(/(\+?\d+)/g, '<span class="ltr">$1</span>');
+  // و«−2» (خصم الفخ) بعلامته كذلك، و«2024–2025» و«3:42» معزولان كاملين (design/ranking.html).
+  const num = s => esc(s).replace(/([+−]?\d+(?:[:–]\d+)?)/g, '<span class="ltr">$1</span>');
   const setLocked = on => canvas.classList.toggle('locked', on);
   const setDanger = on => canvas.classList.toggle('meta-danger', on);
   const showScreen = name => document.querySelectorAll('.card .scr').forEach(s => s.classList.toggle('show', s.dataset.s === name));
@@ -199,7 +210,7 @@
     svg.querySelector('polygon').setAttribute('points', `${o},0 ${w + o},0 ${w - o},${h} ${-o},${h}`);
   };
   // يُعاد حسابه إن تغيّر عرض لوحة الثاني (الاسم والرقم) أو طول سطر المربع.
-  { const ro = new ResizeObserver(() => placeBox()); for (const id of ['p2', 'reveal', 'faceWin', 'next']) ro.observe($(id)); }
+  { const ro = new ResizeObserver(() => placeBox()); for (const id of ['p2', 'reveal', 'faceWin', 'next', 'say']) ro.observe($(id)); }
   const sized = new ResizeObserver(list => list.forEach(e => fitRing(e.target)));
   sized.observe($('p1')); sized.observe($('p2'));
   // ويتآكل مع العدّاد: يبدأ مما مضى من الوقت (بعد إعادة التحميل مثلاً)، وينتهي مع آخر ثانية.
@@ -213,21 +224,23 @@
   };
   // مربع الإعلان (15.4): الحكم والإجابة · الفائز بالقرعة · «التالي». ولا يظهر إن لم يكن فيه شيء.
   // told: سطر المزاد بعد الحكم «ذُكر 10 من 12» مكان الإجابة (القائمة كلها في البطاقة، design/auction.md 2).
-  function announce({ verdict: v, answer, told, face, next } = {}) {
+  // say: سطر الترتيب في المربع «المركز 7» أو «لم تُكشف خانة» (الاسم في خانته، design/ranking.md 7.6).
+  function announce({ verdict: v, answer, told, say, face, next } = {}) {
     $('verdict').hidden = !v;
     if (v) {
       $('verdict').className = `chip${v.team ? ' t' + v.team : ''}`;
-      // الفريق الذي أخذ النقاط باسمه (الوثيقة 1.1، 7.1).
-      $('vtext').innerHTML = v.team ? `${esc(name(v.team))} · ${num('+' + v.points)}` : 'لا نقاط';
+      // الفريق الذي أخذ النقاط باسمه (الوثيقة 1.1، 7.1). وخصم الفخ «−2» بما خُصم فعلاً (design/ranking.md 7.7).
+      $('vtext').innerHTML = v.team ? `${esc(name(v.team))} · ${num(v.points < 0 ? '−' + -v.points : '+' + v.points)}` : 'لا نقاط';
     }
     $('reveal').hidden = !answer; $('answer').textContent = answer ?? '';
     $('told').hidden = !told; $('told').innerHTML = told ? num(told) : '';
+    $('say').hidden = !say; $('say').innerHTML = say ? num(say) : '';
     $('faceChip').hidden = $('faceWin').hidden = !face; $('faceWin').textContent = face ? name(face) : '';
     $('next').hidden = !next; $('next').innerHTML = next ? num(next) : '';
-    $('box').hidden = !(v || answer || told || face || next);
+    $('box').hidden = !(v || answer || told || say || face || next);
     // «التالي» في نهاية الجولة نص أبيض على الطرف بلا مربع، فلا يتجاوز الأبيض سقفه (15.4 و15.12).
     // وحكم المزاد (سطره told) بلا مربع كذلك، فالقائمة القصيرة لا ترفع الأبيض فوق 35 (design/auction.md 1.5).
-    $('box').classList.toggle('bare', (!!next && !v && !answer && !face) || (!!told && !answer && !face));
+    $('box').classList.toggle('bare', (!!next && !v && !answer && !face && !say) || (!!told && !answer && !face));
     placeBox();
   }
   // الملاحظة 27 (15.4): المربع يضيق بقدر ما يبقى بعد لوحة الثاني. حافته اليمنى ثابتة على 1794، وعرضه الأصغر من 659
@@ -384,6 +397,10 @@
       showScreen('auc');
       renderAuction(a);
       setBadges(`الموضوع ${a.n} من ${a.count}`);
+    } else if (a.screen === 'list') {
+      showScreen('rnk');
+      renderRanking(a);
+      setBadges(`القائمة ${a.n} من ${a.count}`);
     } else {
       showScreen('q');
       setBox(a);
@@ -392,9 +409,9 @@
     }
 
     // بعد الحكم الأخير: الحكم والإجابة في مربع الإعلان حتى السؤال التالي. و«التالي» فيه في نهاية الجولة.
-    const asking = a.screen === 'ask' || a.screen === 'topic';
+    const asking = a.screen === 'ask' || a.screen === 'topic' || a.screen === 'list';
     const v = asking ? a.verdict : null;
-    announce(a.screen === 'end' ? { next: p.next } : { verdict: v, answer: a.answer, told: v && a.tally ? `ذُكر ${a.tally.n} من ${a.tally.of}` : undefined });
+    announce(a.screen === 'end' ? { next: p.next } : a.screen === 'list' ? rankBox(a) : { verdict: v, answer: a.answer, told: v && a.tally ? `ذُكر ${a.tally.n} من ${a.tally.of}` : undefined });
     syncTimer(p.timer, a);
     setTurn(a.turn);
     // الحدّ يكتسح لصاحب الدور من ظهور سؤاله، في القراءة ثم العدّاد بلا حركة بينهما، وللآخر فوراً إن انتقل إليه (المالك 20:39، design/system.md 15.2).
@@ -439,6 +456,37 @@
     if (fresh) replay($('tally'), 'bump');
   }
   let shownSaid = 0;
+
+  // ===== الترتيب (design/ranking.md 2): العنوان وإشارته، واللوحة: 13 خانة بالترتيب، وgrid-auto-flow يضعها في أعمدتها =====
+  // الخانة المنتظرة رتبتها وحدها · المكشوفة بلون من ذكرها واسمها · الفخ الذي لم يقع فيه أحد مخفي ولا يصل منه شيء (7.2 و7.4)
+  // · وبعد نهاية القائمة ما لم يُذكر باسمه (.left)، و.reveal على القسم (المكشوفة بيضاء بإطار لونها، 1.1).
+  const PEN = { 11: 3, 12: 2, 13: 1 };
+  let shownFresh = '';
+  function renderRanking(a) {
+    // العنوان على أول « · »: ما قبله سطر 64، وما بعده إشارة 32 بجانبه (التاريخ غالباً). وبلا « · » لا إشارة (design/ranking.md 7.3).
+    const at = a.title.indexOf(' · ');
+    $('rtitle').textContent = at < 0 ? a.title : a.title.slice(0, at);
+    $('rsub').innerHTML = at < 0 ? '' : num(a.title.slice(at + 3));
+    const reveal = a.phase === 'listend';
+    $('rnk').classList.toggle('reveal', reveal);
+    // الخانة التي كُشفت الآن تتحرك مرة واحدة: لا تُعاد حركتها بإعادة رسم الحالة نفسها.
+    const key = `${a.n}/${a.fresh}/${a.slots.filter(x => x.team).length}`;
+    const fresh = a.fresh && key !== shownFresh ? a.fresh : 0;
+    shownFresh = key;
+    $('board').innerHTML = a.slots.map(x => {
+      if (!x.rank) return '<p class="sl trap"><i></i></p>';
+      const cls = ['sl', x.trap && 'trap', x.team && 't' + x.team, !x.team && x.name && 'left', x.rank === fresh && 'new'].filter(Boolean).join(' ');
+      return `<p class="${cls}"><i></i><b>${x.trap ? '−' + PEN[x.rank] : x.rank}</b>${x.name ? `<span data-fit="خانة ${x.rank}">${esc(x.name)}</span>` : ''}</p>`;
+    }).join('');
+  }
+  // مربع الإعلان في الترتيب: الحكم بالمربع («[الاسم] · +7» و«المركز 7»)، و«لا نقاط» و«لم تُكشف خانة».
+  // ونهاية القائمة بلا مربع: «كُشف 7 من 10» (design/ranking.md 7.6).
+  function rankBox(a) {
+    if (a.phase === 'listend') return { next: `كُشف ${a.found} من ${a.of}` };
+    const v = a.verdict;
+    if (!v) return {};
+    return { verdict: v, say: !v.team ? 'لم تُكشف خانة' : v.rank > 10 ? `فخّ المركز ${v.rank}` : `المركز ${v.rank}` };
+  }
   // ما ذُكر: أثناء العدّ يبقى الأحدث (يسقط الأقدم). وبعد الحكم يبقى كل ما ذُكر، ويسقط من غير المذكور آخره،
   // وفي آخر الصف «و N غيرها» (design/auction.md 7.2، fitItems في design/auction.html).
   const fitsAll = box => !box.lastElementChild || rect(box.lastElementChild).bottom <= rect(box).bottom + 1;

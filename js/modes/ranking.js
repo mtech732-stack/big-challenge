@@ -1,0 +1,145 @@
+// النمط الرابع: «الترتيب» (القسم 5.6 من الوثيقة، وتصميمه design/ranking.md). وحدة تلتزم «عقد الوحدة».
+// قائمتان في الجولة: الأولى سهلة، والثانية صعبة. كل قائمة 13 عنصراً مرتبة: 1 إلى 10 خانات ظاهرة، و11 و12 و13 فخاخ مخفية.
+// إجابة لكل فريق بالتتابع، 15 ثانية لكل إجابة. والعنصر الصحيح يُكشف في خانته، ويأخذ صاحبه نقاطاً بقدر رقمها.
+// ونهاية القائمة حين تنكشف العشرة، أو بـ «أنهِ القائمة» حين يعجز الفريقان، ثم تنكشف بقيتها والمراكز المخفية للجميع.
+// والقائمة لا تصل إلى الجمهور قبل نهايتها: ما كُشف وحده (7.1).
+// (ش5 · اللوحة والكشف: الفخاخ، وانتقال الإجابة، ومهلة القائمة والقائمة الثانية في المراحل التالية.)
+import { freshFirst, besides } from '../round.js';
+import { sharedItems, CLASH_MIN } from '../content-check.js';
+
+// وقت الإجابة (مبدئي، يُضبط في ش8).
+export const ANSWER_SECONDS = 15;
+export const SLOTS = 10;
+const LEVELS = ['easy', 'hard'];
+const other = team => (team === 1 ? 2 : 1);
+
+// الحالات: intro افتتاح الجولة · read ظهور القائمة قبل «ابدأ» · ask عدّاد صاحب الدور · decided بعد الحكم
+// · listend نهاية القائمة (تنكشف كلها) · end انتهت الجولة.
+// team: صاحب الدور الآن · got[i]: ما كُشف من القائمة i بالترتيب { rank, team, points } · verdict: حكم الإجابة الأخيرة
+// { team, points, rank } (team 0 ورتبة 0 إن لم يأخذ أحد شيئاً) · starts[i]: من بدأ القائمة i.
+// avoid: قوائم تتقاطع مع موضوع مزاد أو سؤال اختير في المباراة (تدقيق ش5 «ثالثاً» و«رابعاً»).
+// والقائمة الثانية لا تشترك مع الأولى في 7 عناصر فأكثر («خامساً»)، فلا تكشف الأولى إجابات الثانية.
+function setup({ content, first, seen = [], avoid = [], rng = Math.random }) {
+  const bank = content?.lists ?? [];
+  const picked = [];
+  for (const l of LEVELS) {
+    const near = bank.filter(x => picked.some(p => sharedItems(p, x) >= CLASH_MIN)).map(x => x.id);
+    const t = freshFirst(besides(bank.filter(x => x.level === l), [...avoid, ...near]), seen, 1, rng)[0];
+    if (t) picked.push(t);
+  }
+  const lists = picked.map(t => ({ id: t.id, level: t.level, title: t.title, items: t.items.map(x => ({ name: x.name, alts: x.alts ?? [] })) }));
+  return { first, lists, index: 0, phase: 'intro', team: first, got: lists.map(() => []), verdict: null, starts: [first] };
+}
+
+const current = s => s.lists[s.index];
+const gotOf = s => s.got[s.index] ?? [];
+const found = s => gotOf(s).filter(g => g.rank <= SLOTS).length;
+const isGot = (s, rank) => gotOf(s).some(g => g.rank === rank);
+const last = s => s.index === s.lists.length - 1;
+
+function actions(s) {
+  if (s.phase === 'intro') return [{ id: 'show', label: `اعرض القائمة ${s.index + 1}` }];
+  const finish = { id: 'finish', label: 'أنهِ القائمة' };
+  if (s.phase === 'read') return [{ id: 'start', label: `ابدأ العدّاد · ${ANSWER_SECONDS} ثانية` }, finish];
+  // في العدّاد: ينقر المقدّم ما قاله الفريق (item:رتبته)، أو «خطأ» لما ليس في القائمة أو المكرر. وانتهاء الوقت خطأ.
+  if (s.phase === 'ask') return [{ id: 'item', label: 'عنصر' }, { id: 'wrong', label: 'خطأ · ليس في القائمة أو مكرر' }];
+  // بعد الحكم: دور الخصم، أو نهاية القائمة. وإن انكشفت العشرة فنهايتها وحدها (5.6).
+  if (s.phase === 'decided') return found(s) >= SLOTS ? [finish] : [{ id: 'next', label: 'التالي' }, finish];
+  if (s.phase === 'listend') return [{ id: 'next', label: 'إنهاء الجولة' }];
+  return [];
+}
+
+function act(s, action) {
+  const [id, arg] = String(action).split(':');
+  if (id === 'show' && s.phase === 'intro') return { state: { ...s, phase: 'read', team: s.starts[s.index] ?? s.first, verdict: null }, events: [] };
+  if (id === 'start' && s.phase === 'read') return { state: { ...s, phase: 'ask' }, events: [{ type: 'timer', seconds: ANSWER_SECONDS }] };
+  // العنصر الصحيح: يُكشف في خانته بلون صاحب الدور، ونقاطه رتبته. ولا يُكشف ثانية (المكرر خطأ، تحكم به «خطأ»).
+  if (id === 'item' && s.phase === 'ask') {
+    const rank = Number(arg);
+    if (!/^\d+$/.test(arg ?? '') || rank < 1 || rank > SLOTS || isGot(s, rank)) return { state: s, events: [] };
+    const hit = { rank, team: s.team, points: rank };
+    return {
+      state: { ...s, phase: 'decided', got: s.got.map((g, i) => (i === s.index ? [...g, hit] : g)), verdict: { team: s.team, points: rank, rank } },
+      events: [{ type: 'score', team: s.team, points: rank }, { type: 'moment', name: 'right', team: s.team, rank }],
+    };
+  }
+  // خطأ أو انتهى الوقت: لا نقاط ولا خانة. (انتقال الإجابة إلى الخصم في مرحلة «السرقة».)
+  if ((id === 'wrong' || id === 'timeout') && s.phase === 'ask') {
+    return { state: { ...s, phase: 'decided', verdict: { team: 0, points: 0, rank: 0 } }, events: [{ type: 'moment', name: 'none' }] };
+  }
+  // التالي: دور الخصم، وعدّاده يبدأ فوراً (القائمة ظاهرة من قبل، فلا قراءة بين الإجابتين).
+  if (id === 'next' && s.phase === 'decided' && found(s) < SLOTS) {
+    return { state: { ...s, phase: 'ask', team: other(s.team), verdict: null }, events: [{ type: 'timer', seconds: ANSWER_SECONDS }] };
+  }
+  // نهاية القائمة: يعجز الفريقان («أنهِ القائمة») أو تنكشف العشرة. فتنكشف القائمة كلها للجميع.
+  if (id === 'finish' && (s.phase === 'read' || s.phase === 'decided')) return { state: { ...s, phase: 'listend', team: 0, verdict: null }, events: [] };
+  if (id === 'next' && s.phase === 'listend') return { state: { ...s, phase: 'end', team: 0 }, events: [] };
+  return { state: s, events: [] };
+}
+
+// حصيلة الجولة لكل فريق: نقاط ما كشفه في القائمتين.
+function totals(s) {
+  const sum = { 1: 0, 2: 0 };
+  for (const list of s.got) for (const g of list) sum[g.team] += g.points;
+  return sum;
+}
+
+// ما تعرضه نافذة الجمهور: العنوان، والخانات العشر بما كُشف منها (رتبة، اسم، فريق). لا اسم لما لم يُكشف، ولا رتبة لفخ
+// لم يقع فيه أحد (design/ranking.md 7.4). وبعد نهاية القائمة: القائمة كلها، والفخاخ.
+function audience(s) {
+  const t = current(s);
+  const base = { first: s.first, count: s.lists.length, totals: totals(s) };
+  if (s.phase === 'intro') return { ...base, screen: 'intro', turn: 0, rule: 'اذكروا ما في القائمة: كلما بعُد عن الأول زادت نقاطه', starter: 'قائمتان، وخلف كل قائمة ثلاثة فخاخ' };
+  if (s.phase === 'end' || !t) return { ...base, screen: 'end', turn: 0 };
+  const reveal = s.phase === 'listend';
+  const by = new Map(gotOf(s).map(g => [g.rank, g.team]));
+  const slots = t.items.map((x, i) => {
+    const rank = i + 1, team = by.get(rank) ?? 0, trap = rank > SLOTS;
+    if (trap && !team && !reveal) return { trap: true };
+    return { rank, trap, team, ...(team || reveal ? { name: x.name } : {}) };
+  });
+  const v = s.phase === 'decided' ? s.verdict : null;
+  return {
+    ...base,
+    screen: 'list',
+    phase: s.phase,
+    n: s.index + 1,
+    title: t.title,
+    slots,
+    // الرتبة التي كُشفت الآن (للحركة).
+    fresh: v?.rank || 0,
+    // بعد الحكم: الحدّ عند من أخذ النقاط، أو في المنتصف. وفي نهاية القائمة في المنتصف.
+    turn: v ? v.team : reveal ? 0 : s.team,
+    // العدّاد ثابت بوقته قبل «ابدأ».
+    clock: ANSWER_SECONDS,
+    verdict: v ? { ...v } : null,
+    found: found(s),
+    of: SLOTS,
+  };
+}
+
+// ما تعرضه نافذة المقدّم: ما يراه الجمهور، ومعه القائمة كاملة (13) بصيغها، وكل عنصر بمن كشفه، ومسار القائمتين.
+function presenter(s) {
+  const t = current(s);
+  const hidden = s.phase === 'intro' || s.phase === 'end';
+  const by = new Map(gotOf(s).map(g => [g.rank, g.team]));
+  return {
+    ...audience(s),
+    level: hidden ? undefined : t?.level,
+    // بعد الحكم: من دوره بعد «التالي» (الخصم).
+    upNext: s.phase === 'decided' ? other(s.team) : 0,
+    items: hidden ? [] : t.items.map((x, i) => ({ rank: i + 1, name: x.name, alts: [...x.alts], trap: i >= SLOTS, by: by.get(i + 1) ?? 0 })),
+    brief: `قائمتان. إجابة لكل فريق بالتتابع، ${ANSWER_SECONDS} ثانية لكل إجابة. انقر ما قاله الفريق فتنكشف خانته بنقاط رقمها، أو «خطأ» لما ليس فيها أو المكرر.`,
+    track: s.lists.map((x, i) => ({ owner: s.starts[i] ?? 0, result: null, now: !hidden && i === s.index })),
+  };
+}
+
+export default {
+  id: 'ranking',
+  name: 'الترتيب',
+  order: 4,
+  contentKey: 'ranking.json',
+  setup, actions, act, audience, presenter,
+  finished: s => s.phase === 'end',
+  used: s => s.lists.map(t => t.id),
+};

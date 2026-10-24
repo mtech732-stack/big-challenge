@@ -3,6 +3,7 @@
 // modes: وحدات الأنماط المبنية (MODES في js/modes/index.js).
 import { plan } from './match.js';
 import * as R from './round.js';
+import { clashes } from './content-check.js';
 
 // موضع المباراة في مسارها: match.cursor رقم العنصر الحالي في plan()، و-1 قبل أول جولة.
 const cursor = match => match.cursor ?? -1;
@@ -32,12 +33,23 @@ export function nextKind(match, modes) {
   return item.kind === 'round' && modeOf(modes, item.mode) ? 'start' : 'skip';
 }
 
+// ما لا يُختار في المباراة لأنه يتقاطع مع ما اختير فيها قبله: قائمة ترتيب، وموضوع مزاد أو سؤال (تدقيق ش5 «ثالثاً» و«رابعاً»).
+export function avoidIn(content, used = []) {
+  const avoid = new Set();
+  for (const c of clashes(content)) {
+    if (used.includes(c.ranking)) avoid.add(c.with);
+    if (used.includes(c.with)) avoid.add(c.ranking);
+  }
+  return [...avoid];
+}
+
 // يبدأ الجولة التالية في المسار. content: ملفات الحزمة. seen: ذاكرة الأسئلة.
+// match.used: ما اختير في جولات هذه المباراة، ليُترك ما يتقاطع معه.
 export function startNext(match, { modes, content, seen = [], rng = Math.random }) {
   if (!between(match, modes) || nextKind(match, modes) !== 'start') return match;
-  const item = upcoming(match);
-  const round = { ...R.startRound(modeOf(modes, item.mode), { content, scores: match.scores, seen, rng }), n: item.n };
-  return { ...match, step: 'play', cursor: cursor(match) + 1, round, scores: round.scores, played: (match.played ?? 0) + 1 };
+  const item = upcoming(match), mode = modeOf(modes, item.mode);
+  const round = { ...R.startRound(mode, { content, scores: match.scores, seen, avoid: avoidIn(content, match.used ?? []), rng }), n: item.n };
+  return { ...match, step: 'play', cursor: cursor(match) + 1, round, scores: round.scores, played: (match.played ?? 0) + 1, used: [...(match.used ?? []), ...mode.used(round.state)] };
 }
 
 // تخطّي ما لم يُبنَ بعد. تبقى على الشاشة الجولة السابقة (أو المواجهة) كما هي.

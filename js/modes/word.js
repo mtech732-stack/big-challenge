@@ -3,7 +3,7 @@
 // أو انتهى وقته انتقلت الإجابة إلى الخصم (السرقة) في 5 ثوانٍ بالنقاط نفسها.
 // وما يُعرض لا يذكر المستوى ولا كلمة «سرقة» (الوثيقة 1.1، 7.3)، وبعد الحكم الأخير تظهر الإجابة النموذجية للجمهور (7.1).
 // كل نمط يعطي ما يخصه: اسمه، ووقت السؤال، وحقل ما في المربع، ونصوص الافتتاح وسطر القبول.
-import { freshFirst } from '../round.js';
+import { freshFirst, besides } from '../round.js';
 import { ROUND_PER_LEVEL } from '../content-check.js';
 
 export const STEAL_SECONDS = 5;
@@ -34,11 +34,13 @@ export function wordMode({ id, name, order, seconds, key, tatweel = false, sameB
   // الحالات: intro افتتاح الجولة · ready السؤال ظاهر والعدّاد لم يبدأ · ask عدّاد صاحب الدور
   // · steal عدّاد الخصم · decided انتهى السؤال · end انتهت الجولة.
   // results[i]: من أخذ نقاط السؤال i (رقم الفريق، أو 0 إن لم يأخذها أحد)، أو null ما لم ينتهِ.
-  function setup({ content, first, seen = [], rng = Math.random }) {
+  // avoid: أسئلة تساوي إجابتها عنصراً من قائمة ترتيب اختيرت في المباراة (تدقيق ش5 «رابعاً»)، تُترك ما وُجد غيرها.
+  function setup({ content, first, seen = [], avoid = [], rng = Math.random }) {
     let bank = (content?.questions ?? []).filter(q => !q.tiebreak);
-    if (sameBox) bank = pickGroup(bank, seen, key, rng);
+    // والنهاية التي نقصت بما تُرك لا تكفي جولة، فإن لم تبقَ نهاية كاملة اختيرت من البنك كله.
+    if (sameBox) { const rest = besides(bank, avoid), g = pickGroup(rest, seen, key, rng); bank = g === rest ? pickGroup(bank, seen, key, rng) : g; }
     const picked = {};
-    for (const l of LEVELS) picked[l] = freshFirst(bank.filter(q => q.level === l), seen, ROUND_PER_LEVEL, rng);
+    for (const l of LEVELS) picked[l] = freshFirst(besides(bank.filter(q => q.level === l), avoid, ROUND_PER_LEVEL), seen, ROUND_PER_LEVEL, rng);
     const questions = [];
     for (const l of LEVELS) for (const k of [0, 1]) {
       const q = picked[l][k];

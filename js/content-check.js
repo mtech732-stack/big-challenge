@@ -19,6 +19,9 @@ export const altsText = alts => (alts ?? []).join('، ');
 // حدّا ش4 (design/auction.md 3): موضوع المزاد سطر واحد بجوار العدّ «12 من 12»، واسم العنصر في شارته. تنبيهان لا خطآن.
 export const TOPIC_MAX = 32;
 export const ITEM_MAX = 20;
+// حدود ش5 (design/ranking.md 3): عنوان الترتيب (ما قبل « · ») سطر 64، وإشارته (ما بعده) 32 بجانبه، واسم العنصر في خانته (ITEM_MAX). تنبيهات لا أخطاء.
+export const RANK_TITLE_MAX = 32;
+export const RANK_SUB_MAX = 31;
 // أقل قائمة في بنك المزاد (المالك، 24 أكتوبر 2026): دونها لا تتحقق المزايدة. حدّ أدنى لا هدف.
 export const AUCTION_MIN = 10;
 // أسئلة كل مستوى في الجولة لكل فريق سؤال (5.3 و5.4)، فسؤالان من كل مستوى في جولة «آخر حرفين» بنهاية واحدة.
@@ -49,6 +52,40 @@ export const fold = text => String(text)
 
 // تحذف «ال» قبل توحيد الهمزات، حتى لا تتأثر «ألماس» و«إلكترون».
 const stripArticle = text => fold(String(text).replace(/[\u064B-\u0652\u0640]/g, '').trim().replace(/^ال/, ''));
+
+// تقاطع الترتيب وغيره (تدقيق ش5 «ثالثاً» و«رابعاً»): نهاية قائمة الترتيب تكشف عناصرها، وبعد الحكم تظهر قائمة المزاد كاملة
+// وإجابة السؤال. فلا تجتمع في مباراة واحدة قائمة ترتيب و:
+//   (1) موضوع مزاد يشتركان في 7 فأكثر من عناصر القائمة الثلاثة عشر (أكثر من نصفها) · (2) سؤال حرف معيّن أو آخر حرفين
+//   تساوي إجابته (أو صيغتها) عنصراً من القائمة (أو صيغته) · (3) قائمة ترتيب أخرى تشتركان في 7 فأكثر («خامساً»: لا تجتمعان في الجولة).
+// والمقارنة بتوحيد الهمزات والتاء والألف المقصورة و«ال».
+export const CLASH_MIN = 7;
+const forms = list => list.filter(f => typeof f === 'string').map(stripArticle);
+const formsOf = it => forms([it?.name, ...(it?.alts ?? [])]);
+export const sharedItems = (list, topic) => {
+  const pool = new Set((topic?.items ?? []).flatMap(formsOf));
+  return (list?.items ?? []).filter(it => formsOf(it).some(f => pool.has(f))).length;
+};
+// الأزواج المتقاطعة في حزمة: [{ ranking, with, mode, n }]، وn ما اشتركا فيه. وزوج القائمتين مرة واحدة (mode: 'ranking').
+export function clashes(files) {
+  const pairs = [];
+  const lists = files?.['ranking.json']?.lists ?? [];
+  lists.forEach((list, i) => lists.slice(i + 1).forEach(other => {
+    const n = sharedItems(list, other);
+    if (n >= CLASH_MIN) pairs.push({ ranking: list.id, with: other.id, mode: 'ranking', n });
+  }));
+  for (const list of lists) {
+    for (const topic of files?.['auction.json']?.topics ?? []) {
+      const n = sharedItems(list, topic);
+      if (n >= CLASH_MIN) pairs.push({ ranking: list.id, with: topic.id, mode: 'auction', n });
+    }
+    const pool = new Set((list.items ?? []).flatMap(formsOf));
+    for (const mode of ['letter', 'last-two']) for (const q of files?.[`${mode}.json`]?.questions ?? []) {
+      const n = forms([q?.answer, ...(q?.alts ?? [])]).filter(f => pool.has(f)).length;
+      if (n) pairs.push({ ranking: list.id, with: q.id, mode, n });
+    }
+  }
+  return pairs;
+}
 
 export function checkContent({ index, packs, wheel }) {
   const errors = [];
@@ -213,6 +250,11 @@ export function checkContent({ index, packs, wheel }) {
           checkCommon(where, item, ['easy', 'hard']);
           checkNote(where, item);
           needText(where, item, 'title');
+          if (typeof item.title === 'string') {
+            const at = item.title.indexOf(' · '), main = at < 0 ? item.title : item.title.slice(0, at), sub = at < 0 ? '' : item.title.slice(at + 3);
+            if (length(main) > RANK_TITLE_MAX) warn(where, `العنوان قبل « · » ${length(main)} حرفاً، والحد ${RANK_TITLE_MAX} (سطر واحد فوق اللوحة)`);
+            if (length(sub) > RANK_SUB_MAX) warn(where, `ما بعد « · » في العنوان ${length(sub)} حرفاً، والحد ${RANK_SUB_MAX} (الإشارة بجانب العنوان)`);
+          }
           if (typeof item.asOf !== 'string' || !/^\d{4}(-\d{2})?$/.test(item.asOf)) err(where, '«asOf» تاريخ القائمة بصيغة 2026 أو 2026-05');
           // الوثيقة (6.4) تشترط التاريخ في العنوان للقائمة المرتبطة بزمن، فغيابه تنبيه يقرّره الكاتب.
           else if (!String(item.title).includes(item.asOf.slice(0, 4))) warn(where, `العنوان لا يذكر سنة القائمة ${item.asOf.slice(0, 4)}، وهو لازم إن كانت القائمة مرتبطة بزمن`);
@@ -220,11 +262,16 @@ export function checkContent({ index, packs, wheel }) {
           else {
             item.items.forEach((it, r) => { if (it?.rank !== r + 1) err(`${where} · العنصر ${r + 1}`, `«rank» يجب أن يكون ${r + 1}`); });
             checkNames(where, item.items);
+            item.items.forEach((it, k) => { if (typeof it?.name === 'string' && length(it.name) > ITEM_MAX) warn(`${where} · العنصر ${k + 1}`, `«${it.name}» ${length(it.name)} حرفاً، والحد ${ITEM_MAX} (خانة اللوحة)`); });
           }
           checkSources(where, item.sources, 2);
           tally(mode, item.level);
         }
       });
+      // تقاطع الترتيب والمزاد: تنبيه بالزوج، واللعبة لا تجمعهما في مباراة واحدة (js/play.js).
+      if (mode === 'ranking') for (const c of clashes(pack)) warn(`${file} · ${c.ranking}`, c.mode !== 'letter' && c.mode !== 'last-two'
+        ? `يشترك مع ${c.mode === 'auction' ? 'موضوع المزاد' : 'القائمة'} «${c.with}» في ${c.n} ${c.n <= 10 ? 'عناصر' : 'عنصراً'} من 13، فلا يجتمعان في مباراة واحدة`
+        : `فيه إجابة السؤال «${c.with}» (${c.mode === 'letter' ? 'الحرف المعيّن' : 'آخر حرفين'})، فلا يجتمعان في مباراة واحدة`);
       // «آخر حرفين» بنهاية واحدة للجولة كلها (الوثيقة 1.1، 5.4 و6.2): البنك مجموعات، كل نهاية فيها سؤالان
       // على الأقل من كل مستوى، فتكفي جولة كاملة. والنهاية الناقصة لا تُلعب، فتُرفض.
       if (mode === 'last-two') {

@@ -19,9 +19,10 @@ export function applyEvents(scores, events) {
 }
 
 // seen: معرّفات ما ظهر من قبل على هذا الجهاز؛ تُمرَّر للوحدة كي لا يتكرر سؤال حتى يُستنفد البنك.
-export function startRound(mode, { content, scores = { 1: 0, 2: 0 }, first, seen = [], rng = Math.random }) {
+// avoid: معرّفات لا تُختار في هذه المباراة (تقاطع الترتيب والمزاد، تدقيق ش5)، والوحدة تتركها ما وجدت غيرها.
+export function startRound(mode, { content, scores = { 1: 0, 2: 0 }, first, seen = [], avoid = [], rng = Math.random }) {
   const team = first ?? pickFirst(rng);
-  const state = mode.setup({ content: content[mode.contentKey], first: team, seen, rng });
+  const state = mode.setup({ content: content[mode.contentKey], first: team, seen, avoid, rng });
   return { mode: mode.id, first: team, state, scores: { ...scores }, timer: null, timers: 0, history: [], events: [] };
 }
 
@@ -92,6 +93,9 @@ export function setScore(round, team, value) {
     events: [],
   };
 }
+
+// ما يُختار منه بعد ترك avoid، أو البنك كله إن بقي منه أقل من need (فلا تقف جولة ولا تنقص لبنك صغير).
+export const besides = (items, avoid = [], need = 1) => { const rest = items.filter(i => !avoid.includes(i.id)); return rest.length >= need ? rest : items; };
 
 // يختار من البنك ما لم يظهر، فإن نفد ما لم يظهر بدأ البنك من جديد.
 export function freshFirst(items, seen, count, rng = Math.random) {
