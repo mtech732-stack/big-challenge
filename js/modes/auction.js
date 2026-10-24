@@ -2,7 +2,8 @@
 // 3 مواضيع في الجولة: سهل ثم متوسط ثم صعب، ويتناوب الفريقان على افتتاح المزايدة. يزايد الفريق برقم، ويزيد عليه خصمه
 // أو ينسحب، فيلتزم صاحب أعلى رقم بالوفاء. والقائمة المرجعية وطولها لا يصلان إلى الجمهور قبل الحكم (7.1، design/auction.md 1).
 // ش4 · المزايدة، ثم الوفاء والعدّ: يُحسب كل عنصر يذكره الملتزم (+1)، فإن بلغ ما التزم به أخذ نقاطه.
-// فإن لم يفِ أكمل خصمه الناقص في 15 ثانية دون تكرار، فإن أكمل أخذ النقاط كاملة، وإلا لا نقاط. وتتابع الجولة في المرحلة التالية.
+// فإن لم يفِ أكمل خصمه الناقص في 15 ثانية دون تكرار، فإن أكمل أخذ النقاط كاملة، وإلا لا نقاط.
+// ثم «الموضوع التالي» حتى الثالث، و«إنهاء الجولة».
 import { freshFirst } from '../round.js';
 
 export const FULFIL_SECONDS = 60;
@@ -52,11 +53,18 @@ function actions(s) {
   if (s.phase === 'ready') return [{ id: 'start', label: 'ابدأ العدّاد' }, ...count, { id: 'stop', label: 'توقّف · لم يفِ' }];
   if (s.phase === 'fulfil') return [...count, { id: 'stop', label: 'توقّف · لم يفِ' }];
   if (s.phase === 'complete') return [...count, { id: 'stop', label: 'توقّف · لا نقاط' }];
+  if (s.phase === 'decided') return [{ id: 'next', label: s.index === s.topics.length - 1 ? 'إنهاء الجولة' : 'الموضوع التالي' }];
   return [];
 }
 
 function act(s, action) {
   const [id, arg] = String(action).split(':');
+  // الموضوع التالي يظهر فوراً للمزايدة، ويفتتحه صاحبه (بالتناوب). وبعد الثالث تنتهي الجولة.
+  if (id === 'next' && s.phase === 'decided') {
+    const index = s.index + 1;
+    if (index >= s.topics.length) return { state: { ...s, phase: 'end' }, events: [] };
+    return { state: { ...s, index, phase: 'bid', team: s.topics[index].opener, bids: [], commit: null, said: [] }, events: [] };
+  }
   if (id === 'show') return { state: { ...s, phase: 'bid', team: current(s).opener, bids: [], commit: null, said: [] }, events: [] };
   if (id === 'bid') {
     const n = Number(arg);
