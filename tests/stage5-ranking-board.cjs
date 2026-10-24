@@ -54,7 +54,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo } = require
       const r = await audience.evaluate(() => window.__stageCheck());
       if (!r.ok) { layoutOk = false; fails.push(`${label}: ${r.problems.join('، ')}`); }
       const s = await st();
-      const shownNames = s.phase === 'listend' ? items.map(i => i.name) : (s.got[s.index] ?? []).map(g => items[g.rank - 1].name);
+      const its = bank.lists[s.index].items, shownNames = s.phase === 'listend' ? its.map(i => i.name) : (s.got[s.index] ?? []).map(g => its[g.rank - 1].name);
       const body = await audience.evaluate(ns => { let t = document.querySelector('.canvas').innerText;
         for (const n of ns) t = t.split(n).join(''); return t; }, [...NAMES, ...shownNames]);
       if (/سرقة|سهل|متوسط|صعب|بفارق/.test(body)) { leak = true; fails.push(`${label}: نص ممنوع على الجمهور`); }
@@ -235,9 +235,33 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo } = require
         && sl.slice(10).map(x => x.b).join(',') === '−3,−2,−1' && sl[0].cls.includes('left') && !sl[6].cls.includes('left'));
       check('نهاية القائمة: «كُشف 2 من 10» بلا مربع، والحدّ في المنتصف', (await text(audience, '#next')) === 'كُشف 2 من 10' && await audience.$eval('#box', e => e.classList.contains('bare'))
         && (await side()) === 0);
-      check(`المقدّم: «انتهت القائمة 1 · كُشف 2 من 10» و«إنهاء الجولة» (${await ctl()})`, (await text(presenter, '#rWho')) === 'انتهت القائمة 1 · كُشف 2 من 10' && (await ctl()) === 'إنهاء الجولة');
+      check(`المقدّم: «انتهت القائمة 1 · كُشف 2 من 10» و«القائمة 2 · الأخيرة» (${await ctl()})`, (await text(presenter, '#rWho')) === 'انتهت القائمة 1 · كُشف 2 من 10' && (await ctl()) === 'القائمة 2 · الأخيرة');
+      check('نهاية القائمة: لا وقت للقائمة على الشاشتين', !(await audience.$('.scr.rnk.show #rclock')) && await presenter.$eval('#rClock', e => e.hidden));
       await both('نهاية القائمة');
       await shot('listend');
+      // 11. القائمة 2 (الأخيرة): يبدؤها الفريق الآخر، ووقتها 5:00 على الشاشتين، ويعدّ تنازلياً من «ابدأ».
+      await act('next');
+      let s2 = await st();
+      sl = await slots();
+      check(`القائمة 2: يبدؤها الخصم، و«القائمة 2 من 2»، ولا خانة مكشوفة (${await text(audience, '#b1')})`, s2.index === 1 && s2.phase === 'read' && s2.team === opp
+        && (await text(audience, '#b1')) === 'القائمة 2 من 2' && sl.every(x => !x.name) && (await side()) === opp);
+      check(`وقت القائمة 5:00 قبل «ابدأ» على التلفاز وفي رأس المقدّم (${await text(audience, '#rclock b')} · ${await text(presenter, '#rClockV')})`, (await text(audience, '#rclock b')) === '5:00'
+        && (await text(presenter, '#rClockV')) === '5:00' && !(await presenter.$eval('#rClock', e => e.hidden)));
+      await both('القائمة 2');
+      await shot('list2');
+      await act('start'); await wait(2200);
+      check(`بعد «ابدأ» يعدّ تنازلياً على الشاشتين (${await text(audience, '#rclock b')} · ${await text(presenter, '#rClockV')})`, /^4:5[5-8]$/.test(await text(audience, '#rclock b'))
+        && /^4:5[5-8]$/.test(await text(presenter, '#rClockV')));
+      await both('وقت القائمة يعدّ');
+      // 12. انقضاء الخمس دقائق (بتقديم ساعة المقدّم): تنتهي القائمة بنفسها، وتنكشف، و«انتهى وقت القائمة».
+      await presenter.evaluate(() => { const real = Date.now; Date.now = () => real() + 300000; });
+      await wait(1200);
+      s2 = await st();
+      check(`انتهى وقت القائمة: نهاية القائمة بنفسها، وكلها مكشوفة (${s2.phase})`, s2.phase === 'listend' && s2.timeup && (await slots()).every((x, i) => x.name === bank.lists[1].items[i].name));
+      check(`«انتهى وقت القائمة» في مربع الجمهور وسطر المقدّم، و«إنهاء الجولة» (${await text(audience, '#next')} · ${await text(presenter, '#rWho')})`,
+        (await text(audience, '#next')) === 'انتهى وقت القائمة · كُشف 0 من 10' && (await text(presenter, '#rWho')) === 'انتهى وقت القائمة 2 · كُشف 0 من 10' && (await ctl()) === 'إنهاء الجولة');
+      await both('انتهى وقت القائمة');
+      await shot('timeup');
       await act('next');
       check('نهاية الجولة: الحصيلتان', await audience.isVisible('.scr.show[data-s="end"]') && (await text(audience, `#r${starter}`)) === '+5' && (await text(audience, `#r${opp}`)) === '+2');
       await both('نهاية الجولة');

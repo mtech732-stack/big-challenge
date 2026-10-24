@@ -55,7 +55,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
       const r = await frame.evaluate(() => window.__stageCheck());
       if (!r.ok) { layoutOk = false; fails.push(`${label}: ${r.problems.join('، ')}`); }
       const s = await st();
-      const shown = ['mark', 'listend'].includes(s.phase) ? items.map(i => i.name) : [];
+      const shown = ['mark', 'listend'].includes(s.phase) ? bank.lists[s.index].items.map(i => i.name) : [];
       const body = await frame.evaluate(ns => { let t = document.querySelector('.canvas').innerText; for (const n of ns) t = t.split(n).join(''); return t; }, [...NAMES, ...shown]);
       if (/سرقة|سهل|متوسط|صعب|بفارق/.test(body)) { leak = true; fails.push(`${label}: نص ممنوع`); }
       const leaked = allNames.filter(n => [...n].length > 2 && body.includes(n) && !shown.some(x => x.includes(n)));
@@ -100,24 +100,45 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     await look('المقارنة');
     await shot('mark');
     const was = await scores();
-    await tap('act:mark:3');
-    await tap('act:mark:7'); await tap('act:mark:7');
-    await tap('act:mark:12');
-    await tap('act:mark:1'); await tap('act:mark:1'); await tap('act:mark:1');
+    // النقر المتتالي السريع (200 مللي ثانية) يُحسب كله (الملاحظة 35).
+    const quick = async c => { await cmd(frame, c); await wait(200); };
+    await quick('act:mark:3');
+    await quick('act:mark:7'); await quick('act:mark:7');
+    await quick('act:mark:12');
+    await quick('act:mark:1'); await quick('act:mark:1'); await quick('act:mark:1');
+    await wait(600);
     sl = await slots();
-    check(tag + 'النقر يدوّر: 3 للأول، و7 للثاني (نقرتان)، و12 فخ للأول، و1 عاد لا أحد (ثلاث نقرات)', sl[2].cls.includes('t1') && sl[6].cls.includes('t2') && sl[11].cls.includes('t1')
+    check(tag + 'النقر المتتالي كل 0.2 ثانية يُحسب ويدوّر: 3 للأول، و7 للثاني (نقرتان)، و12 فخ للأول، و1 عاد لا أحد (ثلاث نقرات)', sl[2].cls.includes('t1') && sl[6].cls.includes('t2') && sl[11].cls.includes('t1')
       && sl[0].cls.includes('left') && !/t[12]/.test(sl[0].cls));
     await look('المقارنة بأصحاب');
     await shot('marked');
     await tap('act:commit');
     let now = await scores();
     check(tag + `«اعتمد النقاط»: الأول 3 − 2 = +1، والثاني +7 (${now[1] - was[1]}، ${now[2] - was[2]})`, now[1] === was[1] + 1 && now[2] === was[2] + 7);
-    check(tag + 'ثم نهاية القائمة: «كُشف 2 من 10»، والخانات لا تُنقر، و«إنهاء الجولة»', (await text('#next')) === 'كُشف 2 من 10' && (await slots()).every(x => !x.cmd)
-      && !(await frame.$eval('#rnk', e => e.classList.contains('mark'))) && (await near()) === 'إنهاء الجولة');
+    check(tag + `ثم نهاية القائمة: «كُشف 2 من 10»، والخانات لا تُنقر، و«القائمة 2» (${await near()})`, (await text('#next')) === 'كُشف 2 من 10' && (await slots()).every(x => !x.cmd)
+      && !(await frame.$eval('#rnk', e => e.classList.contains('mark'))) && (await near()) === 'القائمة 2');
     await look('نهاية القائمة');
     await tap('undo');
     check(tag + 'التراجع يعيد المقارنة بخاناتها والرصيد', (await st()).phase === 'mark' && (await slots())[6].cls.includes('t2') && (await scores())[1] === was[1]);
     await tap('act:commit');
+    await tap('act:next');
+    // القائمة 2 (الأخيرة): يبدؤها الفريق الآخر، و«ابدأ» وحده، ووقت القائمة 5:00 يجري من «ابدأ» (design/ranking.md 4.1).
+    s = await st();
+    check(tag + `القائمة 2: يبدؤها الخصم، و«القائمة 2 من 2»، و«ابدأ» وحده، و«بقي للقائمة 5:00» (${await near()} · ${await text('#rclock b')})`, s.index === 1 && s.phase === 'read' && s.team === opp
+      && (await text('#b1')) === 'القائمة 2 من 2' && (await near()) === 'ابدأ' && (await side()) === opp && (await text('#rclock b')) === '5:00');
+    await look('القائمة 2');
+    await tap('act:start:one'); await wait(1500);
+    check(tag + `وقت القائمة يعدّ تنازلياً (${await text('#rclock b')})`, /^4:5[5-8]$/.test(await text('#rclock b')));
+    // انقضاء الخمس دقائق (بتقديم ساعة النافذة): إلى المقارنة بنفسها.
+    await stage.evaluate(() => { const real = Date.now; Date.now = () => real() + 300000; });
+    await wait(1500);
+    s = await st();
+    check(tag + `انتهى وقت القائمة: المقارنة بنفسها، و«اعتمد النقاط»، ولا وقت للقائمة (${s.phase} · ${await near()})`, s.phase === 'mark' && s.timeup && (await near()) === 'اعتمد النقاط'
+      && !(await frame.$('.scr.rnk.show #rclock')));
+    await look('انتهى وقت القائمة');
+    await shot('timeup');
+    await tap('act:commit');
+    check(tag + `«إنهاء الجولة» بعد القائمة الأخيرة (${await near()})`, (await near()) === 'إنهاء الجولة');
     await tap('act:next');
     check(tag + 'نهاية الجولة: الحصيلتان +1 و+7', await frame.isVisible('.scr.show[data-s="end"]') && (await text('#r1')) === '+1' && (await text('#r2')) === '+7');
     check(tag + `فحص التداخل في كل حالة، ولا اسم قبل النهاية، ولا كلمة ممنوعة${fails.length ? ` (${fails.slice(0, 3).join(' · ')})` : ''}`, layoutOk && !leak);

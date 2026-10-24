@@ -465,6 +465,10 @@
   // · وبعد نهاية القائمة ما لم يُذكر باسمه (.left)، و.reveal على القسم (المكشوفة بيضاء بإطار لونها، 1.1).
   const PEN = { 11: 3, 12: 2, 13: 1 };
   let shownFresh = '';
+  // وقت القائمة (design/ranking.md 7.8): «بقي للقائمة» تحت الفخاخ، 5:00 قبل «ابدأ» ثم يجري حتى listEnds بساعة الجهاز، ويُخفى بعد النهاية.
+  let listEnds = null;
+  const listText = () => format(Math.max(0, Math.ceil((listEnds - Date.now()) / 1000)));
+  setInterval(() => { const el = document.querySelector('.scr.rnk.show #rclock b'); if (el && listEnds && el.textContent !== listText()) el.textContent = listText(); }, 250);
   function renderRanking(a) {
     // العنوان على أول « · »: ما قبله سطر 64، وما بعده إشارة 32 بجانبه (التاريخ غالباً). وبلا « · » لا إشارة (design/ranking.md 7.3).
     const at = a.title.indexOf(' · ');
@@ -478,12 +482,14 @@
       if (!x.rank) return '<p class="sl trap"></p>';
       const cls = ['sl', x.trap && 'trap', x.team && 't' + x.team, !x.team && x.name && 'left', x.rank === fresh && 'new'].filter(Boolean).join(' ');
       return `<p class="${cls}" data-r="${x.rank}"><b>${x.trap ? '−' + PEN[x.rank] : x.rank}</b>${x.name ? `<span data-fit="خانة ${x.rank}">${esc(x.name)}</span>` : ''}</p>`;
-    }).join('');
+    }).join('') + (a.listClock ? `<p class="clock" id="rclock"><span>بقي للقائمة</span><b>${a.listEnds ? '' : format(a.listSeconds)}</b></p>` : '');
+    listEnds = a.listEnds ?? null;
+    if (listEnds) $('rclock').querySelector('b').textContent = listText();
   }
   // مربع الإعلان في الترتيب: الحكم بالمربع («[الاسم] · +7» و«المركز 7»)، و«لا نقاط» و«لم تُكشف خانة».
   // ونهاية القائمة بلا مربع: «كُشف 7 من 10» (design/ranking.md 7.6).
   function rankBox(a) {
-    if (a.phase === 'listend') return { next: `كُشف ${a.found} من ${a.of}` };
+    if (a.phase === 'listend') return { next: `${a.timeup ? 'انتهى وقت القائمة · ' : ''}كُشف ${a.found} من ${a.of}` };
     // المقارنة بالنافذة الواحدة: بلا مربع، والخانات تُنقر (design/ranking.md 4).
     if (a.phase === 'mark') return { next: 'المقارنة بالتسجيل' };
     const v = a.verdict;
