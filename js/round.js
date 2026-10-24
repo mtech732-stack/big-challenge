@@ -27,9 +27,11 @@ export function startRound(mode, { content, scores = { 1: 0, 2: 0 }, first, seen
 
 // العدّاد: لكل عدّاد رقم يميّزه، و«انتهى الوقت» يحمل رقمه، فيُهمل ما جاء من عدّاد قديم
 // (حكم في اللحظة الأخيرة ثم وصل «انتهى الوقت» بعده). وكل فعل يوقف العدّاد الجاري ما لم يبدأ غيره.
+// والفعل الذي لا يُنهي الوقت (عنصر يُعدّ في وفاء المزاد) يحمل «keep-timer»، فيبقى العدّاد الجاري كما هو.
 function withTimer(round, events) {
   const start = events.find(e => e.type === 'timer');
-  const rest = events.filter(e => e.type !== 'timer' && e.type !== 'stop-timer');
+  const rest = events.filter(e => e.type !== 'timer' && e.type !== 'stop-timer' && e.type !== 'keep-timer');
+  if (!start && events.some(e => e.type === 'keep-timer')) return { timer: round.timer, timers: round.timers, events: rest };
   if (start) {
     const id = round.timers + 1;
     return { timer: { id, seconds: start.seconds }, timers: id, events: [...rest, { type: 'timer', seconds: start.seconds, id }] };
