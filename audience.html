@@ -236,7 +236,9 @@
     $('told').hidden = !told; $('told').innerHTML = told ? num(told) : '';
     $('say').hidden = !say; $('say').innerHTML = say ? num(say) : '';
     $('faceChip').hidden = $('faceWin').hidden = !face; $('faceWin').textContent = face ? name(face) : '';
-    $('next').hidden = !next; $('next').innerHTML = next ? num(next) : '';
+    // وسطران صريحان («\n») لنهاية القائمة بانقضاء وقتها (الملاحظة 36، design/ranking.css 5): لا « · » معلّقة.
+    $('next').hidden = !next; $('next').innerHTML = next ? next.split('\n').map(num).join('<br>') : '';
+    $('box').classList.toggle('two', !!next?.includes('\n'));
     $('box').hidden = !(v || answer || told || say || face || next);
     // «التالي» في نهاية الجولة نص أبيض على الطرف بلا مربع، فلا يتجاوز الأبيض سقفه (15.4 و15.12).
     // وحكم المزاد (سطره told) بلا مربع كذلك، فالقائمة القصيرة لا ترفع الأبيض فوق 35 (design/auction.md 1.5).
@@ -252,7 +254,7 @@
     box.style.left = (1794 - w) + 'px'; box.style.width = w + 'px';
     box.classList.remove('wrap');
     const line = [...box.querySelectorAll('.line')].find(l => !l.hidden);
-    box.classList.toggle('wrap', !!line && line.scrollWidth > box.clientWidth - 96);
+    box.classList.toggle('wrap', !box.classList.contains('two') && !!line && line.scrollWidth > box.clientWidth - 96);
   }
 
   // صف الشارات من اليمين بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (design/start.html وdesign/letter.html):
@@ -489,7 +491,7 @@
   // مربع الإعلان في الترتيب: الحكم بالمربع («[الاسم] · +7» و«المركز 7»)، و«لا نقاط» و«لم تُكشف خانة».
   // ونهاية القائمة بلا مربع: «كُشف 7 من 10» (design/ranking.md 7.6).
   function rankBox(a) {
-    if (a.phase === 'listend') return { next: `${a.timeup ? 'انتهى وقت القائمة · ' : ''}كُشف ${a.found} من ${a.of}` };
+    if (a.phase === 'listend') return { next: `${a.timeup ? 'انتهى وقت القائمة\n' : ''}كُشف ${a.found} من ${a.of}` };
     // المقارنة بالنافذة الواحدة: بلا مربع، والخانات تُنقر (design/ranking.md 4).
     if (a.phase === 'mark') return { next: 'المقارنة بالتسجيل' };
     const v = a.verdict;
