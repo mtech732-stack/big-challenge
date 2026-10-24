@@ -137,7 +137,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await wait(800);
   check('المقدّم: «يزايد على 6 أو ينسحب» و«زايد · 7»، و«−» معطّل عند 7، و«انسحب» مفعّل', (await text(presenter, '#aState')) === 'يزايد على 6 أو ينسحب'
     && (await text(presenter, '#aBid')) === 'زايد · 7' && await presenter.$eval('[data-offer="-1"]', e => e.disabled) && !(await presenter.$eval('#aPass', e => e.disabled)));
-  check('المقدّم: الدور للخصم، والرقم بلون صاحبه', (await text(presenter, '#aWho')) === `دور ${LONG[other(opener) - 1]}` && await presenter.$eval('#aBids .bid', (e, t) => e.classList.contains('t' + t), opener));
+  check('المقدّم: الدور للخصم، ولا صف أرقام (السلّم على الجمهور)', (await text(presenter, '#aWho')) === `دور ${LONG[other(opener) - 1]}`  && !(await presenter.$('#aBids')));
   await both('بعد رقم');
 
   // 5. ثلاثة أرقام ثم تبادل طويل: يسقط الأقدم ويبقى الأحدث.
@@ -165,7 +165,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await presenter.reload();
   await presenter.waitForSelector('#app:not([hidden])', { timeout: 10000 }).catch(() => {});
   await wait(1200);
-  check('إعادة تحميل المقدّم: الأرقام والدور كما هي', (await presenter.$$('#aBids .bid')).length === before && (await text(presenter, '#aBid')) === 'زايد · 19');
+  check('إعادة تحميل المقدّم: الرقم والدور كما هما', (await text(presenter, '#aState')).includes(String((await st()).bids.slice(-1)[0].n)) && (await text(presenter, '#aBid')) === 'زايد · 19');
 
   // 7. الانسحاب: صاحب الدور ينسحب، فيلتزم صاحب أعلى رقم.
   s = await st();
