@@ -179,8 +179,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const shownN = c.filter(x => !x.more).length;
   check(`القائمة كلها بعد الحكم: ما ذُكر بلونه أولاً، و«و ${items.length - shownN} غيرها» عن الباقي (${shownN} ظاهرة)`,
     c.slice(0, -1).every((x, i) => x.t === opener && x.name === items[i].name) && c[c.length - 1].more && c[c.length - 1].name === `و ${items.length - shownN} غيرها`);
-  check('المقدّم: الحكم ومكان «الموضوع التالي» ينتظر «تتابع الجولة»، ولا أزرار عدّ', (await text(presenter, '#aWho')).includes(`+${N}`) && await presenter.isVisible('#aLater')
-    && (await presenter.$$('#aCtl button')).length === 0 && await presenter.$eval('#aRef', e => e.classList.contains('view')));
+  check('المقدّم: الحكم و«الموضوع التالي» وحده، والقائمة للاطلاع', (await text(presenter, '#aWho')).includes(`+${N}`)
+    && (await presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim()).join(' | '))) === 'الموضوع التالي' && await presenter.$eval('#aRef', e => e.classList.contains('view')));
   await both('بعد الحكم');
   await stage.screenshot({ path: `${shots}/s4-won.png` });
 
