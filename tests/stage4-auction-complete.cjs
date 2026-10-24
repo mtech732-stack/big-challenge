@@ -109,9 +109,10 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await presenter.click('[data-offer="1"]');
   await presenter.click('#aBid'); await wait(800);
   await presenter.click('#aPass'); await wait(900);
-  await presenter.click('#aCtl [data-act="start"]'); await wait(900);
+  // نقر عنصر بعد «ابدأ العدّاد» بـ 0.3 ثانية يُحسب (القائمة خارج إمهال الأزرار، ملاحظة المعاين 30).
+  await presenter.click('#aCtl [data-act="start"]'); await wait(300);
   await tap(0); await wait(100); await tap(1); await wait(700);
-  check(`الوفاء: ${LONG[opener - 1]} ملتزم بـ ${N}، وذكر عنصرين`, (await st()).phase === 'fulfil' && (await tally()) === `2/${N}`);
+  check(`الوفاء: ${LONG[opener - 1]} ملتزم بـ ${N}، وعنصران بعد «ابدأ» بـ 0.3 ثانية يُحسبان`, (await st()).phase === 'fulfil' && (await tally()) === `2/${N}`);
 
   // 2. «توقّف · لم يفِ»: الدور للخصم فوراً بعدّاد 15 ثانية.
   await presenter.click('#aCtl [data-act="stop"]');
