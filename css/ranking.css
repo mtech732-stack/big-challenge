@@ -1,4 +1,4 @@
-/* التحدي الكبير · ش5 · الترتيب: قسم الترتيب في بطاقة شاشة الجمهور، منقول من design/ranking.css 1.2 كما هو (design/ranking.md 7.1).
+/* التحدي الكبير · ش5 · الترتيب: قسم الترتيب في بطاقة شاشة الجمهور، منقول من design/ranking.css 1.3 كما هو (design/ranking.md 7.1).
    فوق css/ المبنية (1.3)، وكل ما سواه منها. */
 
 /* 1. قسم الترتيب في البطاقة: العنوان ثم اللوحة تحته */
@@ -64,7 +64,6 @@
 .anim .rnk .sl.trap.new { animation: shake .24s linear .1s 2; }
 @media (prefers-reduced-motion: reduce) { .rnk .sl, .rnk .sl > span, .rnk .sl > b::before { animation: none !important; } }
 
-/* 4. النافذة الواحدة: حقل «ما قاله الفريق» في صف الشارات (design/ranking.md 4)، أبيض مستقيم بحجم الزر */
-.ctl-near .said { width: 320px; height: 72px; padding: 0 24px; border: 0; border-radius: 0; background: var(--card); color: var(--text);
-  font: inherit; font-size: 32px; font-weight: 700; line-height: 1; outline: none; }
-.ctl-near .said::placeholder { color: var(--text); opacity: .6; }
+/* 4. النافذة الواحدة (design/ranking.md 4): لا حكم في أثناء القائمة. وبعد نهايتها ينقر المقدّم كل خانة لمن قالها أولاً،
+   فتتبدّل بين لا أحد والأول والثاني بالأساليب نفسها. فلا شكل جديد إلا المؤشر */
+.rnk.mark .sl { cursor: pointer; }

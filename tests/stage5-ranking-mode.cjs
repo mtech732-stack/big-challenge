@@ -1,6 +1,6 @@
 // اختبار آلي لوحدة «الترتيب» (js/modes/ranking.js) في مرحلة «اللوحة والكشف» (5.6، design/ranking.md)، دون متصفح:
 // قائمتان سهلة ثم صعبة، والعدّاد 15 ثانية، والعنصر الصحيح يُكشف في خانته بنقاط رقمها، والتناوب، ونهاية القائمة بالعشرة أو «أنهِ القائمة»،
-// ولا اسم ولا فخ ولا مستوى على الجمهور قبل نهاية القائمة. والفخاخ بخصمها وبما خُصم فعلاً (مرحلة «الفخاخ»). والسرقة في 5 ثوانٍ (مرحلة «السرقة»). وحدود الفاحص الثلاثة.
+// ولا اسم ولا فخ ولا مستوى على الجمهور قبل نهاية القائمة. والفخاخ بخصمها وبما خُصم فعلاً (مرحلة «الفخاخ»). والسرقة في 5 ثوانٍ (مرحلة «السرقة»). والنافذة الواحدة: المقارنة و«اعتمد النقاط». وحدود الفاحص الثلاثة.
 const fs = require('fs');
 const path = require('path');
 const { reporter } = require('./helpers.cjs');
@@ -145,6 +145,50 @@ const { reporter } = require('./helpers.cjs');
     run('finish'); run('next');
     const t = ranking.audience(r.state);
     check('حصيلة الجولة بما خُصم: الأول −1 والثاني −2', ranking.finished(r.state) && t.totals[1] === -1 && t.totals[2] === -2);
+  }
+
+  // النافذة الواحدة (المالك، design/ranking.md 4): لا حكم في أثناء القائمة، والمقارنة بالتسجيل بعدها، ثم «اعتمد النقاط».
+  {
+    let r = R.startRound(ranking, { content, first: 1, rng });
+    const run = (x, id) => (r = R.act(ranking, r, x, id));
+    run('show'); run('start:one');
+    check('النافذة الواحدة: «ابدأ» بنافذة واحدة يبدأ عدّاد صاحب الدور، و«التالي» و«أنهِ القائمة» وحدهما', r.state.phase === 'ask' && r.state.one && r.timer?.seconds === ANSWER_SECONDS
+      && ranking.actions(r.state).map(x => x.id).join() === 'pass,finish' && ranking.audience(r.state).one);
+    check('النافذة الواحدة: لا حكم ولا خطأ في أثناء القائمة', run('item:3').state.phase === 'ask' && run('wrong').state.phase === 'ask' && !r.state.got[0].length);
+    const t1 = r.timer.id;
+    run('pass');
+    check('«التالي»: الدور للثاني وعدّاد جديد، بلا لحظة ولا نقاط', r.state.team === 2 && r.timer.id !== t1 && r.timer.seconds === ANSWER_SECONDS && r.state.phase === 'ask'
+      && !r.events.some(e => e.type === 'moment' || e.type === 'score'));
+    run('timeout', r.timer.id);
+    check('انتهى الوقت بنافذة واحدة: ينتقل الدور كـ«التالي»، لا سرقة', r.state.team === 1 && r.state.phase === 'ask' && r.timer?.seconds === ANSWER_SECONDS);
+    check('النافذة الواحدة: لا اسم على الجمهور في أثناء القائمة', ranking.audience(r.state).slots.every(x => !x.name));
+    r = R.setScore(r, 2, 0);
+    run('finish');
+    let a = ranking.audience(r.state);
+    check('«أنهِ القائمة»: المقارنة، والقائمة كلها بأسمائها بلا أصحاب، والحدّ في المنتصف، والعدّاد يقف', r.state.phase === 'mark' && a.slots.every(x => x.name && !x.team)
+      && a.turn === 0 && !r.timer && ranking.actions(r.state).map(x => x.id).join() === 'mark,commit');
+    run('mark:1'); const c1 = ranking.audience(r.state).slots[0].team;
+    run('mark:1'); const c2 = ranking.audience(r.state).slots[0].team;
+    run('mark:1'); const c3 = ranking.audience(r.state).slots[0].team;
+    check('النقر يدوّر الخانة: الأول ← الثاني ← لا أحد', c1 === 1 && c2 === 2 && c3 === 0 && !(1 in r.state.marks));
+    check('رتبة خارج القائمة تُهمل في المقارنة', run('mark:14').state === r.state && run('mark:x').state === r.state);
+    run('mark:3'); run('mark:7'); run('mark:7'); run('mark:12'); run('mark:11'); run('mark:11');
+    const p = ranking.presenter(r.state);
+    check('المقدّم يرى أصحاب الخانات كما نُقرت', p.items[2].by === 1 && p.items[6].by === 2 && p.items[11].by === 1 && p.items[10].by === 2 && p.items[0].by === 0);
+    const before = { ...r.scores };
+    run('commit');
+    a = ranking.audience(r.state);
+    check(`«اعتمد النقاط»: الأول 3 − 2 = +1، والثاني 7 − 3 = +4 (${r.scores[1] - before[1]}، ${r.scores[2] - before[2]})`, r.scores[1] === before[1] + 1 && r.scores[2] === before[2] + 4);
+    check('ثم نهاية القائمة كما في النافذتين: «كُشف 2 من 10»، والخانات بأصحابها', r.state.phase === 'listend' && a.found === 2 && a.slots[2].team === 1 && a.slots[6].team === 2
+      && a.slots[11].team === 1 && a.slots[0].name && !a.slots[0].team);
+    r = R.undo(r);
+    check('التراجع يعيد ما قبل «اعتمد»: المقارنة بخاناتها والرصيد', r.state.phase === 'mark' && r.state.marks[3] === 1 && r.state.marks[11] === 2 && r.scores[1] === before[1] && r.scores[2] === before[2]);
+    // فخ برصيد صفر: لا ينزل تحته.
+    r = R.setScore(r, 1, 0); r = R.setScore(r, 2, 0);
+    run('mark:3'); run('mark:3'); run('mark:7'); run('mark:12'); run('mark:12'); run('mark:11');
+    check('المقارنة بعد التفريغ: لا خانة لأحد', !Object.keys(r.state.marks).length);
+    run('mark:13'); run('commit');
+    check('فخ برصيد صفر في المقارنة: لا ينزل تحته، والخانة تُحسب له بصفر', r.scores[1] === 0 && r.scores[2] === 0 && r.state.got[0].find(g => g.rank === 13)?.points === 0);
   }
 
   // «أنهِ القائمة» من ظهورها: تنكشف كلها، و«كُشف 0 من 10».
