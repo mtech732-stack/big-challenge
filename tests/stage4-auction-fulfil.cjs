@@ -1,7 +1,7 @@
 // اختبار آلي لمرحلة «الوفاء والعدّ» في المزاد (ش4، design/auction.md) بالنافذتين وبالنافذة الواحدة، في رابط المعاينة:
 // الملتزم قبل «ابدأ» وبعده، ونقر عناصر القائمة في نافذة المقدّم (+1 بلون الملتزم، لا مكرر، ونقرات متتابعة تُحسب كلها)،
 // وما ذُكر على الجمهور وسقوط أقدمه، والعدّاد يبقى يعدّ، والتراجع، والحكم التلقائي عند بلوغ العدد (النقاط، والقائمة كلها، و«ذُكر N من N»)،
-// وإعادة التحميل، و«صحيح · +1» و«توقّف» في النافذة الواحدة، ولا عنصر لم يُذكر على الجمهور قبل الحكم، وفحص التداخل ونافذة المقدّم.
+// وإعادة التحميل، و«صحيح · +1» و«توقّف» في النافذة الواحدة (وإكمال الخصم في stage4-auction-complete.cjs)، ولا عنصر لم يُذكر على الجمهور قبل الحكم، وفحص التداخل ونافذة المقدّم.
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
@@ -210,8 +210,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await stage.screenshot({ path: `${shots}/s4-single-fulfil.png` });
   await cmd(audience, 'act:stop'); await wait(900);
   s = await st();
-  check('«توقّف»: لم يفِ، يقف العدّاد، ولا أزرار عدّ (إكمال الخصم في المرحلة التالية)', s.phase === 'short' && !(await audience.$eval('#canvas', c => c.classList.contains('running'))) && (await near()) === '');
-  await both('نافذة واحدة · لم يفِ');
+  check(`«توقّف»: لم يفِ، فالدور للخصم (إكمال الخصم، stage4-auction-complete) بـ «صحيح · +1» · «توقّف» (${await near()})`, s.phase === 'complete' && (await near()) === 'صحيح · +1 | توقّف');
+  await both('نافذة واحدة · إكمال الخصم');
   await cmd(audience, 'undo'); await wait(900);
   await cmd(audience, 'act:count'); await wait(1200);
   s = await st();
