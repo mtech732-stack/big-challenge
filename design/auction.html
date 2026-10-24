@@ -106,6 +106,8 @@
   const TOPIC = LONG ? 'أشياء تجدها في حقيبة طالب المدرسة' : 'الدول العربية';
   const ARAB = ['السعودية', 'الكويت', 'الإمارات', 'قطر', 'البحرين', 'عُمان', 'اليمن', 'العراق', 'سوريا', 'الأردن', 'لبنان', 'فلسطين',
     'مصر', 'السودان', 'ليبيا', 'تونس', 'الجزائر', 'المغرب', 'موريتانيا', 'الصومال', 'جيبوتي', 'جزر القمر'];
+  const ULUL = ['نوح', 'إبراهيم', 'موسى', 'عيسى', 'محمد'];
+  const IMAN = ['الإيمان بالله', 'الملائكة', 'الكتب', 'الرسل', 'اليوم الآخر', 'القدر'];
   const AFRICA = ['مصر', 'السودان', 'ليبيا', 'تونس', 'الجزائر', 'المغرب', 'موريتانيا', 'الصومال', 'جيبوتي', 'جزر القمر', 'إثيوبيا', 'إريتريا',
     'كينيا', 'أوغندا', 'تنزانيا', 'رواندا', 'بوروندي', 'نيجيريا', 'غانا', 'السنغال', 'مالي', 'النيجر', 'تشاد', 'الكاميرون', 'الغابون',
     'الكونغو', 'الكونغو الديمقراطية', 'أنغولا', 'زامبيا', 'زيمبابوي', 'موزمبيق', 'ملاوي', 'مدغشقر', 'موريشيوس', 'سيشل', 'ناميبيا',
@@ -126,6 +128,10 @@
     won:      { t: 'بعد الحكم: وفى الأول', turn: 1, of: 12, said: ARAB.slice(0, 12).map(x => [1, x]), verdict: { team: 1, points: 12 }, reveal: true },
     taken:    { t: 'بعد الحكم: أكمل الثاني', turn: 2, of: 12, said: [...ARAB.slice(0, 9).map(x => [1, x]), ...ARAB.slice(9, 12).map(x => [2, x])], verdict: { team: 2, points: 12 }, reveal: true },
     none:     { t: 'بعد الحكم: لا نقاط', turn: 0, of: 12, said: [...ARAB.slice(0, 9).map(x => [1, x]), [2, 'الأردن']], verdict: { team: 0, points: 0 }, reveal: true },
+    wonshort: { t: 'بعد الحكم: وفى الأول بقائمة قصيرة (2 من 5)', turn: 1, of: 2, said: ULUL.slice(0, 2).map(x => [1, x]), verdict: { team: 1, points: 2 }, reveal: true, list: ULUL, topic: 'أولو العزم من الرسل' },
+    compshort:{ t: 'بعد الحكم: أكمل الأول بقائمة قصيرة (4 من 6)', turn: 1, of: 4, said: [...IMAN.slice(0, 2).map(x => [2, x]), ...IMAN.slice(2, 4).map(x => [1, x])], verdict: { team: 1, points: 4 }, reveal: true, list: IMAN, topic: 'أركان الإيمان' },
+    won2short:{ t: 'بعد الحكم: وفى الثاني بقائمة قصيرة (2 من 5)', turn: 2, of: 2, said: ULUL.slice(0, 2).map(x => [2, x]), verdict: { team: 2, points: 2 }, reveal: true, list: ULUL, topic: 'أولو العزم من الرسل' },
+    comp2short:{ t: 'بعد الحكم: أكمل الثاني بقائمة قصيرة (4 من 6)', turn: 2, of: 4, said: [...IMAN.slice(0, 2).map(x => [1, x]), ...IMAN.slice(2, 4).map(x => [2, x])], verdict: { team: 2, points: 4 }, reveal: true, list: IMAN, topic: 'أركان الإيمان' },
     revlong:  { t: 'بعد الحكم: قائمة من 54 عنصراً', turn: 0, of: 20, said: AFRICA.slice(0, 15).map(x => [1, x]), verdict: { team: 0, points: 0 }, reveal: true, list: AFRICA },
     end:      { t: 'نهاية الجولة', screen: 'end', turn: 0, badge: 'انتهت الجولة 3', totals: { 1: 12, 2: 9 } },
   };
@@ -176,7 +182,7 @@
       box({ next: 'التالي: عجلة البونص' });
     }
     if (!st.screen) {
-      $('topic').textContent = id === 'runfull' || id === 'revlong' ? 'دول قارة أفريقيا' : TOPIC;
+      $('topic').textContent = st.topic ?? (id === 'runfull' || id === 'revlong' ? 'دول قارة أفريقيا' : TOPIC);
       // المزايدة: الأحدث أعلى رقم وأكبرها، والأقدم يسقط من اليمين إن لم يتسع الصف (يُحسب في الصفحة)
       const bids = st.bids ?? [];
       $('bids').innerHTML = bids.map(([t, n], i) => `<span class="bid t${t}${i === bids.length - 1 ? ' top' : ''}"><i></i><span>${n}</span></span>`).join('');
@@ -198,6 +204,8 @@
         items = items.concat(list.filter(x => !done.has(x)).map(x => `<span class="it left"><i></i><span>${esc(x)}</span></span>`));
       }
       $('items').innerHTML = items.join('');
+      // بعد الحكم: القائمة القصيرة بشارات المزايدة الكبيرة إن اتسعت كلها في صفين، وإلا فبالحجم المعتاد (1.5)
+      if (st.reveal) { auc.classList.add('big'); if (!fitsAll($('items'))) auc.classList.remove('big'); }
       fitItems($('items'), !!st.reveal);
       if (st.verdict) box({ verdict: st.verdict, line: `ذُكر ${said.length} من ${st.of}` });
     }
@@ -214,6 +222,7 @@
     while (els.length > 1 && !fits()) els.shift().remove();
   }
   // ما ذُكر: أثناء العدّ يبقى الأحدث (يسقط الأقدم). وبعد الحكم يبقى أوله، وفي آخره «و N غيرها»
+  const fitsAll = box => !box.lastElementChild || rect(box.lastElementChild).bottom <= rect(box).bottom + 1;
   function fitItems(box, reveal) {
     const all = [...box.children];
     const fits = () => !box.lastElementChild || rect(box.lastElementChild).bottom <= rect(box).bottom + 1;
@@ -236,7 +245,8 @@
       $('vtext').innerHTML = verdict.team ? `${esc(NAMES[verdict.team])} · ${num('+' + verdict.points)}` : 'لا نقاط';
     }
     $('line').innerHTML = num(line ?? next);
-    $('box').classList.toggle('bare', !!next);
+    // حكم المزاد بلا مربع (1.5): الشارة والسطر على الطرف، كـ «نهاية الجولة» في ش3 (§15.4). فالقائمة القصيرة لا ترفع الأبيض فوق 35
+    $('box').classList.toggle('bare', !!next || !!verdict);
     const p2 = $('p2'), w = Math.min(659, 1794 - (p2.offsetLeft + p2.offsetWidth + 17 + 24 + 17));
     $('box').style.left = (1794 - w) + 'px'; $('box').style.width = w + 'px';
     $('box').classList.toggle('wrap', $('line').scrollWidth > $('box').clientWidth - 96);
