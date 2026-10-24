@@ -60,7 +60,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
       for (const n of ns) t = t.split(n).join(''); return t; }, [...LONG, ...shown]);
     if (/سرقة|سهل|متوسط|صعب|انسحب|في القائمة|عنصر/.test(body)) { leak = true; fails.push(`${label}: نص ممنوع على الجمهور`); }
     const unsaid = items.filter((x, i) => !said.has(i)).flatMap(x => [x.name, ...(x.alts ?? [])]);
-    if (unsaid.some(n => body.includes(n))) { leak = true; fails.push(`${label}: عنصر لم يُذكر على الجمهور (${unsaid.find(n => body.includes(n))})`); }
+    // اسم من حرف أو حرفين («ت» أو «7») يقع في أي نص، فلا يُبحث عنه في نص الشاشة: الشارات وحدها تحمل ما ذُكر.
+    const named = n => [...n].length > 2 && body.includes(n);
+    if (unsaid.some(named)) { leak = true; fails.push(`${label}: عنصر لم يُذكر على الجمهور (${unsaid.find(named)})`); }
     // «في القائمة N» في المزايدة للقائمة حتى 20 وحدها (5.5، design/auction.md 2.0).
     const tsize = await audience.evaluate(() => { const e = document.getElementById('tsize'); return e.hidden ? null : e.innerText.replace(/\s+/g, ' ').trim(); });
     if (tsize !== (s.phase === 'bid' && items.length <= 20 ? `في القائمة ${items.length}` : null)) { leak = true; fails.push(`${label}: «في القائمة» (${tsize})`); }

@@ -1,6 +1,7 @@
 // اختبار آلي لـ«بعد الحكم» بقائمة قصيرة في المزاد (design/auction.md 1.5 و7.6) بالنافذتين وبالنافذة الواحدة، بالبنك الحقيقي، في الرابط العادي:
 // الحكم بلا مربع (الشارة بيضاء بنص صاحبها، والسطر على الطرف)، والقائمة القصيرة بشارات كبيرة إن اتسعت في صفين،
-// وأفريقيا (54) بالحجم المعتاد و«و N غيرها». وبقاعدة 2.0: «لم يفِ» في «أركان الإيمان» (للخصم +2) ووفاء في «أولو العزم».
+// وأطول قائمة في البنك بالحجم المعتاد و«و N غيرها». وبقاعدة 2.0: «لم يفِ» في القصيرة الأولى (للخصم +2) ووفاء في الثانية.
+// ولا يعتمد على اسم قائمة بعينها: القصيرتان من أقصر أسماء أطول قائمة، بالحد الأدنى للبنك (10 عناصر).
 // وفحص التداخل ونافذة المقدّم في كل حالة، وصور لـ ratio.cjs.
 const fs = require('fs');
 const path = require('path');
@@ -16,10 +17,15 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const LONG = ['فريق النخبة الذهبي', 'نجوم المستقبل معاً'];
 
-  // البنك الحقيقي: «أركان الإيمان» (6) و«أولو العزم» (5) قصيرتان، و«دول قارة أفريقيا» (54) أطول قائمة.
+  // من البنك الحقيقي: أطول قائمة كما هي، وقائمتان قصيرتان بالحد الأدنى (10) من أقصر أسمائها، فتتسع شاراتها الكبيرة في صفين.
   const real = JSON.parse(fs.readFileSync(path.join(__dirname, '../content/packs/general/auction.json'), 'utf8'));
-  const keep = ['أركان الإيمان', 'أولو العزم', 'دول قارة أفريقيا'];
-  const bank = { ...real, topics: real.topics.filter(t => keep.includes(t.topic)) };
+  const longest = real.topics.reduce((a, t) => (t.items.length > a.items.length ? t : a));
+  const MIN = 10;
+  const shortNames = [...longest.items].sort((a, b) => [...a.name].length - [...b.name].length).slice(0, 2 * MIN);
+  const shortTopic = (k, level) => ({ ...longest, id: `short-${k}`, level, topic: `قائمة قصيرة ${k}`, items: shortNames.slice((k - 1) * MIN, k * MIN) });
+  const keep = ['قائمة قصيرة 1', 'قائمة قصيرة 2', longest.topic];
+  const bank = { ...real, topics: [shortTopic(1, 'easy'), shortTopic(2, 'medium'), { ...longest, level: 'hard' }] };
+  const SHORT = MIN, LONGEST = longest.items.length;
 
   const context = await browser.newContext({ viewport: { width: 1366, height: 768 }, serviceWorkers: 'block' });
   await usePin(context);
@@ -59,7 +65,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
       for (const n of ns) t = t.split(n).join(''); return t; }, [...LONG, ...shown]);
     if (/سرقة|سهل|متوسط|صعب|انسحب|في القائمة|عنصر/.test(body)) { leak = true; fails.push(`${label}: نص ممنوع على الجمهور`); }
     const unsaid = items.filter((x, i) => !said.has(i)).flatMap(x => [x.name, ...(x.alts ?? [])]);
-    if (unsaid.some(n => body.includes(n))) { leak = true; fails.push(`${label}: عنصر لم يُذكر على الجمهور (${unsaid.find(n => body.includes(n))})`); }
+    // اسم من حرف أو حرفين («ت» أو «7») يقع في أي نص، فلا يُبحث عنه في نص الشاشة: الشارات وحدها تحمل ما ذُكر.
+    const named = n => [...n].length > 2 && body.includes(n);
+    if (unsaid.some(named)) { leak = true; fails.push(`${label}: عنصر لم يُذكر على الجمهور (${unsaid.find(named)})`); }
     // «في القائمة N» في المزايدة للقائمة حتى 20 وحدها (5.5، design/auction.md 2.0).
     const tsize = await audience.evaluate(() => { const e = document.getElementById('tsize'); return e.hidden ? null : e.innerText.replace(/\s+/g, ' ').trim(); });
     if (tsize !== (s.phase === 'bid' && items.length <= 20 ? `في القائمة ${items.length}` : null)) { leak = true; fails.push(`${label}: «في القائمة» (${tsize})`); }
@@ -113,7 +121,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const color = c => audience.evaluate(c => { const d = document.createElement('i'); d.style.color = c; document.body.append(d); const v = getComputedStyle(d).color; d.remove(); return v; }, c);
   const shot = async name => { await wait(400); await stage.screenshot({ path: `${shots}/${name}.png` }); };
 
-  // 1. الموضوع 1 «أركان الإيمان» (6): يذكر الآخر 4 فيلتزم، ويذكر 2 ثم يتوقف، فللمفتتح نقطتان (2.0: failshort).
+  // 1. الموضوع 1 «القصيرة الأولى» (10): يذكر الآخر 4 فيلتزم، ويذكر 2 ثم يتوقف، فللمفتتح نقطتان (2.0: failshort).
   await audience.waitForSelector('[data-cmd="draw"]', { timeout: 6000 });
   await sharedToFace(audience, { names: LONG, picks: ['auction', 'letter'] });
   await wait(2700);
@@ -122,49 +130,49 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await audience.waitForSelector('.scr.show[data-s="intro"]', { timeout: 5000 });
   let s = await st();
   const first = s.topics[0].opener, win = first;
-  check('المواضيع: أركان الإيمان ثم أولو العزم ثم أفريقيا', s.topics.map(t => t.topic).join('،') === keep.join('،'));
+  check(`المواضيع: قائمتان قصيرتان (${SHORT}) ثم أطول قائمة (${LONGEST})`, s.topics.map(t => t.topic).join('،') === keep.join('،'));
   await presenter.click('#showQ');
   await audience.waitForSelector('.scr.show[data-s="auc"]');
   await wait(800);
   await bidTo(4);
-  check(`أركان الإيمان: الفريق ${other(first)} ملتزم بـ 4`, (await st()).commit.team === other(first) && (await st()).commit.n === 4);
+  check(`القصيرة الأولى: الفريق ${other(first)} ملتزم بـ 4`, (await st()).commit.team === other(first) && (await st()).commit.n === 4);
   await presenter.click('#aCtl [data-act="start"]'); await wait(900);
   await tap(0); await wait(100); await tap(1); await wait(700);
   await presenter.click('#aCtl [data-act="stop"]'); await wait(1600);
   let l = await look();
-  check(`أركان الإيمان: لم يفِ، فللفريق ${win} نقطتان (${await ctl()})`, (await st()).phase === 'decided' && (await round()).scores[win] === 2 && (await round()).scores[other(win)] === 0);
+  check(`القصيرة الأولى: لم يفِ، فللفريق ${win} نقطتان (${await ctl()})`, (await st()).phase === 'decided' && (await round()).scores[win] === 2 && (await round()).scores[other(win)] === 0);
   check(`الحكم بلا مربع: الشارة والسطر «ذُكر 2 من 4» ظاهران، وخلفية المربع مخفية (${l.bg})`, l.bare && l.bg === 'none' && l.shown && l.told === 'ذُكر 2 من 4');
   check(`الشارة بيضاء (${l.chipBg})`, l.chipBg === await color('var(--card)'));
   check(`نص الشارة بلون صاحبها: ${win === 1 ? 'الأول بلونه' : 'الثاني بالحبر'} (${l.chipInk})`, win === 1 ? l.chipInk === await color('var(--team-1)') : l.chipInk === await color('var(--ink)'));
-  check(`القائمة القصيرة (6) بشارات كبيرة 88 في صفين على الأكثر (${l.h}، ${l.rows} صف)`, l.big && l.h === 88 && l.rows <= 2 && l.n === 6 && !l.more);
-  await both('أركان الإيمان · لم يفِ');
-  await shot(`s4-short-iman-fail-t${win}`);
+  check(`القائمة القصيرة (${SHORT}) بشارات كبيرة 88 في صفين على الأكثر (${l.h}، ${l.rows} صف)`, l.big && l.h === 88 && l.rows <= 2 && l.n === SHORT && !l.more);
+  await both('القصيرة الأولى · لم يفِ');
+  await shot(`s4-short-1-fail-t${win}`);
 
-  // 2. الموضوع 2 «أولو العزم» (5): يفتتحه الآخر، ويذكر المفتتح الأول 2 فيلتزم ويفي (2.0: wonshort).
+  // 2. الموضوع 2 «القصيرة الثانية» (10): يفتتحه الآخر، ويذكر المفتتح الأول 2 فيلتزم ويفي (2.0: wonshort).
   await presenter.click('#aCtl [data-act="next"]'); await wait(1200);
   await bidTo(2);
   await presenter.click('#aCtl [data-act="start"]'); await wait(900);
   await tap(0); await wait(100); await tap(1); await wait(1500);
   l = await look();
-  check(`أولو العزم: وفى الفريق ${win} بـ 2 (رصيده 4)`, (await st()).phase === 'decided' && (await round()).scores[win] === 4);
-  check(`أولو العزم: الحكم بلا مربع، والقائمة (5) كبيرة (${l.h}، ${l.rows} صف)`, l.bare && l.bg === 'none' && l.big && l.h === 88 && l.rows <= 2 && l.n === 5);
-  await both('أولو العزم · بعد الحكم');
-  await shot(`s4-short-ulul-t${win}`);
+  check(`القصيرة الثانية: وفى الفريق ${win} بـ 2 (رصيده 4)`, (await st()).phase === 'decided' && (await round()).scores[win] === 4);
+  check(`القصيرة الثانية: الحكم بلا مربع، والقائمة (${SHORT}) كبيرة (${l.h}، ${l.rows} صف)`, l.bare && l.bg === 'none' && l.big && l.h === 88 && l.rows <= 2 && l.n === SHORT);
+  await both('القصيرة الثانية · بعد الحكم');
+  await shot(`s4-short-2-t${win}`);
 
-  // 3. الموضوع 3 «أفريقيا» (54): يذكر الآخر 2 فيلتزم ويفي، والقائمة بالحجم المعتاد و«و N غيرها».
+  // 3. الموضوع 3 «أطول قائمة»: يذكر الآخر 2 فيلتزم ويفي، والقائمة بالحجم المعتاد و«و N غيرها».
   await presenter.click('#aCtl [data-act="next"]'); await wait(1200);
   await bidTo(2);
   await presenter.click('#aCtl [data-act="start"]'); await wait(900);
   await tap(0); await wait(100); await tap(1); await wait(1500);
   l = await look();
-  check(`أفريقيا: الحكم بلا مربع، والقائمة بالحجم المعتاد 44 و«و N غيرها» (${l.h}، ${l.rows} صفوف)`, l.bare && l.bg === 'none' && !l.big && l.h === 44 && l.more && l.rows <= 4);
-  await both('أفريقيا · بعد الحكم');
-  await shot(`s4-long-africa-t${other(first)}`);
+  check(`أطول قائمة: الحكم بلا مربع، والقائمة بالحجم المعتاد 44 و«و N غيرها» (${l.h}، ${l.rows} صفوف)`, l.bare && l.bg === 'none' && !l.big && l.h === 44 && l.more && l.rows <= 4);
+  await both('أطول قائمة · بعد الحكم');
+  await shot(`s4-long-t${other(first)}`);
 
   // 4. «إنهاء الجولة» ثم التراجع عنه.
   await presenter.click('#aCtl [data-act="next"]'); await wait(1200);
   await presenter.click('#endUndo'); await wait(1000);
-  check('النهاية ثم التراجع: يعود حكم أفريقيا', (await st()).phase === 'decided' && (await st()).index === 2);
+  check('النهاية ثم التراجع: يعود حكم أطول قائمة', (await st()).phase === 'decided' && (await st()).index === 2);
 
   // 5. النافذة الواحدة: الحكم بلا مربع والقائمة القصيرة كبيرة كذلك.
   await presenter.close();
@@ -175,15 +183,15 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   audience = await stageFrame(stage);
   await wait(800);
   l = await look();
-  check('النافذة الواحدة · أفريقيا: بلا مربع وبالحجم المعتاد', l.bare && !l.big && l.more);
-  await both('نافذة واحدة · أفريقيا');
-  await shot(`s4-single-africa-t${other(first)}`);
+  check('النافذة الواحدة · أطول قائمة: بلا مربع وبالحجم المعتاد', l.bare && !l.big && l.more);
+  await both('نافذة واحدة · أطول قائمة');
+  await shot(`s4-single-long-t${other(first)}`);
   for (let i = 0; i < 12 && !((await st()).index === 1 && (await st()).phase === 'decided'); i++) { await cmd(audience, 'undo'); await wait(800); }
   await wait(800);
   l = await look();
-  check(`النافذة الواحدة · أولو العزم: بلا مربع، والقائمة كلها بإطار وكبيرة (${l.h})`, (await st()).index === 1 && l.bare && l.big && l.h === 88 && l.n === 5);
-  await both('نافذة واحدة · أولو العزم');
-  await shot(`s4-single-ulul-t${win}`);
+  check(`النافذة الواحدة · القصيرة الثانية: بلا مربع، والقائمة كلها بإطار وكبيرة (${l.h})`, (await st()).index === 1 && l.bare && l.big && l.h === 88 && l.n === SHORT);
+  await both('نافذة واحدة · القصيرة الثانية');
+  await shot(`s4-single-short-2-t${win}`);
   // والسؤال التالي يعود بالمربع: «الموضوع التالي» ثم المزايدة بلا حكم.
   await cmd(audience, 'act:next'); await wait(1200);
   check('بعد «الموضوع التالي»: لا حكم ولا مربع، ولا .big', await audience.$eval('#box', b => b.hidden) && !(await look()).big);
