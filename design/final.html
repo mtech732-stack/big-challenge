@@ -132,6 +132,11 @@
        { l: 'ب', p: 'أكبر جزيرة كويتية مساحةً', a: 'بوبيان' }];
   // من يبدأ الجولة الفاصلة: الخاسر في القرعة (الوثيقة 5.8). المثال: فاز الأول بالقرعة، فيبدأ الثاني
   const STARTER = 2;
+  // الجولة الفاصلة (1.1، قرار المالك 19:14): للإصابة 3 نقاط (نقاط السؤال الصعب، 5.1)، فيتقدّم المصيب. وتظهر خانةً «الفاصلة» في آخر المسار
+  const TIE_POINTS = 3;
+  const HIT = { ...TIESCORE, [STARTER]: TIESCORE[STARTER] + TIE_POINTS };   // أصاب الثاني ولم يُصب الأول
+  const BOTH = { 1: TIESCORE[1] + TIE_POINTS, 2: TIESCORE[2] + TIE_POINTS };   // أصابا معاً في المحاولة 1
+  const TBPATH = [...TIE, { tb: true, g: STARTER === 2 ? [0, TIE_POINTS] : [TIE_POINTS, 0] }];
 
   // ===== الحالات (design/final.md 2) =====
   // turn: الحدّ (0 المنتصف) · screen: شاشة البطاقة · path: المسار · scores: الرصيد · mode/badge: الشارتان · box: مربع الإعلان · tb: سؤال الجولة الفاصلة
@@ -144,13 +149,14 @@
     tbq:     { t: 'الجولة الفاصلة: سؤال الثاني (القراءة)', screen: 'q', turn: STARTER, scores: TIESCORE, mode: 'الجولة الفاصلة', badge: 'المحاولة 1', tb: 0 },
     tbrun:   { t: 'الجولة الفاصلة: العدّاد', screen: 'q', turn: STARTER, run: 9, scores: TIESCORE, mode: 'الجولة الفاصلة', badge: 'المحاولة 1', tb: 0 },
     tblast:  { t: 'الجولة الفاصلة: آخر 3 ثوانٍ', screen: 'q', turn: STARTER, run: 3, scores: TIESCORE, mode: 'الجولة الفاصلة', badge: 'المحاولة 1', tb: 0 },
-    tbright: { t: 'الجولة الفاصلة: أصاب الثاني', screen: 'q', turn: STARTER, scores: TIESCORE, mode: 'الجولة الفاصلة', badge: 'المحاولة 1', tb: 0,
-               box: { verdict: { team: STARTER, text: 'أصاب' }, answer: 0 } },
-    tbq2:    { t: 'الجولة الفاصلة: سؤال الأول', screen: 'q', turn: 3 - STARTER, scores: TIESCORE, mode: 'الجولة الفاصلة', badge: 'المحاولة 1', tb: 1 },
-    tbwrong: { t: 'الجولة الفاصلة: لم يُصب الأول (فاز الثاني)', screen: 'q', turn: 0, scores: TIESCORE, mode: 'الجولة الفاصلة', badge: 'المحاولة 1', tb: 1,
+    tbright: { t: 'الجولة الفاصلة: أصاب الثاني (+3)', screen: 'q', turn: STARTER, scores: HIT, mode: 'الجولة الفاصلة', badge: 'المحاولة 1', tb: 0,
+               box: { verdict: { team: STARTER, text: 'أصاب · +3' }, answer: 0 } },
+    tbq2:    { t: 'الجولة الفاصلة: سؤال الأول', screen: 'q', turn: 3 - STARTER, scores: HIT, mode: 'الجولة الفاصلة', badge: 'المحاولة 1', tb: 1 },
+    tbwrong: { t: 'الجولة الفاصلة: لم يُصب الأول (حُسمت)', screen: 'q', turn: 0, scores: HIT, mode: 'الجولة الفاصلة', badge: 'المحاولة 1', tb: 1,
                box: { verdict: { team: 0, name: 3 - STARTER, text: 'لم يُصب' }, answer: 1 } },
-    tbagain: { t: 'الجولة الفاصلة: المحاولة 2 (أصابا معاً أو أخطآ معاً)', screen: 'q', turn: STARTER, scores: TIESCORE, mode: 'الجولة الفاصلة', badge: 'المحاولة 2', tb: 1 },
-    wintb:   { t: 'إعلان الفائز بالجولة الفاصلة: الثاني', screen: 'win', turn: STARTER, scores: TIESCORE, winner: STARTER, sub: 'الفائز بالجولة الفاصلة' },
+    tbagain: { t: 'الجولة الفاصلة: المحاولة 2 (أصابا معاً)', screen: 'q', turn: STARTER, scores: BOTH, mode: 'الجولة الفاصلة', badge: 'المحاولة 2', tb: 1 },
+    fintb:   { t: 'النتيجة النهائية بعد الجولة الفاصلة (خانة «الفاصلة»)', screen: 'fin', turn: 0, path: TBPATH, scores: HIT, box: { next: 'التالي: إعلان الفائز' } },
+    wintb:   { t: 'إعلان الفائز بالجولة الفاصلة: الثاني', screen: 'win', turn: STARTER, scores: HIT, winner: STARTER, sub: 'الفائز بالجولة الفاصلة' },
   };
 
   // أزرار النافذة الواحدة (design/final.md 5): بجانب ما تتحكم فيه. والزوايا الثلاث كما في 1.3
@@ -167,10 +173,10 @@
     const near = {
       tbq: [B('ابدأ')], tbq2: [B('ابدأ')], tbagain: [B('ابدأ')],
       tbrun: judge, tblast: judge,
-      tbright: [B('التالي · ' + NAMES[3 - STARTER])], tbwrong: [B('أعلن الفائز')],
+      tbright: [B('التالي · ' + NAMES[3 - STARTER])], tbwrong: [B('إلى النتيجة النهائية')],
     }[id] ?? [];
     $('near').innerHTML = near.join('');
-    $('finCtl').innerHTML = id === 'fin' ? B('أعلن الفائز') : id === 'fintie' ? B('الجولة الفاصلة') : '';
+    $('finCtl').innerHTML = id === 'fin' || id === 'fintb' ? B('أعلن الفائز') : id === 'fintie' ? B('الجولة الفاصلة') : '';
     $('winCtl').innerHTML = B('مباراة جديدة');
   }
 
@@ -189,8 +195,9 @@
     if (st.run) $('c1').innerHTML = $('c2').innerHTML = `<span class="ltr">${st.run}</span>`;
     $('box').hidden = true;
     if (st.screen === 'fin') {
-      $('track').innerHTML = st.path.map((p, i) => p.wheel
-        ? `<div class="seg wheel" style="--i:${i}" data-fit="خانة الشريط"><span class="mname">الشريط</span><span class="gains"><b class="g1">${signed(p.g[0])}</b><b class="g2">${signed(p.g[1])}</b></span></div>`
+      // الشريط والفاصلة خانتان ضيقتان (152) بإطار متقطع
+      $('track').innerHTML = st.path.map((p, i) => p.wheel || p.tb
+        ? `<div class="seg wheel" style="--i:${i}" data-fit="${p.tb ? 'خانة الفاصلة' : 'خانة الشريط'}"><span class="mname">${p.tb ? 'الفاصلة' : 'الشريط'}</span><span class="gains"><b class="g1">${signed(p.g[0])}</b><b class="g2">${signed(p.g[1])}</b></span></div>`
         : `<div class="seg" style="--i:${i}" data-fit="خانة الجولة"><span class="mname">${esc(p.mode)}</span><span class="gains"><b class="g1">${signed(p.g[0])}</b><b class="g2">${signed(p.g[1])}</b></span></div>`).join('');
     }
     if (st.screen === 'win') {
@@ -213,7 +220,7 @@
     $('box').classList.add('bare');
     if (verdict) {
       $('verdict').className = `chip${verdict.team ? ' t' + verdict.team : ''}`;
-      $('vtext').innerHTML = `${esc(NAMES[verdict.team || verdict.name])} · ${esc(verdict.text)}`;
+      $('vtext').innerHTML = `${esc(NAMES[verdict.team || verdict.name])} · ${num(verdict.text)}`;
     }
     $('line').innerHTML = next ? segs(next) : `<b>الإجابة:</b> ${esc(TB[answer].a)}`;
     const p2 = $('p2'), w = Math.min(659, 1794 - (p2.offsetLeft + p2.offsetWidth + 17 + 24 + 17));

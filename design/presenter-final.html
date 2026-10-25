@@ -187,9 +187,9 @@
                ctl: [B('السؤال الأول · دور ' + NAMES[STARTER], 'full')] },
     tbq:     { t: 'سؤال الثاني: قبل «ابدأ»', chip: 'الجولة الفاصلة · المحاولة 1', pips: [[STARTER, 'now']], who: STARTER, state: 'لم يبدأ الوقت', q: 0, ctl: [B('ابدأ · 15', 'full')] },
     tbrun:   { t: 'سؤال الثاني: الوقت يجري', chip: 'الجولة الفاصلة · المحاولة 1', pips: [[STARTER, 'now']], who: STARTER, clock: '9', state: 'يجيب الفريق', q: 0, ctl: judge },
-    tbright: { t: 'بعد الحكم: أصاب الثاني', chip: 'الجولة الفاصلة · المحاولة 1', pips: [[STARTER, 'won' + STARTER]], q: 0, done: `${NAMES[STARTER]} · أصاب`, ctl: [B('التالي · دور ' + NAMES[OTHER], 'full')] },
+    tbright: { t: 'بعد الحكم: أصاب الثاني', chip: 'الجولة الفاصلة · المحاولة 1', pips: [[STARTER, 'won' + STARTER]], q: 0, done: `${NAMES[STARTER]} · أصاب · +3`, ctl: [B('التالي · دور ' + NAMES[OTHER], 'full')] },
     tbq2:    { t: 'سؤال الأول: الوقت يجري', chip: 'الجولة الفاصلة · المحاولة 1', pips: [[STARTER, 'won' + STARTER], [OTHER, 'now']], who: OTHER, clock: '12', state: 'يجيب الفريق', q: 1, ctl: judge },
-    tbwrong: { t: 'لم يُصب الأول: حُسمت', chip: 'الجولة الفاصلة · المحاولة 1', pips: [[STARTER, 'won' + STARTER], [OTHER, 'none']], q: 1, done: `${NAMES[OTHER]} · لم يُصب · فاز ${NAMES[STARTER]}`, ctl: [B('أعلن الفائز', 'full')] },
+    tbwrong: { t: 'لم يُصب الأول: حُسمت', chip: 'الجولة الفاصلة · المحاولة 1', pips: [[STARTER, 'won' + STARTER], [OTHER, 'none']], q: 1, done: `${NAMES[OTHER]} · لم يُصب · فاز ${NAMES[STARTER]}`, ctl: [B('إلى النتيجة النهائية', 'full')] },
     tbsame:  { t: 'أصابا معاً: لم تُحسم', chip: 'الجولة الفاصلة · المحاولة 1', pips: [[STARTER, 'won' + STARTER], [OTHER, 'won' + OTHER]], q: 1, done: `${NAMES[OTHER]} · أصاب · أصابا معاً`, ctl: [B('سؤالان جديدان · المحاولة 2', 'full')] },
   };
   const id = q.get('s'), st = STATES[id];
