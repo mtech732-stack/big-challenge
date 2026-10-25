@@ -102,7 +102,7 @@
   // أطول تحدٍّ: 84 حرفاً (حد السؤال 85، الوثيقة 7.3 وdesign/system.md 7)
   if (LONG) CH[2] = 'يمثّل أحدكم فيلماً كرتونياً مشهوراً بلا كلام، ويخمّن فريقه اسمه قبل انتهاء الوقت كله';
   // خانات الحظ (content-format 5: luck[].effect و label). والنص القصير في الخانة من التأثير، والنص الكامل من label
-  const LUCK = { 'lose-3': { w: 'خسارة', n: '−3', label: 'خسارة 3 نقاط' }, 'steal-3': { w: 'خصم', n: '3', label: 'خصم 3 نقاط من خصمك' },
+  const LUCK = { 'lose-3': { w: 'خسارة', n: '−3', label: 'خسارة 3 نقاط' }, 'steal-3': { w: 'خصم', n: '3', label: 'خصم 3 نقاط' },
     'gift-3': { w: 'هدية', n: '+3', label: 'هدية: +3 نقاط' } };
   // الخانات العشر من اليمين: سبعة تحديات وثلاث خانات حظ، موزّعة كي لا تتجاور خانتا حظ (design/wheel.md 2.2)
   const SLOTS = [['c', 0], ['l', 'lose-3'], ['c', 1], ['c', 2], ['l', 'gift-3'], ['c', 3], ['c', 4], ['l', 'steal-3'], ['c', 5], ['c', 6]];
@@ -216,14 +216,15 @@
     $('box').classList.toggle('wrap', r.getBoundingClientRect().width / (canvas.getBoundingClientRect().width / 1920) > $('box').clientWidth - 96);
   }
   function placeBadges() {
-    const lean = Math.tan(14 * Math.PI / 180) * 64; let right = 104;
-    for (const el of [document.querySelector('.badge.mode'), $('b1')]) { el.style.right = right + 'px'; right += el.offsetWidth + 24 + lean; }
+    // العرض الفعلي مقسوماً على المقياس لا offsetWidth: يقرّبه إلى عدد صحيح فينقص الفراغ عن 24 (الملاحظة 41)
+    const lean = Math.tan(14 * Math.PI / 180) * 64, k = canvas.getBoundingClientRect().width / 1920; let right = 104;
+    for (const el of [document.querySelector('.badge.mode'), $('b1')]) { el.style.right = right + 'px'; right += Math.ceil((el.getBoundingClientRect().width / k + 24 + lean) * 64) / 64; }   // يقرّب إلى أعلى بوحدة التخطيط (1/64)
   }
   function placeNear() {
     const near = $('near'); if (!near.children.length) return;
     // بحدود الشارة الفعلية مقسومة على المقياس (تدقيق ش6): على غير 1920 تُرسم اللوحة مصغّرة
     const c = canvas.getBoundingClientRect().left, k = canvas.getBoundingClientRect().width / 1920;
-    near.style.left = Math.floor(Math.min(...[...document.querySelectorAll('.badge')].map(b => (b.getBoundingClientRect().left - c) / k)) - 32 - near.offsetWidth) + 'px';
+    near.style.left = Math.floor(Math.min(...[...document.querySelectorAll('.badge')].map(b => (b.getBoundingClientRect().left - c) / k)) - 32 - near.getBoundingClientRect().width / k) + 'px';
   }
   function fitRings() {
     for (const team of [$('p1'), $('p2')]) {
