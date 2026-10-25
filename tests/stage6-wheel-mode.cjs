@@ -73,7 +73,7 @@ const { reporter } = require('./helpers.cjs');
   s = round.state;
   a = wheel.audience(s);
   check('بعد الحركة: الخانة ظاهرة (شاشة الخانة)، بنصها كاملاً وكلمتها ورقمها، والحدّ لمن أدارها', s.phase === 'slot' && a.screen === 'slot' && a.text === s.slots[stop].text && a.slot.word === W.face(s.slots[stop]).word && a.turn === 2 && a.by === 2);
-  check('بعد الوقوف (هذه المرحلة): «إنهاء العجلة»', wheel.actions(s).map(x => x.id).join() === 'finish');
+  check('بعد الوقوف: «ابدأ التحدي» إن وقفت على تحدٍّ، و«إنهاء العجلة» على خانة حظ (تطبيقها مرحلة تالية)', wheel.actions(s).map(x => x.id).join() === (s.slots[stop].kind === 'challenge' ? 'start' : 'finish'));
 
   // التراجع: يتخطى الدوران إلى ما قبله، ثم «أدِر» يقف على الخانة نفسها.
   let m = { step: 'play', round, scores: round.scores };
@@ -84,7 +84,8 @@ const { reporter } = require('./helpers.cjs');
   const mid = P.undo({ step: 'play', round: again, scores: again.scores }, [wheel]);
   check('والتراجع أثناء الدوران يوقفه (قبل الدوران)', mid.round.state.phase === 'ready');
 
-  // نهاية العجلة.
+  // نهاية العجلة (التحدي يُحكم فيه أولاً: «لم ينجح» بلا نقاط).
+  if (s.slots[stop].kind === 'challenge') { round = R.act(wheel, round, 'start', undefined, t0 + ms + 1000); round = R.act(wheel, round, 'failed', undefined, t0 + ms + 2000); }
   round = R.act(wheel, round, 'finish', undefined, t0 + ms + 3000);
   s = round.state;
   a = wheel.audience(s);

@@ -153,8 +153,8 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-slot.png') });
     else await stage.screenshot({ path: path.join(shots, 'wheel-slot-long.png') });
     const kind = (await saved(stage)).round.state.slots[stop].kind;
-    check(`${tag}المقدّم: الخانة في مربعها، ونصها كاملاً، وسطر القاعدة، و«إنهاء العجلة»`, (await presenter.$('#wMid.got .slotbox.t' + spinner)) && await text(presenter, '#wMid .text') === wantText
-      && (await text(presenter, '#wMid .rule')).startsWith(kind === 'luck' ? 'خانة حظ' : 'دقيقتان حداً أقصى') && await text(presenter, '#wCtl') === 'إنهاء العجلة');
+    check(`${tag}المقدّم: الخانة في مربعها، ونصها كاملاً، وسطر القاعدة، و«ابدأ التحدي · دقيقتان» (أو «إنهاء العجلة» لخانة حظ)`, (await presenter.$('#wMid.got .slotbox.t' + spinner)) && await text(presenter, '#wMid .text') === wantText
+      && (await text(presenter, '#wMid .rule')).startsWith(kind === 'luck' ? 'خانة حظ' : 'دقيقتان حداً أقصى') && await text(presenter, '#wCtl') === (kind === 'luck' ? 'إنهاء العجلة' : 'ابدأ التحدي · دقيقتان'));
     await presenterCheck(presenter, `${tag}بعد الوقوف`);
 
     if (!LONG) {
@@ -167,7 +167,8 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
       check('وإعادة الدوران تقف على الخانة نفسها', (await saved(stage)).round.state.landed === stop);
     }
 
-    // نهاية العجلة، ثم الجولة الثانية.
+    // نهاية العجلة (والتحدي يُحكم فيه أولاً، اختباره stage6-wheel-challenge)، ثم الجولة الثانية.
+    if (kind === 'challenge') { await click('#wCtl [data-act="start"]'); await click('#wCtl [data-act="failed"]'); }
     await click('#wCtl [data-act="finish"]');
     check(`${tag}«إنهاء العجلة»: نهايتها، «انتهت العجلة»، و«التالي: الجولة 2 · الحرف المعيّن»`, await aud.evaluate(() => !!document.querySelector('.scr.end.show'))
       && await text(aud, '#b1') === 'انتهت العجلة' && await text(aud, '#next') === 'التالي: الجولة 2 · الحرف المعيّن');
@@ -199,7 +200,8 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     check('أثناء الدوران: لا زر بجانب الشارات', await near() === '');
     await audience.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
     await wait(800);
-    check('بعد الوقوف: «إنهاء العجلة»', await near() === 'إنهاء العجلة');
+    const kind1 = (await saved(stage)).round.state.slots[(await saved(stage)).round.state.landed].kind;
+    check('بعد الوقوف: «ابدأ · دقيقتان» (أو «إنهاء العجلة» لخانة حظ)', await near() === (kind1 === 'luck' ? 'إنهاء العجلة' : 'ابدأ · دقيقتان'));
     await audienceCheck(audience, 'نافذة واحدة · بعد الوقوف', data);
     await stage.screenshot({ path: path.join(shots, 'wheel-slot-w1.png') });
     await go('undo');
@@ -207,6 +209,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     await go('act:spin');
     await audience.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
     await wait(800);
+    if (kind1 === 'challenge') { await go('act:start'); await go('act:failed'); }
     await go('act:finish');
     check('«إنهاء العجلة»: في البطاقة «ابدأ الجولة 2»', await text(audience, '.scr.end.show .ctl') === 'ابدأ الجولة 2');
     await audienceCheck(audience, 'نافذة واحدة · نهاية العجلة', data);
