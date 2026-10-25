@@ -186,7 +186,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     check(`${tag}«لم ينجح»: «لا نقاط» و«لم ينجح التحدي» بلا مربع، والحدّ في المنتصف، والرصيد كما هو`, await text(audience, '#vtext') === 'لا نقاط' && await text(audience, '#say') === 'لم ينجح التحدي'
       && await audience.evaluate(() => document.getElementById('box').classList.contains('bare')) && !(await cls(audience, 'turn-1')) && !(await cls(audience, 'turn-2'))
       && (await saved(stage)).round.scores[spinner] === 0);
-    check(`${tag}المقدّم: «لا نقاط · لم ينجح التحدي» و«إنهاء الشريط»`, await text(presenter, '#wWho') === 'لا نقاط · لم ينجح التحدي' && await text(presenter, '#wCtl') === 'إنهاء الشريط' && await presenter.$eval('#wClock', e => e.hidden));
+    check(`${tag}المقدّم: «لا نقاط · لم ينجح التحدي» و«التالي · دور [الآخر]»`, await text(presenter, '#wWho') === 'لا نقاط · لم ينجح التحدي' && (await text(presenter, '#wCtl')).startsWith('التالي · دور ') && await presenter.$eval('#wClock', e => e.hidden));
     await audienceCheck(audience, `${tag}لم ينجح`);
     if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-failed.png') });
     await presenter.click('#wUndo'); await wait(900);
@@ -238,7 +238,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     await stage.screenshot({ path: path.join(shots, 'wheel-run-w1.png') });
     await wait(1500);
     await go('act:won');
-    check('«نجح»: «إنهاء الشريط»، و+5', await near() === 'إنهاء الشريط' && (await saved(stage)).round.scores[(await saved(stage)).round.state.first] === 5);
+    check('«نجح»: «التالي · الدورة 2»، و+5', await near() === 'التالي · الدورة 2' && (await saved(stage)).round.scores[(await saved(stage)).round.state.first] === 5);
     await audienceCheck(audience, 'نافذة واحدة · نجح');
     await stage.screenshot({ path: path.join(shots, 'wheel-won-w1.png') });
     await go('undo');
