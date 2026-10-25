@@ -7,8 +7,9 @@
 // الترتيب من اليمين: تحدٍّ · خصم · تحدٍّ · تحدٍّ · هدية · تحدٍّ · تحدٍّ · اسرق · تحدٍّ · تحدٍّ. والتحديات بترتيبها في wheel.json.
 export const LAYOUT = ['c', 'lose-3', 'c', 'c', 'gift-3', 'c', 'c', 'steal-3', 'c', 'c'];
 export const SLOTS = LAYOUT.length;
-// نقاط التحدي (مبدئية، تُضبط في ش8).
+// نقاط التحدي ووقته (مبدئيان، يُضبطان في ش8): دقيقتان حداً أقصى، ويحكم المقدّم (الوثيقة 5.7).
 export const CHALLENGE_POINTS = 5;
+export const CHALLENGE_SECONDS = 120;
 // الكلمة والرقم في الخانة من التأثير لا من label (label يعدّله المالك وقد يطول، design/wheel.md 2.2).
 const LUCK_FACE = { lose: (k) => ['خصم', `−${k}`], steal: (k) => ['اسرق', `${k}`], gift: (k) => ['هدية', `+${k}`] };
 const other = team => (team === 1 ? 2 : 1);
@@ -22,7 +23,9 @@ export const spinMs = stop => spinSteps(stop).reduce((a, b) => a + b, 0) + LAND_
 
 // first: من يدير العجلة أولاً (الأقل نقاطاً، وعند التعادل الخاسر في القرعة، يحدده js/play.js) · why: 'score' أو 'draw' (سطر للمقدّم وحده).
 // spinners: من يديرها في كل دورة · n: الدورة الجارية (1 أو 2) · stops: خانة الوقوف لكل دورة، محسومة هنا.
-// phase: ready قبل الدوران · spin تدور (at: متى بدأت بساعة الجهاز) · slot وقفت، والخانة ظاهرة (landed) · end انتهت العجلة.
+// phase: ready قبل الدوران · spin تدور (at: متى بدأت بساعة الجهاز) · slot وقفت، والخانة ظاهرة (landed)
+// · run وقت التحدي (timeup: انتهى ولم يحكم المقدّم بعد) · done حُكم في التحدي · end انتهت العجلة.
+// results[i]: نتيجة الدورة i: { team, points } (team 0 إن لم يأخذ أحد)، أو null ما لم تنتهِ.
 function setup({ content, first, scores = { 1: 0, 2: 0 }, rng = Math.random }) {
   const challenges = content?.challenges ?? [], luck = content?.luck ?? [];
   let c = 0;
@@ -32,7 +35,7 @@ function setup({ content, first, scores = { 1: 0, 2: 0 }, rng = Math.random }) {
     return { kind: 'luck', effect: k, text: l.label };
   });
   const pick = () => Math.min(SLOTS - 1, Math.floor(rng() * SLOTS));
-  return { first, why: scores[1] === scores[2] ? 'draw' : 'score', spinners: [first, other(first)], n: 1, slots, stops: [pick(), pick()], phase: 'ready', at: null, landed: null };
+  return { first, why: scores[1] === scores[2] ? 'draw' : 'score', spinners: [first, other(first)], n: 1, slots, stops: [pick(), pick()], phase: 'ready', at: null, landed: null, timeup: false, results: [null, null] };
 }
 
 const spinner = s => s.spinners[s.n - 1];
@@ -44,10 +47,16 @@ export function face(slot) {
   return { word, n };
 }
 
+const landedOn = s => (s.landed === null ? null : s.slots[s.landed]);
+const isChallenge = s => landedOn(s)?.kind === 'challenge';
+
 function actions(s) {
   if (s.phase === 'ready') return [{ id: 'spin', label: 'أدِر العجلة' }];
-  // المرحلة الأولى (الدوران): بعد الوقوف تُغلق العجلة. والتحدي والحكم وخانات الحظ مراحلها التالية.
-  if (s.phase === 'slot') return [{ id: 'finish', label: 'إنهاء العجلة' }];
+  // التحدي: «ابدأ» يبدأ الدقيقتين، ثم الحكم والوقت يجري أو بعد انتهائه (انتهاؤه لا يحكم، design/wheel.md 2).
+  if (s.phase === 'slot' && isChallenge(s)) return [{ id: 'start', label: 'ابدأ التحدي · دقيقتان' }];
+  if (s.phase === 'run') return [{ id: 'won', label: `نجح · +${CHALLENGE_POINTS}` }, { id: 'failed', label: 'لم ينجح' }];
+  // وبعد الحكم (أو خانة الحظ، وتطبيقها مرحلة تالية) تُغلق العجلة في هذه المرحلة. والدورة الثانية مرحلة تالية.
+  if (s.phase === 'done' || s.phase === 'slot') return [{ id: 'finish', label: 'إنهاء العجلة' }];
   return [];
 }
 
@@ -59,18 +68,43 @@ function act(s, action, scores = {}, now = Date.now()) {
     return { state: { ...s, phase: 'spin', at: now, landed: stop }, events: [{ type: 'moment', name: 'spin', team: spinner(s), stop }] };
   }
   if (id === 'land' && s.phase === 'spin' && now >= s.at + spinMs(s.landed) - 1000) return { state: { ...s, phase: 'slot' }, events: [] };
-  if (id === 'finish' && s.phase === 'slot') return { state: { ...s, phase: 'end' }, events: [] };
+  if (id === 'start' && s.phase === 'slot' && isChallenge(s)) {
+    // resume: التراجع عن حكم والوقت يجري يعيد ما بقي من الدقيقتين، لا الدقيقتين كاملتين (js/round.js).
+    return { state: { ...s, phase: 'run', timeup: false }, events: [{ type: 'timer', seconds: CHALLENGE_SECONDS, resume: true }] };
+  }
+  // انتهى الوقت: لا حكم تلقائي، فقد يُتم الفريق أداءه مع الثانية الأخيرة. يقف العدّاد، ويبقى الحكم للمقدّم.
+  if (id === 'timeout' && s.phase === 'run' && !s.timeup) return { state: { ...s, timeup: true }, events: [] };
+  if ((id === 'won' || id === 'failed') && s.phase === 'run') {
+    const team = id === 'won' ? spinner(s) : 0, points = team ? CHALLENGE_POINTS : 0;
+    const state = { ...s, phase: 'done', results: s.results.map((r, i) => (i === s.n - 1 ? { team, points } : r)) };
+    return { state, events: team ? [{ type: 'score', team, points }, { type: 'moment', name: 'right', team }] : [{ type: 'moment', name: 'none' }] };
+  }
+  if (id === 'finish' && (s.phase === 'slot' || s.phase === 'done')) return { state: { ...s, phase: 'end' }, events: [] };
   return { state: s, events: [] };
 }
 
 // ما تعرضه نافذة الجمهور: الخانات العشر بنوعها ونقاطها، لا بنصوصها (التشويق، design/wheel.md 1). ونص الخانة بعد الوقوف وحده.
+// ما تغيّر في رصيد كل فريق في العجلة، من نتائج دوراتها.
+function totals(s) {
+  const sum = { 1: 0, 2: 0 };
+  for (const r of s.results) if (r?.team) sum[r.team] += r.points;
+  return sum;
+}
+
 function audience(s) {
-  const base = { first: s.first, count: s.spinners.length, n: s.n, totals: { 1: 0, 2: 0 } };
+  const base = { first: s.first, count: s.spinners.length, n: s.n, totals: totals(s) };
   if (s.phase === 'end') return { ...base, screen: 'end', turn: 0 };
   const by = spinner(s);
-  if (s.phase === 'slot') {
-    const slot = s.slots[s.landed];
-    return { ...base, screen: 'slot', phase: s.phase, by, turn: by, landed: s.landed, slot: { kind: slot.kind, effect: slot.effect, ...face(slot) }, text: slot.text };
+  if (s.phase === 'slot' || s.phase === 'run' || s.phase === 'done') {
+    const slot = s.slots[s.landed], r = s.results[s.n - 1];
+    // بعد الحكم: الشارة لمن أخذ النقاط («لا نقاط» إن لم ينجح)، والسطر «نجح التحدي» أو «لم ينجح التحدي» (design/wheel.md 2).
+    const verdict = s.phase === 'done' && slot.kind === 'challenge' ? { team: r.team, points: r.points, say: r.team ? 'نجح التحدي' : 'لم ينجح التحدي' } : null;
+    return {
+      ...base, screen: 'slot', phase: s.phase, by, turn: verdict ? verdict.team : by, landed: s.landed,
+      slot: { kind: slot.kind, effect: slot.effect, ...face(slot) }, text: slot.text,
+      // الوقت دقيقتان ثابت قبل «ابدأ»، ويُكتب «2:00» لا «120» (design/wheel.md 7.4).
+      clock: CHALLENGE_SECONDS, mmss: true, timeup: s.phase === 'run' && s.timeup, verdict,
+    };
   }
   return {
     ...base, screen: 'wheel', phase: s.phase, by, turn: by,
@@ -87,7 +121,7 @@ function presenter(s) {
     ...a,
     why: s.why,
     items: s.slots.map(x => ({ kind: x.kind, effect: x.effect, text: x.text, ...face(x) })),
-    track: s.spinners.map((t, i) => ({ owner: t, result: null, now: s.phase !== 'end' && i === s.n - 1 })),
+    track: s.spinners.map((t, i) => ({ owner: t, result: s.results[i]?.team ?? null, now: s.phase !== 'end' && i === s.n - 1 })),
   };
 }
 

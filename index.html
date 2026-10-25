@@ -228,6 +228,8 @@
     <span class="pips" id="pips" aria-label="أسئلة الجولة" hidden></span>
     <!-- وقت القائمة في الترتيب (design/ranking.md 5): قبل «الصوت»، فيبقى العنوان سطراً واحداً -->
     <p class="lclock" id="rClock" hidden><span>بقي للقائمة</span><b id="rClockV"></b></p>
+    <!-- وقت تحدي العجلة طوال التحدي (design/wheel.md 5)، فلا يقرأ المقدّم من التلفاز -->
+    <p class="lclock" id="wClock" hidden><span>الوقت</span><b id="wClockV"></b></p>
     <!-- إن انقطعت نافذة الجمهور أثناء الجولة: يحلّ هذا محل مسار الأسئلة في الرأس -->
     <span class="lost" id="lost" hidden><button class="warn" id="lostOpen">افتح نافذة الجمهور</button><button class="on-stage alt" id="lostSingle">نافذة واحدة</button></span>
     <button class="on-stage alt" id="mute" hidden>الصوت</button>
@@ -746,6 +748,7 @@
     $('pips').hidden = !mode || !link?.connected;
     $('lost').hidden = !mode || !!link?.connected;
     document.querySelectorAll('[data-part]').forEach(s => s.hidden = true);
+    $('wClock').hidden = true;
     if (!mode) return;
     const st = match.round.state, pr = mode.presenter(st), acts = mode.actions(st);
     const label = id => acts.find(a => a.id === id)?.label;
@@ -756,6 +759,7 @@
     $('roundChip').querySelector('span').innerHTML = num(isWheel ? `${mode.name} · الدورة ${pr.n} من ${pr.count}` : part === 'auc' ? `${mode.name} · الموضوع ${pr.n} من ${pr.count}`
       : part === 'rnk' ? `${mode.name} · القائمة ${pr.n} من ${pr.count}` : `الجولة ${n} من ${M.rounds(match)} · ${mode.name}`);
     listClock();
+    challengeClock(isWheel ? pr : null);
     $('pips').innerHTML = pr.track.map(x => `<i class="pip t${x.owner}${x.result === null ? '' : x.result ? ' won' + x.result : ' none'}${x.now ? ' now' : ''}"></i>`).join('');
 
     if (part === 'intro') {
@@ -944,6 +948,13 @@
   // ===== عجلة البونص في نافذة المقدّم (design/wheel.md 5) =====
   // قبل الوقوف: الخانات العشر بأعمدة التلفاز (1–5 ثم 6–10)، كل خانة نوعها ونقاطها ثم نصها الكامل. وبعد الوقوف: الخانة في مربعها ونصها كاملاً،
   // وسطر القاعدة للمقدّم وحده (وسوم القواعد لا تُكتب على الجمهور، 7.3).
+  // الوقت في الرأس من «ابدأ» حتى الحكم، كما على الشاشة (يصل كل ثانية من نافذة الجمهور)، و«0:00» بعد انتهائه.
+  function challengeClock(pr) {
+    const on = pr?.phase === 'run';
+    $('wClock').hidden = !on;
+    if (on) $('wClockV').textContent = pr.timeup ? '0:00' : tickText || '2:00';
+  }
+  const WSTATE = { slot: 'لم يبدأ الوقت', run: 'يؤدّي الفريق التحدي' };
   const RULE = { challenge: 'دقيقتان حداً أقصى · النجاح +5، ولا خصم عند الإخفاق', luck: 'خانة حظ: تُطبَّق فور الوقوف، والرصيد لا ينزل تحت 0' };
   function renderWheel(pr, acts) {
     const mid = $('wMid');
@@ -951,13 +962,18 @@
     mid.innerHTML = pr.screen === 'slot'
       ? `<div class="slotbox t${pr.by}"><span>${esc(pr.slot.word)}</span><b>${num(pr.slot.n)}</b></div><p class="text">${esc(pr.text)}</p><p class="rule">${num(RULE[pr.slot.kind])}</p>`
       : '<h2>الخانات العشر</h2><div class="slots">' + pr.items.map(x => `<p class="${x.kind === 'luck' ? 'luck' : ''}"><b>${num(`${x.word} ${x.n}`)}</b><span>${esc(x.text)}</span></p>`).join('') + '</div>';
-    $('wWho').innerHTML = `${mk(pr.by)} دور ${tn(pr.by)}`;
+    // بعد الحكم: «النجوم · +5 · نجح التحدي» أو «لا نقاط · لم ينجح التحدي» مكان الدور (design/wheel.md 5).
+    const v = pr.verdict;
+    $('wWho').innerHTML = v ? `<span class="done">${v.team ? `${esc(match.teams[v.team])} · ${num('+' + v.points)}` : 'لا نقاط'} · ${esc(v.say)}</span>` : `${mk(pr.by)} دور ${tn(pr.by)}`;
     // من يبدأ ولماذا: سطر للمقدّم وحده، يقوله إن سُئل (design/wheel.md 1).
-    $('wState').innerHTML = pr.phase === 'spin' ? 'تدور العجلة' : pr.phase === 'ready' && pr.n === 1 ? (pr.why === 'draw' ? 'خسر القرعة يبدأ' : 'الأقل نقاطاً يبدأ') : '';
+    $('wState').innerHTML = pr.phase === 'spin' ? 'تدور العجلة' : pr.phase === 'ready' && pr.n === 1 ? (pr.why === 'draw' ? 'خسر القرعة يبدأ' : 'الأقل نقاطاً يبدأ')
+      : pr.phase === 'run' && pr.timeup ? 'انتهى الوقت · احكم' : pr.slot?.kind === 'challenge' ? WSTATE[pr.phase] ?? '' : '';
     const ctl = id => acts.find(a => a.id === id);
-    // «أدِر العجلة» بعرض اللوحة، ومعطّل أثناء الدوران. وبعد الوقوف «إنهاء العجلة» (التحدي والحكم وخانات الحظ في المراحل التالية).
+    // «أدِر العجلة» بعرض اللوحة، ومعطّل أثناء الدوران. و«ابدأ التحدي · دقيقتان»، ثم «نجح · +5» و«لم ينجح» نصفاً ونصفاً،
+    // وبعد الحكم «إنهاء العجلة» في هذه المرحلة (الدورة الثانية وخانات الحظ في المراحل التالية).
     $('wCtl').innerHTML = pr.phase === 'spin' ? '<button class="full" disabled>أدِر العجلة</button>'
-      : ['spin', 'finish'].filter(ctl).map(id => `<button class="full" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
+      : pr.phase === 'run' ? `<button data-act="won">${num(ctl('won').label)}</button><button class="no" data-act="failed">${esc(ctl('failed').label)}</button>`
+      : ['spin', 'start', 'finish'].filter(ctl).map(id => `<button class="full" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
     $('wUndo').disabled = !match.round.history.length;
   }
   $('wCtl').addEventListener('click', e => { const el = e.target.closest('button[data-act]'); if (el && !el.disabled) roundAct(el.dataset.act); });
@@ -1048,7 +1064,8 @@
       if (screen === 'topic' && !b) c.near = st.phase === 'ready' ? [...act('start', 'ابدأ'), ...act('count')] : [...act('count'), ...act('stop', 'توقّف', 'no')];
       if (screen === 'ask') c.near = [...act('start', 'ابدأ'), ...act('correct'), ...act('wrong', null, 'no'), ...act('next', last ? 'إنهاء الجولة' : 'السؤال التالي')];
       // العجلة (design/wheel.md 4): «أدِر العجلة» قبل الدوران، ولا شيء أثناءه. وبعد الوقوف «إنهاء العجلة» في هذه المرحلة.
-      if (screen === 'wheel' || screen === 'slot') c.near = [...act('spin'), ...act('finish')];
+      // والتحدي «ابدأ · دقيقتان»، ثم «نجح» و«لم ينجح» (بإطار) والوقت يجري أو بعد انتهائه.
+      if (screen === 'wheel' || screen === 'slot') c.near = [...act('spin'), ...act('start', 'ابدأ · دقيقتان'), ...act('won', 'نجح'), ...act('failed', null, 'alt'), ...act('finish')];
       if (screen === 'end') { const nb = nextButton(); c.card = [{ cmd: 'next', label: nb.text, off: !!nb.off || wait }]; }
       c.scores = true;
       // ثلاثة صفوف قصيرة (الملاحظة 26، design/system.md 15.10): الجولة · النوافذ · المباراة، فلا تبلغ لوحة الأول ولا أزرار العدّاد.
@@ -1116,6 +1133,7 @@
         const st = match?.round?.state, mode = st && roundMode();
         if (mode?.id === 'auction' && st.phase === 'fulfil') auctionState(mode.presenter(st));
         if (mode?.id === 'ranking' && (st.phase === 'ask' || st.phase === 'steal')) rankState(mode.presenter(st));
+        if (mode?.id === WHEEL.id) challengeClock(match.single ? null : mode.presenter(st));
       }
       // انتهى عدّاد في نافذة الجمهور: يُطبَّق إن طابق رقمه العدّاد الجاري، وإلا أُهمل (عقد الوحدة 5).
       if (type === 'timeout' && match && $('gate').hidden) roundUpdate(P.act(match, units(), 'timeout', data.id));

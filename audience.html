@@ -232,7 +232,8 @@
   // مربع الإعلان (15.4): الحكم والإجابة · الفائز بالقرعة · «التالي». ولا يظهر إن لم يكن فيه شيء.
   // told: سطر المزاد بعد الحكم «ذُكر 10 من 12» مكان الإجابة (القائمة كلها في البطاقة، design/auction.md 2).
   // say: سطر الترتيب في المربع «المركز 7» أو «لم تُكشف خانة» (الاسم في خانته، design/ranking.md 7.6).
-  function announce({ verdict: v, answer, told, say, face, next } = {}) {
+  // bare: حكم العجلة بلا مربع، الشارة والسطر على الطرف (design/wheel.md 2.5).
+  function announce({ verdict: v, answer, told, say, face, next, bare } = {}) {
     $('verdict').hidden = !v;
     if (v) {
       $('verdict').className = `chip${v.team ? ' t' + v.team : ''}`;
@@ -249,7 +250,7 @@
     $('box').hidden = !(v || answer || told || say || face || next);
     // «التالي» في نهاية الجولة نص أبيض على الطرف بلا مربع، فلا يتجاوز الأبيض سقفه (15.4 و15.12).
     // وحكم المزاد (سطره told) بلا مربع كذلك، فالقائمة القصيرة لا ترفع الأبيض فوق 35 (design/auction.md 1.5).
-    $('box').classList.toggle('bare', (!!next && !v && !answer && !face && !say) || (!!told && !answer && !face));
+    $('box').classList.toggle('bare', !!bare || (!!next && !v && !answer && !face && !say) || (!!told && !answer && !face));
     placeBox();
   }
   // الملاحظة 27 (15.4): المربع يضيق بقدر ما يبقى بعد لوحة الثاني. حافته اليمنى ثابتة على 1794، وعرضه الأصغر من 659
@@ -437,7 +438,9 @@
     // بعد الحكم الأخير: الحكم والإجابة في مربع الإعلان حتى السؤال التالي. و«التالي» فيه في نهاية الجولة.
     const asking = a.screen === 'ask' || a.screen === 'topic' || a.screen === 'list' || a.screen === 'wheel' || a.screen === 'slot';
     const v = asking ? a.verdict : null;
-    announce(a.screen === 'end' ? { next: p.next } : a.screen === 'list' ? rankBox(a) : a.screen === 'wheel' || a.screen === 'slot' ? {}
+    announce(a.screen === 'end' ? { next: p.next } : a.screen === 'list' ? rankBox(a) : a.screen === 'wheel' ? {}
+      // العجلة: «انتهى الوقت» نصاً حتى يحكم المقدّم، ثم الحكم بلا مربع (design/wheel.md 2 و2.5).
+      : a.screen === 'slot' ? (v ? { verdict: v, say: v.say, bare: true } : a.timeup ? { next: 'انتهى الوقت' } : {})
       : { verdict: v, answer: a.answer, told: v && a.tally ? `ذُكر ${a.tally.n} من ${a.tally.of}` : undefined });
     syncTimer(p.timer, a);
     setTurn(a.turn);
@@ -682,9 +685,12 @@
     const key = `${p.n}/${a.screen}/${a.n ?? ''}`;
     const changed = key !== shownKey;
     shownKey = key;
+    // شاشة الخانة باقية بعد الحكم: لا يدخل مربعها من جديد مع حركة الحكم (chipin، wheel.css 5).
+    const settle = () => { if (!changed && a.screen === 'slot') $('letter').getAnimations().forEach(x => x.finish()); };
     for (const m of moments) if (m.name === 'right') sound('right'); else if (m.name === 'trap' || ((m.name === 'steal' || m.name === 'fail') && m.reason === 'wrong')) sound('wrong');
     if (still() || (!moments.length && !changed)) return;
     canvas.classList.remove('anim'); void canvas.offsetWidth; canvas.classList.add('anim');
+    settle();
     for (const m of moments) {
       if (m.name === 'right' && prev) {
         // صحيحة: مربع الإعلان يُمسح من اليمين، والحزم تندفع، وبعد 250ms يزيد الرقم الكبير وتنبض لوحة الكاسب.
@@ -723,13 +729,15 @@
 
   // ===== العدّاد: نافذة الجمهور هي التي تعدّ الثواني بنفسها بعد أمر «ابدأ» =====
   // count: { id, endAt } لعدّاد الجولة (endAt بساعة الجهاز نفسه، فيعود صحيحاً بعد إعادة التحميل)، أو { test } لعدّاد ش0 التجريبي.
-  let count = null, ticker = 0, lastText = '', lastLeft = -1, expired = 0;
+  // mmss: الثواني في اللوحة «1:42» لا «102» (تحدي العجلة دقيقتان، design/wheel.md 7.4)، في <span class="ltr">.
+  let count = null, ticker = 0, lastText = '', lastLeft = -1, expired = 0, mmss = false;
   const format = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const show = seconds => {
     const text = format(seconds);
     $('timer').textContent = text;
     // الجمهور يرى الثواني وحدها في لوحة صاحب الدور (1.3)، وفي عدّاد ش0 التجريبي في البطاقة.
-    $('c1').textContent = $('c2').textContent = String(seconds);
+    if (mmss) $('c1').innerHTML = $('c2').innerHTML = `<span class="ltr">${text}</span>`;
+    else $('c1').textContent = $('c2').textContent = String(seconds);
     if (count?.test) $('label').textContent = `العدّاد يعمل · ${text}`;
     if (text !== lastText) { lastText = text; link.send('tick', { text }); }
   };
@@ -753,6 +761,7 @@
   };
   const begin = c => { stop(); count = c; run(); if (count) ticker = setInterval(run, 100); };
   function syncTimer(t, a) {
+    mmss = !!a?.mmss;
     if (t && t.id !== count?.id && t.id !== expired) return begin({ id: t.id, endAt: t.at + t.seconds * 1000 });
     if (!t && count && !count.test) stop();
     if (!count) show(a?.clock ?? 0);
