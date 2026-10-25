@@ -249,38 +249,59 @@ const { reporter } = require('./helpers.cjs');
   check('الفاحص: العنوان فوق 32 وإشارته فوق 31 والاسم فوق 20 تنبيهات لا أخطاء', long.errors.length === 0
     && long.warnings.some(w => /العنوان قبل « · » 33/.test(w)) && long.warnings.some(w => /ما بعد « · » في العنوان 32/.test(w)) && long.warnings.some(w => /21 حرفاً، والحد 20/.test(w)));
 
-  // تقاطع الترتيب والمزاد (تدقيق ش5 «ثالثاً»): بالبنك الحقيقي، الأزواج الثلاثة كما قاسها المدقّق، ولا يجتمع زوج في مباراة.
-  const { clashes, CLASH_MIN } = await import(path.join(root, 'js/content-check.js'));
+  // تقاطع الترتيب وغيره بالبنك الحقيقي (تدقيق ش5 «ثالثاً» و«سادساً»). الأزواج تُقرأ من البنك نفسه، فلا يعود الاختبار
+  // إلى الإخفاق كلما استُبدلت قائمة (#217)، وتُقاس كل جهة مستقلة عن clashes() ثم يُختبر أن اللعبة لا تجمع زوجاً.
+  const { clashes, CLASH_MIN, sharedItems, fold } = await import(path.join(root, 'js/content-check.js'));
   const P = await import(path.join(root, 'js/play.js'));
   const auctionMode = (await import(path.join(root, 'js/modes/auction.js'))).default;
   const real = f => JSON.parse(fs.readFileSync(path.join(root, 'content/packs/general', f), 'utf8'));
   const realFiles = { 'ranking.json': real('ranking.json'), 'auction.json': real('auction.json') };
-  // الأزواج مع المزاد في الدفعة الأولى (001–005)، والبنك يكبر فلا تُحصر.
-  const pairs = clashes(realFiles).filter(c => c.mode === 'auction' && c.ranking <= 'general-ranking-005').map(c => `${c.ranking.slice(-3)}↔${c.with.slice(-3)}:${c.n}`).sort().join(',');
-  check(`الأزواج المتقاطعة (7 فأكثر من 13): 001↔047 (12) و002↔055 (8) و004↔010 (13) (${pairs})`, CLASH_MIN === 7 && pairs === '001↔047:12,002↔055:8,004↔010:13');
-  check('ما يُترك بعد موضوع مزاد متقاطع، وبعد قائمة متقاطعة', P.avoidIn(realFiles, ['general-auction-047']).join() === 'general-ranking-001'
-    && P.avoidIn(realFiles, ['general-ranking-004', 'general-ranking-002']).sort().join() === 'general-auction-010,general-auction-055' && P.avoidIn(realFiles, ['general-auction-001']).length === 0);
+  const fullFiles = { ...realFiles, 'letter.json': real('letter.json'), 'last-two.json': real('last-two.json') };
+  const lists = realFiles['ranking.json'].lists, topics = realFiles['auction.json'].topics;
+  const all = clashes(fullFiles), short = id => id.slice(-3);
+  const key = (a, b) => `${a}↔${b}`;
+  const reported = mode => all.filter(c => c.mode === mode).map(c => key(c.ranking, c.with)).sort();
+  // (1) الترتيب والمزاد، و(3) قائمتان: كل زوج يشترك في 7 فأكثر، بعدّ مستقل لكل قائمة مع كل موضوع وكل قائمة أخرى.
+  const brute = (pairsOf, mode) => pairsOf.filter(([a, b]) => sharedItems(a, b) >= CLASH_MIN).map(([a, b]) => key(a.id, b.id)).sort();
+  const withAuction = brute(lists.flatMap(l => topics.map(t => [l, t])));
+  const withRanking = brute(lists.flatMap((l, i) => lists.slice(i + 1).map(o => [l, o])));
+  const auctionPairs = all.filter(c => c.mode === 'auction'), rankingPairs = all.filter(c => c.mode === 'ranking');
+  check(`جدول «سادساً» (1): الترتيب والمزاد كما يُعدّ من البنك، وكل زوج 7 فأكثر (${reported('auction').map(x => x.replace(/general-\w+-/g, '')).join(',')})`,
+    CLASH_MIN === 7 && auctionPairs.length > 0 && auctionPairs.every(c => c.n >= CLASH_MIN) && reported('auction').join() === withAuction.join());
+  check(`جدول «سادساً» (3): قائمتان تشتركان في 7 فأكثر كما يُعدّ من البنك (${reported('ranking').map(x => x.replace(/general-\w+-/g, '')).join(',')})`,
+    rankingPairs.length > 0 && rankingPairs.every(c => c.n >= CLASH_MIN) && reported('ranking').join() === withRanking.join());
+  // وعدد ما اشترك فيه كل زوج كما يُعدّ مستقلاً (وأزواج الدفعة الأولى 001–005 بأعدادها في الاسم).
+  const byId = id => lists.find(l => l.id === id) ?? topics.find(t => t.id === id);
+  const first5 = auctionPairs.filter(c => c.ranking <= 'general-ranking-005').map(c => `${short(c.ranking)}↔${short(c.with)}:${c.n}`).sort().join(',');
+  check(`الأزواج المتقاطعة بعدد ما اشتركا فيه من 13 (الدفعة الأولى: ${first5})`, [...auctionPairs, ...rankingPairs].every(c => c.n === sharedItems(byId(c.ranking), byId(c.with))) && first5.length > 0);
+  // (2) سؤال تساوي إجابته أو صيغتها عنصراً بالتطابق التام بعد التوحيد: لا يفوت الفاحص منها شيئاً.
+  const exact = [];
+  for (const mode of ['letter', 'last-two']) for (const q of fullFiles[`${mode}.json`].questions) for (const l of lists) {
+    const pool = new Set(l.items.flatMap(it => [it.name, ...(it.alts ?? [])]).map(fold));
+    if ([q.answer, ...(q.alts ?? [])].some(f => pool.has(fold(f)))) exact.push(key(l.id, q.id));
+  }
+  const qPairs = all.filter(c => c.mode === 'letter' || c.mode === 'last-two').map(c => key(c.ranking, c.with));
+  check(`جدول «سادساً» (2): كل سؤال تطابق إجابته عنصراً معدود (${[...new Set(all.filter(c => c.mode === 'letter' || c.mode === 'last-two').map(c => short(c.ranking)))].sort().join(',')})`,
+    exact.length > 0 && exact.every(x => qPairs.includes(x)));
+  // ما يُترك: بعد كل موضوع مزاد متقاطع قوائمه، وبعد كل قائمة متقاطعة مواضيعها، ولا شيء بعد موضوع لا يتقاطع.
+  const free = topics.find(t => !auctionPairs.some(c => c.with === t.id));
+  check(`ما يُترك بعد موضوع مزاد متقاطع، وبعد قائمة متقاطعة (${auctionPairs.length} زوجاً)`, auctionPairs.every(c => P.avoidIn(realFiles, [c.with]).includes(c.ranking) && P.avoidIn(realFiles, [c.ranking]).includes(c.with))
+    && !!free && P.avoidIn(realFiles, [free.id]).length === 0);
+  const avoidR = [...new Set(auctionPairs.map(c => c.ranking))], avoidA = [...new Set(auctionPairs.map(c => c.with))];
   check('الترتيب بعد المزاد: لا تُختار القائمة المتقاطعة أبداً (200 مرة)', [...Array(200)].every(() =>
-    !ranking.used(ranking.setup({ content: realFiles['ranking.json'], first: 1, avoid: ['general-ranking-001', 'general-ranking-004'], rng })).some(id => ['general-ranking-001', 'general-ranking-004'].includes(id))));
+    !ranking.used(ranking.setup({ content: realFiles['ranking.json'], first: 1, avoid: avoidR, rng })).some(id => avoidR.includes(id))));
   check('المزاد بعد الترتيب: لا يُختار الموضوع المتقاطع أبداً (200 مرة)', [...Array(200)].every(() =>
-    !auctionMode.used(auctionMode.setup({ content: realFiles['auction.json'], first: 1, avoid: ['general-auction-047', 'general-auction-010', 'general-auction-055'], rng })).some(id => ['general-auction-047', 'general-auction-010', 'general-auction-055'].includes(id))));
+    !auctionMode.used(auctionMode.setup({ content: realFiles['auction.json'], first: 1, avoid: avoidA, rng })).some(id => avoidA.includes(id))));
   check('إن لم يبقَ في المستوى غير المتروك اختير منه، فلا تقف الجولة', (() => {
     const one = { mode: 'ranking', lists: [bank.lists[0], bank.lists[1]] };
     return ranking.setup({ content: one, first: 1, avoid: [bank.lists[0].id], rng }).lists.length === 2;
   })());
-  // جدول الاستبعاد الكامل للبنك كما في تدقيق ش5 «سادساً».
-  const fullFiles = { ...realFiles, 'letter.json': real('letter.json'), 'last-two.json': real('last-two.json') };
-  const all = clashes(fullFiles), short = id => id.slice(-3);
-  const t1 = all.filter(c => c.mode === 'auction').map(c => `${short(c.ranking)}↔${short(c.with)}`).sort().join(',');
-  const t2 = [...new Set(all.filter(c => c.mode === 'letter' || c.mode === 'last-two').map(c => short(c.ranking)))].sort().join(',');
-  const t3 = all.filter(c => c.mode === 'ranking').map(c => `${short(c.ranking)}↔${short(c.with)}`).sort().join(',');
-  check(`جدول «سادساً» (1): الترتيب والمزاد (${t1})`, t1 === '001↔047,002↔055,004↔010,006↔042,006↔048,007↔052,010↔065,015↔043,019↔017');
-  check(`جدول «سادساً» (2): القوائم التي فيها إجابة سؤال (${t2})`, t2 === '011,012,013,014,016,017,018');
-  check(`جدول «سادساً» (3): قائمتان تشتركان في 7 فأكثر (${t3})`, t3 === '005↔008,012↔018');
-  check('القائمتان في الجولة لا تشتركان في 7 فأكثر (500 مرة بالبنك الحقيقي)', [...Array(500)].every(() => {
-    const ids = ranking.used(ranking.setup({ content: realFiles['ranking.json'], first: 1, rng })).map(short).sort().join(',');
-    return ids !== '005,008' && ids !== '012,018'; }));
-  check('وتُختار القائمة المقابلة حين لا تتقاطع (005 تظهر مع غير 008)', [...Array(300)].some(() => ranking.used(ranking.setup({ content: realFiles['ranking.json'], first: 1, rng })).some(id => short(id) === '005')));
+  const clashing = new Set(rankingPairs.map(c => key(c.ranking, c.with)));
+  check(`القائمتان في الجولة لا تشتركان في 7 فأكثر (500 مرة بالبنك الحقيقي، ${clashing.size} زوجاً)`, [...Array(500)].every(() => {
+    const [a, b] = ranking.used(ranking.setup({ content: realFiles['ranking.json'], first: 1, rng }));
+    return !clashing.has(key(a, b)) && !clashing.has(key(b, a)); }));
+  const pairEasy = rankingPairs.map(c => [c.ranking, c.with].find(id => lists.find(l => l.id === id).level === 'easy')).find(Boolean);
+  check(`وتُختار القائمة المتقاطعة حين لا تتقاطع مع الأخرى (${short(pairEasy ?? '')} تظهر)`, !!pairEasy && [...Array(300)].some(() => ranking.used(ranking.setup({ content: realFiles['ranking.json'], first: 1, rng })).includes(pairEasy)));
 
   // (2) سؤال حرف معيّن أو آخر حرفين تساوي إجابته (أو صيغتها) عنصراً من قائمة (تدقيق ش5 «رابعاً»): بالتسوية نفسها.
   const L = bank.lists[0];
