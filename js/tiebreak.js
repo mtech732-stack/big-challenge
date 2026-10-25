@@ -5,9 +5,9 @@
 import { freshFirst } from './round.js';
 import { SECONDS } from './modes/letter.js';
 
-// نقاط الإصابة في الجولة الفاصلة: 0، فالرصيد لا يتغير والفائز يُعلَن باسمه (design/final.md 1).
-// معلّق عند المالك (docs/open-questions.md، ش7): إن قرر أن يكسب المصيب نقاط سؤال صعب، صار هذا 3 وحده.
-export const TIE_POINTS = 0;
+// نقاط الإصابة في الجولة الفاصلة: نقاط سؤال صعب من «الحرف المعيّن» (5.1)، بقرار المالك (25 أكتوبر 19:14):
+// «تمنحه نقاطاً لتظهر مع النهاية». فيتقدّم رقم الفائز، وتظهر في النتيجة النهائية خانةً بعد آخر عنصر (gains في js/match.js).
+export const TIE_POINTS = 3;
 
 const other = team => (team === 1 ? 2 : 1);
 const RULE = 'من أصاب وأخطأ خصمه فاز';
@@ -15,6 +15,7 @@ const SUB = `سؤال لكل فريق بالتناوب · ${SECONDS} ثانية 
 const BRIEF = [`سؤال صعب من «الحرف المعيّن» لكل فريق بالتناوب، ${SECONDS} ثانية`, 'لا تنتقل الإجابة إلى الخصم',
   'من أصاب وأخطأ خصمه في المحاولة نفسها فاز', 'وإن أصابا معاً أو أخطآ معاً: سؤالان جديدان'];
 
+// announce: تنتهي الجولة الفاصلة بفائزها، فتعرض المباراة النتيجة النهائية وفيها نقاطها، ثم «أعلن الفائز» (js/play.js).
 // الحالات: intro المقدمة · ready السؤال ظاهر والعدّاد لم يبدأ · ask العدّاد · decided بعد الحكم · end أُعلن الفائز.
 // questions: أسئلة الجولة الفاصلة كلها بترتيب عشوائي (ما لم يظهر أولاً)، وqi السؤال الحالي، ويعود إلى أولها إن نفدت.
 // attempt رقم المحاولة، وk دور من فيها (0 الذي يبدأ، 1 الآخر)، وhits إصابة كلٍّ في المحاولة الجارية.
@@ -35,7 +36,7 @@ function actions(s) {
   if (s.phase === 'ask') return judge;
   if (s.phase === 'decided') {
     if (s.k === 0) return [{ id: 'next', label: 'التالي' }];
-    return decided(s) ? [{ id: 'announce', label: 'أعلن الفائز' }] : [{ id: 'again', label: `سؤالان جديدان · المحاولة ${s.attempt + 1}` }];
+    return decided(s) ? [{ id: 'announce', label: 'إلى النتيجة النهائية' }] : [{ id: 'again', label: `سؤالان جديدان · المحاولة ${s.attempt + 1}` }];
   }
   return [];
 }
@@ -66,7 +67,7 @@ function audience(s) {
   return {
     ...base, screen: 'ask', phase: s.phase, n: s.k + 1, letter: q.box, tatweel: false, question: q.prompt, turn: s.team, steal: null,
     clock: SECONDS,
-    verdict: s.phase === 'decided' ? { team: hit ? s.team : 0, who: s.team, label: hit ? 'أصاب' : 'لم يُصب', points: hit ? TIE_POINTS : 0 } : null,
+    verdict: s.phase === 'decided' ? { team: hit ? s.team : 0, who: s.team, label: hit ? (TIE_POINTS ? `أصاب · +${TIE_POINTS}` : 'أصاب') : 'لم يُصب', points: hit ? TIE_POINTS : 0 } : null,
     answer: s.phase === 'decided' ? q.answer : undefined,
   };
 }
