@@ -1,7 +1,7 @@
 // اللعب بعد شاشة المواجهة: تتابع مسار المباراة (الجولات والعجلات) وربط كل جولة بوحدة نمطها عبر مشغّل الجولة.
 // دوال خالصة على حالة المباراة (JSON) كما في js/match.js. الجولة الجارية في match.round، والرصيد يتبعها.
-// modes: وحدات الأنماط المبنية (MODES في js/modes/index.js).
-import { plan } from './match.js';
+// modes: وحدات الأنماط المبنية (MODES في js/modes/index.js)، ومعها العجلة (js/wheel.js) إن كانت تُلعب: وحدة id «wheel».
+import { plan, other } from './match.js';
 import * as R from './round.js';
 import { clashes } from './content-check.js';
 
@@ -26,12 +26,16 @@ export function nextText(match, modeName) {
   return `التالي: الجولة ${item.n} · ${modeName(item.mode)}`;
 }
 
-// ما يُفعل بالعنصر التالي: 'start' جولة نمطها مبنيّ · 'skip' عجلة (ش6) أو نمط لم يُبنَ بعد (معاينة) · 'final' انتهى المسار (ش7).
+// ما يُفعل بالعنصر التالي: 'start' جولة نمطها مبنيّ أو عجلة تُلعب · 'skip' عجلة لا تُلعب بعد (ش6) أو نمط لم يُبنَ بعد (معاينة)
+// · 'final' انتهى المسار (ش7).
 export function nextKind(match, modes) {
   const item = upcoming(match);
   if (!item) return 'final';
-  return item.kind === 'round' && modeOf(modes, item.mode) ? 'start' : 'skip';
+  return modeOf(modes, item.kind === 'wheel' ? 'wheel' : item.mode) ? 'start' : 'skip';
 }
+
+// من يدير العجلة أولاً (5.7): الأقل نقاطاً، وعند التعادل الفريق الخاسر في القرعة.
+export const wheelFirst = match => (match.scores[1] < match.scores[2] ? 1 : match.scores[2] < match.scores[1] ? 2 : other(match.winner));
 
 // ما لا يُختار في المباراة لأنه يتقاطع مع ما اختير فيها قبله: قائمة ترتيب، وموضوع مزاد أو سؤال (تدقيق ش5 «ثالثاً» و«رابعاً»).
 export function avoidIn(content, used = []) {
@@ -47,7 +51,14 @@ export function avoidIn(content, used = []) {
 // match.used: ما اختير في جولات هذه المباراة، ليُترك ما يتقاطع معه.
 export function startNext(match, { modes, content, seen = [], rng = Math.random }) {
   if (!between(match, modes) || nextKind(match, modes) !== 'start') return match;
-  const item = upcoming(match), mode = modeOf(modes, item.mode);
+  const item = upcoming(match);
+  // العجلة: تُدار في match.round كالجولة، ولا تُعدّ جولة (played)، ولا ذاكرة لخاناتها.
+  if (item.kind === 'wheel') {
+    const wheel = modeOf(modes, 'wheel');
+    const round = { ...R.startRound(wheel, { content, scores: match.scores, first: wheelFirst(match), rng }), n: item.after, wheel: true };
+    return { ...match, step: 'play', cursor: cursor(match) + 1, round, scores: round.scores };
+  }
+  const mode = modeOf(modes, item.mode);
   const round = { ...R.startRound(mode, { content, scores: match.scores, seen, avoid: avoidIn(content, match.used ?? []), rng }), n: item.n };
   return { ...match, step: 'play', cursor: cursor(match) + 1, round, scores: round.scores, played: (match.played ?? 0) + 1, used: [...(match.used ?? []), ...mode.used(round.state)] };
 }
@@ -66,9 +77,13 @@ export function act(match, modes, action, timerId) {
   const round = R.act(mode, match.round, action, timerId);
   return round.state === match.round.state ? { ...match, round } : withRound(match, round);
 }
-export function undo(match) {
+// modes: لتعرف الحالة العابرة (دوران العجلة)، فيتخطاها التراجع إلى ما قبلها: لا حكم فيها، ولو عاد إليها لوقفت فوراً.
+export function undo(match, modes = []) {
   if (match.step !== 'play' || !match.round?.history.length) return match;
-  return withRound(match, R.undo(match.round));
+  const unit = modeOf(modes, match.round.mode);
+  let round = R.undo(match.round);
+  while (unit?.transient?.(round.state) && round.history.length) round = R.undo(round);
+  return withRound(match, round);
 }
 export function setScore(match, team, value) {
   if (match.step !== 'play' || !match.round) return match;
