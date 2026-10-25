@@ -14,12 +14,15 @@
 <link rel="stylesheet" href="css/ranking.css">
 <link rel="stylesheet" href="css/wheel.css">
 <link rel="stylesheet" href="css/shared.css">
+<link rel="stylesheet" href="css/final.css">
 <style>
   /* اللعبة مغلقة أو بانتظار المقدّم: لا يبقى على الشاشة إلا الخلفية والبطاقة. */
   .locked .team, .locked .badge, .locked .box, .locked .ctl-near, .locked .ctl-corner { display: none; }
   /* أعلى اليسار، حيث لا شيء من الهيكل، ويختفي في ملء الشاشة وفي النافذة الواحدة. */
   #fs { position: fixed; top: 24px; left: 24px; font-size: 32px; }
   :fullscreen #fs, .embed #fs, .filled #fs, .idle #fs { display: none; }
+  /* النهاية بنافذتين: لا صف أزرار في البطاقة، فلا يُحسب ارتفاعه (72) ويبقى المحتوى في وسطها (design/final.html: الصف مخفي بلا نافذة واحدة) */
+  .scr.fin .crow:has(.ctl:empty), .scr.win .crow:has(.ctl:empty) { display: none; }
 </style>
 </head>
 <body>
@@ -29,6 +32,8 @@
     <div class="stagebg" id="stagebg"><div class="f f1"></div><div class="f f2"></div><div class="e" id="edge"></div>
       <div class="beam"></div><div class="beam w"></div><div class="beam"></div><div class="beam w"></div></div>
     <div class="particles" id="particles"></div>
+    <!-- القصاصات عند إعلان الفائز (ش7، design/final.md 4.2): تحت الشعار واللوحات والبطاقة، ولا تدخل فحص التداخل -->
+    <div class="confetti" id="confetti"></div>
 
     <!-- الشعار أعلى اليسار في كل شاشة (15.7) -->
     <div class="logo" data-hud="الشعار" aria-label="التحدي الكبير"><span class="l1">التحدي</span><span class="l2"><i></i><b>الكبير</b></span></div>
@@ -104,6 +109,17 @@
           <div class="crow head-row"><p class="head" id="pickHead" data-fit="سطر الاختيار"></p><div class="ctl"></div></div>
           <div class="tiles" id="tiles"></div>
         </div>
+        <!-- النهاية (ش7، design/final.md 2): النتيجة النهائية بمسار المباراة وما كسبه كل فريق في كل عنصر، ثم الفائز -->
+        <div class="scr fin" data-s="fin">
+          <p class="head" data-fit="عنوان النتيجة">النتيجة النهائية</p>
+          <div class="track" id="finTrack"></div>
+          <div class="crow"><div class="ctl"></div></div>
+        </div>
+        <div class="scr win" data-s="win">
+          <p class="sub" id="winSub">الفائز بالمباراة</p>
+          <p class="champ" id="champ" data-fit="اسم الفائز"></p>
+          <div class="crow"><div class="ctl"></div></div>
+        </div>
         <div class="scr face" data-s="face">
           <div class="track" id="track"></div>
           <p class="err" id="faceErr" hidden></p>
@@ -143,7 +159,7 @@
 <script type="module">
   import './js/offline.js';
   import { createLink } from './js/sync.js';
-  import { plan, chooser, picksDone, METHODS, other } from './js/match.js';
+  import { plan, chooser, picksDone, METHODS, other, gains, leaderOf } from './js/match.js';
   import { PLANNED } from './js/modes/index.js';
   import { play as sound, setMuted } from './js/sound.js';
   import { spinSteps } from './js/wheel.js';
@@ -301,6 +317,7 @@
   function render() {
     if (!view || busy) return;
     if (view.match.step === 'play' && view.play) return renderPlay(view.play);
+    if (view.match.step === 'final') return renderFinal(view);
     const { match: m, modes } = view;
     // نمط لم يُبنَ في مواجهة محفوظة من رابط المعاينة: اسمه العربي من قائمة الأنماط الأربعة، لا معرّفه الإنجليزي (ملاحظة المعاين 1).
     const modeName = id => modes.find(x => x.id === id)?.name ?? PLANNED.find(x => x.id === id)?.name ?? id;
@@ -365,6 +382,59 @@
     // القرعة تقف على الفائز: الحدّ يكتسح إلى طرفه، والخاسر على لسانه.
     setSide(m.step === 'draw' && m.winner ? m.winner : 0);
     renderCtl();
+  }
+
+  // ===== النهاية (ش7، design/final.md 2): النتيجة النهائية ثم الفائز =====
+  // الشارة «انتهت المباراة» ولا ثانية. والنتيجة بالحدّ في المنتصف و«التالي» نصاً بلا مربع، والفائز يكتسح إليه الحدّ ويبقى.
+  const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
+  let finKey = '';
+  function renderFinal({ match: m, modes }) {
+    const modeName = id => modes.find(x => x.id === id)?.name ?? PLANNED.find(x => x.id === id)?.name ?? id;
+    if (count && !count.test) stop();
+    canvas.classList.remove('pre', 'fresh');
+    $('n1').textContent = name(1); $('n2').textContent = name(2);
+    setScore(1, m.scores[1]); setScore(2, m.scores[2]);
+    $('mode').textContent = 'انتهت المباراة';
+    setBadges();
+    setRunning(false);
+    setTurn(0);
+    const win = m.final?.phase === 'win';
+    if (win) {
+      showScreen('win');
+      $('champ').className = 'champ t' + m.final.winner;
+      $('champ').textContent = name(m.final.winner);
+      announce({});
+    } else {
+      showScreen('fin');
+      // المسار بترتيب المباراة من اليمين: خانة لكل جولة باسم نمطها، ولكل شريط «الشريط»، وفيها ما كسبه كل فريق بإشارته.
+      // ولا يُعاد بناؤه إن لم يتغيّر، فلا تُعاد حركة دخول خاناته.
+      const html = gains(m).map((s, i) => `<div class="seg${s.kind === 'wheel' ? ' wheel' : ''}" style="--i:${i}" data-fit="${s.kind === 'wheel' ? 'خانة الشريط' : 'خانة الجولة'}">` +
+        `<span class="mname">${s.kind === 'wheel' ? 'الشريط' : esc(modeName(s.mode))}</span>` +
+        `<span class="gains"><b class="g1">${signed(s.g[1])}</b><b class="g2">${signed(s.g[2])}</b></span></div>`).join('');
+      if (finKey !== html) { finKey = html; $('finTrack').innerHTML = html; }
+      announce({ next: leaderOf(m.scores) ? 'التالي: إعلان الفائز' : 'التالي: الجولة الفاصلة' });
+    }
+    setSide(win ? m.final.winner : 0);
+    renderCtl();
+  }
+  // القصاصات (design/final.md 4.2): 140 شظية مائلة بالأبيض والأبيض 70% ولون فاتح من لون الفائز، تسقط مرة واحدة ثم تُزال.
+  let confettiTimer = 0;
+  function confetti(winner) {
+    const layer = $('confetti');
+    clearTimeout(confettiTimer);
+    layer.innerHTML = '';
+    const colors = ['#FFFFFF', 'rgba(255,255,255,.7)', `var(--tint-${winner})`];
+    for (let i = 0; i < 140; i++) {
+      const s = document.createElement('span');
+      s.style.setProperty('--x', Math.round(Math.random() * 1920) + 'px');
+      s.style.setProperty('--d', (Math.random() * 1.2).toFixed(2) + 's');
+      s.style.setProperty('--t', (2.6 + Math.random() * 1.6).toFixed(2) + 's');
+      s.style.setProperty('--w', (10 + Math.round(Math.random() * 8)) + 'px');
+      s.style.setProperty('--sway', Math.round((Math.random() - .5) * 160) + 'px');
+      s.style.setProperty('--c', colors[i % 3]);
+      layer.append(s);
+    }
+    confettiTimer = setTimeout(() => { layer.innerHTML = ''; }, 6000);
   }
 
   // مربع الحرف أو الحرفين. في «آخر حرفين» التطويل والحرفان في عنصرين للحركة وحدها، والوصل لا ينقطع (design/last-two.md 2.1).
@@ -671,6 +741,9 @@
   function animate(name) {
     timers.forEach(clearTimeout); timers = []; busy = false;
     canvas.classList.remove('enter', 'anim', 'drawing'); void canvas.offsetWidth;
+    // مؤثر الفوز مع وصول الحدّ إلى الفائز، وفي تقليل الحركة فوراً (لا قصاصات ولا لمعة، design/final.md 4.2).
+    const won = name === 'win' && view?.match.step === 'final' && view.match.final?.phase === 'win' ? view.match.final.winner : 0;
+    if (won && still()) sound('win');
     if (!view || still()) return render();
     canvas.classList.add('anim');
     const winner = view.match.winner;
@@ -680,6 +753,14 @@
       let t = DRAW_STEPS.length % 2 === 0 ? other(winner) : winner, at = 0;
       DRAW_STEPS.forEach(ms => { at += ms; const who = t; later(at, () => { setTurn(who); setSide(who); }); t = other(t); });
       later(at + 420, () => { busy = false; canvas.classList.remove('drawing'); render(); bump(winner); });
+    }
+    // النتيجة النهائية: خانات المسار تدخل واحدة بعد الأخرى ثم رقماها (.anim .fin في css/final.css).
+    if (name === 'fin') { finKey = ''; render(); }
+    // إعلان الفائز (الذروة): الحدّ يكتسح إليه ويبقى، والحزم تندفع. وعند وصوله (760ms): القصاصات، ونبض رقمه، ومؤثر الفوز.
+    // والاسم يدخل بلمعته من CSS (.anim .scr.win .champ).
+    if (won) {
+      render(); surge();
+      later(760, () => { confetti(won); moment(won, 'lead'); sound('win'); });
     }
     if (name === 'face' && view.match.step === 'face') {
       render(); canvas.classList.add('enter'); setTurn(0); busy = true;

@@ -3,8 +3,8 @@
 // دوال خالصة على حالة بيانات (JSON)، فتُحفظ المباراة وتعود بعد إعادة التحميل (docs/decisions.md).
 import { TEAM_NAME_MAX } from './content-check.js';
 
-// play: الجولات بعد المواجهة (js/play.js).
-export const STEPS = ['setup', 'draw', 'pick', 'face', 'play'];
+// play: الجولات بعد المواجهة (js/play.js) · final: النهاية بعد آخر عنصر في المسار (ش7).
+export const STEPS = ['setup', 'draw', 'pick', 'face', 'play', 'final'];
 export const METHODS = {
   short: { rounds: 2, wheelsAfter: [1] },     // جولتان، وعجلة بينهما
   full: { rounds: 4, wheelsAfter: [2, 3] },   // أربع جولات، وعجلتان بعد الثانية وبعد الثالثة
@@ -111,6 +111,24 @@ export function plan(match) {
     if (wheelsAfter.includes(i + 1)) list.push({ kind: 'wheel', after: i + 1 });
   });
   return list;
+}
+
+// المتقدّم في الرصيد: 1 أو 2، و0 عند التعادل.
+export const leaderOf = s => (s[1] > s[2] ? 1 : s[2] > s[1] ? 2 : 0);
+
+// مسار المباراة بما تغيّر في رصيد كل فريق في كل عنصر (design/final.md 2.1): رصيده في نهايته ناقص رصيده في نهاية ما قبله.
+// match.ends[i]: الرصيد في نهاية العنصر i (يُحفظ عند الانتقال إلى ما بعده، js/play.js)، والعنصر الأخير ينتهي بالرصيد الآن.
+// فتعديل الرصيد اليدوي بين عنصرين يدخل في العنصر التالي، ومجموع الخانات يساوي الرصيد دائماً.
+// وما لم يُحفظ (مباراة محفوظة قبل ش7) يُعدّ كالذي قبله، فيدخل فرقه في العنصر بعده.
+export function gains(match) {
+  const list = plan(match), ends = match.ends ?? [];
+  let prev = { 1: 0, 2: 0 };
+  return list.map((item, i) => {
+    const end = i === list.length - 1 ? match.scores : ends[i] ?? prev;
+    const g = { 1: end[1] - prev[1], 2: end[2] - prev[2] };
+    prev = end;
+    return { ...item, g };
+  });
 }
 
 // تعديل الرصيد يدوياً في أي خطوة، ولا ينزل تحت الصفر، ويُتراجع عنه (docs/decisions.md).

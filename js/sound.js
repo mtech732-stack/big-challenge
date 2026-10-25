@@ -32,6 +32,8 @@ const SOUNDS = {
   // دوران العجلة: نقرة قصيرة مع كل خطوة للمؤشر، ونغمتان صاعدتان حين يقف (design/wheel.md 2.4).
   spin: () => tone(1320, 0, 0.035, { type: 'square', gain: 0.07 }),
   stop: () => { tone(523, 0, 0.12, { type: 'triangle' }); tone(784, 0.1, 0.3, { type: 'triangle' }); },
+  // الفوز بالمباراة (design/final.md 4.2): أربع نغمات صاعدة، والأخيرة أطول.
+  win: () => { [523, 659, 784].forEach((f, i) => tone(f, i * 0.13, 0.16, { type: 'triangle' })); tone(1047, 0.39, 0.7, { type: 'triangle', gain: 0.3 }); },
 };
 
 export function play(name) {
