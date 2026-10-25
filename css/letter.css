@@ -23,6 +23,8 @@
 /* الملاحظة 27: إن ضاق المربع عن «الإجابة: …» انكسر سطرين (2 × 48)، وصعدت شارة الحكم فوقه لساناً على 828–872، يميناً على 48 */
 .box.wrap .line { white-space: normal; line-height: 48px; max-width: 100%; }
 .box.wrap .chip { position: absolute; top: -52px; right: 48px; }
+/* الملاحظة 39 (15.4): مقاطع السطر بين « · » لا تنكسر، فإن لم يتسع انكسر عند « · » وحدها. لا .seg: محجوز لخانات المسار (css/start.css) */
+.box .line .nb { white-space: nowrap; }
 
 /* افتتاح الجولة */
 .scr.intro { flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; }
