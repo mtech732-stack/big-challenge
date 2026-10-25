@@ -279,11 +279,13 @@
   }
   function placeBadges() {
     const lean = Math.tan(14 * Math.PI / 180) * 64;
+    // العرض بكسره (getBoundingClientRect على مقاس 1920) لا offsetWidth المقرَّب إلى عدد صحيح، ثم إلى الأعلى، فلا ينقص الفراغ عن 24 كسراً (تدقيق ش6).
+    const k = rect(canvas).width / 1920 || 1;
     let right = 104;
     for (const el of [document.querySelector('.badge.mode'), $('b1'), $('b2')]) {
       if (!el.getClientRects().length) continue;
       el.style.right = right + 'px';
-      right += el.offsetWidth + 24 + lean;
+      right += Math.ceil(rect(el).width / k + 24 + lean);
     }
     placeNear();
   }
@@ -635,7 +637,7 @@
     if (!near.children.length || !badges.length) return;
     // بحدود الشارة الفعلية لا offsetLeft: يُقرَّب كسر الميل فيصير الفراغ 23 (design/auction.md 7.5). والقياس على مقاس 1920.
     const c = rect(canvas), k = c.width / 1920 || 1;
-    near.style.left = Math.floor(Math.min(...badges.map(b => (rect(b).left - c.left) / k)) - 32 - near.offsetWidth) + 'px';
+    near.style.left = Math.floor(Math.min(...badges.map(b => (rect(b).left - c.left) / k)) - 32 - rect(near).width / k) + 'px';
   }
   const send = (cmd, data = {}) => parent.postMessage({ bc: 'cmd', cmd, ...data }, location.origin);
   if (embed) {
