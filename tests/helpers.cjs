@@ -70,4 +70,36 @@ async function beginTwo(context, frame) {
   return host;
 }
 
-module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo };
+// شريط البونص بين الجولتين (ش6، في الرابطين): يُلعب كاملاً بلا نقاط، فلا يغيّر ما بعده.
+// خانة الوقوف تحدٍّ في الدورتين (Math.random لحظة الإعداد وحدها ثم يعود)، و«لم ينجح» في كلٍّ، ثم «إنهاء الشريط».
+// page: الصفحة التي تدير المباراة (نافذة المقدّم، أو الصفحة الأم بنافذة واحدة). وبعدها نهاية الشريط و«ابدأ الجولة …».
+const wait = ms => new Promise(r => setTimeout(r, ms));
+async function fixedSpin(page, start) {
+  await page.evaluate(() => { window.__rnd = Math.random; Math.random = () => 0.05; });
+  await start();
+  await wait(800);
+  await page.evaluate(() => { Math.random = window.__rnd; });
+}
+async function passWheel(presenter) {
+  await fixedSpin(presenter, () => presenter.click('#endNext'));
+  for (const last of [false, true]) {
+    await presenter.click('#wCtl [data-act="spin"]');
+    await presenter.click('#wCtl [data-act="start"]', { timeout: 12000 });
+    await wait(500);
+    await presenter.click('#wCtl [data-act="failed"]');
+    await wait(600);
+    await presenter.click(`#wCtl [data-act="${last ? 'finish' : 'next'}"]`);
+    await wait(800);
+  }
+}
+async function passWheelOne(stage, frame) {
+  const go = async c => { await cmd(frame, c); await wait(800); };
+  await fixedSpin(stage, () => cmd(frame, 'next'));
+  for (const last of [false, true]) {
+    await go('act:spin');
+    await frame.waitForSelector('#near [data-cmd="act:start"]', { timeout: 12000 });
+    await go('act:start'); await go('act:failed'); await go(last ? 'act:finish' : 'act:next');
+  }
+}
+
+module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, passWheel, passWheelOne };

@@ -3,7 +3,7 @@
 // والنهاية وما بعدها، والحفظ بعد إعادة التحميل، وأزرار الشاشة المشتركة بجانب العدّاد وفي الزاويتين،
 // ولا إجابة على شاشة الجمهور قبل الحكم الأخير، وفحص التداخل والقياسات في كل حالة.
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, passWheel, passWheelOne } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/';
@@ -272,7 +272,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('الجمهور: «انتهت الجولة 1» وحصيلة كل فريق و«التالي: شريط البونص» في مربع الإعلان', (await text(audience, '#b1')) === 'انتهت الجولة 1' && (await text(audience, '#next')) === 'التالي: شريط البونص' && await visible(audience, '#box #next')
     && (await text(audience, '#r1')) === `+${totals[1]}` && (await text(audience, '#r2')) === `+${totals[2]}`);
   check('الجمهور: لا مؤشر دور ولا عدّاد ولا حكم في النهاية', !(await audience.$('.team.on')) && (await none(audience, '.team .cnt')) && !(await visible(audience, '#verdict')));
-  check('المقدّم: الحصيلة والرصيد، و«تخطَّ شريط البونص» مع موعدها', (await text(presenter, '#sum')).includes(`الرصيد ${totals[1]}`) && (await text(presenter, '#endNext')) === 'تخطَّ شريط البونص' && (await text(presenter, '#endHint')).includes('الشريحة 6'));
+  check('المقدّم: الحصيلة والرصيد، و«شريط البونص» بلا «تخطَّ» ولا موعد (اكتملت ش6)', (await text(presenter, '#sum')).includes(`الرصيد ${totals[1]}`) && (await text(presenter, '#endNext')) === 'شريط البونص' && await presenter.$eval('#endHint', e => e.hidden));
   await both('النهاية');
   await presenter.screenshot({ path: `${shots}/s2-presenter-end.png` });
   // «التالي» نص أبيض على الطرف بلا مربع (15.4 و15.12، قرار المصمّم في PR #92).
@@ -280,8 +280,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
     && getComputedStyle(b.querySelector('#next')).color === 'rgb(255, 255, 255)' && b.offsetLeft === 1135 && b.offsetTop === 880));
   await wait(900);
   await stage.screenshot({ path: `${shots}/s2-end.png` });
-  await presenter.click('#endNext');
-  check('بعد تخطّي العجلة: «ابدأ الجولة 2» (آخر حرفين)', (await text(presenter, '#endNext')) === 'ابدأ الجولة 2' && !(await presenter.isDisabled('#endNext')));
+  await passWheel(presenter);
+  check('بعد شريط البونص: «ابدأ الجولة 2» (آخر حرفين)', (await text(presenter, '#endNext')) === 'ابدأ الجولة 2' && !(await presenter.isDisabled('#endNext')));
 
   // 9. مباراة جديدة من نافذة المقدّم: تعود إلى الشاشة المشتركة. وذاكرة الأسئلة: لا تُعاد أسئلة الأولى.
   const firstIds = q1.map(q => q.id);

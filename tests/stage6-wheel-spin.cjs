@@ -228,7 +228,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     await context.close();
   }
 
-  // ===== 3. الرابط العادي: العجلة تُتخطى حتى تكتمل شريحتها =====
+  // ===== 3. الرابط العادي: الشريط يُلعب فيه منذ اكتمال ش6 (لا «تخطَّ») =====
   {
     const { context, audience } = await open({ preview: false });
     await sharedToFace(audience, { names: ['الصقور', 'النجوم'], count: 'short', picks: ['ranking', 'letter'] });
@@ -236,7 +236,10 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     const click = async sel => { await presenter.click(sel); await wait(800); };
     await click('#showQ');
     for (let k = 0; k < 2; k++) { await click('#rCtl [data-act="finish"]'); await click('#rCtl [data-act="next"]'); }
-    check('الرابط العادي: «تخطَّ شريط البونص» كما كان', await text(presenter, '#endNext') === 'تخطَّ شريط البونص');
+    check('الرابط العادي: «شريط البونص» بلا «تخطَّ» ولا موعد', await text(presenter, '#endNext') === 'شريط البونص' && await presenter.$eval('#endHint', e => e.hidden));
+    await click('#endNext');
+    await wait(600);
+    check('الرابط العادي: يبدأ الشريط، و«أطلق الشريط»', await text(presenter, '#wCtl') === 'أطلق الشريط' && await audience.isVisible('.scr.whl.show'));
     await context.close();
   }
 
