@@ -160,7 +160,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     const side = await audience.evaluate(() => [1, 2].find(t => document.getElementById('canvas').classList.contains('turn-' + t)) ?? 0);
     const label = data.luck.find(l => l.effect === effect + '-3').label;
     check(`${tag}تُطبَّق فور الوقوف: نص الخانة، ولا «ابدأ» ولا وقت، والحكم بلا مربع`, await text(audience, '#label') === label && !box.hidden && box.bare
-      && !(await cls(audience, 'running')) && await text(presenter, '#wCtl') === 'إنهاء الشريط' && await presenter.$eval('#wClock', e => e.hidden));
+      && !(await cls(audience, 'running')) && (await text(presenter, '#wCtl')).startsWith('التالي · دور ') && await presenter.$eval('#wClock', e => e.hidden));
     if (effect === 'lose') {
       check(`${tag}حد الصفر: رصيده 1 فينزل إلى 0، والشارة «[الاسم] · −1» والسطر «خانة حظ»، والحدّ في المنتصف`, sc[sp] === 0 && sc[op] === 4 && await text(audience, '#vtext') === `${who} · −1`
         && await text(audience, '#say') === 'خانة حظ' && side === 0 && await text(audience, '#s' + sp) === '0');
@@ -222,7 +222,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     await wait(1200);
     const near = await audience.$$eval('#near button', b => b.map(x => x.textContent.trim()).join('|'));
     const sp = (await saved(stage)).round.state.first;
-    check('نافذة واحدة: «هدية» تُطبَّق فوراً (+3)، و«إنهاء الشريط» وحده بجانب الشارات', near === 'إنهاء الشريط' && (await saved(stage)).round.scores[sp] === 3);
+    check('نافذة واحدة: «هدية» تُطبَّق فوراً (+3)، و«التالي · الدورة 2» وحده بجانب الشارات', near === 'التالي · الدورة 2' && (await saved(stage)).round.scores[sp] === 3);
     await audienceCheck(audience, 'نافذة واحدة · هدية');
     await stage.screenshot({ path: path.join(shots, 'wheel-gift-w1.png') });
     await context.close();
