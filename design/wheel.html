@@ -187,12 +187,16 @@
     if (st.screen === 'end') {
       $('e1').textContent = NAMES[1]; $('e2').textContent = NAMES[2];
       $('r1').textContent = st.totals[1]; $('r2').textContent = st.totals[2];
-      box({ next: 'التالي: الجولة 3 · المزاد' });
+      // أطول اسم نمط (13 حرفاً) في «أطول محتوى»، فينكسر السطر عند « · » لا وسط الاسم (الملاحظة 39)
+      box({ next: LONG ? 'التالي: الجولة 2 · الحرف المعيّن' : 'التالي: الجولة 3 · المزاد' });
     }
     single(id, st);
     placeBadges(); placeNear(); fitRings();
   }
 
+  // سطر المربع مقاطع بين « · » لا تنكسر (الملاحظة 39، system.md 15.4): إن لم يتسع السطر انكسر عند « · » وحدها،
+  // والفاصل في آخر السطر الأول، فلا ينقسم اسم نمط ولا اسم فريق
+  const segs = s => String(s).split(' · ').map((t, i, a) => `<span class="nb">${num(t)}${i < a.length - 1 ? ' ·' : ''}</span>`).join(' ');
   function box({ verdict, line, next }) {
     $('box').hidden = false;
     $('verdict').hidden = !verdict;
@@ -200,14 +204,16 @@
       $('verdict').className = `chip${verdict.team ? ' t' + verdict.team : ''}`;
       $('vtext').innerHTML = verdict.team ? `${esc(NAMES[verdict.team])} · ${num(verdict.points)}` : 'لا نقاط';
     }
-    $('line').innerHTML = num(line ?? next);
+    $('line').innerHTML = segs(line ?? next);
     // حكم العجلة بلا مربع (design/wheel.md 2.5)، كحكم المزاد (auction.md 1.5): الشارة بيضاء بنص صاحبها، والسطر أبيض على الطرف.
     // فالبطاقة فيها نص قصير (خانة الحظ)، والمربع الأبيض كان يرفع الأبيض فوق 35
     $('box').classList.add('bare');
     const p2 = $('p2'), w = Math.min(659, 1794 - (p2.offsetLeft + p2.offsetWidth + 17 + 24 + 17));
     $('box').style.left = (1794 - w) + 'px'; $('box').style.width = w + 'px';
     $('box').classList.remove('wrap');
-    $('box').classList.toggle('wrap', $('line').scrollWidth > $('box').clientWidth - 96);
+    // عرض النص نفسه لا scrollWidth: مع المقاطع (.nb) في سطر من اليمين إلى اليسار لا يُحسب ما فاض يساراً (الملاحظة 39)
+    const r = document.createRange(); r.selectNodeContents($('line'));
+    $('box').classList.toggle('wrap', r.getBoundingClientRect().width / (canvas.getBoundingClientRect().width / 1920) > $('box').clientWidth - 96);
   }
   function placeBadges() {
     const lean = Math.tan(14 * Math.PI / 180) * 64; let right = 104;
