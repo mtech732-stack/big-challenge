@@ -440,7 +440,8 @@
     const v = asking ? a.verdict : null;
     announce(a.screen === 'end' ? { next: p.next } : a.screen === 'list' ? rankBox(a) : a.screen === 'wheel' ? {}
       // العجلة: «انتهى الوقت» نصاً حتى يحكم المقدّم، ثم الحكم بلا مربع (design/wheel.md 2 و2.5).
-      : a.screen === 'slot' ? (v ? { verdict: v, say: v.say, bare: true } : a.timeup ? { next: 'انتهى الوقت' } : {})
+      // و«اسرق»: السطر «[الخصم] · −3» بما أُخذ فعلاً.
+      : a.screen === 'slot' ? (v ? { verdict: v, say: v.from ? `${name(v.from)} · −${v.taken}` : v.say, bare: true } : a.timeup ? { next: 'انتهى الوقت' } : {})
       : { verdict: v, answer: a.answer, told: v && a.tally ? `ذُكر ${a.tally.n} من ${a.tally.of}` : undefined });
     syncTimer(p.timer, a);
     setTurn(a.turn);
@@ -451,7 +452,8 @@
     setRunning(running);
     // وفي المزاد في المنتصف أثناء المزايدة (turn 0)، ثم للملتزم من «ابدأ» (design/auction.md 2، 3.0).
     // والترتيب يقرر حدّه بعد الحكم بنفسه (turn): في المنتصف بعد الفخ وإن كان للحكم صاحب (design/ranking.md 2).
-    setSide(!asking ? 0 : v && a.screen !== 'list' ? v.team || 0 : a.turn);
+    // والعجلة تقرره بنفسها كذلك: «خصم» في المنتصف وإن كان للشارة صاحب (design/wheel.md 2).
+    setSide(!asking ? 0 : v && a.screen !== 'list' && a.screen !== 'slot' ? v.team || 0 : a.turn);
     if (running && count.id !== drained) { drained = count.id; drain(a.turn, (count.endAt - Date.now()) / 1000, p.timer.seconds); }
     if (!running && drained) { drained = 0; drain(0); }
     renderCtl();
@@ -711,6 +713,12 @@
         const w = m.team, to = p.scores[w];
         setScore(w, prev.scores[w]); replay($('cardWrap'), 'shake'); setTurn(0);
         later(480, () => { setScore(w, to); moment(w, 'lose'); });
+      }
+      // «اسرق» في العجلة: رقم من أُخذ منه ينقص ويخفت مع زيادة رقم من أدارها (design/wheel.md 2.4).
+      if (m.name === 'taken' && prev) {
+        const w = m.team, to = p.scores[w];
+        setScore(w, prev.scores[w]);
+        later(250, () => { setScore(w, to); moment(w, 'lose'); });
       }
       if (m.name === 'lead') later(700, () => { moment(m.team, 'lead'); moment(other(m.team), 'lose'); });
       if (m.name === 'steal') {
