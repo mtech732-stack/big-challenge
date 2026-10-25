@@ -237,12 +237,18 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, passW
   await presenter.click('#nextQ');
   await presenter.click('#startTimer');
   await wait(2600);
+  const was = (await match()).round.timer;
   await stage.reload();
   audience = await stageFrame(stage);
   await audience.waitForSelector('.scr.show[data-s="q"]', { timeout: 6000 });
   await wait(500);
+  // بالزمن الفعلي لا بقيمة ثابتة: إعادة التحميل عبر الشبكة قد تطول (تقرير المدقّق). العدّاد نفسه (id وat) لم يُبدأ من جديد،
+  // والمعروض = ما بقي منه بساعة الصفحة الآن مقرَّباً إلى الأعلى كما يعرضه العدّاد (بفارق ثانية لما بين القراءتين)، ولم يقف.
+  const rt = await stage.evaluate(() => ({ now: Date.now(), timer: JSON.parse(localStorage.getItem('big-challenge.match')).round.timer }));
   const tr = await text(audience, '#timer');
-  check(`إعادة تحميل شاشة الجمهور أثناء العدّاد: بلا رقم، ويكمل من حيث كان (${tr})`, !(await visible(stage, '#pin')) && ['0:12', '0:11'].includes(tr) && (await text(audience, '#b1')) === 'السؤال 4 من 6');
+  const shown = +tr.split(':')[1] + 60 * +tr.split(':')[0], due = rt.timer.seconds - (rt.now - rt.timer.at) / 1000;
+  check(`إعادة تحميل شاشة الجمهور أثناء العدّاد: بلا رقم، ويكمل من حيث كان (${tr}، المتوقع ${due.toFixed(1)})`, !(await visible(stage, '#pin')) && rt.timer.id === was.id && rt.timer.at === was.at
+    && due > 0 && Math.abs(shown - Math.ceil(due)) <= 1 && shown < was.seconds && (await text(audience, '#b1')) === 'السؤال 4 من 6');
   await presenter.reload();
   await presenter.waitForSelector('#app:not([hidden])', { timeout: 10000 });
   await wait(400);
