@@ -494,9 +494,9 @@
   const PREVIEW = query.has('preview');
   // والنمط الذي تُبنى مراحله الآن (DRAFTS) يُلعب في رابط المعاينة وحده حتى تكتمل شريحته.
   const MODES = PREVIEW ? [...BUILT, ...DRAFTS] : BUILT;
-  // عجلة البونص (ش6) تُبنى مراحلها الآن: تُلعب في رابط المعاينة وحده حتى تكتمل شريحتها، وفي الرابط العادي تُتخطى كما كانت.
-  // وتُلعب إن وصلت تحدياتها وخاناتها (content/wheel.json). units: ما يديره مشغّل الجولة في المباراة: الأنماط، ومعها العجلة.
-  const units = () => (PREVIEW && wheel ? [...MODES, WHEEL] : MODES);
+  // شريط البونص (ش6، اكتملت بتدقيقها): يُلعب في الرابطين إن وصلت تحدياته وخاناته (content/wheel.json).
+  // units: ما يديره مشغّل الجولة في المباراة: الأنماط، ومعها الشريط.
+  const units = () => (wheel ? [...MODES, WHEEL] : MODES);
   const modesOf = p => (!p ? [] : PREVIEW ? matchModes({ modes: MODES, pack: p, files: p.files }) : pickableModes({ modes: MODES, pack: p, files: p.files }));
   const modes = () => modesOf(pack());
   const modeName = id => (pack() ? matchModes({ modes: MODES, pack: pack(), files: pack().files }) : []).find(m => m.id === id)?.name ?? id;
@@ -617,7 +617,8 @@
     const make = (text, rest) => ({ text, label: num(text), ...rest });
     if (kind === 'final') return make('إلى النتيجة النهائية', { off: true, hint: 'النتيجة النهائية وإعلان الفائز تُبنى في الشريحة <span class="ltr">7</span>.' });
     if (kind === 'start') return make(item.kind === 'wheel' ? 'شريط البونص' : `ابدأ الجولة ${item.n}`, { act: 'startNext' });
-    if (item.kind === 'wheel') return make('تخطَّ شريط البونص', { act: 'skipNext', hint: 'شريط البونص يُبنى في الشريحة <span class="ltr">6</span>، فيُتخطى الآن في التجربة.' });
+    // لا يُتخطى الشريط إلا إن لم تصل تحدياته (content/wheel.json)، كي لا تعلق المباراة.
+    if (item.kind === 'wheel') return make('تخطَّ شريط البونص', { act: 'skipNext', hint: 'لم تصل تحديات شريط البونص، فيُتخطى.' });
     return make(`تخطَّ الجولة ${item.n}`, { act: 'skipNext',
       hint: `«${esc(modeName(item.mode))}» يُبنى في الشريحة <span class="ltr">${LATER[item.mode] ?? ''}</span>، فتُتخطى جولته الآن في التجربة.` });
   }

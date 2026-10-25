@@ -233,6 +233,9 @@
   // told: سطر المزاد بعد الحكم «ذُكر 10 من 12» مكان الإجابة (القائمة كلها في البطاقة، design/auction.md 2).
   // say: سطر الترتيب في المربع «المركز 7» أو «لم تُكشف خانة» (الاسم في خانته، design/ranking.md 7.6).
   // bare: حكم العجلة بلا مربع، الشارة والسطر على الطرف (design/wheel.md 2.5).
+  // سطر المربع مقاطع بين « · » لا تنكسر (الملاحظة 39، design/system.md 15.4): إن لم يتسع السطر انكسر عند « · » وحدها،
+  // والفاصل في آخر المقطع الذي قبلها، فلا ينقسم اسم نمط ولا اسم فريق.
+  const segs = s => String(s).split(' · ').map((t, i, a) => `<span class="nb">${num(t)}${i < a.length - 1 ? ' ·' : ''}</span>`).join(' ');
   function announce({ verdict: v, answer, told, say, face, next, bare } = {}) {
     $('verdict').hidden = !v;
     if (v) {
@@ -241,11 +244,11 @@
       $('vtext').innerHTML = v.team ? `${esc(name(v.team))} · ${num(v.points < 0 ? '−' + -v.points : v.points ? '+' + v.points : '0')}` : 'لا نقاط';
     }
     $('reveal').hidden = !answer; $('answer').textContent = answer ?? '';
-    $('told').hidden = !told; $('told').innerHTML = told ? num(told) : '';
-    $('say').hidden = !say; $('say').innerHTML = say ? num(say) : '';
+    $('told').hidden = !told; $('told').innerHTML = told ? segs(told) : '';
+    $('say').hidden = !say; $('say').innerHTML = say ? segs(say) : '';
     $('faceChip').hidden = $('faceWin').hidden = !face; $('faceWin').textContent = face ? name(face) : '';
     // وسطران صريحان («\n») لنهاية القائمة بانقضاء وقتها (الملاحظة 36، design/ranking.css 5): لا « · » معلّقة.
-    $('next').hidden = !next; $('next').innerHTML = next ? next.split('\n').map(num).join('<br>') : '';
+    $('next').hidden = !next; $('next').innerHTML = next ? next.split('\n').map(segs).join('<br>') : '';
     $('box').classList.toggle('two', !!next?.includes('\n'));
     $('box').hidden = !(v || answer || told || say || face || next);
     // «التالي» في نهاية الجولة نص أبيض على الطرف بلا مربع، فلا يتجاوز الأبيض سقفه (15.4 و15.12).
@@ -262,7 +265,10 @@
     box.style.left = (1794 - w) + 'px'; box.style.width = w + 'px';
     box.classList.remove('wrap');
     const line = [...box.querySelectorAll('.line')].find(l => !l.hidden);
-    box.classList.toggle('wrap', !box.classList.contains('two') && !!line && line.scrollWidth > box.clientWidth - 96);
+    // عرض النص نفسه (Range مقسوماً على المقياس) لا scrollWidth: مع المقاطع (.nb) في سطر من اليمين لا يُحسب ما فاض يساراً (الملاحظة 39)
+    let wide = false;
+    if (line) { const r = document.createRange(); r.selectNodeContents(line); wide = r.getBoundingClientRect().width / (canvas.getBoundingClientRect().width / 1920) > box.clientWidth - 96; }
+    box.classList.toggle('wrap', !box.classList.contains('two') && wide);
   }
 
   // صف الشارات من اليمين بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (design/start.html وdesign/letter.html):
@@ -273,11 +279,13 @@
   }
   function placeBadges() {
     const lean = Math.tan(14 * Math.PI / 180) * 64;
+    // العرض بكسره (getBoundingClientRect على مقاس 1920) لا offsetWidth المقرَّب إلى عدد صحيح، ثم إلى الأعلى، فلا ينقص الفراغ عن 24 كسراً (تدقيق ش6).
+    const k = rect(canvas).width / 1920 || 1;
     let right = 104;
     for (const el of [document.querySelector('.badge.mode'), $('b1'), $('b2')]) {
       if (!el.getClientRects().length) continue;
       el.style.right = right + 'px';
-      right += el.offsetWidth + 24 + lean;
+      right += Math.ceil(rect(el).width / k + 24 + lean);
     }
     placeNear();
   }
@@ -629,7 +637,7 @@
     if (!near.children.length || !badges.length) return;
     // بحدود الشارة الفعلية لا offsetLeft: يُقرَّب كسر الميل فيصير الفراغ 23 (design/auction.md 7.5). والقياس على مقاس 1920.
     const c = rect(canvas), k = c.width / 1920 || 1;
-    near.style.left = Math.floor(Math.min(...badges.map(b => (rect(b).left - c.left) / k)) - 32 - near.offsetWidth) + 'px';
+    near.style.left = Math.floor(Math.min(...badges.map(b => (rect(b).left - c.left) / k)) - 32 - rect(near).width / k) + 'px';
   }
   const send = (cmd, data = {}) => parent.postMessage({ bc: 'cmd', cmd, ...data }, location.origin);
   if (embed) {

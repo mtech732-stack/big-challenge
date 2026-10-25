@@ -158,6 +158,9 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     await click('#wCtl [data-act="finish"]');
     check(`${tag}نهاية الشريط: «+3» لكلٍّ، و«انتهى الشريط»، والمقدّم «ابدأ الجولة 2»`, await text(audience, '#r1') === '+3' && await text(audience, '#r2') === '+3'
       && await text(audience, '#b1') === 'انتهى الشريط' && await text(presenter, '#endNext') === 'ابدأ الجولة 2');
+    const nb = await audience.evaluate(() => [...document.querySelectorAll('#next .nb')].map(e => ({ t: e.textContent, rows: e.getClientRects().length })));
+    check(`${tag}الملاحظة 39: «التالي: الجولة 2 ·» و«الحرف المعيّن» مقطعان، وكلٌّ في سطر واحد لا ينكسر`, nb.length === 2 && nb[0].t === 'التالي: الجولة 2 ·' && nb[1].t === 'الحرف المعيّن' && nb.every(x => x.rows === 1));
+    if (LONG) check('الأطول: السطر لا يتسع فينكسر عند « · » (مقطعان في سطرين)', await audience.evaluate(() => { const [a, b] = document.querySelectorAll('#next .nb'); return document.getElementById('box').classList.contains('wrap') && Math.abs(a.getBoundingClientRect().top - b.getBoundingClientRect().top) > 20; }));
     await audienceCheck(audience, `${tag}نهاية الشريط`);
     await presenterCheck(presenter, `${tag}نهاية الشريط`);
     if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-end.png') });
