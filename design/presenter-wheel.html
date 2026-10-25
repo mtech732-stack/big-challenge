@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>التحدي الكبير · ش6 · عجلة البونص · نافذة المقدّم</title>
+<title>التحدي الكبير · ش6 · شريط البونص · نافذة المقدّم</title>
 <link rel="icon" href="data:,">
-<!-- الصفحة المرجعية لنافذة المقدّم في عجلة البونص (design/wheel.md 5). الأنماط الأساسية منسوخة من index.html المبني كما هي،
+<!-- الصفحة المرجعية لنافذة المقدّم في شريط البونص (design/wheel.md 5). الأنماط الأساسية منسوخة من index.html المبني كما هي،
      ويضاف إليها قسم العجلة وحده (آخر هذه الأنماط). الحالة من الرابط: ?s=run · وبلا ?s قائمة الحالات. -->
 <link rel="stylesheet" href="../css/tokens.css">
 <link rel="stylesheet" href="../css/base.css">
@@ -101,7 +101,7 @@
   #app .q .letter { min-width: 5rem; height: 5rem; font-size: 3.25rem; }
 
 
-  /* ===== عجلة البونص (design/wheel.md 5): الخانات العشر بنصوصها الكاملة، ثم الخانة التي وقفت عليها، والحكم ===== */
+  /* ===== شريط البونص (design/wheel.md 5): الخانات العشر بنصوصها الكاملة، ثم الخانة التي وقفت عليها، والحكم ===== */
   .whl { grid-template-columns: 1fr; align-content: center; gap: 0.5rem; }
   .whl h2 { font-size: 1.25rem; }
   /* الخانات كما على التلفاز، من اليمين: عموداً 1–5 ثم 6–10. كل خانة صف: نوعها في شارة مائلة، ثم نصها الكامل */
@@ -139,7 +139,7 @@
 <main id="app">
   <header class="top playing">
     <h1>التحدي الكبير</h1>
-    <span class="chip"><i></i><span>عجلة البونص · الدورة <span class="ltr" id="ln">1</span> من <span class="ltr">2</span></span></span>
+    <span class="chip"><i></i><span>شريط البونص · الدورة <span class="ltr" id="ln">1</span> من <span class="ltr">2</span></span></span>
     <span class="pips" id="pips"></span>
     <p class="clock" id="clock"><span>الوقت</span><b id="cv"></b></p>
     <button class="on-stage alt">الصوت</button>
@@ -163,24 +163,24 @@
   const CH = ['قلّدوا أصوات ثلاثة حيوانات، ويخمّن الخصم أسماءها', 'مثّلوا مهنة بلا كلام حتى يعرفها فريقكم', 'اذكروا عشر فواكه قبل أن ينتهي الوقت',
     'رتّبوا أنفسكم بحسب الطول دون أن تتكلموا', 'ارسموا في الهواء شيئاً يخمّنه فريقكم', 'اذكروا خمسة أشياء زرقاء في القاعة', 'قولوا اسم كل لاعب في فريقكم بالعكس'];
   if (LONG) CH.forEach((_, i) => { CH[i] = 'يمثّل أحدكم فيلماً كرتونياً مشهوراً بلا كلام، ويخمّن فريقه اسمه قبل انتهاء الوقت كله'; });
-  const LUCK = { 'lose-3': { w: 'خصم −3', label: 'خصم 3 نقاط' }, 'steal-3': { w: 'اسرق 3', label: 'اسرق 3 نقاط من خصمك' }, 'gift-3': { w: 'هدية +3', label: 'هدية: +3 نقاط' } };
+  const LUCK = { 'lose-3': { w: 'خسارة −3', label: 'خسارة 3 نقاط' }, 'steal-3': { w: 'خصم 3', label: 'خصم 3 نقاط من خصمك' }, 'gift-3': { w: 'هدية +3', label: 'هدية: +3 نقاط' } };
   const SLOTS = [['c', 0], ['l', 'lose-3'], ['c', 1], ['c', 2], ['l', 'gift-3'], ['c', 3], ['c', 4], ['l', 'steal-3'], ['c', 5], ['c', 6]];
   const B = (label, cls = '') => `<button class="${cls}">${num(label)}</button>`;
   const judge = [B('نجح · +5'), B('لم ينجح', 'no')];
   // by: من يدير العجلة · lit: الخانة المضاءة · got: الخانة التي وقفت عليها (يعرض نصها) · done: سطر الحكم · ctl: أزرار لوحة الدور
   const STATES = {
-    ready:   { t: 'قبل الدوران (يديرها الثاني، الأقل نقاطاً)', by: 2, n: 1, state: 'الأقل نقاطاً يبدأ', ctl: [B('أدِر العجلة', 'full')] },
-    spin:    { t: 'الدوران', by: 2, n: 1, lit: 6, state: 'تدور العجلة', ctl: [B('أدِر العجلة', 'full held')] },
+    ready:   { t: 'قبل الدوران (يديرها الثاني، الأقل نقاطاً)', by: 2, n: 1, state: 'الأقل نقاطاً يبدأ', ctl: [B('أطلق الشريط', 'full')] },
+    spin:    { t: 'الدوران', by: 2, n: 1, lit: 6, state: 'يجري المؤشر', ctl: [B('أطلق الشريط', 'full held')] },
     challenge:{ t: 'وقفت على تحدٍّ: قبل «ابدأ»', by: 2, n: 1, got: 3, state: 'لم يبدأ الوقت', ctl: [B('ابدأ التحدي · دقيقتان', 'full')] },
     run:     { t: 'التحدي: الوقت يجري', by: 2, n: 1, got: 3, clock: '1:42', state: 'يؤدّي الفريق التحدي', ctl: judge },
     timeup:  { t: 'التحدي: انتهى الوقت', by: 2, n: 1, got: 3, clock: '0:00', state: 'انتهى الوقت · احكم', ctl: judge },
     won:     { t: 'بعد الحكم: نجح', n: 1, by: 2, got: 3, done: `${NAMES[2]} · +5 · نجح التحدي`, ctl: [B('التالي · دور ' + NAMES[1], 'full')] },
-    steal:   { t: 'خانة حظ: اسرق 3 (تُطبَّق فور الوقوف)', n: 1, by: 2, got: 7, done: `${NAMES[2]} +3 · ${NAMES[1]} −3`, ctl: [B('التالي · دور ' + NAMES[1], 'full')] },
-    last:    { t: 'بعد الدورة 2', n: 2, by: 1, got: 1, done: `${NAMES[1]} · −3 · خصم 3 نقاط`, ctl: [B('الجولة 3 · المزاد', 'full')] },
+    steal:   { t: 'خانة حظ: خصم 3 (تُطبَّق فور الوقوف)', n: 1, by: 2, got: 7, done: `${NAMES[2]} +3 · ${NAMES[1]} −3`, ctl: [B('التالي · دور ' + NAMES[1], 'full')] },
+    last:    { t: 'بعد الدورة 2', n: 2, by: 1, got: 1, done: `${NAMES[1]} · −3 · خسارة 3 نقاط`, ctl: [B('الجولة 3 · المزاد', 'full')] },
   };
   const id = q.get('s'), st = STATES[id];
   if (!st) {
-    document.body.innerHTML = '<div class="menu"><h1>ش6 · عجلة البونص · نافذة المقدّم</h1>' + Object.entries(STATES).map(([k, s]) =>
+    document.body.innerHTML = '<div class="menu"><h1>ش6 · شريط البونص · نافذة المقدّم</h1>' + Object.entries(STATES).map(([k, s]) =>
       `<p>${esc(s.t)}: <a href="?s=${k}">مثال</a> · <a href="?s=${k}&long=1">أطول محتوى</a></p>`).join('') + '</div>';
   } else {
     $('ln').textContent = st.n;
