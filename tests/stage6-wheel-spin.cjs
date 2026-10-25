@@ -169,6 +169,13 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
 
     // نهاية العجلة (والتحدي يُحكم فيه أولاً، اختباره stage6-wheel-challenge)، ثم الجولة الثانية.
     if (kind === 'challenge') { await click('#wCtl [data-act="start"]'); await click('#wCtl [data-act="failed"]'); }
+    // والدورة الثانية (اختبارها stage6-wheel-turns).
+    await click('#wCtl [data-act="next"]');
+    await aud.waitForSelector('.scr.whl.show');
+    await click('#wCtl [data-act="spin"]');
+    await aud.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
+    await wait(1200);
+    { const s2 = (await saved(stage)).round.state; if (s2.slots[s2.landed].kind === 'challenge') { await click('#wCtl [data-act="start"]'); await click('#wCtl [data-act="failed"]'); } }
     await click('#wCtl [data-act="finish"]');
     check(`${tag}«إنهاء الشريط»: نهايتها، «انتهى الشريط»، و«التالي: الجولة 2 · الحرف المعيّن»`, await aud.evaluate(() => !!document.querySelector('.scr.end.show'))
       && await text(aud, '#b1') === 'انتهى الشريط' && await text(aud, '#next') === 'التالي: الجولة 2 · الحرف المعيّن');
@@ -210,6 +217,11 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     await audience.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
     await wait(800);
     if (kind1 === 'challenge') { await go('act:start'); await go('act:failed'); }
+    await go('act:next');
+    await go('act:spin');
+    await audience.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
+    await wait(1200);
+    { const s2 = (await saved(stage)).round.state; if (s2.slots[s2.landed].kind === 'challenge') { await go('act:start'); await go('act:failed'); } }
     await go('act:finish');
     check('«إنهاء الشريط»: في البطاقة «ابدأ الجولة 2»', await text(audience, '.scr.end.show .ctl') === 'ابدأ الجولة 2');
     await audienceCheck(audience, 'نافذة واحدة · نهاية العجلة', data);

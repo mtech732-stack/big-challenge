@@ -57,8 +57,8 @@ function actions(s) {
   // التحدي: «ابدأ» يبدأ الدقيقتين، ثم الحكم والوقت يجري أو بعد انتهائه (انتهاؤه لا يحكم، design/wheel.md 2).
   if (s.phase === 'slot' && isChallenge(s)) return [{ id: 'start', label: 'ابدأ التحدي · دقيقتان' }];
   if (s.phase === 'run') return [{ id: 'won', label: `نجح · +${CHALLENGE_POINTS}` }, { id: 'failed', label: 'لم ينجح' }];
-  // وبعد الحكم أو خانة الحظ تُغلق العجلة في هذه المرحلة. والدورة الثانية مرحلة تالية.
-  if (s.phase === 'done') return [{ id: 'finish', label: 'إنهاء الشريط' }];
+  // وبعد الحكم أو خانة الحظ: الدورة الثانية للفريق الآخر، ثم بعدها «إنهاء الشريط» (لكل فريق دورته، الوثيقة 5.7).
+  if (s.phase === 'done') return s.n < s.spinners.length ? [{ id: 'next', label: `التالي · الدورة ${s.n + 1}` }] : [{ id: 'finish', label: 'إنهاء الشريط' }];
   return [];
 }
 
@@ -84,7 +84,9 @@ function act(s, action, scores = {}, now = Date.now()) {
     const state = { ...s, phase: 'done', results: s.results.map((r, i) => (i === s.n - 1 ? { team, points } : r)) };
     return { state, events: team ? [{ type: 'score', team, points }, { type: 'moment', name: 'right', team }] : [{ type: 'moment', name: 'none' }] };
   }
-  if (id === 'finish' && (s.phase === 'slot' || s.phase === 'done')) return { state: { ...s, phase: 'end' }, events: [] };
+  // الدورة التالية بخانة وقوفها المحسومة في الإعداد. والتحدي يجوز أن يتكرر فيها (جواب المالك 25 أكتوبر 2026).
+  if (id === 'next' && s.phase === 'done' && s.n < s.spinners.length) return { state: { ...s, n: s.n + 1, phase: 'ready', at: null, landed: null, timeup: false }, events: [] };
+  if (id === 'finish' && s.phase === 'done' && s.n === s.spinners.length) return { state: { ...s, phase: 'end' }, events: [] };
   return { state: s, events: [] };
 }
 
