@@ -153,8 +153,8 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-slot.png') });
     else await stage.screenshot({ path: path.join(shots, 'wheel-slot-long.png') });
     const kind = (await saved(stage)).round.state.slots[stop].kind;
-    check(`${tag}المقدّم: الخانة في مربعها، ونصها كاملاً، وسطر القاعدة، و«ابدأ التحدي · دقيقتان» (أو «إنهاء الشريط» لخانة حظ)`, (await presenter.$('#wMid.got .slotbox.t' + spinner)) && await text(presenter, '#wMid .text') === wantText
-      && (await text(presenter, '#wMid .rule')).startsWith(kind === 'luck' ? 'خانة حظ' : 'دقيقتان حداً أقصى') && await text(presenter, '#wCtl') === (kind === 'luck' ? 'إنهاء الشريط' : 'ابدأ التحدي · دقيقتان'));
+    check(`${tag}المقدّم: الخانة في مربعها، ونصها كاملاً، وسطر القاعدة، و«ابدأ التحدي · دقيقتان» (أو «التالي · دور [الآخر]» لخانة حظ)`, (await presenter.$('#wMid.got .slotbox.t' + spinner)) && await text(presenter, '#wMid .text') === wantText
+      && (await text(presenter, '#wMid .rule')).startsWith(kind === 'luck' ? 'خانة حظ' : 'دقيقتان حداً أقصى') && (kind === 'luck' ? (await text(presenter, '#wCtl')).startsWith('التالي · دور ') : await text(presenter, '#wCtl') === 'ابدأ التحدي · دقيقتان'));
     await presenterCheck(presenter, `${tag}بعد الوقوف`);
 
     if (!LONG) {
@@ -208,7 +208,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     await audience.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
     await wait(800);
     const kind1 = (await saved(stage)).round.state.slots[(await saved(stage)).round.state.landed].kind;
-    check('بعد الوقوف: «ابدأ · دقيقتان» (أو «إنهاء الشريط» لخانة حظ)', await near() === (kind1 === 'luck' ? 'إنهاء الشريط' : 'ابدأ · دقيقتان'));
+    check('بعد الوقوف: «ابدأ · دقيقتان» (أو «التالي · الدورة 2» لخانة حظ)', await near() === (kind1 === 'luck' ? 'التالي · الدورة 2' : 'ابدأ · دقيقتان'));
     await audienceCheck(audience, 'نافذة واحدة · بعد الوقوف', data);
     await stage.screenshot({ path: path.join(shots, 'wheel-slot-w1.png') });
     await go('undo');
