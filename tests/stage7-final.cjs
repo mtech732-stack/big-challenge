@@ -3,7 +3,7 @@
 // والمجموع = الرصيد)، والانتقال إلى النتيجة بعد آخر عنصر وحده، و«أعلن الفائز» للمتقدّم ولا إعلان عند التعادل، والتراجع.
 // ثم بالمتصفح بنافذتين: نهاية الجولة الأخيرة ← «إلى النتيجة النهائية» ← المسار والشارة و«التالي: إعلان الفائز» ← «أعلن الفائز»:
 // الحدّ يكتسح ويبقى، والاسم بلونه، والقصاصات تسقط ثم تُزال، ونبض الرقم. وفحص التداخل والشبكة في كل شاشة، ونافذة المقدّم بلا تمرير.
-// ثم التعادل («التالي: الجولة الفاصلة» وزرها معطّل)، ثم النافذة الواحدة بأطول اسمين، وإعادة التحميل.
+// ثم التعادل («التالي: الجولة الفاصلة» وزرها)، ثم النافذة الواحدة بأطول اسمين، وإعادة التحميل.
 // الاستعمال: node tests/stage7-final.cjs [الرابط] [مجلد الصور]
 const path = require('path');
 const { chromium } = require('playwright');
@@ -164,8 +164,8 @@ const { finalMatch } = require('./final-match.cjs');
     await aud.waitForSelector('.scr.show[data-s="fin"]');
     await wait(1400);
     check('التعادل: «التالي: الجولة الفاصلة» والرقمان متساويان', clean(await aud.textContent('#next')) === 'التالي: الجولة الفاصلة' && clean(await aud.textContent('#s1')) === clean(await aud.textContent('#s2')));
-    check('نافذة المقدّم: «تعادل»، و«الجولة الفاصلة» معطّل حتى «كسر التعادل»، وسطر ذلك', clean(await page.textContent('#fWho')) === 'تعادل'
-      && await page.isDisabled('#fCtl button') && !(await page.isHidden('#fHint')));
+    check('نافذة المقدّم: «تعادل» و«الجولة الفاصلة» (مرحلة «كسر التعادل»، stage7-tiebreak)', clean(await page.textContent('#fWho')) === 'تعادل'
+      && clean(await page.textContent('#fCtl')) === 'الجولة الفاصلة' && !(await page.isDisabled('#fCtl button')));
     await layout(aud, 'النتيجة: تعادل');
     await aud.screenshot({ path: path.join(shots, 's7-fintie.png') });
     await noScroll(page, 'التعادل');

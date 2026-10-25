@@ -257,7 +257,8 @@
     if (v) {
       $('verdict').className = `chip${v.team ? ' t' + v.team : ''}`;
       // الفريق الذي أخذ النقاط باسمه (الوثيقة 1.1، 7.1). وخصم الفخ «−2» بما خُصم فعلاً (design/ranking.md 7.7).
-      $('vtext').innerHTML = v.team ? `${esc(name(v.team))} · ${num(v.points < 0 ? '−' + -v.points : v.points ? '+' + v.points : '0')}` : 'لا نقاط';
+      $('vtext').innerHTML = v.label ? `${esc(name(v.who))} · ${esc(v.label)}`
+        : v.team ? `${esc(name(v.team))} · ${num(v.points < 0 ? '−' + -v.points : v.points ? '+' + v.points : '0')}` : 'لا نقاط';
     }
     $('reveal').hidden = !answer; $('answer').textContent = answer ?? '';
     $('told').hidden = !told; $('told').innerHTML = told ? segs(told) : '';
@@ -401,6 +402,7 @@
     const win = m.final?.phase === 'win';
     if (win) {
       showScreen('win');
+      $('winSub').textContent = m.final.tb ? 'الفائز بالجولة الفاصلة' : 'الفائز بالمباراة';
       $('champ').className = 'champ t' + m.final.winner;
       $('champ').textContent = name(m.final.winner);
       announce({});
@@ -474,9 +476,13 @@
     if (a.screen === 'intro') {
       showScreen('intro');
       $('rule').textContent = a.rule;
+      // سطر ثانٍ للقاعدة في الجولة الفاصلة وحدها (design/final.md 2.3)، ولا يوجد في غيرها.
+      $('ruleSub')?.remove();
+      if (a.sub) $('rule').insertAdjacentHTML('afterend', `<p class="sub" id="ruleSub">${num(a.sub)}</p>`);
       // ولا مفتتح في المزاد (design/auction.md 3.0): «ثلاثة مواضيع» وحدها.
       $('starter').innerHTML = a.turn ? `${esc(a.starter ?? 'يبدأ')} ${tn(a.turn)}` : esc(a.starter ?? '');
-      setBadges(`الجولة ${p.n} من ${p.total}`);
+      // والجولة الفاصلة: شارة «تعادل» تعلن سببها (design/final.md 2).
+      setBadges(a.tiebreak ? 'تعادل' : `الجولة ${p.n} من ${p.total}`);
     } else if (a.screen === 'end') {
       showScreen('end');
       $('e1').textContent = name(1); $('e2').textContent = name(2);
@@ -510,7 +516,7 @@
       showScreen('q');
       setBox(a);
       $('label').textContent = a.question;
-      setBadges(`السؤال ${a.n} من ${a.count}`);
+      setBadges(a.tiebreak ? `المحاولة ${a.attempt}` : `السؤال ${a.n} من ${a.count}`);
     }
 
     // بعد الحكم الأخير: الحكم والإجابة في مربع الإعلان حتى السؤال التالي. و«التالي» فيه في نهاية الجولة.
@@ -520,6 +526,8 @@
       // العجلة: «انتهى الوقت» نصاً حتى يحكم المقدّم، ثم الحكم بلا مربع (design/wheel.md 2 و2.5).
       // و«خصم» (الأخذ من الخصم): السطر «[الخصم] · −3» بما أُخذ فعلاً، والصفر بلا إشارة (ملاحظة المعاين 38).
       : a.screen === 'slot' ? (v ? { verdict: v, say: v.from ? `${name(v.from)} · ${v.taken ? '−' + v.taken : '0'}` : v.say, bare: true } : a.timeup ? { next: 'انتهى الوقت' } : {})
+      // والجولة الفاصلة: الحكم بلا مربع «[الاسم] · أصاب» و«الإجابة: …» (design/final.md 2.5).
+      : a.tiebreak ? { verdict: v, answer: a.answer, bare: true }
       : { verdict: v, answer: a.answer, told: v && a.tally ? `ذُكر ${a.tally.n} من ${a.tally.of}` : undefined });
     syncTimer(p.timer, a);
     setTurn(a.turn);
@@ -778,7 +786,7 @@
     shownKey = key;
     // شاشة الخانة باقية بعد الحكم: لا يدخل مربعها من جديد مع حركة الحكم (chipin، wheel.css 5).
     const settle = () => { if (!changed && a.screen === 'slot') $('letter').getAnimations().forEach(x => x.finish()); };
-    for (const m of moments) if (m.name === 'right') sound('right'); else if (m.name === 'trap' || ((m.name === 'steal' || m.name === 'fail') && m.reason === 'wrong')) sound('wrong');
+    for (const m of moments) if (m.name === 'right' || m.name === 'hit') sound('right'); else if (m.name === 'miss') sound('wrong'); else if (m.name === 'trap' || ((m.name === 'steal' || m.name === 'fail') && m.reason === 'wrong')) sound('wrong');
     if (still() || (!moments.length && !changed)) return;
     canvas.classList.remove('anim'); void canvas.offsetWidth; canvas.classList.add('anim');
     settle();
@@ -809,6 +817,9 @@
         setScore(w, prev.scores[w]);
         later(250, () => { setScore(w, to); moment(w, 'lose'); });
       }
+      // الجولة الفاصلة: «أصاب» تومض جهته والحزم تندفع، ولوحته تنبض. و«لم يُصب» تهتز البطاقة والحدّ إلى المنتصف (design/final.md 4.3).
+      if (m.name === 'hit') { surge(); replay($('stagebg').querySelector('.f' + m.team), 'blink'); bump(m.team); }
+      if (m.name === 'miss') replay($('cardWrap'), 'shake');
       if (m.name === 'lead') later(700, () => { moment(m.team, 'lead'); moment(other(m.team), 'lose'); });
       if (m.name === 'steal') {
         // انتقال الإجابة (السرقة): البطاقة تهتز إن كانت خاطئة، ثم لمعة، والمؤشر يقفز إلى الخصم. لا شارة ولا كلمة «سرقة». العدّاد لا ينتظر الحركة.
