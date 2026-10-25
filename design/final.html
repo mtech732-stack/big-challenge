@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>التحدي الكبير · ش7 · النهاية · شاشة الجمهور</title>
+<link rel="icon" href="data:,">
+<!-- الصفحة المرجعية لتصميم النهاية (design/final.md) فوق CSS اللعبة المبنية بالإصدار 1.3، فما يُرى هنا هو ما سيُبنى.
+     الحالة من الرابط: ?s=fin&w=1&long=1 (s: الحالة · w=1 النافذة الواحدة · long=1 أطول اسمين ورقمان من ثلاث خانات وأطول سؤال ·
+     n=2 مباراة بنمطين · check=1 فحص التداخل · anim=1 الحركة، ومنها القصاصات في ?s=win&anim=1). وبلا ?s: قائمة الحالات. -->
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/base.css">
+<link rel="stylesheet" href="../css/stage.css">
+<link rel="stylesheet" href="../css/start.css">
+<link rel="stylesheet" href="../css/letter.css">
+<link rel="stylesheet" href="../css/shared.css">
+<link rel="stylesheet" href="../css/auction.css">
+<link rel="stylesheet" href="../css/ranking.css">
+<link rel="stylesheet" href="../css/wheel.css">
+<link rel="stylesheet" href="final.css">
+<style>
+  .menu { position: fixed; inset: 0; z-index: 20; overflow: auto; background: #050E2E; color: #fff; padding: 32px 48px; font-size: 20px; line-height: 1.6; }
+  .menu h1 { font-size: 32px; margin: 0 0 16px; }
+  .menu a { color: #FFC300; }
+  .menu table { border-collapse: collapse; }
+  .menu td { padding: 4px 16px 4px 0; vertical-align: top; }
+  .check-layer { inset: 0; pointer-events: none; z-index: 10; position: absolute; }
+  .check-out { position: fixed; z-index: 21; bottom: 0; left: 0; right: 0; background: #050E2E; color: #fff; font-size: 16px; padding: 8px 16px; white-space: pre-wrap; direction: rtl; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="canvas" id="canvas">
+    <div class="stagebg" id="stagebg"><div class="f f1"></div><div class="f f2"></div><div class="e" id="edge"></div>
+      <div class="beam"></div><div class="beam w"></div><div class="beam"></div><div class="beam w"></div></div>
+    <div class="particles" id="particles"></div>
+    <!-- القصاصات عند إعلان الفائز (design/final.md 4.2): تحت الشعار واللوحات والبطاقة -->
+    <div class="confetti" id="confetti"></div>
+    <div class="logo" data-hud="الشعار" aria-label="التحدي الكبير"><span class="l1">التحدي</span><span class="l2"><i></i><b>الكبير</b></span></div>
+
+    <section class="team t1" id="p1" data-hud="لوحة الفريق الأول">
+      <div class="shape"></div><svg class="ring" preserveAspectRatio="none"><polygon pathLength="100"/></svg>
+      <div class="row" data-fit="لوحة الفريق الأول"><span class="name" id="n1"></span><span class="score" id="s1"></span><span class="cnt" id="c1"></span></div>
+    </section>
+
+    <div class="badge mode" data-hud="شارة النمط"><i></i><span id="bm"></span></div>
+    <div class="badge plain" id="b1" data-hud="الشارة الأولى"><i></i><span></span></div>
+
+    <div class="card-wrap" id="cardWrap" data-hud="البطاقة">
+      <div class="plate"></div>
+      <div class="card">
+        <!-- النتيجة النهائية: العنوان، ومسار المباراة بما كسبه كل فريق في كل جولة وشريط (design/final.md 2.1) -->
+        <div class="scr fin" data-s="fin">
+          <p class="head" data-fit="عنوان النتيجة">النتيجة النهائية</p>
+          <div class="track" id="track"></div>
+          <div class="crow" id="finRow" hidden><div class="ctl" id="finCtl"></div></div>
+        </div>
+        <!-- الفائز (design/final.md 2.2) -->
+        <div class="scr win" data-s="win">
+          <p class="sub" id="winSub"></p>
+          <p class="champ" id="champ" data-fit="اسم الفائز"></p>
+          <div class="crow" id="winRow" hidden><div class="ctl" id="winCtl"></div></div>
+        </div>
+        <!-- مقدمة الجولة الفاصلة: مقدمة الجولة نفسها (design/final.md 2.3) -->
+        <div class="scr intro" data-s="intro">
+          <p class="rule" data-fit="قاعدة الجولة الفاصلة">من أصاب وأخطأ خصمه فاز</p>
+          <p class="sub">سؤال لكل فريق بالتناوب · <span class="ltr">15</span> ثانية للسؤال</p>
+          <p class="head" id="starter" data-fit="سطر البدء"></p>
+        </div>
+        <!-- سؤال الجولة الفاصلة: سؤال «الحرف المعيّن» نفسه (design/final.md 2.4) -->
+        <div class="scr q" data-s="q"><div class="letter" id="letter"></div><div class="qcol"><p class="question" id="question" data-fit="السؤال"></p></div></div>
+      </div>
+    </div>
+
+    <section class="team t2" id="p2" data-hud="لوحة الفريق الثاني">
+      <div class="shape"></div><svg class="ring" preserveAspectRatio="none"><polygon pathLength="100"/></svg>
+      <div class="row" data-fit="لوحة الفريق الثاني"><span class="name" id="n2"></span><span class="score" id="s2"></span><span class="cnt" id="c2"></span></div>
+    </section>
+
+    <div class="box" id="box" data-hud="مربع الإعلان" hidden><i></i>
+      <p class="chip" id="verdict"><i></i><span id="vtext"></span></p>
+      <p class="line" id="line" data-fit="سطر الإعلان"></p>
+    </div>
+
+    <div class="ctl-near" id="near" data-hud="أزرار السؤال"></div>
+    <div class="ctl-corner a" id="cornerA" data-hud="أزرار الزاوية العليا"></div>
+    <div class="ctl-corner b" id="cornerB" data-hud="أزرار الزاوية السفلى"></div>
+    <div class="ctl-corner c" id="cornerC" data-hud="أزرار الصف الثالث"></div>
+    <div class="shine" id="shine"></div>
+    <div class="danger"></div>
+  </div>
+</div>
+<script src="check.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const q = new URLSearchParams(location.search);
+  const canvas = $('canvas');
+  const fit = () => document.documentElement.style.setProperty('--scale', Math.min(innerWidth / 1920, innerHeight / 1080));
+  addEventListener('resize', fit); fit();
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const num = s => esc(s).replace(/([+−-]?\d+(?:[:–]\d+)?)/g, '<span class="ltr">$1</span>');
+  const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
+
+  // ===== المحتوى المثال، وأطول محتوى (design/final.md 3) =====
+  const LONG = q.has('long'), TWO = q.get('n') === '2';
+  const NAMES = LONG ? { 1: 'فريق النخبة الذهبي', 2: 'نجوم المستقبل معاً' } : { 1: 'الصقور', 2: 'النجوم' };
+  // مسار المباراة كما في المواجهة: الجولات والشرائط بترتيبها، وما كسبه كل فريق في كلٍّ منها (الفرق بين رصيده في نهايتها ونهاية ما قبلها).
+  // أطول اسم نمط «الحرف المعيّن» (13 حرفاً)، وأعرض ما يكسبه فريق في جولة ثلاث خانات («+110»: قائمتا الترتيب كاملتين)، وفي الشريط من −6 إلى +5
+  const PATH4 = [
+    { n: 1, mode: 'الحرف المعيّن', g: [8, 6], gl: [12, 10] },
+    { n: 2, mode: 'آخر حرفين', g: [6, 10], gl: [10, 12] },
+    { wheel: true, g: [5, 3], gl: [5, -6] },
+    { n: 3, mode: 'المزاد', g: [7, 2], gl: [40, 36] },
+    { wheel: true, g: [-3, 8], gl: [-6, 5] },
+    { n: 4, mode: 'الترتيب', g: [19, 12], gl: [110, 98] },
+  ];
+  const PATH2 = [
+    { n: 1, mode: 'الحرف المعيّن', g: [8, 6], gl: [12, 10] },
+    { wheel: true, g: [5, -3], gl: [5, -6] },
+    { n: 2, mode: 'الترتيب', g: [21, 30], gl: [110, 104] },
+  ];
+  const PATH = (TWO ? PATH2 : PATH4).map(p => ({ ...p, g: LONG ? p.gl : p.g }));
+  const TOT = { 1: PATH.reduce((s, p) => s + p.g[0], 0), 2: PATH.reduce((s, p) => s + p.g[1], 0) };
+  // التعادل: الثاني يكسب في الجولة الأخيرة ما يساوي به الأول
+  const TIE = PATH.map((p, i) => i === PATH.length - 1 ? { ...p, g: [p.g[0], p.g[1] + TOT[1] - TOT[2]] } : p);
+  const TIESCORE = { 1: TOT[1], 2: TOT[1] };
+  // أسئلة الجولة الفاصلة: صعبة من «الحرف المعيّن» (tiebreak: true في content/packs/general/letter.json)، وأطولها 85 حرفاً
+  const TB = LONG
+    ? [{ l: 'ف', p: 'أصغر دولة في العالم مساحةً، وتقع كلها داخل مدينة روما، ويسكنها أقل من ألف شخص اليوم', a: 'الفاتيكان' },
+       { l: 'ب', p: 'أكبر جزيرة كويتية مساحةً، وتقع في الشمال قرب الحدود، ولا يسكنها أحد حتى اليوم أبداً', a: 'بوبيان' }]
+    : [{ l: 'ف', p: 'أصغر دولة في العالم مساحةً، وتقع داخل مدينة روما', a: 'الفاتيكان' },
+       { l: 'ب', p: 'أكبر جزيرة كويتية مساحةً', a: 'بوبيان' }];
+  // من يبدأ الجولة الفاصلة: الخاسر في القرعة (الوثيقة 5.8). المثال: فاز الأول بالقرعة، فيبدأ الثاني
+  const STARTER = 2;
+
+  // ===== الحالات (design/final.md 2) =====
+  // turn: الحدّ (0 المنتصف) · screen: شاشة البطاقة · path: المسار · scores: الرصيد · mode/badge: الشارتان · box: مربع الإعلان · tb: سؤال الجولة الفاصلة
+  const STATES = {
+    fin:     { t: 'النتيجة النهائية (فاز الأول)', screen: 'fin', turn: 0, path: PATH, scores: TOT, box: { next: 'التالي: إعلان الفائز' } },
+    fintie:  { t: 'النتيجة النهائية: تعادل', screen: 'fin', turn: 0, path: TIE, scores: TIESCORE, box: { next: 'التالي: الجولة الفاصلة' } },
+    win:     { t: 'إعلان الفائز: الأول (?anim=1 للقصاصات)', screen: 'win', turn: 1, scores: TOT, winner: 1, sub: 'الفائز بالمباراة' },
+    win2:    { t: 'إعلان الفائز: الثاني', screen: 'win', turn: 2, scores: { 1: TOT[2], 2: TOT[1] }, winner: 2, sub: 'الفائز بالمباراة' },
+    tie:     { t: 'مقدمة الجولة الفاصلة', screen: 'intro', turn: 0, scores: TIESCORE, mode: 'الجولة الفاصلة', badge: 'تعادل' },
+    tbq:     { t: 'الجولة الفاصلة: سؤال الثاني (القراءة)', screen: 'q', turn: STARTER, scores: TIESCORE, mode: 'الجولة الفاصلة', badge: 'المحاولة 1', tb: 0 },
+    tbrun:   { t: 'الجولة الفاصلة: العدّاد', screen: 'q', turn: STARTER, run: 9, scores: TIESCORE, mode: 'الجولة الفاصلة', badge: 'المحاولة 1', tb: 0 },
+    tblast:  { t: 'الجولة الفاصلة: آخر 3 ثوانٍ', screen: 'q', turn: STARTER, run: 3, scores: TIESCORE, mode: 'الجولة الفاصلة', badge: 'المحاولة 1', tb: 0 },
+    tbright: { t: 'الجولة الفاصلة: أصاب الثاني', screen: 'q', turn: STARTER, scores: TIESCORE, mode: 'الجولة الفاصلة', badge: 'المحاولة 1', tb: 0,
+               box: { verdict: { team: STARTER, text: 'أصاب' }, answer: 0 } },
+    tbq2:    { t: 'الجولة الفاصلة: سؤال الأول', screen: 'q', turn: 3 - STARTER, scores: TIESCORE, mode: 'الجولة الفاصلة', badge: 'المحاولة 1', tb: 1 },
+    tbwrong: { t: 'الجولة الفاصلة: لم يُصب الأول (فاز الثاني)', screen: 'q', turn: 0, scores: TIESCORE, mode: 'الجولة الفاصلة', badge: 'المحاولة 1', tb: 1,
+               box: { verdict: { team: 0, name: 3 - STARTER, text: 'لم يُصب' }, answer: 1 } },
+    tbagain: { t: 'الجولة الفاصلة: المحاولة 2 (أصابا معاً أو أخطآ معاً)', screen: 'q', turn: STARTER, scores: TIESCORE, mode: 'الجولة الفاصلة', badge: 'المحاولة 2', tb: 1 },
+    wintb:   { t: 'إعلان الفائز بالجولة الفاصلة: الثاني', screen: 'win', turn: STARTER, scores: TIESCORE, winner: STARTER, sub: 'الفائز بالجولة الفاصلة' },
+  };
+
+  // أزرار النافذة الواحدة (design/final.md 5): بجانب ما تتحكم فيه. والزوايا الثلاث كما في 1.3
+  const SINGLE = q.get('w') === '1';
+  const B = (label, kind = '') => `<button class="cbtn${kind ? ' ' + kind : ''}">${num(label)}</button>`;
+  function single(id, st) {
+    $('finRow').hidden = $('winRow').hidden = !SINGLE;
+    if (!SINGLE) return;
+    $('cornerA').innerHTML = `<div class="ctl">${B('تراجع', 'alt')}${B('الصوت', 'alt')}</div>`;
+    $('cornerB').innerHTML = `<div class="ctl">${B('المقدّم', 'alt')}${B('ملء الشاشة', 'alt')}</div>`;
+    $('cornerC').innerHTML = `<div class="ctl">${B('الرصيد', 'alt')}${B('مباراة جديدة', 'alt')}</div>`;
+    canvas.classList.add('has-a');
+    const judge = [B('صحيحة'), B('خاطئة', 'alt')];
+    const near = {
+      tbq: [B('ابدأ')], tbq2: [B('ابدأ')], tbagain: [B('ابدأ')],
+      tbrun: judge, tblast: judge,
+      tbright: [B('التالي · ' + NAMES[3 - STARTER])], tbwrong: [B('أعلن الفائز')],
+    }[id] ?? [];
+    $('near').innerHTML = near.join('');
+    $('finCtl').innerHTML = id === 'fin' ? B('أعلن الفائز') : id === 'fintie' ? B('الجولة الفاصلة') : '';
+    $('winCtl').innerHTML = B('مباراة جديدة');
+  }
+
+  function render(id) {
+    const st = STATES[id];
+    $('n1').textContent = NAMES[1]; $('n2').textContent = NAMES[2];
+    for (const k of [1, 2]) { $('s' + k).textContent = st.scores[k]; $('s' + k).classList.toggle('three', String(st.scores[k]).length >= 3); }
+    document.querySelectorAll('.card .scr').forEach(s => s.classList.toggle('show', s.dataset.s === st.screen));
+    $('bm').textContent = st.mode ?? 'انتهت المباراة';
+    $('b1').classList.toggle('off', !st.badge);
+    $('b1').querySelector('span').innerHTML = num(st.badge ?? '');
+    canvas.classList.toggle('turn-1', st.turn === 1); canvas.classList.toggle('turn-2', st.turn === 2);
+    for (const k of [1, 2]) $('p' + k).classList.toggle('on', st.screen === 'q' && st.turn === k);
+    canvas.classList.toggle('running', !!st.run);
+    canvas.classList.toggle('meta-danger', !!st.run && st.run <= 3);
+    if (st.run) $('c1').innerHTML = $('c2').innerHTML = `<span class="ltr">${st.run}</span>`;
+    $('box').hidden = true;
+    if (st.screen === 'fin') {
+      $('track').innerHTML = st.path.map((p, i) => p.wheel
+        ? `<div class="seg wheel" style="--i:${i}" data-fit="خانة الشريط"><span class="mname">الشريط</span><span class="gains"><b class="g1">${signed(p.g[0])}</b><b class="g2">${signed(p.g[1])}</b></span></div>`
+        : `<div class="seg" style="--i:${i}" data-fit="خانة الجولة"><span class="mname">${esc(p.mode)}</span><span class="gains"><b class="g1">${signed(p.g[0])}</b><b class="g2">${signed(p.g[1])}</b></span></div>`).join('');
+    }
+    if (st.screen === 'win') {
+      $('winSub').textContent = st.sub;
+      $('champ').className = 'champ t' + st.winner; $('champ').textContent = NAMES[st.winner];
+    }
+    if (st.screen === 'intro') $('starter').textContent = 'يبدأ: ' + NAMES[STARTER];
+    if (st.screen === 'q') { const t = TB[st.tb]; $('letter').textContent = t.l; $('question').textContent = t.p; }
+    if (st.box) box(st.box);
+    single(id, st);
+    placeBadges(); placeNear(); fitRings();
+  }
+
+  // مربع الإعلان (15.4): «التالي» نصاً بلا مربع بعد النتيجة النهائية، كنهاية الجولة · وحكم الجولة الفاصلة
+  const segs = s => String(s).split(' · ').map((t, i, a) => `<span class="nb">${num(t)}${i < a.length - 1 ? ' ·' : ''}</span>`).join(' ');
+  function box({ verdict, answer, next }) {
+    $('box').hidden = false;
+    $('verdict').hidden = !verdict;
+    // والحكم بلا مربع كحكم الشريط والمزاد (wheel.md 2.5): الشارة بيضاء بنص صاحبها، والسطر أبيض على الطرف. فالمربع الأبيض رفع الأبيض إلى 35.0 في «لم يُصب»
+    $('box').classList.add('bare');
+    if (verdict) {
+      $('verdict').className = `chip${verdict.team ? ' t' + verdict.team : ''}`;
+      $('vtext').innerHTML = `${esc(NAMES[verdict.team || verdict.name])} · ${esc(verdict.text)}`;
+    }
+    $('line').innerHTML = next ? segs(next) : `<b>الإجابة:</b> ${esc(TB[answer].a)}`;
+    const p2 = $('p2'), w = Math.min(659, 1794 - (p2.offsetLeft + p2.offsetWidth + 17 + 24 + 17));
+    $('box').style.left = (1794 - w) + 'px'; $('box').style.width = w + 'px';
+    $('box').classList.remove('wrap');
+    const r = document.createRange(); r.selectNodeContents($('line'));
+    $('box').classList.toggle('wrap', r.getBoundingClientRect().width / (canvas.getBoundingClientRect().width / 1920) > $('box').clientWidth - 96);
+  }
+  function placeBadges() {
+    const lean = Math.tan(14 * Math.PI / 180) * 64, k = canvas.getBoundingClientRect().width / 1920; let right = 104;
+    for (const el of [document.querySelector('.badge.mode'), $('b1')]) {
+      if (el.classList.contains('off')) continue;
+      el.style.right = right + 'px'; right += Math.ceil((el.getBoundingClientRect().width / k + 24 + lean) * 64) / 64;
+    }
+  }
+  function placeNear() {
+    const near = $('near'); if (!near.children.length) return;
+    const c = canvas.getBoundingClientRect().left, k = canvas.getBoundingClientRect().width / 1920;
+    near.style.left = Math.floor(Math.min(...[...document.querySelectorAll('.badge:not(.off)')].map(b => (b.getBoundingClientRect().left - c) / k)) - 32 - near.getBoundingClientRect().width / k) + 'px';
+  }
+  function fitRings() {
+    for (const team of [$('p1'), $('p2')]) {
+      const svg = team.querySelector('.ring'), w = team.offsetWidth, h = team.offsetHeight, o = Math.tan(14 * Math.PI / 180) * h / 2;
+      svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      svg.querySelector('polygon').setAttribute('points', `${o},0 ${w + o},0 ${w - o},${h} ${-o},${h}`);
+      const st = STATES[q.get('s')];
+      svg.querySelector('polygon').style.strokeDashoffset = st?.run ? 100 * (1 - st.run / 15) : 0;
+    }
+  }
+
+  // القصاصات (design/final.md 4.2): 140 شظية تسقط من أعلى الشاشة في نحو 4.5 ثوانٍ مرة واحدة، ثم تُزال
+  function confetti(winner) {
+    const layer = $('confetti'); layer.innerHTML = '';
+    let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const colors = ['#FFFFFF', 'rgba(255,255,255,.7)', `var(--tint-${winner})`];
+    for (let i = 0; i < 140; i++) {
+      const s = document.createElement('span');
+      s.style.setProperty('--x', Math.round(rnd() * 1920) + 'px');
+      s.style.setProperty('--d', (rnd() * 1.2).toFixed(2) + 's');
+      s.style.setProperty('--t', (2.6 + rnd() * 1.6).toFixed(2) + 's');
+      s.style.setProperty('--w', (10 + Math.round(rnd() * 8)) + 'px');
+      s.style.setProperty('--sway', Math.round((rnd() - .5) * 160) + 'px');
+      s.style.setProperty('--c', colors[i % 3]);
+      layer.append(s);
+    }
+    setTimeout(() => { layer.innerHTML = ''; }, 6000);
+  }
+
+  // ===== الصفحة =====
+  (function particles() {
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 22; i++) {
+      const s = document.createElement('span');
+      s.style.left = Math.round(rnd() * 1900) + 'px'; s.style.top = Math.round(500 + rnd() * 600) + 'px';
+      s.style.animationDuration = (14 + rnd() * 10).toFixed(1) + 's'; s.style.animationDelay = (-rnd() * 20).toFixed(1) + 's';
+      const k = 6 + Math.round(rnd() * 8); s.style.width = s.style.height = k + 'px';
+      $('particles').appendChild(s);
+    }
+  })();
+
+  const id = q.get('s');
+  if (!STATES[id]) {
+    const m = document.createElement('div'); m.className = 'menu';
+    m.innerHTML = '<h1>ش7 · النهاية · شاشة الجمهور</h1><table>' + Object.entries(STATES).map(([k, s]) =>
+      `<tr><td>${esc(s.t)}</td><td><a href="?s=${k}">نافذتان</a></td><td><a href="?s=${k}&w=1">نافذة واحدة</a></td><td><a href="?s=${k}&long=1">أطول محتوى</a></td><td><a href="?s=${k}&n=2">بنمطين</a></td><td><a href="?s=${k}&w=1&long=1&check=1">الأطول بنافذة واحدة مع الفحص</a></td><td><a href="?s=${k}&anim=1">الحركة</a></td></tr>`).join('') +
+      '</table><p>التفصيل في design/final.md. ونافذة المقدّم في <a href="presenter-final.html">presenter-final.html</a>.</p>';
+    document.body.append(m);
+  } else {
+    Promise.all(['700 32px Kufi', '900 96px Kufi'].map(f => document.fonts.load(f, 'النتيجة النهائية 0123456789+−'))).then(() => document.fonts.ready).then(() => {
+      render(id);
+      requestAnimationFrame(() => {
+        render(id);
+        const st = STATES[id];
+        if (q.has('anim')) {
+          canvas.classList.add('anim');
+          if (st.screen === 'win') {
+            // الذروة: الحدّ يكتسح إلى الفائز (760ms)، ثم الاسم والقصاصات ونبض رقمه معاً
+            $('edge').classList.add('sweep');
+            setTimeout(() => { confetti(st.winner); $('s' + st.winner).classList.add('lead'); }, 760);
+          }
+        }
+        window.__ready = true;
+        if (q.has('check')) {
+          const layer = document.createElement('div'); layer.className = 'check-layer'; canvas.append(layer);
+          const r = layoutCheck({ canvas, layer, grid: true, lines: [{ el: $('question'), max: 3 }] });
+          window.__check = r;
+          const out = document.createElement('div'); out.className = 'check-out';
+          out.textContent = (r.ok ? 'سليم' : 'مشكلات: ' + r.problems.join(' · ')) + ` · أدنى فراغ ${Math.round(r.minGap)}`;
+          document.body.append(out);
+        }
+      });
+    });
+  }
+</script>
+</body>
+</html>

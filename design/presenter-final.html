@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>التحدي الكبير · ش7 · النهاية · نافذة المقدّم</title>
+<link rel="icon" href="data:,">
+<!-- الصفحة المرجعية لنافذة المقدّم في النهاية (design/final.md 6). الأنماط الأساسية منسوخة من index.html المبني كما هي،
+     ويضاف إليها قسم النهاية وحده (آخر هذه الأنماط). الحالة من الرابط: ?s=fin · وبلا ?s قائمة الحالات. -->
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/base.css">
+<style>
+  /* نافذة المقدّم بالرموز نفسها. كل المقاسات بوحدة rem، و1rem = 32 على شاشة عرضها 1920،
+     فأصغر نص 32 على أساس 1920×1080 كما في design/system.md (القسم 9). والقياسات من design/letter.md (القسم 4) وdesign/shared.md (القسم 6). */
+  html { font-size: calc(100vw / 60); }
+  body { font-size: 1rem; line-height: 1.5; }
+  p, h1, h2, ol { margin: 0; }
+  button { min-height: 2rem; padding: 0 1.25rem; background: var(--ink); color: var(--card); white-space: nowrap; }
+  button.big { min-height: 2.5rem; padding: 0 2rem; }
+  button.alt { background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink); }
+  button.on-stage { background: var(--card); color: var(--ink); }
+  button.on-stage.alt { background: transparent; color: var(--card); box-shadow: inset 0 0 0 3px var(--card); }
+
+  main { max-width: 52rem; margin: 0 auto; padding: 0.75rem 0; display: grid; gap: 0.75rem; }
+
+  /* الرأس: اسم اللعبة، وشارة الجولة ومسار أسئلتها، والصوت والرصيد */
+  .top { display: flex; align-items: center; gap: 0.75rem; min-height: 2rem; }
+  .top h1 { font-size: 1.25rem; font-weight: 900; margin-inline-end: auto; white-space: nowrap; }
+
+  /* لوحة: بطاقة بيضاء مستقيمة بظل صلب */
+  .panel { background: var(--card); color: var(--ink); padding: 0.75rem 1.5rem; box-shadow: 0.375rem 0.375rem 0 var(--stage-3); display: grid; gap: 0.75rem; }
+  .panel h2 { font-size: 1.25rem; font-weight: 800; line-height: 1.2; }
+  .row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+  .grow { margin-inline-start: auto; }
+  .alert { color: var(--team-1); font-weight: 700; }
+  .mark { display: inline-block; width: 0.75rem; height: 0.75rem; transform: skewX(calc(-1 * var(--lean))); vertical-align: middle; }
+  .mark.t1 { background: var(--team-1); }
+  .mark.t2 { background: var(--team-2-ink); }
+  .tn.t1 { color: var(--team-1); }
+  .tn.t2 { color: var(--team-2-ink); }
+
+  /* الشاشة: الحالة، والتنبيه في سطرين حتى تتصل نافذة الجمهور */
+  .status { font-weight: 700; display: flex; align-items: center; gap: 0.375rem; }
+  .status::before { content: ""; width: 0.5rem; height: 0.5rem; background: var(--team-1); }
+  .status[data-on="true"]::before { background: #1F9D55; }
+  .notice { border-inline-start: 0.25rem solid var(--ink); padding-inline-start: 0.75rem; }
+  .notice p { white-space: nowrap; }
+
+  /* تعديل الرصيد: يُفتح من الرأس في أي وقت */
+  .scores { position: fixed; z-index: 7; top: 50%; left: 50%; translate: -50% -50%; width: 36rem; box-shadow: 0.375rem 0.375rem 0 var(--stage-3), 0 0 0 100vmax rgba(5,14,46,.6); }
+  .scores .line { display: grid; grid-template-columns: 1fr auto 3rem auto; gap: 0.75rem; align-items: center; }
+  .scores .tn { font-weight: 800; }
+  .scores .line button { font-size: 1.5rem; }
+  .scores .val { font-size: 1.5rem; font-weight: 900; text-align: center; direction: ltr; }
+
+  /* الجولة (design/letter.md، القسم 4): الرأس بشارة الجولة ومسار أسئلتها، والسؤال والإجابة، والدور والحكم */
+  .chip { position: relative; min-height: 2rem; padding: 0 1rem; display: flex; align-items: center; font-weight: 700; white-space: nowrap; color: var(--ink); }
+  .chip i { position: absolute; inset: 0; background: var(--card); transform: skewX(calc(-1 * var(--lean))); }
+  .chip span { position: relative; }
+  .pips { display: flex; gap: 0.375rem; margin-inline-end: auto; align-items: center; }
+  .pip { width: 1.25rem; height: 1.25rem; transform: skewX(calc(-1 * var(--lean))); box-shadow: inset 0 0 0 3px var(--c); }
+  .pip.t1 { --c: var(--team-1); }
+  .pip.t2 { --c: var(--team-2); }
+  .pip.now { height: 2rem; }
+  .pip.won1 { background: var(--team-1); box-shadow: none; }
+  .pip.won2 { background: var(--team-2); box-shadow: none; }
+  .pip.none { background: var(--stage-3); box-shadow: none; }
+  .lost { display: flex; gap: 0.75rem; margin-inline-end: auto; }
+  .lost .warn { background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); display: flex; align-items: center; gap: 0.375rem; }
+  .lost .warn::before { content: ""; width: 0.5rem; height: 0.5rem; background: var(--team-1); }
+  .top.playing h1 { margin-inline-end: 0; }
+  .q { grid-template-columns: auto 1fr; align-items: center; gap: 0.5rem 1.25rem; }
+  .q .letter { min-width: 3.5rem; height: 3.5rem; padding: 0 0.5rem; white-space: nowrap; background: var(--ink); color: var(--hl); display: flex; align-items: center; justify-content: center;
+    font-size: 2.25rem; font-weight: 800; line-height: 1; }
+  .q .prompt { font-size: 1rem; font-weight: 700; line-height: 1.4; }
+  .q .meta { font-weight: 700; }
+  .answer { grid-column: 1 / -1; border-inline-start: 0.5rem solid var(--ink); padding-inline-start: 1rem; }
+  .answer .label { font-weight: 700; }
+  .answer .word { font-size: 2rem; font-weight: 900; line-height: 1.2; }
+  .who { font-size: 1.25rem; font-weight: 800; line-height: 1.3; display: flex; align-items: center; gap: 0.5rem; padding-inline-start: 0.25rem; }
+  .state { font-weight: 700; }
+  .judge { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0.75rem; }
+  .judge button { min-height: 3rem; font-size: 1.25rem; }
+  .judge .no { background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
+  .done { font-size: 1.25rem; font-weight: 800; }
+  button.held { opacity: .45; cursor: default; pointer-events: none; }
+  .sum { display: grid; grid-template-columns: 1fr auto auto; gap: 0.25rem 1.5rem; align-items: center; padding-inline-start: 0.25rem; }
+  .sum .tn { font-weight: 800; }
+  .sum .pts { font-size: 1.5rem; font-weight: 900; direction: ltr; text-align: end; }
+
+  /*  (design/system.md 9.1): ثلاثة صفوف تملأ الارتفاع: الرأس · السؤال والإجابة (يأخذ ما بقي، ومحتواه في وسطه) ·
+     الدور والحكم في الأسفل دائماً، بأزرار 5rem في الموضع نفسه لكل سؤال. و12 عموداً بفاصل 0.75rem لصف ما بعد الحكم */
+  #app { min-height: 100vh; box-sizing: border-box; grid-template-rows: auto 1fr auto; align-content: stretch; }
+  #app > .panel.q { align-content: center; }
+  #app .q .prompt { font-size: 1.25rem; }
+  #app .answer .word { font-size: 2.5rem; }
+  #app .judge button, #app #after .big { min-height: 5rem; font-size: 1.5rem; }
+  #app #after { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0.75rem; }
+  #app #after .done { grid-column: span 6; }
+  #app #after .big { grid-column: span 6; margin: 0; }
+  #app .q .letter { min-width: 5rem; height: 5rem; font-size: 3.25rem; }
+
+
+  /* ===== النهاية (design/final.md 6): مسار المباراة بما كسبه كل فريق، والفائز، والجولة الفاصلة ===== */
+  .fin { grid-template-columns: 1fr; align-content: center; gap: 0.5rem; }
+  .fin h2 { font-size: 1.25rem; }
+  /* المسار: صف لكل جولة وشريط بترتيبه، ثم المجموع. الأول عمود والثاني عمود، بلونيهما */
+  .path { display: grid; grid-template-columns: 1fr auto auto; gap: 0 1.5rem; align-items: center; }
+  .path .v { white-space: nowrap; }
+  .path p { font-weight: 700; line-height: 1.3; }
+  .path .h { font-weight: 800; }
+  .path .v { font-size: 1.25rem; font-weight: 900; direction: ltr; text-align: end; }
+  .path .tot { border-top: 3px solid var(--ink); padding-top: 0.25rem; }
+  .path .tot.v { font-size: 1.75rem; }
+  .path .wheel { font-weight: 700; }
+  .fin .label { font-weight: 700; }
+  .champ { font-size: 2.5rem; font-weight: 900; line-height: 1.3; }
+  .fin .rule { font-weight: 700; border-inline-start: 0.5rem solid var(--ink); padding-inline-start: 1rem; }
+  .rules { display: grid; gap: 0.25rem; margin: 0; padding-inline-start: 1.5rem; font-weight: 700; }
+  /* الوقت في الرأس طوال السؤال، فلا يقرأ المقدّم من التلفاز */
+  .clock { display: flex; align-items: baseline; gap: 0.375rem; font-weight: 800; white-space: nowrap; }
+  .clock b { font-size: 1.5rem; font-weight: 900; line-height: 1; direction: ltr; }
+  #app .ctlrow { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0.75rem; }
+  #app .ctlrow button { min-height: 5rem; font-size: 1.5rem; margin: 0; grid-column: span 6; }
+  #app .ctlrow .full { grid-column: span 12; }
+  #app .ctlrow .no { background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
+  .menu { padding: 1rem; line-height: 1.8; }
+  .menu a { color: var(--hl); }
+</style>
+</head>
+<body>
+<main id="app">
+  <header class="top playing">
+    <h1>التحدي الكبير</h1>
+    <span class="chip"><i></i><span id="chip"></span></span>
+    <span class="pips" id="pips"></span>
+    <p class="clock" id="clock"><span>الوقت</span><b id="cv"></b></p>
+    <button class="on-stage alt">الصوت</button>
+    <button class="on-stage alt">الرصيد</button>
+  </header>
+  <section class="panel" id="mid"></section>
+  <section class="panel" id="low">
+    <div class="row"><p class="who" id="who"></p><p class="state grow" id="state"></p><button class="alt">تراجع عن آخر حكم</button><button class="alt">مباراة جديدة</button></div>
+    <div class="ctlrow" id="ctl"></div>
+  </section>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  const q = new URLSearchParams(location.search);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const num = s => esc(s).replace(/([+−-]?\d+(?:[:–]\d+)?)/g, '<span class="ltr">$1</span>');
+  const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
+  const LONG = q.has('long');
+  const NAMES = LONG ? { 1: 'فريق النخبة الذهبي', 2: 'نجوم المستقبل معاً' } : { 1: 'الصقور', 2: 'النجوم' };
+  const tn = t => `<span class="mark t${t}"></span> <b class="tn t${t}">${esc(NAMES[t])}</b>`;
+  // المسار وما كسبه كل فريق كما في design/final.html (أمثلة للتصميم)
+  const PATH = [
+    { n: 1, mode: 'الحرف المعيّن', g: LONG ? [12, 10] : [8, 6] }, { n: 2, mode: 'آخر حرفين', g: LONG ? [10, 12] : [6, 10] },
+    { wheel: 1, g: LONG ? [5, -6] : [5, 3] }, { n: 3, mode: 'المزاد', g: LONG ? [40, 36] : [7, 2] },
+    { wheel: 2, g: LONG ? [-6, 5] : [-3, 8] }, { n: 4, mode: 'الترتيب', g: LONG ? [110, 98] : [19, 12] },
+  ];
+  const TOT = { 1: PATH.reduce((s, p) => s + p.g[0], 0), 2: PATH.reduce((s, p) => s + p.g[1], 0) };
+  const TIE = PATH.map((p, i) => i === PATH.length - 1 ? { ...p, g: [p.g[0], p.g[1] + TOT[1] - TOT[2]] } : p);
+  // أسئلة الجولة الفاصلة (tiebreak: true)، وأطولها 83 حرفاً
+  const TB = [{ l: 'ف', p: LONG ? 'أصغر دولة في العالم مساحةً، وتقع كلها داخل مدينة روما، ويسكنها أقل من ألف شخص اليوم' : 'أصغر دولة في العالم مساحةً، وتقع داخل مدينة روما', a: 'الفاتيكان', alts: ['دولة الفاتيكان', 'مدينة الفاتيكان'] },
+    { l: 'ب', p: LONG ? 'أكبر جزيرة كويتية مساحةً، وتقع في الشمال قرب الحدود، ولا يسكنها أحد حتى اليوم أبداً' : 'أكبر جزيرة كويتية مساحةً', a: 'بوبيان', alts: ['جزيرة بوبيان'] }];
+  const STARTER = 2, OTHER = 1;
+  const B = (label, cls = '') => `<button class="${cls}">${num(label)}</button>`;
+  const judge = [B('صحيحة'), B('خاطئة', 'no')];
+
+  function pathHtml(path, tot) {
+    return '<div class="path"><p class="h">مسار المباراة</p><p class="v">' + tn(1) + '</p><p class="v">' + tn(2) + '</p>' +
+      path.map(p => `<p class="${p.wheel ? 'wheel' : ''}">${num(p.wheel ? `شريط البونص ${p.wheel}` : `الجولة ${p.n} · ${p.mode}`)}</p><p class="v tn t1">${num(signed(p.g[0]))}</p><p class="v tn t2">${num(signed(p.g[1]))}</p>`).join('') +
+      `<p class="tot h">المجموع</p><p class="tot v tn t1">${num(tot[1])}</p><p class="tot v tn t2">${num(tot[2])}</p></div>`;
+  }
+  const qHtml = t => `<div class="letter">${esc(TB[t].l)}</div><div><p class="prompt">${esc(TB[t].p)}</p></div>` +
+    `<div class="answer"><p class="label">الإجابة النموذجية</p><p class="word">${esc(TB[t].a)}</p><p>ويُقبل أيضاً: ${esc(TB[t].alts.join('، '))}</p></div>`;
+  const TIES = { 1: TOT[1], 2: TOT[1] };
+
+  // chip: شارة الرأس · pips: المحاولة الجارية (لكل فريق خانة بلونه، وتمتلئ إن أصاب) · mid: اللوحة الوسطى · who/state/done/ctl: لوحة الدور
+  const STATES = {
+    fin:     { t: 'النتيجة النهائية (فاز الأول)', chip: 'النتيجة النهائية', mid: () => pathHtml(PATH, TOT), done: `الفائز: ${NAMES[1]}`, ctl: [B('أعلن الفائز', 'full')] },
+    fintie:  { t: 'النتيجة النهائية: تعادل', chip: 'النتيجة النهائية', mid: () => pathHtml(TIE, TIES), done: 'تعادل', ctl: [B('الجولة الفاصلة', 'full')] },
+    win:     { t: 'إعلان الفائز', chip: 'انتهت المباراة', mid: () => `<p class="label">الفائز بالمباراة</p><p class="champ tn t1">${esc(NAMES[1])}</p>`, done: `${NAMES[1]} ${TOT[1]} · ${NAMES[2]} ${TOT[2]}`, ctl: [B('مباراة جديدة', 'full')] },
+    tie:     { t: 'مقدمة الجولة الفاصلة', chip: 'الجولة الفاصلة', pips: [], who: STARTER, state: 'خسر القرعة يبدأ',
+               mid: () => '<h2>الجولة الفاصلة</h2><ol class="rules"><li>سؤال صعب من «الحرف المعيّن» لكل فريق بالتناوب، <span class="ltr">15</span> ثانية</li><li>لا تنتقل الإجابة إلى الخصم</li><li>من أصاب وأخطأ خصمه في المحاولة نفسها فاز</li><li>وإن أصابا معاً أو أخطآ معاً: سؤالان جديدان</li></ol>',
+               ctl: [B('السؤال الأول · دور ' + NAMES[STARTER], 'full')] },
+    tbq:     { t: 'سؤال الثاني: قبل «ابدأ»', chip: 'الجولة الفاصلة · المحاولة 1', pips: [[STARTER, 'now']], who: STARTER, state: 'لم يبدأ الوقت', q: 0, ctl: [B('ابدأ · 15', 'full')] },
+    tbrun:   { t: 'سؤال الثاني: الوقت يجري', chip: 'الجولة الفاصلة · المحاولة 1', pips: [[STARTER, 'now']], who: STARTER, clock: '9', state: 'يجيب الفريق', q: 0, ctl: judge },
+    tbright: { t: 'بعد الحكم: أصاب الثاني', chip: 'الجولة الفاصلة · المحاولة 1', pips: [[STARTER, 'won' + STARTER]], q: 0, done: `${NAMES[STARTER]} · أصاب`, ctl: [B('التالي · دور ' + NAMES[OTHER], 'full')] },
+    tbq2:    { t: 'سؤال الأول: الوقت يجري', chip: 'الجولة الفاصلة · المحاولة 1', pips: [[STARTER, 'won' + STARTER], [OTHER, 'now']], who: OTHER, clock: '12', state: 'يجيب الفريق', q: 1, ctl: judge },
+    tbwrong: { t: 'لم يُصب الأول: حُسمت', chip: 'الجولة الفاصلة · المحاولة 1', pips: [[STARTER, 'won' + STARTER], [OTHER, 'none']], q: 1, done: `${NAMES[OTHER]} · لم يُصب · فاز ${NAMES[STARTER]}`, ctl: [B('أعلن الفائز', 'full')] },
+    tbsame:  { t: 'أصابا معاً: لم تُحسم', chip: 'الجولة الفاصلة · المحاولة 1', pips: [[STARTER, 'won' + STARTER], [OTHER, 'won' + OTHER]], q: 1, done: `${NAMES[OTHER]} · أصاب · أصابا معاً`, ctl: [B('سؤالان جديدان · المحاولة 2', 'full')] },
+  };
+  const id = q.get('s'), st = STATES[id];
+  if (!st) {
+    document.body.innerHTML = '<div class="menu"><h1>ش7 · النهاية · نافذة المقدّم</h1>' + Object.entries(STATES).map(([k, s]) =>
+      `<p>${esc(s.t)}: <a href="?s=${k}">مثال</a> · <a href="?s=${k}&long=1">أطول محتوى</a></p>`).join('') + '</div>';
+  } else {
+    $('chip').innerHTML = num(st.chip);
+    $('clock').hidden = !st.clock; $('cv').textContent = st.clock ?? '';
+    $('pips').innerHTML = (st.pips ?? []).map(([t, c]) => `<span class="pip t${t} ${c}"></span>`).join('');
+    const mid = $('mid');
+    if (st.q !== undefined) { mid.className = 'panel q'; mid.innerHTML = qHtml(st.q); }
+    else { mid.className = 'panel fin'; mid.innerHTML = st.mid(); }
+    $('who').innerHTML = st.done ? `<span class="done">${num(st.done)}</span>` : `دور ${tn(st.who)}`;
+    $('state').innerHTML = st.done ? '' : num(st.state);
+    $('ctl').innerHTML = st.ctl.join('');
+    document.fonts.ready.then(() => { window.__ready = true; });
+  }
+</script>
+</body>
+</html>
