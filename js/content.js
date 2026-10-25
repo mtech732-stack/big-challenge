@@ -2,6 +2,7 @@
 // ما وصل مرة بإنترنت يحفظه عامل الحفظ (sw.js)، فيُقرأ بلا إنترنت.
 // تُطلب ملفات الأنماط المبنية وحدها، فلا يُطلب ملف نمط لم تُبنَ شريحته بعد (الملاحظة 31).
 import { MODES, DRAFTS } from './modes/index.js';
+import { LAYOUT } from './wheel.js';
 
 const BUILT = [...MODES, ...DRAFTS].map(m => m.id);
 
@@ -29,4 +30,14 @@ export async function loadPacks() {
     return { id, name: meta.name, description: meta.description ?? '', excludeModes: meta.excludeModes ?? [], files };
   }));
   return packs.filter(Boolean);
+}
+
+// تحديات العجلة وخانات الحظ (content/wheel.json، لكل الحزم). لا تُلعب العجلة إلا بسبعة تحديات وخانات الحظ الثلاث،
+// وإلا بقيت تُتخطى كما كانت.
+export async function loadWheel() {
+  const wheel = await getJson('content/wheel.json');
+  const need = LAYOUT.filter(k => k === 'c').length;
+  const ok = Array.isArray(wheel?.challenges) && wheel.challenges.filter(c => c?.text).length >= need
+    && LAYOUT.filter(k => k !== 'c').every(k => (wheel.luck ?? []).some(l => l?.effect === k && l.label));
+  return ok ? wheel : null;
 }

@@ -185,6 +185,29 @@
   #app .ctlrow .next { grid-column: span 8; }
   #app .ctlrow .next + .alt { grid-column: span 4; }
   #app .ctlrow .no { background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
+
+  /* ===== عجلة البونص (design/wheel.md 5، من design/presenter-wheel.html): الخانات العشر بنصوصها الكاملة، ثم الخانة التي وقفت عليها ===== */
+  .whl { grid-template-columns: 1fr; align-content: center; gap: 0.5rem; }
+  .whl h2 { font-size: 1.25rem; }
+  /* الخانات كما على التلفاز، من اليمين: عموداً 1–5 ثم 6–10. كل خانة صف: نوعها ونقاطها، ثم نصها الكامل */
+  .slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(5, auto); grid-auto-flow: column; gap: 0.375rem 0.75rem; }
+  .slots p { min-height: 2.5rem; padding: 0.125rem 0.5rem; display: flex; align-items: center; gap: 0.5rem; box-shadow: inset 0 0 0 3px var(--ink); font-weight: 700; line-height: 1.2; }
+  .slots p.luck { box-shadow: none; border: 3px dashed var(--ink); }
+  .slots p b { flex: none; min-width: 5.5rem; font-weight: 900; }
+  /* النص سطر واحد يُختصر بـ «…» إن طال، فتتسع الخانات العشر بأطول التحديات (85 حرفاً) دون تمرير. ونصه كاملاً بعد الوقوف */
+  .slots p span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .slots p.t1, .slots p.t2 { color: var(--card); box-shadow: none; border: 0; }
+  .slots p.t1 { background: var(--team-1); }
+  .slots p.t2 { background: var(--team-2-ink); }
+  /* بعد الوقوف: الخانة في مربعها بلون من أدارها، والنص بمقاس السؤال في نافذة المقدّم */
+  .whl.got { grid-template-columns: auto 1fr; align-items: center; gap: 0.5rem 1.25rem; }
+  .whl .slotbox { width: 5rem; height: 5rem; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--card); line-height: 1; }
+  .whl .slotbox.t1 { background: var(--team-1); }
+  .whl .slotbox.t2 { background: var(--team-2-ink); }
+  .whl .slotbox > span { font-size: 1rem; font-weight: 800; }
+  .whl .slotbox > b { font-size: 1.75rem; font-weight: 900; direction: ltr; }
+  .whl .text { font-size: 1.25rem; font-weight: 700; line-height: 1.4; }
+  .whl .rule { grid-column: 1 / -1; font-weight: 700; border-inline-start: 0.5rem solid var(--ink); padding-inline-start: 1rem; }
 </style>
 </head>
 <body>
@@ -299,6 +322,18 @@
     <div class="ctlrow" id="rCtl"></div>
   </section>
 
+  <!-- عجلة البونص (design/wheel.md 5): الخانات العشر، أو الخانة التي وقفت عليها، ثم الدور وأزرار العجلة -->
+  <section class="panel whl" data-step="play" data-part="whl" id="wMid" hidden></section>
+  <section class="panel" data-step="play" data-part="whl" hidden>
+    <div class="row">
+      <p class="who" id="wWho"></p>
+      <p class="state grow" id="wState"></p>
+      <button class="alt" id="wUndo">تراجع عن آخر حكم</button>
+      <button class="alt" data-new>مباراة جديدة</button>
+    </div>
+    <div class="ctlrow" id="wCtl"></div>
+  </section>
+
   <!-- نهاية الجولة -->
   <section class="panel" data-step="play" data-part="end" hidden>
     <h2 id="endHead"></h2>
@@ -342,7 +377,8 @@
   import './js/offline.js';
   import { createLink } from './js/sync.js';
   import { fetchPinRecord, checkPin, watchPin } from './js/pin.js';
-  import { loadPacks } from './js/content.js';
+  import { loadPacks, loadWheel } from './js/content.js';
+  import WHEEL, { spinMs } from './js/wheel.js';
   import { matchModes, pickableModes, MODES as BUILT, DRAFTS } from './js/modes/index.js';
   import * as M from './js/match.js';
   import * as P from './js/play.js';
@@ -365,7 +401,7 @@
     get: k => { try { return sessionStorage.getItem(k); } catch { return null; } },
     set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} },
   };
-  let link = null, watcher = null, packs = [], match = null, drawing = 0, pin = '', faceError = '';
+  let link = null, watcher = null, packs = [], wheel = null, match = null, drawing = 0, pin = '', faceError = '';
   let muted = false;
   try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch {}
   // presenter: هذه النافذة تملك المباراة · stage: سلّمتها لنافذة المقدّم، وبقيت شاشة جمهور.
@@ -411,7 +447,7 @@
     pin = value;
     session.set(PIN_KEY, value);
     $('pin').value = '';
-    if (!packs.length) packs = await loadPacks();
+    if (!packs.length) [packs, wheel] = await Promise.all([loadPacks(), loadWheel()]);
     const saved = restore();
     match = fitMethod(fitSaved(saved));
     const reset = match.step !== saved.step;
@@ -456,6 +492,9 @@
   const PREVIEW = query.has('preview');
   // والنمط الذي تُبنى مراحله الآن (DRAFTS) يُلعب في رابط المعاينة وحده حتى تكتمل شريحته.
   const MODES = PREVIEW ? [...BUILT, ...DRAFTS] : BUILT;
+  // عجلة البونص (ش6) تُبنى مراحلها الآن: تُلعب في رابط المعاينة وحده حتى تكتمل شريحتها، وفي الرابط العادي تُتخطى كما كانت.
+  // وتُلعب إن وصلت تحدياتها وخاناتها (content/wheel.json). units: ما يديره مشغّل الجولة في المباراة: الأنماط، ومعها العجلة.
+  const units = () => (PREVIEW && wheel ? [...MODES, WHEEL] : MODES);
   const modesOf = p => (!p ? [] : PREVIEW ? matchModes({ modes: MODES, pack: p, files: p.files }) : pickableModes({ modes: MODES, pack: p, files: p.files }));
   const modes = () => modesOf(pack());
   const modeName = id => (pack() ? matchModes({ modes: MODES, pack: pack(), files: pack().files }) : []).find(m => m.id === id)?.name ?? id;
@@ -483,13 +522,13 @@
     const { history, round, ...pub } = match;
     return { match: pub, modes: modes().map(({ id, name }) => ({ id, name })), play: playView(), muted, moments };
   };
-  const roundMode = () => match.round && P.modeOf(MODES, match.round.mode);
+  const roundMode = () => match.round && P.modeOf(units(), match.round.mode);
   function playView() {
     const mode = match.step === 'play' && roundMode();
     if (!mode) return null;
     const a = mode.audience(match.round.state);
     return {
-      n: match.round.n, total: M.rounds(match), modeName: modeName(mode.id), a, scores: match.round.scores,
+      n: match.round.n, total: M.rounds(match), modeName: mode.id === WHEEL.id ? mode.name : modeName(mode.id), a, scores: match.round.scores, wheel: mode.id === WHEEL.id,
       // العدّاد الجاري ووقت بدئه بساعة الجهاز، فتعدّه نافذة الجمهور صحيحاً ولو أُعيد تحميلها.
       timer: match.round.timer ? { ...match.round.timer, at: match.timerAt } : null,
       next: P.nextText(match, modeName),
@@ -532,7 +571,7 @@
     holdTimer = setTimeout(render, HOLD_MS + 20);
   }
   // ونقر خانات المقارنة في الترتيب حرّ كعناصر المزاد: يصحّح المقدّم خانات كثيرة متتالية، والحالة باقية (تقرير المعاين ش5، الملاحظة 35).
-  const roundAct = (action, free = /^mark:/.test(action)) => { if (free || !held()) roundUpdate(P.act(match, MODES, action), free); };
+  const roundAct = (action, free = /^mark:/.test(action)) => { if (free || !held()) roundUpdate(P.act(match, units(), action), free); };
 
   // وقت القائمة في الترتيب: يُعرض في الرأس كل ربع ثانية، وحين ينقضي ترسل هذه النافذة «انتهى وقت القائمة» (الوحدة تتحقق من وقته).
   const clockText = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -548,26 +587,34 @@
     if (a.listEnds && Date.now() >= a.listEnds && timeupFor !== a.listEnds && $('gate').hidden) { timeupFor = a.listEnds; roundUpdate(P.act(match, MODES, 'timeup')); }
   }
   setInterval(listClock, 250);
+  // دوران العجلة: حين تنتهي حركته على شاشة الجمهور (ووقفة 1.2 ثانية بعدها) ترسل النافذة التي تحكم «land»، فتظهر الخانة.
+  // والوقت من ساعة الجهاز (at)، والوحدة لا تقبله قبل وقته.
+  let landFor = 0;
+  function wheelClock() {
+    const st = role === 'presenter' && $('gate').hidden && match?.step === 'play' && match.round?.mode === WHEEL.id ? match.round.state : null;
+    if (st?.phase === 'spin' && landFor !== st.at && Date.now() >= st.at + spinMs(st.landed)) { landFor = st.at; roundUpdate(P.act(match, units(), 'land')); }
+  }
+  setInterval(wheelClock, 100);
 
   // ذاكرة الأسئلة: ما ظهر لا يتكرر حتى يُستنفد البنك.
   const seen = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY)) ?? []; } catch { return []; } };
   function startNext() {
     if (held()) return;
-    const next = P.startNext(match, { modes: MODES, content: pack().files, seen: seen() });
+    const next = P.startNext(match, { modes: units(), content: { ...pack().files, [WHEEL.contentKey]: wheel }, seen: seen() });
     if (next === match) return;
-    const mode = P.modeOf(MODES, next.round.mode);
+    const mode = P.modeOf(units(), next.round.mode);
     try { localStorage.setItem(SEEN_KEY, JSON.stringify([...new Set([...seen(), ...mode.used(next.round.state)])])); } catch {}
     roundUpdate(next);
   }
   // نقرتان على «تخطَّ…» لا تتخطيان عنصرين.
-  const skipNext = () => { if (held()) return; const next = P.skipNext(match, MODES); if (next !== match) hold(); update(next); };
+  const skipNext = () => { if (held()) return; const next = P.skipNext(match, units()); if (next !== match) hold(); update(next); };
   // ما لم يُبنَ بعد يُتخطى في التجربة، ويُذكر موعده (القسم 11 من الوثيقة). text: نص الزر بلا ترميز.
   const LATER = { 'last-two': 3, auction: 4, ranking: 5 };
   function nextButton() {
-    const kind = P.nextKind(match, MODES), item = P.upcoming(match);
+    const kind = P.nextKind(match, units()), item = P.upcoming(match);
     const make = (text, rest) => ({ text, label: num(text), ...rest });
     if (kind === 'final') return make('إلى النتيجة النهائية', { off: true, hint: 'النتيجة النهائية وإعلان الفائز تُبنى في الشريحة <span class="ltr">7</span>.' });
-    if (kind === 'start') return make(`ابدأ الجولة ${item.n}`, { act: 'startNext' });
+    if (kind === 'start') return make(item.kind === 'wheel' ? 'عجلة البونص' : `ابدأ الجولة ${item.n}`, { act: 'startNext' });
     if (item.kind === 'wheel') return make('تخطَّ عجلة البونص', { act: 'skipNext', hint: 'عجلة البونص تُبنى في الشريحة <span class="ltr">6</span>، فتُتخطى الآن في التجربة.' });
     return make(`تخطَّ الجولة ${item.n}`, { act: 'skipNext',
       hint: `«${esc(modeName(item.mode))}» يُبنى في الشريحة <span class="ltr">${LATER[item.mode] ?? ''}</span>، فتُتخطى جولته الآن في التجربة.` });
@@ -702,10 +749,11 @@
     if (!mode) return;
     const st = match.round.state, pr = mode.presenter(st), acts = mode.actions(st);
     const label = id => acts.find(a => a.id === id)?.label;
-    const part = pr.screen === 'intro' ? 'intro' : pr.screen === 'end' ? 'end' : pr.screen === 'topic' ? 'auc' : pr.screen === 'list' ? 'rnk' : 'q';
+    const part = pr.screen === 'intro' ? 'intro' : pr.screen === 'end' ? 'end' : pr.screen === 'topic' ? 'auc' : pr.screen === 'list' ? 'rnk'
+      : pr.screen === 'wheel' || pr.screen === 'slot' ? 'whl' : 'q';
     document.querySelectorAll(`[data-part="${part}"]`).forEach(s => s.hidden = false);
-    const n = match.round.n, title = `الجولة ${n} · ${mode.name}`;
-    $('roundChip').querySelector('span').innerHTML = num(part === 'auc' ? `${mode.name} · الموضوع ${pr.n} من ${pr.count}`
+    const n = match.round.n, isWheel = mode.id === WHEEL.id, title = isWheel ? mode.name : `الجولة ${n} · ${mode.name}`;
+    $('roundChip').querySelector('span').innerHTML = num(isWheel ? `${mode.name} · الدورة ${pr.n} من ${pr.count}` : part === 'auc' ? `${mode.name} · الموضوع ${pr.n} من ${pr.count}`
       : part === 'rnk' ? `${mode.name} · القائمة ${pr.n} من ${pr.count}` : `الجولة ${n} من ${M.rounds(match)} · ${mode.name}`);
     listClock();
     $('pips').innerHTML = pr.track.map(x => `<i class="pip t${x.owner}${x.result === null ? '' : x.result ? ' won' + x.result : ' none'}${x.now ? ' now' : ''}"></i>`).join('');
@@ -746,6 +794,7 @@
     }
     if (part === 'auc') renderAuction(pr, acts);
     if (part === 'rnk') renderRanking(pr, acts);
+    if (part === 'whl') renderWheel(pr, acts);
     if (part === 'end') {
       $('endHead').innerHTML = num(`انتهت ${title}`);
       $('sum').innerHTML = [1, 2].map(k => `<span>${mk(k)} ${tn(k)}</span><span class="pts">${pr.totals[k] < 0 ? '−' + -pr.totals[k] : '+' + pr.totals[k]}</span><span>${num('الرصيد ' + match.round.scores[k])}</span>`).join('');
@@ -892,6 +941,27 @@
     roundAct(($('rRef').classList.contains('mark') ? 'mark:' : 'item:') + el.dataset.r);
   });
 
+  // ===== عجلة البونص في نافذة المقدّم (design/wheel.md 5) =====
+  // قبل الوقوف: الخانات العشر بأعمدة التلفاز (1–5 ثم 6–10)، كل خانة نوعها ونقاطها ثم نصها الكامل. وبعد الوقوف: الخانة في مربعها ونصها كاملاً،
+  // وسطر القاعدة للمقدّم وحده (وسوم القواعد لا تُكتب على الجمهور، 7.3).
+  const RULE = { challenge: 'دقيقتان حداً أقصى · النجاح +5، ولا خصم عند الإخفاق', luck: 'خانة حظ: تُطبَّق فور الوقوف، والرصيد لا ينزل تحت 0' };
+  function renderWheel(pr, acts) {
+    const mid = $('wMid');
+    mid.classList.toggle('got', pr.screen === 'slot');
+    mid.innerHTML = pr.screen === 'slot'
+      ? `<div class="slotbox t${pr.by}"><span>${esc(pr.slot.word)}</span><b>${num(pr.slot.n)}</b></div><p class="text">${esc(pr.text)}</p><p class="rule">${num(RULE[pr.slot.kind])}</p>`
+      : '<h2>الخانات العشر</h2><div class="slots">' + pr.items.map(x => `<p class="${x.kind === 'luck' ? 'luck' : ''}"><b>${num(`${x.word} ${x.n}`)}</b><span>${esc(x.text)}</span></p>`).join('') + '</div>';
+    $('wWho').innerHTML = `${mk(pr.by)} دور ${tn(pr.by)}`;
+    // من يبدأ ولماذا: سطر للمقدّم وحده، يقوله إن سُئل (design/wheel.md 1).
+    $('wState').innerHTML = pr.phase === 'spin' ? 'تدور العجلة' : pr.phase === 'ready' && pr.n === 1 ? (pr.why === 'draw' ? 'خسر القرعة يبدأ' : 'الأقل نقاطاً يبدأ') : '';
+    const ctl = id => acts.find(a => a.id === id);
+    // «أدِر العجلة» بعرض اللوحة، ومعطّل أثناء الدوران. وبعد الوقوف «إنهاء العجلة» (التحدي والحكم وخانات الحظ في المراحل التالية).
+    $('wCtl').innerHTML = pr.phase === 'spin' ? '<button class="full" disabled>أدِر العجلة</button>'
+      : ['spin', 'finish'].filter(ctl).map(id => `<button class="full" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
+    $('wUndo').disabled = !match.round.history.length;
+  }
+  $('wCtl').addEventListener('click', e => { const el = e.target.closest('button[data-act]'); if (el && !el.disabled) roundAct(el.dataset.act); });
+
   // ===== الشاشة المشتركة: شاشة الجمهور في هذه النافذة، وأزرارها (design/shared.md 3 و4) =====
   function renderStage(error) {
     const on = role === 'stage' || handing || shared();
@@ -955,7 +1025,7 @@
       const st = match.round.state, acts = mode.actions(st), screen = mode.audience(st).screen;
       const act = (id, label, kind) => acts.some(a => a.id === id) ? [{ cmd: 'act:' + id, label: label ?? acts.find(a => a.id === id).label, kind, off: wait }] : [];
       if (screen === 'intro') c.card = act('show');
-      const last = st.index === (st.questions ?? st.topics ?? st.lists).length - 1;
+      const list = st.questions ?? st.topics ?? st.lists, last = !!list && st.index === list.length - 1;
       // الترتيب بنافذة واحدة (جواب المالك، design/ranking.md 4): لا حكم في أثناء القائمة لأن المقدّم لا يراها. «ابدأ» ثم «التالي»
       // و«أنهِ القائمة»، ثم المقارنة بالتسجيل: الخانات تُنقر لمن قالها أولاً، و«اعتمد النقاط». ثم «إنهاء الجولة».
       if (screen === 'list') {
@@ -977,6 +1047,8 @@
       if (screen === 'topic' && st.phase === 'decided') c.card = act('next');
       if (screen === 'topic' && !b) c.near = st.phase === 'ready' ? [...act('start', 'ابدأ'), ...act('count')] : [...act('count'), ...act('stop', 'توقّف', 'no')];
       if (screen === 'ask') c.near = [...act('start', 'ابدأ'), ...act('correct'), ...act('wrong', null, 'no'), ...act('next', last ? 'إنهاء الجولة' : 'السؤال التالي')];
+      // العجلة (design/wheel.md 4): «أدِر العجلة» قبل الدوران، ولا شيء أثناءه. وبعد الوقوف «إنهاء العجلة» في هذه المرحلة.
+      if (screen === 'wheel' || screen === 'slot') c.near = [...act('spin'), ...act('finish')];
       if (screen === 'end') { const nb = nextButton(); c.card = [{ cmd: 'next', label: nb.text, off: !!nb.off || wait }]; }
       c.scores = true;
       // ثلاثة صفوف قصيرة (الملاحظة 26، design/system.md 15.10): الجولة · النوافذ · المباراة، فلا تبلغ لوحة الأول ولا أزرار العدّاد.
@@ -1007,7 +1079,7 @@
     replay: () => link?.send('anim', { name: 'face', view: view() }),
     startNext,
     skipNext,
-    undo: () => { if (!held()) roundUpdate(P.undo(match)); },
+    undo: () => { if (!held()) roundUpdate(P.undo(match, units())); },
     scores: () => { $('scores').hidden = !$('scores').hidden; },
   };
 
@@ -1046,7 +1118,7 @@
         if (mode?.id === 'ranking' && (st.phase === 'ask' || st.phase === 'steal')) rankState(mode.presenter(st));
       }
       // انتهى عدّاد في نافذة الجمهور: يُطبَّق إن طابق رقمه العدّاد الجاري، وإلا أُهمل (عقد الوحدة 5).
-      if (type === 'timeout' && match && $('gate').hidden) roundUpdate(P.act(match, MODES, 'timeout', data.id));
+      if (type === 'timeout' && match && $('gate').hidden) roundUpdate(P.act(match, units(), 'timeout', data.id));
       if (type === 'need-view') $('gate').hidden && match ? link.send('view', view()) : link.send('lock');
     });
     link.onStatus(on => {
@@ -1075,7 +1147,7 @@
   $('lostSingle').onclick = () => update({ ...match, single: true });
   $('showQ').onclick = () => roundAct('show');
   document.querySelectorAll('#judge [data-act], #nextQ').forEach(b => b.onclick = () => roundAct(b.dataset.act));
-  $('undo').onclick = $('endUndo').onclick = $('aUndo').onclick = $('rUndo').onclick = actions.undo;
+  $('undo').onclick = $('endUndo').onclick = $('aUndo').onclick = $('rUndo').onclick = $('wUndo').onclick = actions.undo;
   $('endNext').onclick = () => actions[nextButton().act]?.();
   $('mute').onclick = toggleMute;
   document.querySelectorAll('[data-new]').forEach(b => b.onclick = newMatch);
@@ -1090,7 +1162,7 @@
     else update(M.adjustScore(match, team, +b.dataset.d));
   };
   // «تراجع» في طبقة الرصيد لا تقع عليه نقرة من زر آخر، فلا يُمهل.
-  $('undoScore').onclick = () => (match.step === 'play' ? roundUpdate(P.undo(match)) : update(M.undoScore(match)));
+  $('undoScore').onclick = () => (match.step === 'play' ? roundUpdate(P.undo(match, units())) : update(M.undoScore(match)));
   $('start').onclick = () => link?.send('start', { seconds: 10 });
   $('reset').onclick = () => { link?.send('reset'); link?.send('view', view()); };
 

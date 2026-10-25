@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="css/letter.css">
 <link rel="stylesheet" href="css/auction.css">
 <link rel="stylesheet" href="css/ranking.css">
+<link rel="stylesheet" href="css/wheel.css">
 <link rel="stylesheet" href="css/shared.css">
 <style>
   /* اللعبة مغلقة أو بانتظار المقدّم: لا يبقى على الشاشة إلا الخلفية والبطاقة. */
@@ -68,6 +69,11 @@
             <p class="sub" id="rsub"></p>
           </div>
           <div class="board" id="board"></div>
+        </div>
+        <!-- عجلة البونص (ش6، design/wheel.md 2): من يديرها، ثم الخانات العشر. وبعد الوقوف الخانة في شاشة السؤال نفسها (مربعها بلون من أدارها) -->
+        <div class="scr whl" data-s="whl" id="whl">
+          <p class="whead" id="whead" data-fit="سطر من يدير العجلة"></p>
+          <div class="band" id="band"></div>
         </div>
         <!-- الجولة (ش2): افتتاحها ونهايتها. والسؤال في القسم الأول نفسه -->
         <div class="scr intro" data-s="intro">
@@ -140,6 +146,7 @@
   import { plan, chooser, picksDone, METHODS, other } from './js/match.js';
   import { PLANNED } from './js/modes/index.js';
   import { play as sound, setMuted } from './js/sound.js';
+  import { spinSteps } from './js/wheel.js';
 
   const $ = id => document.getElementById(id);
   const canvas = $('canvas');
@@ -355,6 +362,7 @@
   // ويُصغَّر الحرفان إن زاد عرضهما على 392 (456 دون الحشوة)، ولا يُصغَّران تحت 128. ولا يُعاد بناؤه إن لم يتغيّر، فلا تُعاد حركته.
   function setBox(a) {
     const el = $('letter'), key = (a.tatweel ? 'ـ' : '') + a.letter;
+    el.classList.remove('slot', 't1', 't2');
     el.classList.toggle('ending', !!a.tatweel);
     if (el.dataset.key === key) return;
     el.dataset.key = key;
@@ -393,10 +401,24 @@
     } else if (a.screen === 'end') {
       showScreen('end');
       $('e1').textContent = name(1); $('e2').textContent = name(2);
-      // حصيلة الجولة بإشارتها: قد تنقص في الترتيب بفخ.
+      // حصيلة الجولة بإشارتها: قد تنقص في الترتيب بفخ. وفي العجلة ما تغيّر في رصيد كل فريق فيها (design/wheel.md 2).
       const sign = n => (n < 0 ? '−' + -n : '+' + n);
       $('r1').textContent = sign(a.totals[1]); $('r2').textContent = sign(a.totals[2]);
-      setBadges(`انتهت الجولة ${p.n}`);
+      setBadges(p.wheel ? 'انتهت العجلة' : `انتهت الجولة ${p.n}`);
+    } else if (a.screen === 'wheel') {
+      showScreen('whl');
+      renderWheel(a);
+      setBadges(`الدورة ${a.n} من ${a.count}`);
+    } else if (a.screen === 'slot') {
+      // بعد الوقوف: شاشة السؤال نفسها، ومربعها الخانة بلون من أدارها لا بالأصفر (design/wheel.md 2.3).
+      showScreen('q');
+      const el = $('letter');
+      el.className = `letter slot t${a.by}`;
+      el.innerHTML = `<span>${esc(a.slot.word)}</span><b>${num(a.slot.n)}</b>`;
+      el.style.fontSize = '';
+      delete el.dataset.key;
+      $('label').textContent = a.text;
+      setBadges(`الدورة ${a.n} من ${a.count}`);
     } else if (a.screen === 'topic') {
       showScreen('auc');
       renderAuction(a);
@@ -413,9 +435,10 @@
     }
 
     // بعد الحكم الأخير: الحكم والإجابة في مربع الإعلان حتى السؤال التالي. و«التالي» فيه في نهاية الجولة.
-    const asking = a.screen === 'ask' || a.screen === 'topic' || a.screen === 'list';
+    const asking = a.screen === 'ask' || a.screen === 'topic' || a.screen === 'list' || a.screen === 'wheel' || a.screen === 'slot';
     const v = asking ? a.verdict : null;
-    announce(a.screen === 'end' ? { next: p.next } : a.screen === 'list' ? rankBox(a) : { verdict: v, answer: a.answer, told: v && a.tally ? `ذُكر ${a.tally.n} من ${a.tally.of}` : undefined });
+    announce(a.screen === 'end' ? { next: p.next } : a.screen === 'list' ? rankBox(a) : a.screen === 'wheel' || a.screen === 'slot' ? {}
+      : { verdict: v, answer: a.answer, told: v && a.tally ? `ذُكر ${a.tally.n} من ${a.tally.of}` : undefined });
     syncTimer(p.timer, a);
     setTurn(a.turn);
     // الحدّ يكتسح لصاحب الدور من ظهور سؤاله، في القراءة ثم العدّاد بلا حركة بينهما، وللآخر فوراً إن انتقل إليه (المالك 20:39، design/system.md 15.2).
@@ -431,6 +454,50 @@
     renderCtl();
   }
   let drained = 0;
+
+  // ===== عجلة البونص (design/wheel.md 2): «يدير العجلة: [الاسم]»، ثم الخانات العشر بنوعها ونقاطها، لا بنصوصها =====
+  // الخانة مائلة ونصها قائم: الكلمة ثم الرقم. والحظ بإطار متقطع. والمؤشر خانة واحدة بلون من يديرها (.t1 أو .t2).
+  function renderWheel(a) {
+    $('whead').textContent = 'يدير العجلة: ' + name(a.by);
+    const key = a.slots.map(x => x.kind + x.word + x.n).join('|');
+    if ($('band').dataset.key !== key) {
+      $('band').dataset.key = key;
+      $('band').innerHTML = a.slots.map((x, i) => `<p class="ws${x.kind === 'luck' ? ' luck' : ''}" data-fit="خانة ${i + 1}"><span>${esc(x.word)}</span><b>${num(x.n)}</b></p>`).join('');
+    }
+    if (a.spin) spinBand(a.spin, a.by);
+    else { spinAt = 0; clearTimeout(spinTimer); light(-1, 0, false); }
+  }
+  // المؤشر على الخانة i بلون من يديرها، و.stop عند الوقوف (لحظة انفعالية: الإطار ينبض ثلاثاً والخانة تكبر، wheel.css 5).
+  const light = (i, by, stop) => [...$('band').children].forEach((c, k) => {
+    c.classList.toggle('t1', k === i && by === 1); c.classList.toggle('t2', k === i && by === 2); c.classList.toggle('stop', k === i && stop);
+  });
+  // الدوران (design/wheel.md 2.4): المؤشر ينتقل خانةً خانة من اليمين، ثلاث دورات ثم إلى خانة الوقوف، وكل خطوة أبطأ من التي قبلها،
+  // ونقرة صوت مع كل خطوة. يبدأ من «at» بساعة الجهاز، فيكمل من حيث بلغ إن أُعيد تحميل الشاشة، ويقف فوراً إن انقضى وقته.
+  // وتقليل الحركة: المؤشر على خانة الوقوف مباشرة بلا دوران.
+  let spinAt = 0, spinTimer = 0;
+  function spinBand({ stop, at }, by) {
+    if (spinAt === at) return;
+    spinAt = at; clearTimeout(spinTimer);
+    const steps = spinSteps(stop);
+    let i = 0, t = at;
+    while (i < steps.length && t + steps[i] <= Date.now()) t += steps[i++];
+    const landed = i >= steps.length;
+    if (landed || still()) return light(stop, by, true);
+    const step = () => {
+      if (i >= steps.length) {
+        light(stop, by, true);
+        canvas.classList.remove('anim'); void canvas.offsetWidth; canvas.classList.add('anim');
+        surge(); sound('stop');
+        return;
+      }
+      light(i % 10, by, false);
+      sound('spin');
+      const wait = t + steps[i] - Date.now();
+      t += steps[i++];
+      spinTimer = setTimeout(step, Math.max(0, wait));
+    };
+    step();
+  }
 
   // ===== المزاد (design/auction.md 2): الموضوع، ورقما الفريقين كلٌّ بلونه والأعلى أكبرهما (3.0)، ومن الالتزام العدّ =====
   function renderAuction(a) {

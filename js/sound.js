@@ -29,6 +29,9 @@ const SOUNDS = {
   tick: () => tone(880, 0, 0.12, { type: 'square', gain: 0.12 }),
   right: () => { tone(660, 0, 0.14); tone(990, 0.12, 0.28); },
   wrong: () => tone(220, 0, 0.4, { type: 'sawtooth', gain: 0.15, to: 110 }),
+  // دوران العجلة: نقرة قصيرة مع كل خطوة للمؤشر، ونغمتان صاعدتان حين يقف (design/wheel.md 2.4).
+  spin: () => tone(1320, 0, 0.035, { type: 'square', gain: 0.07 }),
+  stop: () => { tone(523, 0, 0.12, { type: 'triangle' }); tone(784, 0.1, 0.3, { type: 'triangle' }); },
 };
 
 export function play(name) {

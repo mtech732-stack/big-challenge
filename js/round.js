@@ -22,7 +22,8 @@ export function applyEvents(scores, events) {
 // avoid: معرّفات لا تُختار في هذه المباراة (تقاطع الترتيب والمزاد، تدقيق ش5)، والوحدة تتركها ما وجدت غيرها.
 export function startRound(mode, { content, scores = { 1: 0, 2: 0 }, first, seen = [], avoid = [], rng = Math.random }) {
   const team = first ?? pickFirst(rng);
-  const state = mode.setup({ content: content[mode.contentKey], first: team, seen, avoid, rng });
+  // والرصيد للعجلة وحدها: سبب من يبدأ (الأقل نقاطاً أو الخاسر في القرعة)، والأنماط لا تستعمله.
+  const state = mode.setup({ content: content[mode.contentKey], first: team, seen, avoid, rng, scores: { ...scores } });
   return { mode: mode.id, first: team, state, scores: { ...scores }, timer: null, timers: 0, history: [], events: [] };
 }
 
@@ -58,8 +59,9 @@ const leader = s => (s[1] > s[2] ? 1 : s[2] > s[1] ? 2 : 0);
 
 export function act(mode, round, action, timerId, now = Date.now()) {
   if (mode.finished(round.state)) return ignored(round);
-  // و'timeup' (انقضاء وقت القائمة في الترتيب) لا زر له: الوحدة تتحقق من وقته بساعة الجهاز.
-  if (action === 'timeout' ? !round.timer || round.timer.id !== timerId : action !== 'timeup' && !mode.actions(round.state).some(a => a.id === String(action).split(':')[0])) return ignored(round);
+  // و'timeup' (انقضاء وقت القائمة في الترتيب) وما في mode.auto (انتهاء دوران العجلة) لا زر لهما: الوحدة تتحقق من وقتهما بساعة الجهاز.
+  const auto = action === 'timeup' || !!mode.auto?.includes(action);
+  if (action === 'timeout' ? !round.timer || round.timer.id !== timerId : !auto && !mode.actions(round.state).some(a => a.id === String(action).split(':')[0])) return ignored(round);
   // والرصيد قبل الفعل للوحدة التي تكتب حكمها بما خُصم فعلاً (فخ الترتيب)، وساعة الجهاز لوقت القائمة.
   const { state, events = [] } = mode.act(round.state, action, round.scores, now);
   if (state === round.state) return ignored(round);
