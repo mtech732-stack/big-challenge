@@ -208,6 +208,18 @@
   .whl .slotbox > b { font-size: 1.75rem; font-weight: 900; direction: ltr; }
   .whl .text { font-size: 1.25rem; font-weight: 700; line-height: 1.4; }
   .whl .rule { grid-column: 1 / -1; font-weight: 700; border-inline-start: 0.5rem solid var(--ink); padding-inline-start: 1rem; }
+
+  /* ===== النهاية (design/final.md 6، من design/presenter-final.html): مسار المباراة بما كسبه كل فريق، والفائز ===== */
+  .fin { grid-template-columns: 1fr; align-content: center; gap: 0.5rem; }
+  /* المسار: صف لكل جولة وشريط بترتيبه، ثم المجموع. الأول عمود والثاني عمود، بلونيهما */
+  .path { display: grid; grid-template-columns: 1fr auto auto; gap: 0 1.5rem; align-items: center; }
+  .path p { font-weight: 700; line-height: 1.3; }
+  .path .h { font-weight: 800; }
+  .path .v { font-size: 1.25rem; font-weight: 900; direction: ltr; text-align: end; white-space: nowrap; }
+  .path .tot { border-top: 3px solid var(--ink); padding-top: 0.25rem; }
+  .path .tot.v { font-size: 1.75rem; }
+  .fin .label { font-weight: 700; }
+  .champ { font-size: 2.5rem; font-weight: 900; line-height: 1.3; }
 </style>
 </head>
 <body>
@@ -334,6 +346,18 @@
       <button class="alt" data-new>مباراة جديدة</button>
     </div>
     <div class="ctlrow" id="wCtl"></div>
+  </section>
+
+  <!-- النهاية (design/final.md 6): النتيجة النهائية بمسار المباراة، أو الفائز، ثم لوحة الدور بزرها -->
+  <section class="panel fin" data-step="play" data-part="fin" id="fMid" hidden></section>
+  <section class="panel" data-step="play" data-part="fin" hidden>
+    <div class="row">
+      <p class="who" id="fWho"></p>
+      <button class="alt grow" id="fUndo">تراجع</button>
+      <button class="alt" data-new>مباراة جديدة</button>
+    </div>
+    <p id="fHint" hidden></p>
+    <div class="ctlrow" id="fCtl"></div>
   </section>
 
   <!-- نهاية الجولة -->
@@ -615,7 +639,7 @@
   function nextButton() {
     const kind = P.nextKind(match, units()), item = P.upcoming(match);
     const make = (text, rest) => ({ text, label: num(text), ...rest });
-    if (kind === 'final') return make('إلى النتيجة النهائية', { off: true, hint: 'النتيجة النهائية وإعلان الفائز تُبنى في الشريحة <span class="ltr">7</span>.' });
+    if (kind === 'final') return make('إلى النتيجة النهائية', { act: 'toFinal' });
     if (kind === 'start') return make(item.kind === 'wheel' ? 'شريط البونص' : `ابدأ الجولة ${item.n}`, { act: 'startNext' });
     // لا يُتخطى الشريط إلا إن لم تصل تحدياته (content/wheel.json)، كي لا تعلق المباراة.
     if (item.kind === 'wheel') return make('تخطَّ شريط البونص', { act: 'skipNext', hint: 'لم تصل تحديات شريط البونص، فيُتخطى.' });
@@ -719,26 +743,61 @@
 
   // ===== العرض =====
   // الشاشة المشتركة ظاهرة: قبل «ابدأ المباراة» دائماً، وفي اللعب بنافذة واحدة، وفي هذه النافذة بعد تسليمها.
-  const shared = () => !TEST && role === 'presenter' && !$('app').hidden && (match.step !== 'play' || match.single);
+  // والنهاية بعد اللعب كالجولة: بنافذتين في نافذة المقدّم، وبنافذة واحدة هنا.
+  const shared = () => !TEST && role === 'presenter' && !$('app').hidden && (!['play', 'final'].includes(match.step) || match.single);
   function render(error) {
     if (!match) return;
-    const playing = match.step === 'play';
+    const playing = match.step === 'play' || match.step === 'final';
     $('screenPanel').hidden = !TEST;
     $('notice').hidden = !!link?.connected;
     $('testPanel').hidden = !TEST;
     $('mute').hidden = !playing;
     $('mute').textContent = muted ? 'مكتوم' : 'الصوت';
     renderPlay();
+    renderFinal();
     for (const k of [1, 2]) {
       $('sn' + k).textContent = match.teams[k] || (k === 1 ? 'الفريق الأول' : 'الفريق الثاني');
       $('sv' + k).textContent = match.scores[k];
     }
-    $('undoScore').disabled = playing ? !match.round?.history.length : !match.history.length;
+    $('undoScore').disabled = match.step === 'play' ? !match.round?.history.length : !match.history.length;
     renderStage(error);
     const wait = held();
     // عناصر قائمة المزاد خارج الإمهال: لا يأتي زر آخر مكانها، فنقرها بعد «ابدأ» أو «توقّف» مباشرة يُحسب (ملاحظة المعاين 30).
     document.querySelectorAll('[data-step="play"] button').forEach(b => b.classList.toggle('held', wait && !b.closest('#aRef')));
   }
+
+  // ===== النهاية في نافذة المقدّم (design/final.md 6) =====
+  // النتيجة: جدول المسار بما كسبه كل فريق في كل جولة وشريط، ثم المجموع، و«أعلن الفائز». والفائز: اسمه، والرصيدان، و«مباراة جديدة».
+  // والتعادل: «الجولة الفاصلة» تُبنى في مرحلة «كسر التعادل» بعد هذه، فزرها معطّل الآن.
+  const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
+  function renderFinal() {
+    const on = !TEST && match.step === 'final' && !match.single;
+    if (!on) return;
+    $('roundChip').hidden = false;
+    $('lost').hidden = !!link?.connected;
+    document.querySelectorAll('[data-part="fin"]').forEach(s => s.hidden = false);
+    const win = match.final?.phase === 'win', leader = M.leaderOf(match.scores);
+    $('roundChip').querySelector('span').textContent = win ? 'انتهت المباراة' : 'النتيجة النهائية';
+    const name = t => `${mk(t)} ${tn(t)}`;
+    let wheels = 0;
+    $('fMid').innerHTML = win ? `<p class="label">الفائز بالمباراة</p><p class="champ tn t${match.final.winner}">${esc(match.teams[match.final.winner])}</p>`
+      : '<div class="path"><p class="h">مسار المباراة</p>' + `<p class="v">${name(1)}</p><p class="v">${name(2)}</p>` +
+        M.gains(match).map(x => `<p>${num(x.kind === 'wheel' ? `شريط البونص ${++wheels}` : `الجولة ${x.n} · ${modeName(x.mode)}`)}</p>` +
+          `<p class="v tn t1">${num(signed(x.g[1]))}</p><p class="v tn t2">${num(signed(x.g[2]))}</p>`).join('') +
+        `<p class="tot h">المجموع</p><p class="tot v tn t1">${num(match.scores[1])}</p><p class="tot v tn t2">${num(match.scores[2])}</p></div>`;
+    $('fWho').innerHTML = `<span class="done">${win ? num(`${match.teams[1]} ${match.scores[1]} · ${match.teams[2]} ${match.scores[2]}`)
+      : leader ? `الفائز: ${esc(match.teams[leader])}` : 'تعادل'}</span>`;
+    $('fHint').hidden = win || !!leader;
+    $('fHint').innerHTML = num('الجولة الفاصلة تُبنى في المرحلة التالية من الشريحة 7 («كسر التعادل»).');
+    $('fCtl').innerHTML = win ? '<button class="full" data-new>مباراة جديدة</button>'
+      : leader ? '<button class="full" data-act="announce">أعلن الفائز</button>' : '<button class="full" disabled>الجولة الفاصلة</button>';
+  }
+  $('fCtl').addEventListener('click', e => {
+    const el = e.target.closest('button');
+    if (!el || el.disabled) return;
+    if (el.dataset.new !== undefined) newMatch();
+    if (el.dataset.act === 'announce') actions.announce();
+  });
 
   // ===== الجولة في نافذة المقدّم: من presenter() و actions() في وحدة النمط (design/letter.md 4 وdesign/shared.md 6) =====
   const mk = t => `<i class="mark t${t}"></i>`;
@@ -1082,6 +1141,17 @@
       c.b = [[{ cmd: 'presenter', label: 'المقدّم', kind: 'alt' }, ...fs]];
       c.c = [[{ cmd: 'scores', label: 'الرصيد', kind: 'alt' }, fresh]];
     }
+    // النهاية (design/final.md 5): «أعلن الفائز» في البطاقة (و«الجولة الفاصلة» معطّلاً عند التعادل حتى «كسر التعادل»)، ثم «مباراة جديدة».
+    // والزوايا الثلاث كما في الجولة.
+    if (step === 'final') {
+      const win = match.final?.phase === 'win';
+      c.card = win ? [{ cmd: 'new', label: 'مباراة جديدة' }]
+        : M.leaderOf(match.scores) ? [{ cmd: 'announce', label: 'أعلن الفائز', off: wait }] : [{ cmd: 'tie', label: 'الجولة الفاصلة', off: true }];
+      c.scores = true;
+      c.a = [[{ cmd: 'undo', label: 'تراجع', kind: 'alt', off: wait }, { cmd: 'mute', label: muted ? 'مكتوم' : 'الصوت', kind: 'alt' }]];
+      c.b = [[{ cmd: 'presenter', label: 'المقدّم', kind: 'alt' }, ...fs]];
+      c.c = [[{ cmd: 'scores', label: 'الرصيد', kind: 'alt' }, fresh]];
+    }
     c.a = c.a.filter(r => r.length);
     c.b = c.b.filter(r => r.length);
     c.c = c.c.filter(r => r.length);
@@ -1105,7 +1175,10 @@
     replay: () => link?.send('anim', { name: 'face', view: view() }),
     startNext,
     skipNext,
-    undo: () => { if (!held()) roundUpdate(P.undo(match, units())); },
+    // النتيجة النهائية بعد آخر عنصر، ثم إعلان الفائز: كلٌّ بلحظته على شاشة الجمهور (design/final.md 4).
+    toFinal: () => { if (held()) return; const next = P.toFinal(match, units()); if (next !== match) { hold(); update(next, 'fin'); } },
+    announce: () => { if (held()) return; const next = P.announce(match); if (next !== match) { hold(); update(next, 'win'); } },
+    undo: () => { if (held()) return; if (match.step === 'final') { hold(); update(P.undoFinal(match)); } else roundUpdate(P.undo(match, units())); },
     scores: () => { $('scores').hidden = !$('scores').hidden; },
   };
 
@@ -1131,7 +1204,7 @@
     if (cmd === 'presenter') toPresenter();
     if (cmd === 'new') newMatch();
     if (cmd === 'fullscreen') document.documentElement.requestFullscreen?.().catch(() => {});
-    if (['toPick', 'undoPick', 'toFace', 'replay', 'undo', 'scores'].includes(cmd)) actions[cmd]();
+    if (['toPick', 'undoPick', 'toFace', 'replay', 'undo', 'scores', 'announce'].includes(cmd)) actions[cmd]();
   });
 
   function startLink() {
@@ -1174,7 +1247,7 @@
   $('lostSingle').onclick = () => update({ ...match, single: true });
   $('showQ').onclick = () => roundAct('show');
   document.querySelectorAll('#judge [data-act], #nextQ').forEach(b => b.onclick = () => roundAct(b.dataset.act));
-  $('undo').onclick = $('endUndo').onclick = $('aUndo').onclick = $('rUndo').onclick = $('wUndo').onclick = actions.undo;
+  $('undo').onclick = $('endUndo').onclick = $('aUndo').onclick = $('rUndo').onclick = $('wUndo').onclick = $('fUndo').onclick = actions.undo;
   $('endNext').onclick = () => actions[nextButton().act]?.();
   $('mute').onclick = toggleMute;
   document.querySelectorAll('[data-new]').forEach(b => b.onclick = newMatch);
