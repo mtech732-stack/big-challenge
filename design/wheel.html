@@ -216,14 +216,15 @@
     $('box').classList.toggle('wrap', r.getBoundingClientRect().width / (canvas.getBoundingClientRect().width / 1920) > $('box').clientWidth - 96);
   }
   function placeBadges() {
-    const lean = Math.tan(14 * Math.PI / 180) * 64; let right = 104;
-    for (const el of [document.querySelector('.badge.mode'), $('b1')]) { el.style.right = right + 'px'; right += el.offsetWidth + 24 + lean; }
+    // العرض الفعلي مقسوماً على المقياس لا offsetWidth: يقرّبه إلى عدد صحيح فينقص الفراغ عن 24 (الملاحظة 41)
+    const lean = Math.tan(14 * Math.PI / 180) * 64, k = canvas.getBoundingClientRect().width / 1920; let right = 104;
+    for (const el of [document.querySelector('.badge.mode'), $('b1')]) { el.style.right = right + 'px'; right += Math.ceil((el.getBoundingClientRect().width / k + 24 + lean) * 64) / 64; }   // يقرّب إلى أعلى بوحدة التخطيط (1/64)
   }
   function placeNear() {
     const near = $('near'); if (!near.children.length) return;
     // بحدود الشارة الفعلية مقسومة على المقياس (تدقيق ش6): على غير 1920 تُرسم اللوحة مصغّرة
     const c = canvas.getBoundingClientRect().left, k = canvas.getBoundingClientRect().width / 1920;
-    near.style.left = Math.floor(Math.min(...[...document.querySelectorAll('.badge')].map(b => (b.getBoundingClientRect().left - c) / k)) - 32 - near.offsetWidth) + 'px';
+    near.style.left = Math.floor(Math.min(...[...document.querySelectorAll('.badge')].map(b => (b.getBoundingClientRect().left - c) / k)) - 32 - near.getBoundingClientRect().width / k) + 'px';
   }
   function fitRings() {
     for (const team of [$('p1'), $('p2')]) {
