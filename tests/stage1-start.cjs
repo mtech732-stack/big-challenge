@@ -138,7 +138,7 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   await wait(2700);
   const track = await frame.$$eval('#track .seg', s => s.map(x => [...x.children].map(c => c.textContent.trim()).join(' ')).join(' | '));
   check('المواجهة: «الفائز بالقرعة» واسمه في مربع الإعلان (1.3)', await vis('#box') && (await text('#faceChip')) === 'الفائز بالقرعة' && (await text('#faceWin')) === (await saved()).teams[(await saved()).winner]);
-  check(`المواجهة: المسار (${track})`, track === 'الجولة 1 آخر حرفين | عجلة البونص | الجولة 2 الحرف المعيّن');
+  check(`المواجهة: المسار (${track})`, track === 'الجولة 1 آخر حرفين | شريط البونص | الجولة 2 الحرف المعيّن');
   check('المواجهة: «ابدأ المباراة» و«بنافذة واحدة» و«أعد العرض»', (await frame.$$eval('.scr.show .ctl .cbtn', b => b.map(x => x.textContent).join('|'))) === 'ابدأ المباراة|بنافذة واحدة|أعد العرض');
   await noWords('المواجهة');
   await stageCheck('المواجهة');

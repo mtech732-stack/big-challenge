@@ -269,10 +269,10 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await audience.waitForSelector('.scr.show[data-s="end"]');
   await wait(300);
   const totals = (await match()).round.scores;
-  check('الجمهور: «انتهت الجولة 1» وحصيلة كل فريق و«التالي: عجلة البونص» في مربع الإعلان', (await text(audience, '#b1')) === 'انتهت الجولة 1' && (await text(audience, '#next')) === 'التالي: عجلة البونص' && await visible(audience, '#box #next')
+  check('الجمهور: «انتهت الجولة 1» وحصيلة كل فريق و«التالي: شريط البونص» في مربع الإعلان', (await text(audience, '#b1')) === 'انتهت الجولة 1' && (await text(audience, '#next')) === 'التالي: شريط البونص' && await visible(audience, '#box #next')
     && (await text(audience, '#r1')) === `+${totals[1]}` && (await text(audience, '#r2')) === `+${totals[2]}`);
   check('الجمهور: لا مؤشر دور ولا عدّاد ولا حكم في النهاية', !(await audience.$('.team.on')) && (await none(audience, '.team .cnt')) && !(await visible(audience, '#verdict')));
-  check('المقدّم: الحصيلة والرصيد، و«تخطَّ عجلة البونص» مع موعدها', (await text(presenter, '#sum')).includes(`الرصيد ${totals[1]}`) && (await text(presenter, '#endNext')) === 'تخطَّ عجلة البونص' && (await text(presenter, '#endHint')).includes('الشريحة 6'));
+  check('المقدّم: الحصيلة والرصيد، و«تخطَّ شريط البونص» مع موعدها', (await text(presenter, '#sum')).includes(`الرصيد ${totals[1]}`) && (await text(presenter, '#endNext')) === 'تخطَّ شريط البونص' && (await text(presenter, '#endHint')).includes('الشريحة 6'));
   await both('النهاية');
   await presenter.screenshot({ path: `${shots}/s2-presenter-end.png` });
   // «التالي» نص أبيض على الطرف بلا مربع (15.4 و15.12، قرار المصمّم في PR #92).

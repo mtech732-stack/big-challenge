@@ -70,7 +70,7 @@
           </div>
           <div class="board" id="board"></div>
         </div>
-        <!-- عجلة البونص (ش6، design/wheel.md 2): من يديرها، ثم الخانات العشر. وبعد الوقوف الخانة في شاشة السؤال نفسها (مربعها بلون من أدارها) -->
+        <!-- شريط البونص (ش6، design/wheel.md 2): من يديرها، ثم الخانات العشر. وبعد الوقوف الخانة في شاشة السؤال نفسها (مربعها بلون من أدارها) -->
         <div class="scr whl" data-s="whl" id="whl">
           <p class="whead" id="whead" data-fit="سطر من يدير العجلة"></p>
           <div class="band" id="band"></div>
@@ -349,7 +349,7 @@
       setBadges('المواجهة');
       let n = 0;
       $('track').innerHTML = plan(m).map(s => s.kind === 'wheel'
-        ? `<div class="seg wheel" style="--i:${n++}" data-fit="خانة العجلة"><span>عجلة</span><span>البونص</span></div>`
+        ? `<div class="seg wheel" style="--i:${n++}" data-fit="خانة العجلة"><span>شريط</span><span>البونص</span></div>`
         : `<div class="seg ${s.by ? 'by' + s.by : ''}" style="--i:${n++}" data-fit="خانة الجولة"><span class="rn">${num('الجولة ' + s.n)}</span><span class="mname">${esc(modeName(s.mode))}</span></div>`).join('');
       turn = m.winner;
     }
@@ -405,7 +405,7 @@
       // حصيلة الجولة بإشارتها: قد تنقص في الترتيب بفخ. وفي العجلة ما تغيّر في رصيد كل فريق فيها (design/wheel.md 2).
       const sign = n => (n < 0 ? '−' + -n : '+' + n);
       $('r1').textContent = sign(a.totals[1]); $('r2').textContent = sign(a.totals[2]);
-      setBadges(p.wheel ? 'انتهت العجلة' : `انتهت الجولة ${p.n}`);
+      setBadges(p.wheel ? 'انتهى الشريط' : `انتهت الجولة ${p.n}`);
     } else if (a.screen === 'wheel') {
       showScreen('whl');
       renderWheel(a);
@@ -440,8 +440,8 @@
     const v = asking ? a.verdict : null;
     announce(a.screen === 'end' ? { next: p.next } : a.screen === 'list' ? rankBox(a) : a.screen === 'wheel' ? {}
       // العجلة: «انتهى الوقت» نصاً حتى يحكم المقدّم، ثم الحكم بلا مربع (design/wheel.md 2 و2.5).
-      // و«اسرق»: السطر «[الخصم] · −3» بما أُخذ فعلاً.
-      : a.screen === 'slot' ? (v ? { verdict: v, say: v.from ? `${name(v.from)} · −${v.taken}` : v.say, bare: true } : a.timeup ? { next: 'انتهى الوقت' } : {})
+      // و«خصم» (الأخذ من الخصم): السطر «[الخصم] · −3» بما أُخذ فعلاً، والصفر بلا إشارة (ملاحظة المعاين 38).
+      : a.screen === 'slot' ? (v ? { verdict: v, say: v.from ? `${name(v.from)} · ${v.taken ? '−' + v.taken : '0'}` : v.say, bare: true } : a.timeup ? { next: 'انتهى الوقت' } : {})
       : { verdict: v, answer: a.answer, told: v && a.tally ? `ذُكر ${a.tally.n} من ${a.tally.of}` : undefined });
     syncTimer(p.timer, a);
     setTurn(a.turn);
@@ -460,10 +460,10 @@
   }
   let drained = 0;
 
-  // ===== عجلة البونص (design/wheel.md 2): «يدير العجلة: [الاسم]»، ثم الخانات العشر بنوعها ونقاطها، لا بنصوصها =====
+  // ===== شريط البونص (design/wheel.md 2): «يُطلق الشريط: [الاسم]»، ثم الخانات العشر بنوعها ونقاطها، لا بنصوصها =====
   // الخانة مائلة ونصها قائم: الكلمة ثم الرقم. والحظ بإطار متقطع. والمؤشر خانة واحدة بلون من يديرها (.t1 أو .t2).
   function renderWheel(a) {
-    $('whead').textContent = 'يدير العجلة: ' + name(a.by);
+    $('whead').textContent = 'يُطلق الشريط: ' + name(a.by);
     const key = a.slots.map(x => x.kind + x.word + x.n).join('|');
     if ($('band').dataset.key !== key) {
       $('band').dataset.key = key;
@@ -714,7 +714,7 @@
         setScore(w, prev.scores[w]); replay($('cardWrap'), 'shake'); setTurn(0);
         later(480, () => { setScore(w, to); moment(w, 'lose'); });
       }
-      // «اسرق» في العجلة: رقم من أُخذ منه ينقص ويخفت مع زيادة رقم من أدارها (design/wheel.md 2.4).
+      // «خصم» (الأخذ من الخصم) في الشريط: رقم من أُخذ منه ينقص ويخفت مع زيادة رقم من أدارها (design/wheel.md 2.4).
       if (m.name === 'taken' && prev) {
         const w = m.team, to = p.scores[w];
         setScore(w, prev.scores[w]);

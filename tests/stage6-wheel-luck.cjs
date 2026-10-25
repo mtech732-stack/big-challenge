@@ -1,4 +1,4 @@
-// اختبار آلي لمرحلة «خانات الحظ وحد الصفر» في عجلة البونص (5.7، design/wheel.md 2 و5) في رابط المعاينة:
+// اختبار آلي لمرحلة «خانات الحظ وحد الصفر» في شريط البونص (5.7، design/wheel.md 2 و5) في رابط المعاينة:
 // وحدةً (دون متصفح): خانة الحظ تُطبَّق فور الوقوف بلا حكم: «خصم» −3 لمن أدارها، و«هدية» +3، و«اسرق» 3 من الخصم إليه،
 // ولا ينزل رصيد تحت الصفر، والشارة بما تغيّر فعلاً («−1» ورصيده 1)، والحدّ في المنتصف في «خصم»، والتراجع يعيد ما قبل الدوران،
 // والحصيلة في نهاية العجلة. ثم بالمتصفح بنافذتين: «خصم» بحد الصفر، و«هدية»، و«اسرق» (والأطول بأطول اسمين)، ثم «هدية» بنافذة واحدة.
@@ -40,7 +40,9 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     a = wheel.audience(r.state);
     check('حد الصفر: «خصم 3» ورصيده 1 ينزل إلى 0، والشارة بما تغيّر فعلاً «−1»', r.scores[2] === 0 && a.verdict.points === -1);
     r = landOn('lose', { 1: 4, 2: 0 });
-    check('ورصيده 0 يبقى 0، والشارة «0»', r.scores[2] === 0 && wheel.audience(r.state).verdict.points === 0);
+    check('ورصيده 0 يبقى 0، والشارة «0» بلا إشارة (لا −0، ملاحظة المعاين 38)', r.scores[2] === 0 && Object.is(wheel.audience(r.state).verdict.points, 0));
+    const zero = landOn('steal', { 1: 0, 2: 9 });
+    check('«خصم» والخصم 0: لا يتغير شيء، والنتيجة 0 بلا إشارة', zero.scores[1] === 0 && zero.scores[2] === 9 && Object.is(wheel.audience(zero.state).verdict.points, 0) && wheel.audience(zero.state).verdict.taken === 0);
     r = landOn('gift', { 1: 4, 2: 9 });
     a = wheel.audience(r.state);
     check('«هدية +3»: +3 لمن أدارها، والحدّ عنده، ولحظة right', r.state.slots[r.state.landed].effect === 'gift-3' && r.scores[2] === 12 && a.verdict.points === 3 && a.turn === 2
@@ -159,7 +161,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     const side = await audience.evaluate(() => [1, 2].find(t => document.getElementById('canvas').classList.contains('turn-' + t)) ?? 0);
     const label = data.luck.find(l => l.effect === effect + '-3').label;
     check(`${tag}تُطبَّق فور الوقوف: نص الخانة، ولا «ابدأ» ولا وقت، والحكم بلا مربع`, await text(audience, '#label') === label && !box.hidden && box.bare
-      && !(await cls(audience, 'running')) && await text(presenter, '#wCtl') === 'إنهاء العجلة' && await presenter.$eval('#wClock', e => e.hidden));
+      && !(await cls(audience, 'running')) && await text(presenter, '#wCtl') === 'إنهاء الشريط' && await presenter.$eval('#wClock', e => e.hidden));
     if (effect === 'lose') {
       check(`${tag}حد الصفر: رصيده 1 فينزل إلى 0، والشارة «[الاسم] · −1» والسطر «خانة حظ»، والحدّ في المنتصف`, sc[sp] === 0 && sc[op] === 4 && await text(audience, '#vtext') === `${who} · −1`
         && await text(audience, '#say') === 'خانة حظ' && side === 0 && await text(audience, '#s' + sp) === '0');
@@ -199,7 +201,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     await context.close();
   }
 
-  // ===== 2.2 بنافذة واحدة: «هدية» ثم «إنهاء العجلة» =====
+  // ===== 2.2 بنافذة واحدة: «هدية» ثم «إنهاء الشريط» =====
   {
     const { context, stage, audience } = await open();
     await sharedToFace(audience, { names: ['الصقور', 'النجوم'], count: 'short', picks: ['ranking', 'letter'] });
@@ -215,7 +217,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     await wait(1200);
     const near = await audience.$$eval('#near button', b => b.map(x => x.textContent.trim()).join('|'));
     const sp = (await saved(stage)).round.state.first;
-    check('نافذة واحدة: «هدية» تُطبَّق فوراً (+3)، و«إنهاء العجلة» وحده بجانب الشارات', near === 'إنهاء العجلة' && (await saved(stage)).round.scores[sp] === 3);
+    check('نافذة واحدة: «هدية» تُطبَّق فوراً (+3)، و«إنهاء الشريط» وحده بجانب الشارات', near === 'إنهاء الشريط' && (await saved(stage)).round.scores[sp] === 3);
     await audienceCheck(audience, 'نافذة واحدة · هدية');
     await stage.screenshot({ path: path.join(shots, 'wheel-gift-w1.png') });
     await context.close();

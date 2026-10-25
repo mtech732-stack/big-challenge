@@ -1,17 +1,18 @@
-// عجلة البونص (القسم 5.7 من الوثيقة، وتصميمها design/wheel.md). ليست نمطاً، لكنها تلتزم شكل «عقد الوحدة»،
+// شريط البونص (القسم 5.7 من الوثيقة، وتصميمها design/wheel.md 1.2، وكان اسمه «عجلة البونص»: wheel في الكود). ليست نمطاً، لكنها تلتزم شكل «عقد الوحدة»،
 // فيديرها مشغّل الجولة (js/round.js) كما يدير الجولات: التراجع والعدّاد والأحداث، والرصيد يغيّره المشغّل وحده.
 // عشر خانات ظاهرة قبل الدوران: سبع تحديات وثلاث خانات حظ، بترتيب ثابت لا تتجاور فيه خانتا حظ (design/wheel.md 2.2).
-// «أدِر العجلة» يحسم الخانة قبل الحركة (كالقرعة): المؤشر في نافذة الجمهور يدور إليها ويقف، ثم تظهر الخانة بعد 1.2 ثانية.
+// «أطلق الشريط» يحسم الخانة قبل الحركة (كالقرعة): المؤشر في نافذة الجمهور يدور إليها ويقف، ثم تظهر الخانة بعد 1.2 ثانية.
 // والخانة محسومة من الإعداد (rng)، فالتراجع عن الدوران ثم إعادته يقف على الخانة نفسها، ولا تُعاد العجلة لخانة أفضل.
 
-// الترتيب من اليمين: تحدٍّ · خصم · تحدٍّ · تحدٍّ · هدية · تحدٍّ · تحدٍّ · اسرق · تحدٍّ · تحدٍّ. والتحديات بترتيبها في wheel.json.
+// الترتيب من اليمين: تحدٍّ · خسارة · تحدٍّ · تحدٍّ · هدية · تحدٍّ · تحدٍّ · خصم · تحدٍّ · تحدٍّ. والتحديات بترتيبها في wheel.json.
 export const LAYOUT = ['c', 'lose-3', 'c', 'c', 'gift-3', 'c', 'c', 'steal-3', 'c', 'c'];
 export const SLOTS = LAYOUT.length;
 // نقاط التحدي ووقته (مبدئيان، يُضبطان في ش8): دقيقتان حداً أقصى، ويحكم المقدّم (الوثيقة 5.7).
 export const CHALLENGE_POINTS = 5;
 export const CHALLENGE_SECONDS = 120;
 // الكلمة والرقم في الخانة من التأثير لا من label (label يعدّله المالك وقد يطول، design/wheel.md 2.2).
-const LUCK_FACE = { lose: (k) => ['خصم', `−${k}`], steal: (k) => ['اسرق', `${k}`], gift: (k) => ['هدية', `+${k}`] };
+// «خسارة» ما يخسره الفريق نفسه، و«خصم» ما يأخذه من خصمه (المالك 25 أكتوبر 2026، design/wheel.md 1.2): فلا «اسرق» على الشاشتين.
+const LUCK_FACE = { lose: (k) => ['خسارة', `−${k}`], steal: (k) => ['خصم', `${k}`], gift: (k) => ['هدية', `+${k}`] };
 const other = team => (team === 1 ? 2 : 1);
 
 // الدوران (design/wheel.md 2.4): المؤشر يبدأ من الخانة الأولى (اليمنى)، ثلاث دورات كاملة ثم إلى خانة الوقوف،
@@ -26,7 +27,7 @@ export const spinMs = stop => spinSteps(stop).reduce((a, b) => a + b, 0) + LAND_
 // phase: ready قبل الدوران · spin تدور (at: متى بدأت بساعة الجهاز) · slot وقفت، والخانة ظاهرة (landed)
 // · run وقت التحدي (timeup: انتهى ولم يحكم المقدّم بعد) · done حُكم في التحدي، أو طُبّقت خانة الحظ · end انتهت العجلة.
 // results[i]: نتيجة الدورة i: { team, points } (team 0 إن لم يأخذ أحد، وpoints ما تغيّر فعلاً بإشارته)،
-// ومعها في «اسرق» from وtaken (من أُخذ منه وكم)، أو null ما لم تنتهِ.
+// ومعها في «خصم» (steal) from وtaken (من أُخذ منه وكم)، أو null ما لم تنتهِ.
 function setup({ content, first, scores = { 1: 0, 2: 0 }, rng = Math.random }) {
   const challenges = content?.challenges ?? [], luck = content?.luck ?? [];
   let c = 0;
@@ -52,12 +53,12 @@ const landedOn = s => (s.landed === null ? null : s.slots[s.landed]);
 const isChallenge = s => landedOn(s)?.kind === 'challenge';
 
 function actions(s) {
-  if (s.phase === 'ready') return [{ id: 'spin', label: 'أدِر العجلة' }];
+  if (s.phase === 'ready') return [{ id: 'spin', label: 'أطلق الشريط' }];
   // التحدي: «ابدأ» يبدأ الدقيقتين، ثم الحكم والوقت يجري أو بعد انتهائه (انتهاؤه لا يحكم، design/wheel.md 2).
   if (s.phase === 'slot' && isChallenge(s)) return [{ id: 'start', label: 'ابدأ التحدي · دقيقتان' }];
   if (s.phase === 'run') return [{ id: 'won', label: `نجح · +${CHALLENGE_POINTS}` }, { id: 'failed', label: 'لم ينجح' }];
   // وبعد الحكم أو خانة الحظ تُغلق العجلة في هذه المرحلة. والدورة الثانية مرحلة تالية.
-  if (s.phase === 'done') return [{ id: 'finish', label: 'إنهاء العجلة' }];
+  if (s.phase === 'done') return [{ id: 'finish', label: 'إنهاء الشريط' }];
   return [];
 }
 
@@ -90,7 +91,7 @@ function act(s, action, scores = {}, now = Date.now()) {
 // ما تعرضه نافذة الجمهور: الخانات العشر بنوعها ونقاطها، لا بنصوصها (التشويق، design/wheel.md 1). ونص الخانة بعد الوقوف وحده.
 // خانة الحظ تُطبَّق فور الوقوف، لا حكم فيها (design/wheel.md 2). والرصيد لا ينزل تحت الصفر (الوثيقة 5.7)،
 // فالنتيجة ما تغيّر فعلاً بالرصيد قبل الفعل: «خصم 3» ورصيده 1 = −1.
-// «اسرق» حدث take: يُؤخذ من الخصم ما عنده حتى 3، ويُعطى من أدارها ما أُخذ (عقد الوحدة 4، منذ ش0).
+// «خصم» (steal) حدث take: يُؤخذ من الخصم ما عنده حتى 3، ويُعطى من أدارها ما أُخذ (عقد الوحدة 4، منذ ش0).
 // وحين يكون عند الخصم أقل من 3 يأخذ ما تبقى فقط (جواب المالك 25 أكتوبر 2026). والقيم مبدئية حتى ش8 (في effect بـ wheel.json، وCHALLENGE_POINTS).
 function luck(s, slot, scores) {
   const by = spinner(s), rival = other(by), [kind, k] = slot.effect.split('-'), n = Number(k);
@@ -99,7 +100,7 @@ function luck(s, slot, scores) {
   if (kind === 'lose') {
     const lost = Math.min(n, have(by));
     // البطاقة تهتز ويخفت رقمه كفخ الترتيب (design/wheel.md 2.4).
-    return { state: done({ team: by, points: -lost }), events: [{ type: 'score', team: by, points: -n }, { type: 'moment', name: 'trap', team: by }] };
+    return { state: done({ team: by, points: lost ? -lost : 0 }), events: [{ type: 'score', team: by, points: -n }, { type: 'moment', name: 'trap', team: by }] };
   }
   if (kind === 'steal') {
     const taken = Math.min(n, have(rival));
@@ -128,7 +129,7 @@ function audience(s) {
   if (s.phase === 'slot' || s.phase === 'run' || s.phase === 'done') {
     const slot = s.slots[s.landed], r = s.results[s.n - 1];
     // بعد الحكم: الشارة لمن أخذ النقاط («لا نقاط» إن لم ينجح)، والسطر «نجح التحدي» أو «لم ينجح التحدي» (design/wheel.md 2).
-    // وخانة الحظ: الشارة بما تغيّر فعلاً («−1» بحد الصفر)، والسطر «خانة حظ»، وفي «اسرق» من أُخذ منه وكم (السطر يكتبه العرض بالاسم).
+    // وخانة الحظ: الشارة بما تغيّر فعلاً («−1» بحد الصفر)، والسطر «خانة حظ»، وفي «خصم» من أُخذ منه وكم (السطر يكتبه العرض بالاسم).
     const verdict = s.phase !== 'done' ? null : slot.kind === 'challenge' ? { team: r.team, points: r.points, say: r.team ? 'نجح التحدي' : 'لم ينجح التحدي' }
       : { team: r.team, points: r.points, say: 'خانة حظ', ...(r.from ? { from: r.from, taken: r.taken } : {}) };
     // الحدّ بعد الحكم: عند من أخذ النقاط، وفي المنتصف إن لم يأخذ أحد أو كانت «خصم».
@@ -161,7 +162,7 @@ function presenter(s) {
 
 export default {
   id: 'wheel',
-  name: 'عجلة البونص',
+  name: 'شريط البونص',
   contentKey: 'wheel.json',
   // ما لا زر له وتقبله الوحدة في وقته: انتهاء حركة الدوران.
   auto: ['land'],

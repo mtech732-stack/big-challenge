@@ -144,7 +144,7 @@ const { reporter } = require('./helpers.cjs');
     m = P.act(m, MODES, act.includes('next') ? 'next' : act.includes('show') ? 'show' : 'correct');
   }
   check('بعد الجولة: الحصيلة 6 لكل فريق (2+4+6 ÷ 2… 1+2+3)', lastTwo.audience(m.round.state).totals[1] === 6 && lastTwo.audience(m.round.state).totals[2] === 6);
-  check('«التالي: عجلة البونص»', P.nextText(m, name) === 'التالي: عجلة البونص' && P.nextKind(m, MODES) === 'skip');
+  check('«التالي: شريط البونص»', P.nextText(m, name) === 'التالي: شريط البونص' && P.nextKind(m, MODES) === 'skip');
   m = P.skipNext(m, MODES);
   check('ثم «التالي: الجولة 2 · الحرف المعيّن» وتبدأ', P.nextText(m, name) === 'التالي: الجولة 2 · الحرف المعيّن' && P.nextKind(m, MODES) === 'start');
   m = P.startNext(m, { modes: MODES, content, seen: [], rng });
