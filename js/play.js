@@ -90,7 +90,7 @@ export function toFinal(match, modes) {
 export function announce(match) {
   const winner = leaderOf(match.scores);
   if (match.step !== 'final' || match.final?.phase !== 'fin' || !winner) return match;
-  return { ...match, final: { phase: 'win', winner } };
+  return { ...match, final: { ...match.final, phase: 'win', winner } };
 }
 // «الجولة الفاصلة» عند التعادل (5.8): وحدة js/tiebreak.js في match.round يديرها المشغّل كالجولة، ويبدؤها الخاسر في القرعة.
 // والجولة الأخيرة تُحفظ في match.lastRound، فيعود إليها التراجع. ولا تُعدّ جولة، ولا يتحرك موضع المسار.
@@ -99,17 +99,18 @@ export function toTiebreak(match, { modes, content, seen = [], rng = Math.random
   if (!unit || match.step !== 'final' || match.final?.phase !== 'fin' || leaderOf(match.scores)) return match;
   const round = { ...R.startRound(unit, { content, scores: match.scores, first: other(match.winner), seen, rng }), n: 0, tiebreak: true };
   const { final, ...rest } = match;
-  return { ...rest, step: 'play', round, lastRound: match.round, scores: round.scores };
+  return { ...rest, step: 'play', round, lastRound: match.round, tbFrom: match.scores, scores: round.scores };
 }
-// «أعلن الفائز» في الجولة الفاصلة: تنتهي وحدتها، فتصير المباراة إلى الفائز (final.tb)، وتبقى الوحدة في match.round لتراجع إليها.
+// نهاية الجولة الفاصلة («إلى النتيجة النهائية»): تعود المباراة إلى النتيجة النهائية (final.tb) وفيها خانة الجولة الفاصلة بنقاطها
+// (match.tbFrom: الرصيد قبلها)، ثم «أعلن الفائز» كالمعتاد. وتبقى الوحدة في match.round لتراجع إليها.
 const tiebreakWon = (match, unit) => (match.round?.tiebreak && unit.finished(match.round.state)
-  ? { ...match, step: 'final', final: { phase: 'win', winner: match.round.state.winner, tb: true } } : match);
+  ? { ...match, step: 'final', final: { phase: 'fin', tb: true } } : match);
 
 // التراجع: من الفائز إلى النتيجة (أو إلى آخر حكم في الجولة الفاصلة)، ومن النتيجة إلى نهاية الجولة الأخيرة (برصيد النهاية، ففيه ما عُدّل فيها).
 export function undoFinal(match) {
   if (match.step !== 'final') return match;
-  if (match.final?.phase === 'win' && match.final.tb) { const { final, ...rest } = match; const round = R.undo(match.round); return { ...rest, step: 'play', round, scores: round.scores }; }
-  if (match.final?.phase === 'win') return { ...match, final: { phase: 'fin' } };
+  if (match.final?.phase === 'win') { const { winner, ...fin } = match.final; return { ...match, final: { ...fin, phase: 'fin' } }; }
+  if (match.final?.tb) { const { final, ...rest } = match; const round = R.undo(match.round); return { ...rest, step: 'play', round, scores: round.scores }; }
   const { final, ...rest } = match;
   return { ...rest, step: 'play', round: match.round && { ...match.round, scores: match.scores } };
 }
@@ -131,7 +132,7 @@ export function act(match, modes, action, timerId) {
 export function undo(match, modes = []) {
   // الجولة الفاصلة قبل أي فعل فيها: التراجع يعود إلى النتيجة النهائية (التعادل)، والجولة الأخيرة إلى مكانها.
   if (match.step === 'play' && match.round?.tiebreak && !match.round.history.length) {
-    const { lastRound, ...rest } = match;
+    const { lastRound, tbFrom, ...rest } = match;
     return { ...rest, step: 'final', final: { phase: 'fin' }, round: lastRound, scores: match.round.scores };
   }
   if (match.step !== 'play' || !match.round?.history.length) return match;

@@ -1,7 +1,7 @@
 // اختبار آلي لمرحلة «كسر التعادل» (ش7، الوثيقة 5.8، design/final.md 2.3–2.5 و5 و6):
 // وحدةً (دون متصفح): أسئلة tiebreak وحدها، ويبدأ الخاسر في القرعة كل محاولة، ومن أصاب وأخطأ خصمه فاز، وإن أصابا أو أخطآ معاً
-// فمحاولة جديدة بسؤالين جديدين، وانتهاء الوقت «لم يُصب» بلا انتقال للخصم، والرصيد لا يتغير (TIE_POINTS، معلّق عند المالك)،
-// ولا إجابة للجمهور قبل الحكم، والتراجع (إلى النتيجة قبل أي فعل، ومن الفائز إلى آخر حكم).
+// فمحاولة جديدة بسؤالين جديدين، وانتهاء الوقت «لم يُصب» بلا انتقال للخصم، وللإصابة 3 نقاط (TIE_POINTS، بقرار المالك) تظهر خانةً في النتيجة النهائية بعدها،
+// ولا إجابة للجمهور قبل الحكم، والتراجع (إلى النتيجة قبل أي فعل، ومن الفائز إلى النتيجة إلى آخر حكم).
 // ثم بالمتصفح بنافذتين: المقدمة والسؤال والعدّاد وانتهاء الوقت والحكم والإعلان، وفحص التداخل والشبكة، ونافذة المقدّم بلا تمرير.
 // ثم بالنافذة الواحدة بأطول اسمين وأطول سؤال (85 حرفاً): محاولتان حتى الحسم.
 // الاستعمال: node tests/stage7-tiebreak.cjs [الرابط] [مجلد الصور]
@@ -51,7 +51,7 @@ const { finalMatch } = require('./final-match.cjs');
     a = unit.audience(m.round.state);
     check('انتهى الوقت: «لم يُصب» بلا انتقال للخصم ولا عدّاد', a.phase === 'decided' && a.verdict.label === 'لم يُصب' && a.verdict.who === 2 && a.verdict.team === 0 && !m.round.timer && a.turn === 2);
     check('والإجابة بعد الحكم', a.answer === q1.answer);
-    check('والرصيد لا يتغير (TIE_POINTS = 0، معلّق عند المالك)', T.TIE_POINTS === 0 && m.scores[1] === 0 && m.scores[2] === 0);
+    check('للإصابة 3 نقاط (TIE_POINTS)، ولم يُصب فلا نقاط', T.TIE_POINTS === 3 && m.scores[1] === 0 && m.scores[2] === 0);
     check('بعد الأول: «التالي» وحده', unit.actions(m.round.state).map(x => x.id).join() === 'next');
     go('next');
     a = unit.audience(m.round.state);
@@ -66,18 +66,24 @@ const { finalMatch } = require('./final-match.cjs');
     check('أصابا معاً: محاولة 3', unit.presenter(m.round.state).outcome === 'hit' && unit.actions(m.round.state)[0].id === 'again');
     go('again'); go('correct');
     a = unit.audience(m.round.state);
-    check('أصاب: «[الاسم] · أصاب» والحدّ له', a.verdict.label === 'أصاب' && a.verdict.team === 2 && a.verdict.who === 2);
+    check('أصاب: «[الاسم] · أصاب · +3» والحدّ له ونقاطه', a.verdict.label === 'أصاب · +3' && a.verdict.team === 2 && a.verdict.who === 2 && a.verdict.points === 3 && m.scores[2] === 6 && m.scores[1] === 3);
     go('next');
     const beforeWrong = m;
     go('wrong');
-    check('أصاب الأول وأخطأ الثاني: فاز الأول بالمحاولة، و«أعلن الفائز»', unit.presenter(m.round.state).outcome === 2 && unit.actions(m.round.state)[0].label === 'أعلن الفائز');
+    check('أصاب الأول وأخطأ الثاني: فاز الأول بالمحاولة، و«أعلن الفائز»', unit.presenter(m.round.state).outcome === 2 && unit.actions(m.round.state)[0].label === 'إلى النتيجة النهائية');
     check('التراجع عن آخر حكم: السؤال قبل الحكم', P.undo(m, modes).round.state.phase === beforeWrong.round.state.phase);
     go('announce');
-    check('«أعلن الفائز»: الخطوة final بالفائز من الجولة الفاصلة، والرصيد كما هو', m.step === 'final' && m.final.phase === 'win' && m.final.winner === 2 && m.final.tb && m.scores[1] === 0 && m.scores[2] === 0);
+    check('«إلى النتيجة النهائية»: الخطوة final بالنتيجة (tb) وفيها نقاط الجولة الفاصلة', m.step === 'final' && m.final.phase === 'fin' && m.final.tb && m.scores[1] === 3 && m.scores[2] === 6);
+    const path = M.gains(m), lastG = path[path.length - 1];
+    check('المسار: خانة «الجولة الفاصلة» في آخره بما كسبه كلٌّ فيها، والمجموع الرصيد', path.length === 4 && lastG.kind === 'tiebreak' && lastG.g[1] === 3 && lastG.g[2] === 6
+      && path.slice(0, 3).every(x => x.g[1] === 0 && x.g[2] === 0) && [1, 2].every(t => path.reduce((n, x) => n + x.g[t], 0) === m.scores[t]));
+    const won = P.announce(m);
+    check('«أعلن الفائز»: الفائز من الجولة الفاصلة (tb)', won.final.phase === 'win' && won.final.winner === 2 && won.final.tb);
+    check('التراجع من الفائز: النتيجة النهائية بخانة الجولة الفاصلة', P.undoFinal(won).final.phase === 'fin' && P.undoFinal(won).final.tb && !P.undoFinal(won).final.winner);
     const back = P.undoFinal(m);
-    check('التراجع من الفائز: آخر حكم في الجولة الفاصلة', back.step === 'play' && back.round.state.phase === 'decided' && unit.presenter(back.round.state).outcome === 2);
+    check('التراجع من النتيجة: آخر حكم في الجولة الفاصلة، والرصيد قبله', back.step === 'play' && back.round.state.phase === 'decided' && unit.presenter(back.round.state).outcome === 2 && back.scores[2] === 6 && back.scores[1] === 3);
     check('الأسئلة التي ظهرت (used): ستة، بلا تكرار', unit.used(m.round.state).length === 6 && new Set(unit.used(m.round.state)).size === 6);
-    check('ولا نهاية بلا ends للمسار: المسار كما هو', M.gains(m).length === 3);
+    check('والتراجع إلى النتيجة قبل الجولة الفاصلة يرفع خانتها', M.gains(P.undo(P.toTiebreak(fin, { modes, content }), modes)).length === 3);
     // الأسئلة التي ظهرت على الجهاز تُترك ما بقي غيرها.
     const seen = letter.questions.filter(q => q.tiebreak).slice(0, 18).map(q => q.id);
     const fresh = unit.setup({ content: letter, first: 1, seen, rng: Math.random });
@@ -146,6 +152,15 @@ const { finalMatch } = require('./final-match.cjs');
     check('والشارتان «الجولة الفاصلة» و«تعادل»، والحدّ في المنتصف', await badges(aud) === 'الجولة الفاصلة|تعادل|' && await side(aud) === 0);
     await layout(aud, 'مقدمة الجولة الفاصلة');
     await aud.screenshot({ path: path.join(shots, 's7-tie.png') });
+    // الملاحظة 41: «تراجع» في المقدمة يعيد إلى النتيجة النهائية.
+    check('نافذة المقدّم: «تراجع» في المقدمة', await page.isVisible('#tbUndo'));
+    await page.click('#tbUndo');
+    await aud.waitForSelector('.scr.show[data-s="fin"]');
+    check('«تراجع» من المقدمة: النتيجة النهائية بالتعادل', clean(await page.textContent('#fCtl')) === 'الجولة الفاصلة' && (await aud.$$('#finTrack .seg')).length === 3);
+    await wait(800);
+    await page.click('#fCtl [data-act="tiebreak"]');
+    await aud.waitForSelector('.scr.show[data-s="intro"]');
+    await wait(900);
     check('نافذة المقدّم: «الجولة الفاصلة»، و«دور [الثاني] · خسر القرعة يبدأ»، والقواعد الأربع، و«السؤال الأول · دور [الثاني]»',
       clean(await page.textContent('#roundChip')) === 'الجولة الفاصلة' && clean(await page.textContent('#introWho')) === `دور ${names[2]} · خسر القرعة يبدأ`
       && (await page.$$('#introBrief .rule-line')).length === 4 && clean(await page.textContent('#showQ')) === `السؤال الأول · دور ${names[2]}`);
@@ -168,12 +183,12 @@ const { finalMatch } = require('./final-match.cjs');
     await aud.screenshot({ path: path.join(shots, 's7-tbrun.png') });
     await page.click('#yes');
     await wait(1200);
-    check('أصاب: «[الثاني] · أصاب» بلا مربع، و«الإجابة: …»، والحدّ له، والرقمان كما هما', clean(await aud.textContent('#vtext')) === names[2] + ' · أصاب'
+    check('أصاب: «[الثاني] · أصاب · +3» بلا مربع، و«الإجابة: …»، والحدّ له، ورقمه 3', clean(await aud.textContent('#vtext')) === names[2] + ' · أصاب · +3'
       && await aud.evaluate(() => document.getElementById('box').classList.contains('bare')) && clean(await aud.textContent('#answer')) === q.answer && await side(aud) === 2
-      && clean(await aud.textContent('#s1')) === '0' && clean(await aud.textContent('#s2')) === '0');
+      && clean(await aud.textContent('#s1')) === '0' && clean(await aud.textContent('#s2')) === '3');
     await layout(aud, 'أصاب');
     await aud.screenshot({ path: path.join(shots, 's7-tbright.png') });
-    check('نافذة المقدّم: «[الثاني] · أصاب» و«التالي · دور [الأول]»', clean(await page.textContent('#qDone')) === names[2] + ' · أصاب' && clean(await page.textContent('#nextQ')) === 'التالي · دور ' + names[1]);
+    check('نافذة المقدّم: «[الثاني] · أصاب» و«التالي · دور [الأول]»', clean(await page.textContent('#qDone')) === names[2] + ' · أصاب · +3' && clean(await page.textContent('#nextQ')) === 'التالي · دور ' + names[1]);
     await noScroll(page, 'بعد الحكم');
     await page.click('#nextQ');
     await wait(1000);
@@ -185,13 +200,24 @@ const { finalMatch } = require('./final-match.cjs');
     check('انتهى وقت الأول: «[الأول] · لم يُصب» والحدّ في المنتصف، بلا انتقال للخصم', clean(await aud.textContent('#vtext')) === names[1] + ' · لم يُصب' && await side(aud) === 0 && !(await cls(aud, 'running')));
     await layout(aud, 'لم يُصب');
     await aud.screenshot({ path: path.join(shots, 's7-tbwrong.png') });
-    check('نافذة المقدّم: «… · لم يُصب · فاز [الثاني]» و«أعلن الفائز»', clean(await page.textContent('#qDone')) === `${names[1]} · لم يُصب · فاز ${names[2]}` && clean(await page.textContent('#nextQ')) === 'أعلن الفائز');
+    check('نافذة المقدّم: «… · لم يُصب · فاز [الثاني]» و«إلى النتيجة النهائية»', clean(await page.textContent('#qDone')) === `${names[1]} · لم يُصب · فاز ${names[2]}` && clean(await page.textContent('#nextQ')) === 'إلى النتيجة النهائية');
     await page.click('#nextQ');
+    await aud.waitForSelector('.scr.show[data-s="fin"]');
+    await wait(1600);
+    const segs = await aud.$$eval('#finTrack .seg', l => l.map(e => e.textContent.replace(/\s+/g, ' ').trim()));
+    check('النتيجة النهائية بعد الجولة الفاصلة: خانة «الفاصلة» في آخر المسار بنقاطها، و«التالي: إعلان الفائز»', segs.length === 4 && segs[3].startsWith('الفاصلة') && segs[3].includes('+3')
+      && clean(await aud.textContent('#s2')) === '3' && clean(await aud.textContent('#s1')) === '0' && (await aud.textContent('#canvas')).includes('التالي: إعلان الفائز'));
+    check('نافذة المقدّم: سطر «الجولة الفاصلة» في الجدول، و«الفائز: [الثاني]» و«أعلن الفائز»', clean(await page.textContent('#fMid')).includes('الجولة الفاصلة')
+      && clean(await page.textContent('#fWho')) === 'الفائز: ' + names[2] && clean(await page.textContent('#fCtl')) === 'أعلن الفائز');
+    await layout(aud, 'النتيجة بعد الجولة الفاصلة');
+    await aud.screenshot({ path: path.join(shots, 's7-fintb.png') });
+    await noScroll(page, 'النتيجة بعد الجولة الفاصلة');
+    await page.click('#fCtl [data-act="announce"]');
     await aud.waitForSelector('.scr.show[data-s="win"]');
     await wait(1100);
-    check('الفائز بالجولة الفاصلة: السطر والاسم والقصاصات، والحدّ له، والرقمان متساويان', clean(await aud.textContent('#winSub')) === 'الفائز بالجولة الفاصلة'
+    check('الفائز بالجولة الفاصلة: السطر والاسم والقصاصات، والحدّ له، ورقمه متقدّم بنقاطها', clean(await aud.textContent('#winSub')) === 'الفائز بالجولة الفاصلة'
       && clean(await aud.textContent('#champ')) === names[2] && (await aud.$$('#confetti span')).length === 140 && await side(aud) === 2
-      && clean(await aud.textContent('#s1')) === clean(await aud.textContent('#s2')));
+      && clean(await aud.textContent('#s2')) === '3' && clean(await aud.textContent('#s1')) === '0');
     check('نافذة المقدّم: «الفائز بالجولة الفاصلة»', clean(await page.textContent('#fMid')).startsWith('الفائز بالجولة الفاصلة'));
     const seenIds = await page.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.seen')));
     check('وسؤالاها في ذاكرة الأسئلة', st.questions.slice(0, 2).every(x => seenIds.includes(x.id)));
@@ -199,8 +225,12 @@ const { finalMatch } = require('./final-match.cjs');
     await layout(aud, 'الفائز بالجولة الفاصلة');
     await aud.screenshot({ path: path.join(shots, 's7-wintb.png') });
     await page.click('#fUndo');
+    await aud.waitForSelector('.scr.show[data-s="fin"]');
+    check('التراجع من الفائز: النتيجة بخانة الجولة الفاصلة', (await aud.$$('#finTrack .seg')).length === 4);
+    await wait(800);
+    await page.click('#fUndo');
     await aud.waitForSelector('.scr.show[data-s="q"]');
-    check('التراجع من الفائز: آخر حكم في الجولة الفاصلة', clean(await page.textContent('#nextQ')) === 'أعلن الفائز');
+    check('ثم آخر حكم في الجولة الفاصلة', clean(await page.textContent('#nextQ')) === 'إلى النتيجة النهائية');
     await context.close();
   }
 
@@ -217,6 +247,7 @@ const { finalMatch } = require('./final-match.cjs');
     await wait(900);
     check('بنافذة واحدة: «يبدأ: [الأول]» (فاز الثاني بالقرعة)، و«السؤال الأول» في البطاقة', clean(await frame.textContent('#starter')) === 'يبدأ: ' + n[1] && !!(await frame.$('.scr.intro [data-cmd="act:show"]')));
     await layout(frame, 'المقدمة بنافذة واحدة وأطول اسمين');
+    check('بنافذة واحدة: «تراجع» في المقدمة مفعّل (الملاحظة 41)', !!(await frame.$('[data-cmd="undo"]:not([disabled])')));
     const step = async (c, name) => { await cmd(frame, c); await wait(900); if (name) await layout(frame, name); };
     await step('act:show', 'السؤال بنافذة واحدة وأطول سؤال');
     check('السؤال الأطول (85 حرفاً) ثلاثة أسطر حداً أقصى', await frame.evaluate(() => { const r = document.createRange(); r.selectNodeContents(document.getElementById('label')); return new Set([...r.getClientRects()].map(x => Math.round(x.top))).size <= 3; }));
@@ -235,8 +266,14 @@ const { finalMatch } = require('./final-match.cjs');
     await page.screenshot({ path: path.join(shots, 's7-tbright-w1long1.png') });
     await step('act:next');
     await step('act:wrong');
-    check('حُسمت: «أعلن الفائز» بجانب الشارات', !!(await frame.$('#near [data-cmd="act:announce"]')));
+    check('حُسمت: «إلى النتيجة النهائية» بجانب الشارات', clean(await frame.textContent('#near [data-cmd="act:announce"]')) === 'إلى النتيجة النهائية');
     await step('act:announce');
+    await frame.waitForSelector('.scr.show[data-s="fin"]');
+    await wait(1600);
+    check('بنافذة واحدة: خانة «الفاصلة» بنقاطها، و«أعلن الفائز» في البطاقة', (await frame.$$('#finTrack .seg')).length === 4 && !!(await frame.$('[data-cmd="announce"]')));
+    await layout(frame, 'النتيجة بعد الجولة الفاصلة بنافذة واحدة');
+    await page.screenshot({ path: path.join(shots, 's7-fintb-w1long1.png') });
+    await step('announce');
     await frame.waitForSelector('.scr.show[data-s="win"]');
     check('الفائز بالجولة الفاصلة: الأول', clean(await frame.textContent('#champ')) === n[1] && clean(await frame.textContent('#winSub')) === 'الفائز بالجولة الفاصلة');
     await wait(6200);

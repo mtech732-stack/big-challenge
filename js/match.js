@@ -121,10 +121,11 @@ export const leaderOf = s => (s[1] > s[2] ? 1 : s[2] > s[1] ? 2 : 0);
 // فتعديل الرصيد اليدوي بين عنصرين يدخل في العنصر التالي، ومجموع الخانات يساوي الرصيد دائماً.
 // وما لم يُحفظ (مباراة محفوظة قبل ش7) يُعدّ كالذي قبله، فيدخل فرقه في العنصر بعده.
 export function gains(match) {
-  const list = plan(match), ends = match.ends ?? [];
+  // وبعد الجولة الفاصلة (match.tbFrom: الرصيد قبلها) خانة لها في آخر المسار، والعنصر الأخير ينتهي بالرصيد قبلها.
+  const list = [...plan(match), ...(match.tbFrom ? [{ kind: 'tiebreak' }] : [])], ends = match.ends ?? [];
   let prev = { 1: 0, 2: 0 };
   return list.map((item, i) => {
-    const end = i === list.length - 1 ? match.scores : ends[i] ?? prev;
+    const end = i === list.length - 1 ? match.scores : match.tbFrom && i === list.length - 2 ? match.tbFrom : ends[i] ?? prev;
     const g = { 1: end[1] - prev[1], 2: end[2] - prev[2] };
     prev = end;
     return { ...item, g };

@@ -410,8 +410,9 @@
       showScreen('fin');
       // المسار بترتيب المباراة من اليمين: خانة لكل جولة باسم نمطها، ولكل شريط «الشريط»، وفيها ما كسبه كل فريق بإشارته.
       // ولا يُعاد بناؤه إن لم يتغيّر، فلا تُعاد حركة دخول خاناته.
-      const html = gains(m).map((s, i) => `<div class="seg${s.kind === 'wheel' ? ' wheel' : ''}" style="--i:${i}" data-fit="${s.kind === 'wheel' ? 'خانة الشريط' : 'خانة الجولة'}">` +
-        `<span class="mname">${s.kind === 'wheel' ? 'الشريط' : esc(modeName(s.mode))}</span>` +
+      // والجولة الفاصلة خانة ضيقة كالشريط باسم «الفاصلة» في آخره.
+      const html = gains(m).map((s, i) => `<div class="seg${s.kind === 'round' ? '' : ' wheel'}" style="--i:${i}" data-fit="${s.kind === 'wheel' ? 'خانة الشريط' : s.kind === 'tiebreak' ? 'خانة الفاصلة' : 'خانة الجولة'}">` +
+        `<span class="mname">${s.kind === 'wheel' ? 'الشريط' : s.kind === 'tiebreak' ? 'الفاصلة' : esc(modeName(s.mode))}</span>` +
         `<span class="gains"><b class="g1">${signed(s.g[1])}</b><b class="g2">${signed(s.g[2])}</b></span></div>`).join('');
       if (finKey !== html) { finKey = html; $('finTrack').innerHTML = html; }
       announce({ next: leaderOf(m.scores) ? 'التالي: إعلان الفائز' : 'التالي: الجولة الفاصلة' });

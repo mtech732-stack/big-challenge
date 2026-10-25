@@ -268,7 +268,7 @@
     <h2 id="introHead"></h2>
     <p id="introWho"></p>
     <p id="introBrief"></p>
-    <div class="row"><button class="alt" data-new>مباراة جديدة</button><button class="big grow" id="showQ"></button></div>
+    <div class="row"><button class="alt" data-new>مباراة جديدة</button><button class="alt" id="tbUndo" hidden>تراجع</button><button class="big grow" id="showQ"></button></div>
   </section>
 
   <!-- السؤال، وتحته الإجابة النموذجية (يراها المقدّم من أول السؤال، والجمهور بعد الحكم الأخير) -->
@@ -580,12 +580,12 @@
   // free: نقرة لا تأتي بعدها أزرار مكانها (عنصر من قائمة المزاد يمتلئ ولا يُنقر ثانية)، فلا تُمهل ما بعدها
   // ما لم تتغير الحالة نفسها (آخر عنصر يُنهي الموضوع).
   function roundUpdate(next, free) {
-    // الجولة الفاصلة تنتهي بإعلان الفائز، أو يعيدها التراجع إلى النتيجة النهائية: خطوة جديدة لا فعل في جولة.
-    // وأسئلتها التي ظهرت تدخل ذاكرة الأسئلة عند الإعلان.
+    // الجولة الفاصلة تنتهي إلى النتيجة النهائية بخانتها (final.tb، بحركة دخول المسار)، أو يعيدها التراجع إليها قبل أول سؤال:
+    // خطوة جديدة لا فعل في جولة. وأسئلتها التي ظهرت تدخل ذاكرة الأسئلة عند انتهائها.
     if (next.step === 'final' && match.step === 'play') {
-      if (next.final.phase === 'win') try { localStorage.setItem(SEEN_KEY, JSON.stringify([...new Set([...seen(), ...TIEBREAK.used(match.round.state)])])); } catch {}
+      if (next.final.tb) try { localStorage.setItem(SEEN_KEY, JSON.stringify([...new Set([...seen(), ...TIEBREAK.used(match.round.state)])])); } catch {}
       hold();
-      return update(next, next.final.phase === 'win' ? 'win' : undefined);
+      return update(next, next.final.tb ? 'fin' : undefined);
     }
     if (next === match || (next.round === match.round)) return;
     const events = next.round?.events ?? [];
@@ -793,7 +793,7 @@
     let wheels = 0;
     $('fMid').innerHTML = win ? `<p class="label">${match.final.tb ? 'الفائز بالجولة الفاصلة' : 'الفائز بالمباراة'}</p><p class="champ tn t${match.final.winner}">${esc(match.teams[match.final.winner])}</p>`
       : '<div class="path"><p class="h">مسار المباراة</p>' + `<p class="v">${name(1)}</p><p class="v">${name(2)}</p>` +
-        M.gains(match).map(x => `<p>${num(x.kind === 'wheel' ? `شريط البونص ${++wheels}` : `الجولة ${x.n} · ${modeName(x.mode)}`)}</p>` +
+        M.gains(match).map(x => `<p>${num(x.kind === 'wheel' ? `شريط البونص ${++wheels}` : x.kind === 'tiebreak' ? 'الجولة الفاصلة' : `الجولة ${x.n} · ${modeName(x.mode)}`)}</p>` +
           `<p class="v tn t1">${num(signed(x.g[1]))}</p><p class="v tn t2">${num(signed(x.g[2]))}</p>`).join('') +
         `<p class="tot h">المجموع</p><p class="tot v tn t1">${num(match.scores[1])}</p><p class="tot v tn t2">${num(match.scores[2])}</p></div>`;
     $('fWho').innerHTML = `<span class="done">${win ? num(`${match.teams[1]} ${match.scores[1]} · ${match.teams[2]} ${match.scores[2]}`)
@@ -843,6 +843,8 @@
         : pr.turn ? `${mk(pr.turn)} ${esc(pr.starter ?? 'يبدأ')} ${tn(pr.turn)} (اختير عشوائياً). الافتتاح معروض الآن على الجمهور.`
         : `${esc(pr.starter ?? '')}. الافتتاح معروض الآن على الجمهور.`;
       $('introBrief').innerHTML = Array.isArray(pr.brief) ? pr.brief.map(t => `<span class="rule-line">${num(t)}</span>`).join('') : num(pr.brief);
+      // ومقدمة الجولة الفاصلة «تراجع» إلى النتيجة النهائية (الملاحظة 41).
+      $('tbUndo').hidden = !isTie;
       $('showQ').innerHTML = isTie ? `${num(label('show'))} · دور ${esc(match.teams[pr.turn])}` : num(label('show') ?? '');
     }
     if (part === 'q') {
@@ -1153,7 +1155,7 @@
       // وبعد الحكم «الموضوع التالي» في البطاقة لا في صف الشارات (design/auction.md 4، 1.1).
       if (screen === 'topic' && st.phase === 'decided') c.card = act('next');
       if (screen === 'topic' && !b) c.near = st.phase === 'ready' ? [...act('start', 'ابدأ'), ...act('count')] : [...act('count'), ...act('stop', 'توقّف', 'no')];
-      // الجولة الفاصلة (design/final.md 5): «ابدأ»، ثم «صحيحة» و«خاطئة»، ثم «التالي · [الآخر]» أو «أعلن الفائز» أو «المحاولة N».
+      // الجولة الفاصلة (design/final.md 5): «ابدأ»، ثم «صحيحة» و«خاطئة»، ثم «التالي · [الآخر]» أو «إلى النتيجة النهائية» أو «المحاولة N».
       if (screen === 'ask' && mode.id === TIEBREAK.id) {
         const pr = mode.presenter(st);
         c.near = [...act('start', 'ابدأ'), ...act('correct'), ...act('wrong', null, 'no'), ...act('next', `التالي · ${match.teams[pr.upNext]}`),
@@ -1165,7 +1167,7 @@
       if (screen === 'end') { const nb = nextButton(); c.card = [{ cmd: 'next', label: nb.text, off: !!nb.off || wait }]; }
       c.scores = true;
       // ثلاثة صفوف قصيرة (الملاحظة 26، design/system.md 15.10): الجولة · النوافذ · المباراة، فلا تبلغ لوحة الأول ولا أزرار العدّاد.
-      c.a = [[...(screen !== 'intro' ? [{ cmd: 'undo', label: 'تراجع', kind: 'alt', off: !match.round.history.length || wait }] : []), { cmd: 'mute', label: muted ? 'مكتوم' : 'الصوت', kind: 'alt' }]];
+      c.a = [[...(screen !== 'intro' || mode.id === TIEBREAK.id ? [{ cmd: 'undo', label: 'تراجع', kind: 'alt', off: (screen !== 'intro' && !match.round.history.length) || wait }] : []), { cmd: 'mute', label: muted ? 'مكتوم' : 'الصوت', kind: 'alt' }]];
       c.b = [[{ cmd: 'presenter', label: 'المقدّم', kind: 'alt' }, ...fs]];
       c.c = [[{ cmd: 'scores', label: 'الرصيد', kind: 'alt' }, fresh]];
     }
@@ -1282,7 +1284,7 @@
   $('lostSingle').onclick = () => update({ ...match, single: true });
   $('showQ').onclick = () => roundAct('show');
   document.querySelectorAll('#judge [data-act], #nextQ').forEach(b => b.onclick = () => b.dataset.act && roundAct(b.dataset.act));
-  $('undo').onclick = $('endUndo').onclick = $('aUndo').onclick = $('rUndo').onclick = $('wUndo').onclick = $('fUndo').onclick = actions.undo;
+  $('undo').onclick = $('tbUndo').onclick = $('endUndo').onclick = $('aUndo').onclick = $('rUndo').onclick = $('wUndo').onclick = $('fUndo').onclick = actions.undo;
   $('endNext').onclick = () => actions[nextButton().act]?.();
   $('mute').onclick = toggleMute;
   document.querySelectorAll('[data-new]').forEach(b => b.onclick = newMatch);
