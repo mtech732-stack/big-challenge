@@ -10,7 +10,7 @@
   ],
   "luck": [
     { "effect": "lose-3", "label": "خسارة 3 نقاط" },
-    { "effect": "steal-3", "label": "خصم 3 نقاط من خصمك" },
+    { "effect": "steal-3", "label": "خصم 3 نقاط" },
     { "effect": "gift-3", "label": "هدية: +3 نقاط" }
   ]
 }
