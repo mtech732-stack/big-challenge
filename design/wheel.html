@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>التحدي الكبير · ش6 · عجلة البونص · شاشة الجمهور</title>
+<title>التحدي الكبير · ش6 · شريط البونص · شاشة الجمهور</title>
 <link rel="icon" href="data:,">
-<!-- الصفحة المرجعية لتصميم عجلة البونص (design/wheel.md) فوق CSS اللعبة المبنية بالإصدار 1.3، فما يُرى هنا هو ما سيُبنى.
+<!-- الصفحة المرجعية لتصميم شريط البونص (design/wheel.md) فوق CSS اللعبة المبنية بالإصدار 1.3، فما يُرى هنا هو ما سيُبنى.
      الحالة من الرابط: ?s=ready&w=1&long=1 (s: الحالة · w=1 النافذة الواحدة · long=1 أطول اسمين ورقمان من ثلاث خانات وأطول تحدٍّ ·
      check=1 فحص التداخل · anim=1 الحركة، ومنها الدوران كاملاً في ?s=spin&anim=1). وبلا ?s: قائمة الحالات. -->
 <link rel="stylesheet" href="../css/tokens.css">
@@ -40,7 +40,7 @@
       <div class="row" data-fit="لوحة الفريق الأول"><span class="name" id="n1"></span><span class="score" id="s1"></span><span class="cnt" id="c1"></span></div>
     </section>
 
-    <div class="badge mode" data-hud="شارة النمط"><i></i><span>عجلة البونص</span></div>
+    <div class="badge mode" data-hud="شارة النمط"><i></i><span>شريط البونص</span></div>
     <div class="badge plain" id="b1" data-hud="الشارة الأولى"><i></i><span></span></div>
 
     <div class="card-wrap" id="cardWrap" data-hud="البطاقة">
@@ -102,7 +102,7 @@
   // أطول تحدٍّ: 84 حرفاً (حد السؤال 85، الوثيقة 7.3 وdesign/system.md 7)
   if (LONG) CH[2] = 'يمثّل أحدكم فيلماً كرتونياً مشهوراً بلا كلام، ويخمّن فريقه اسمه قبل انتهاء الوقت كله';
   // خانات الحظ (content-format 5: luck[].effect و label). والنص القصير في الخانة من التأثير، والنص الكامل من label
-  const LUCK = { 'lose-3': { w: 'خصم', n: '−3', label: 'خصم 3 نقاط' }, 'steal-3': { w: 'اسرق', n: '3', label: 'اسرق 3 نقاط من خصمك' },
+  const LUCK = { 'lose-3': { w: 'خسارة', n: '−3', label: 'خسارة 3 نقاط' }, 'steal-3': { w: 'خصم', n: '3', label: 'خصم 3 نقاط' },
     'gift-3': { w: 'هدية', n: '+3', label: 'هدية: +3 نقاط' } };
   // الخانات العشر من اليمين: سبعة تحديات وثلاث خانات حظ، موزّعة كي لا تتجاور خانتا حظ (design/wheel.md 2.2)
   const SLOTS = [['c', 0], ['l', 'lose-3'], ['c', 1], ['c', 2], ['l', 'gift-3'], ['c', 3], ['c', 4], ['l', 'steal-3'], ['c', 5], ['c', 6]];
@@ -114,21 +114,21 @@
   const STATES = {
     ready:   { t: 'الدورة 1: قبل الدوران (يديرها الثاني، الأقل نقاطاً)', turn: 2, by: 2, badge: 'الدورة 1 من 2' },
     spin:    { t: 'الدوران: المؤشر يمرّ على الخانات ويتباطأ (?anim=1 للدوران كاملاً)', turn: 2, by: 2, lit: 6, badge: 'الدورة 1 من 2', spin: true },
-    land:    { t: 'وقوف العجلة على تحدٍّ (لحظة انفعالية)', turn: 2, by: 2, lit: 3, stop: true, badge: 'الدورة 1 من 2' },
-    landluck:{ t: 'وقوف العجلة على خانة حظ', turn: 2, by: 2, lit: 1, stop: true, badge: 'الدورة 1 من 2' },
+    land:    { t: 'وقوف المؤشر على تحدٍّ (لحظة انفعالية)', turn: 2, by: 2, lit: 3, stop: true, badge: 'الدورة 1 من 2' },
+    landluck:{ t: 'وقوف المؤشر على خانة حظ', turn: 2, by: 2, lit: 1, stop: true, badge: 'الدورة 1 من 2' },
     challenge:{ t: 'التحدي: قبل «ابدأ»', screen: 'q', turn: 2, by: 2, slot: 3, badge: 'الدورة 1 من 2' },
     run:     { t: 'التحدي: الوقت يجري (دقيقتان)', screen: 'q', turn: 2, by: 2, slot: 3, run: 102, badge: 'الدورة 1 من 2' },
     last:    { t: 'التحدي: آخر 3 ثوانٍ', screen: 'q', turn: 2, by: 2, slot: 3, run: 3, badge: 'الدورة 1 من 2' },
     timeup:  { t: 'التحدي: انتهى الوقت، بانتظار حكم المقدّم', screen: 'q', turn: 2, by: 2, slot: 3, badge: 'الدورة 1 من 2', next: 'انتهى الوقت' },
     won:     { t: 'بعد الحكم: نجح التحدي (+5)', screen: 'q', turn: 2, by: 2, slot: 3, scores: A, badge: 'الدورة 1 من 2', verdict: { team: 2, points: '+5', line: 'نجح التحدي' }, gain: 2 },
     failed:  { t: 'بعد الحكم: لم ينجح (لا خصم)', screen: 'q', turn: 0, by: 2, slot: 3, badge: 'الدورة 1 من 2', verdict: { team: 0, line: 'لم ينجح التحدي' } },
-    lose:    { t: 'خانة حظ: خصم 3 نقاط', screen: 'q', turn: 0, by: 2, slot: 1, scores: { 1: S[1], 2: S[2] - 3 }, badge: 'الدورة 1 من 2', verdict: { team: 2, points: '−3', line: 'خانة حظ' }, danger: true },
-    lose0:   { t: 'خانة حظ: خصم 3 والرصيد 1 (لا ينزل تحت 0)', screen: 'q', turn: 0, by: 2, slot: 1, before: { 1: S[1], 2: 1 }, scores: { 1: S[1], 2: 0 }, badge: 'الدورة 1 من 2', verdict: { team: 2, points: '−1', line: 'خانة حظ' }, danger: true },
-    steal:   { t: 'خانة حظ: اسرق 3 نقاط من خصمك', screen: 'q', turn: 2, by: 2, slot: 7, scores: { 1: S[1] - 3, 2: S[2] + 3 }, badge: 'الدورة 1 من 2', verdict: { team: 2, points: '+3', line: `${NAMES[1]} · −3` }, gain: 2, loss: 1 },
+    lose:    { t: 'خانة حظ: خسارة 3 نقاط', screen: 'q', turn: 0, by: 2, slot: 1, scores: { 1: S[1], 2: S[2] - 3 }, badge: 'الدورة 1 من 2', verdict: { team: 2, points: '−3', line: 'خانة حظ' }, danger: true },
+    lose0:   { t: 'خانة حظ: خسارة 3 والرصيد 1 (لا ينزل تحت 0)', screen: 'q', turn: 0, by: 2, slot: 1, before: { 1: S[1], 2: 1 }, scores: { 1: S[1], 2: 0 }, badge: 'الدورة 1 من 2', verdict: { team: 2, points: '−1', line: 'خانة حظ' }, danger: true },
+    steal:   { t: 'خانة حظ: خصم 3 نقاط (يأخذها من الخصم)', screen: 'q', turn: 2, by: 2, slot: 7, scores: { 1: S[1] - 3, 2: S[2] + 3 }, badge: 'الدورة 1 من 2', verdict: { team: 2, points: '+3', line: `${NAMES[1]} · −3` }, gain: 2, loss: 1 },
     gift:    { t: 'خانة حظ: هدية +3', screen: 'q', turn: 2, by: 2, slot: 4, scores: { 1: S[1], 2: S[2] + 3 }, badge: 'الدورة 1 من 2', verdict: { team: 2, points: '+3', line: 'خانة حظ' }, gain: 2 },
     ready2:  { t: 'الدورة 2: قبل الدوران (يديرها الأول)', turn: 1, by: 1, before: A, badge: 'الدورة 2 من 2' },
-    land2:   { t: 'الدورة 2: وقوف العجلة (يديرها الأول)', turn: 1, by: 1, lit: 8, stop: true, before: A, badge: 'الدورة 2 من 2' },
-    end:     { t: 'نهاية العجلة', screen: 'end', turn: 0, before: { 1: A[1] - 3, 2: A[2] + 3 }, badge: 'انتهت العجلة', totals: { 1: '−3', 2: '+8' } },
+    land2:   { t: 'الدورة 2: وقوف المؤشر (يديرها الأول)', turn: 1, by: 1, lit: 8, stop: true, before: A, badge: 'الدورة 2 من 2' },
+    end:     { t: 'نهاية العجلة', screen: 'end', turn: 0, before: { 1: A[1] - 3, 2: A[2] + 3 }, badge: 'انتهى الشريط', totals: { 1: '−3', 2: '+8' } },
   };
 
   // أزرار النافذة الواحدة (design/wheel.md 4): بجانب ما تتحكم فيه، في صف الشارات. والزوايا الثلاث كما في 1.3
@@ -143,7 +143,7 @@
     const judge = [B('نجح'), B('لم ينجح', 'alt')];
     const after = [B('التالي · الدورة 2')];
     const near = {
-      ready: [B('أدِر العجلة')], ready2: [B('أدِر العجلة')],
+      ready: [B('أطلق الشريط')], ready2: [B('أطلق الشريط')],
       challenge: [B('ابدأ · دقيقتان')],
       run: judge, last: judge, timeup: judge,
       won: after, failed: after, lose: after, lose0: after, steal: after, gift: after,
@@ -173,7 +173,7 @@
     if (st.run) { const t = `${Math.floor(st.run / 60)}:${String(st.run % 60).padStart(2, '0')}`; $('c1').innerHTML = $('c2').innerHTML = `<span class="ltr">${t}</span>`; }
     $('box').hidden = true;
     if (!st.screen) {
-      $('whead').textContent = 'يدير العجلة: ' + NAMES[st.by];
+      $('whead').textContent = 'يُطلق الشريط: ' + NAMES[st.by];
       $('band').innerHTML = SLOTS.map((_, i) => slotHtml(i, st)).join('');
     }
     if (st.screen === 'q') {
@@ -260,12 +260,12 @@
   const id = q.get('s');
   if (!STATES[id]) {
     const m = document.createElement('div'); m.className = 'menu';
-    m.innerHTML = '<h1>ش6 · عجلة البونص · شاشة الجمهور</h1><table>' + Object.entries(STATES).map(([k, s]) =>
+    m.innerHTML = '<h1>ش6 · شريط البونص · شاشة الجمهور</h1><table>' + Object.entries(STATES).map(([k, s]) =>
       `<tr><td>${esc(s.t)}</td><td><a href="?s=${k}">نافذتان</a></td><td><a href="?s=${k}&w=1">نافذة واحدة</a></td><td><a href="?s=${k}&long=1">أطول محتوى</a></td><td><a href="?s=${k}&w=1&long=1&check=1">الأطول بنافذة واحدة مع الفحص</a></td><td><a href="?s=${k}&anim=1">الحركة</a></td></tr>`).join('') +
       '</table><p>التفصيل في design/wheel.md. ونافذة المقدّم في <a href="presenter-wheel.html">presenter-wheel.html</a>.</p>';
     document.body.append(m);
   } else {
-    Promise.all(['700 32px Kufi', '900 104px Kufi'].map(f => document.fonts.load(f, 'عجلة البونص 0123456789+'))).then(() => document.fonts.ready).then(() => {
+    Promise.all(['700 32px Kufi', '900 104px Kufi'].map(f => document.fonts.load(f, 'شريط البونص 0123456789+'))).then(() => document.fonts.ready).then(() => {
       render(id);
       requestAnimationFrame(() => {
         render(id);
