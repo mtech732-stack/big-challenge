@@ -33,7 +33,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     let r = landOn('lose', { 1: 4, 2: 9 });
     let a = wheel.audience(r.state);
     check('«خصم 3»: تُطبَّق فور الوقوف بلا حكم ولا «ابدأ»، −3 لمن أدارها', r.state.slots[r.state.landed].effect === 'lose-3' && r.state.phase === 'done' && r.scores[2] === 6 && r.scores[1] === 4
-      && wheel.actions(r.state).map(x => x.id).join() === 'finish');
+      && wheel.actions(r.state).map(x => x.id).join() === 'next');
     check('والشارة «−3» لمن أدارها والسطر «خانة حظ»، والحدّ في المنتصف، ولحظة اهتزاز (trap)', a.verdict?.team === 2 && a.verdict.points === -3 && a.verdict.say === 'خانة حظ' && a.turn === 0
       && r.events.some(e => e.type === 'moment' && e.name === 'trap' && e.team === 2));
     r = landOn('lose', { 1: 4, 2: 1 });
@@ -51,8 +51,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     a = wheel.audience(r.state);
     check('«اسرق 3»: 3 من الخصم إلى من أدارها، والشارة «+3» ومعها من أُخذ منه وكم، والحدّ عنده', r.state.slots[r.state.landed].effect === 'steal-3' && r.scores[2] === 12 && r.scores[1] === 1
       && a.verdict.points === 3 && a.verdict.from === 1 && a.verdict.taken === 3 && a.turn === 2 && r.events.some(e => e.name === 'taken' && e.team === 1));
-    r = R.act(wheel, r, 'finish', undefined, t0 + 20000);
-    check('نهاية العجلة بعد «اسرق»: «+3» لمن أدارها و«−3» للخصم', wheel.audience(r.state).totals[2] === 3 && wheel.audience(r.state).totals[1] === -3);
+    check('حصيلة الشريط بعد «اسرق»: «+3» لمن أدارها و«−3» للخصم', wheel.audience(r.state).totals[2] === 3 && wheel.audience(r.state).totals[1] === -3);
     r = landOn('steal', { 1: 2, 2: 9 });
     check('«اسرق» والخصم عنده 2: يأخذ ما تبقى فقط (جواب المالك)، 2 و2، ولا ينزل تحت الصفر', r.scores[1] === 0 && r.scores[2] === 11 && wheel.audience(r.state).verdict.taken === 2);
     check('لا تتجاوز خانة حظ 3 نقاط', ['lose', 'gift', 'steal'].every(e => Math.abs(wheel.audience(landOn(e, { 1: 50, 2: 50 }).state).verdict.points) <= 3));
@@ -191,9 +190,15 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
       await click('#wCtl [data-act="spin"]');
       await audience.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
       await wait(1200);
+      // الدورة الثانية للفريق الآخر على الخانة نفسها، ثم «إنهاء الشريط».
+      await click('#wCtl [data-act="next"]');
+      await audience.waitForSelector('.scr.whl.show');
+      await click('#wCtl [data-act="spin"]');
+      await audience.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
+      await wait(1200);
       await click('#wCtl [data-act="finish"]');
-      const d = { 1: 0, 2: 0 };
-      d[sp] = effect === 'lose' ? -1 : 3; if (effect === 'steal') d[op] = -3;
+      // خسارة: الأول 1 → 0 والثاني 4 → 1 · هدية: +3 لكلٍّ · خصم: يأخذ كلٌّ من الآخر 3، فلا يتغير شيء في المجموع.
+      const d = { lose: { [sp]: -1, [op]: -3 }, gift: { [sp]: 3, [op]: 3 }, steal: { [sp]: 0, [op]: 0 } }[effect];
       const sign = n => (n < 0 ? '−' + -n : '+' + n);
       check(`${tag}نهاية العجلة: ما تغيّر في رصيد كل فريق («${sign(d[sp])}» و«${sign(d[op])}»)`, await text(audience, '#r' + sp) === sign(d[sp]) && await text(audience, '#r' + op) === sign(d[op]));
       await audienceCheck(audience, `${tag}نهاية العجلة`);

@@ -73,7 +73,7 @@ const { reporter } = require('./helpers.cjs');
   s = round.state;
   a = wheel.audience(s);
   check('بعد الحركة: الخانة ظاهرة (شاشة الخانة)، بنصها كاملاً وكلمتها ورقمها، والحدّ لمن أدارها', s.phase === 'slot' && a.screen === 'slot' && a.text === s.slots[stop].text && a.slot.word === W.face(s.slots[stop]).word && a.turn === 2 && a.by === 2);
-  check('بعد الوقوف: «ابدأ التحدي» إن وقفت على تحدٍّ، و«إنهاء الشريط» على خانة حظ (تطبيقها مرحلة تالية)', wheel.actions(s).map(x => x.id).join() === (s.slots[stop].kind === 'challenge' ? 'start' : 'finish'));
+  check('بعد الوقوف: «ابدأ التحدي» إن وقفت على تحدٍّ، و«التالي · الدورة 2» على خانة حظ (تُطبَّق فوراً)', wheel.actions(s).map(x => x.id).join() === (s.slots[stop].kind === 'challenge' ? 'start' : 'next'));
 
   // التراجع: يتخطى الدوران إلى ما قبله، ثم «أدِر» يقف على الخانة نفسها.
   let m = { step: 'play', round, scores: round.scores };
@@ -85,12 +85,16 @@ const { reporter } = require('./helpers.cjs');
   check('والتراجع أثناء الدوران يوقفه (قبل الدوران)', mid.round.state.phase === 'ready');
 
   // نهاية العجلة (التحدي يُحكم فيه أولاً: «لم ينجح» بلا نقاط).
-  if (s.slots[stop].kind === 'challenge') { round = R.act(wheel, round, 'start', undefined, t0 + ms + 1000); round = R.act(wheel, round, 'failed', undefined, t0 + ms + 2000); }
-  round = R.act(wheel, round, 'finish', undefined, t0 + ms + 3000);
+  // والدورتان: التحدي يُحكم فيه «لم ينجح»، ثم الدورة الثانية بخانتها، ثم «إنهاء الشريط» (اختبار الدورتين في stage6-wheel-turns).
+  const close = (r, at) => (r.state.slots[r.state.landed].kind === 'challenge' ? R.act(wheel, R.act(wheel, r, 'start', undefined, at), 'failed', undefined, at + 1000) : r);
+  round = close(round, t0 + ms + 1000);
+  round = R.act(wheel, round, 'next', undefined, t0 + ms + 3000);
+  round = R.act(wheel, round, 'spin', undefined, t0 + ms + 4000);
+  round = close(R.act(wheel, round, 'land', undefined, t0 + ms + 4000 + W.spinMs(round.state.landed)), t0 + 30000);
+  round = R.act(wheel, round, 'finish', undefined, t0 + 40000);
   s = round.state;
   a = wheel.audience(s);
-  check('«إنهاء الشريط»: النهاية، والحدّ في المنتصف، وحصيلتها', wheel.finished(s) && a.screen === 'end' && a.turn === 0 && a.totals[1] === 0 && a.totals[2] === 0);
-  check('الرصيد لم يتغير في هذه المرحلة', round.scores[1] === 0 && round.scores[2] === 0);
+  check('«إنهاء الشريط»: النهاية، والحدّ في المنتصف', wheel.finished(s) && a.screen === 'end' && a.turn === 0);
 
   // في مسار المباراة.
   const files = { 'letter.json': {}, 'ranking.json': {} };

@@ -976,9 +976,11 @@
       : pr.phase === 'run' && pr.timeup ? 'انتهى الوقت · احكم' : pr.slot?.kind === 'challenge' ? WSTATE[pr.phase] ?? '' : '';
     const ctl = id => acts.find(a => a.id === id);
     // «أطلق الشريط» بعرض اللوحة، ومعطّل أثناء الدوران. و«ابدأ التحدي · دقيقتان»، ثم «نجح · +5» و«لم ينجح» نصفاً ونصفاً،
-    // وبعد الحكم أو خانة الحظ (تُطبَّق فور الوقوف) «إنهاء الشريط» في هذه المرحلة (الدورة الثانية في المرحلة التالية).
+    // وبعد الحكم أو خانة الحظ (تُطبَّق فور الوقوف) الدورة الثانية، ثم «إنهاء الشريط».
     $('wCtl').innerHTML = pr.phase === 'spin' ? '<button class="full" disabled>أطلق الشريط</button>'
       : pr.phase === 'run' ? `<button data-act="won">${num(ctl('won').label)}</button><button class="no" data-act="failed">${esc(ctl('failed').label)}</button>`
+      // والدورة الثانية «التالي · دور [الفريق الآخر]» (design/wheel.md 5).
+      : ctl('next') ? `<button class="full" data-act="next">التالي · دور ${esc(match.teams[pr.track[pr.n]?.owner])}</button>`
       : ['spin', 'start', 'finish'].filter(ctl).map(id => `<button class="full" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
     $('wUndo').disabled = !match.round.history.length;
   }
@@ -1069,9 +1071,9 @@
       if (screen === 'topic' && st.phase === 'decided') c.card = act('next');
       if (screen === 'topic' && !b) c.near = st.phase === 'ready' ? [...act('start', 'ابدأ'), ...act('count')] : [...act('count'), ...act('stop', 'توقّف', 'no')];
       if (screen === 'ask') c.near = [...act('start', 'ابدأ'), ...act('correct'), ...act('wrong', null, 'no'), ...act('next', last ? 'إنهاء الجولة' : 'السؤال التالي')];
-      // العجلة (design/wheel.md 4): «أطلق الشريط» قبل الدوران، ولا شيء أثناءه. وبعد الحكم أو خانة الحظ «إنهاء الشريط» في هذه المرحلة.
+      // العجلة (design/wheel.md 4): «أطلق الشريط» قبل الدوران، ولا شيء أثناءه. وبعد الحكم أو خانة الحظ «التالي · الدورة 2»، ثم «إنهاء الشريط».
       // والتحدي «ابدأ · دقيقتان»، ثم «نجح» و«لم ينجح» (بإطار) والوقت يجري أو بعد انتهائه.
-      if (screen === 'wheel' || screen === 'slot') c.near = [...act('spin'), ...act('start', 'ابدأ · دقيقتان'), ...act('won', 'نجح'), ...act('failed', null, 'alt'), ...act('finish')];
+      if (screen === 'wheel' || screen === 'slot') c.near = [...act('spin'), ...act('start', 'ابدأ · دقيقتان'), ...act('won', 'نجح'), ...act('failed', null, 'alt'), ...act('next'), ...act('finish')];
       if (screen === 'end') { const nb = nextButton(); c.card = [{ cmd: 'next', label: nb.text, off: !!nb.off || wait }]; }
       c.scores = true;
       // ثلاثة صفوف قصيرة (الملاحظة 26، design/system.md 15.10): الجولة · النوافذ · المباراة، فلا تبلغ لوحة الأول ولا أزرار العدّاد.
