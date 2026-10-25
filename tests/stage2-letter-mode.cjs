@@ -142,7 +142,7 @@ const { reporter } = require('./helpers.cjs');
     const act = letter.actions(m.round.state).map(b => b.id);
     m = P.act(m, MODES, act.includes('next') ? 'next' : 'correct');
   }
-  check('بعد الجولة 1 في القصيرة: «التالي: عجلة البونص»', P.nextText(m, name) === 'التالي: عجلة البونص' && P.nextKind(m, MODES) === 'skip');
+  check('بعد الجولة 1 في القصيرة: «التالي: شريط البونص»', P.nextText(m, name) === 'التالي: شريط البونص' && P.nextKind(m, MODES) === 'skip');
   m = P.skipNext(m, MODES);
   check('بعد تخطّي العجلة: «التالي: الجولة 2 · المزاد»، وهو مبنيّ فيبدأ (ش4)', P.nextText(m, name) === 'التالي: الجولة 2 · المزاد' && P.nextKind(m, MODES) === 'start');
   // والترتيب مبنيّ منذ نهاية ش5 فيبدأ. وجولة نمط لم يُبنَ (بأنماط بلا الترتيب) تُتخطى، ثم النتيجة النهائية.

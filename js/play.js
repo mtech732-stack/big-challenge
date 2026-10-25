@@ -22,7 +22,7 @@ export function between(match, modes) {
 export function nextText(match, modeName) {
   const item = upcoming(match);
   if (!item) return 'التالي: النتيجة النهائية';
-  if (item.kind === 'wheel') return 'التالي: عجلة البونص';
+  if (item.kind === 'wheel') return 'التالي: شريط البونص';
   return `التالي: الجولة ${item.n} · ${modeName(item.mode)}`;
 }
 

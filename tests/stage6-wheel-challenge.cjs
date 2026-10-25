@@ -1,4 +1,4 @@
-// اختبار آلي لمرحلة «التحدي والحكم» في عجلة البونص (5.7، design/wheel.md 2 و4 و5) في رابط المعاينة:
+// اختبار آلي لمرحلة «التحدي والحكم» في شريط البونص (5.7، design/wheel.md 2 و4 و5) في رابط المعاينة:
 // وحدةً (دون متصفح): «ابدأ التحدي» يبدأ دقيقتين، وانتهاء الوقت لا يحكم، و«نجح» +5 لمن أدارها و«لم ينجح» بلا خصم،
 // والتراجع عن الحكم والوقت يجري يعيد ما بقي منه، والحصيلة في نهاية العجلة.
 // ثم بالمتصفح بنافذتين: الوقت «2:00» في لوحة من أدارها وإطاره يتآكل، والوقت في رأس المقدّم، وآخر 3 ثوانٍ، و«انتهى الوقت» حتى يحكم،
@@ -40,7 +40,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     check('«نجح»: +5 لمن أدارها، ولحظة right، ويقف العدّاد', won.scores[2] === 5 && won.scores[1] === 0 && won.timer === null && won.events.some(e => e.type === 'moment' && e.name === 'right' && e.team === 2));
     a = wheel.audience(won.state);
     check('الجمهور بعد «نجح»: الشارة لمن أدارها «+5» والسطر «نجح التحدي»، والحدّ عنده', a.verdict?.team === 2 && a.verdict.points === 5 && a.verdict.say === 'نجح التحدي' && a.turn === 2);
-    check('بعد الحكم: «إنهاء العجلة» (الدورة الثانية مرحلة تالية)، والمسار يكتب من أخذ النقاط', wheel.actions(won.state).map(x => x.id).join() === 'finish' && wheel.presenter(won.state).track[0].result === 2);
+    check('بعد الحكم: «إنهاء الشريط» (الدورة الثانية مرحلة تالية)، والمسار يكتب من أخذ النقاط', wheel.actions(won.state).map(x => x.id).join() === 'finish' && wheel.presenter(won.state).track[0].result === 2);
     const back = R.undo(won, t1 + 31000);
     check('التراجع عن الحكم والوقت يجري: الرصيد كما كان، والعدّاد بما بقي منه (نحو 90 ثانية)', back.state.phase === 'run' && back.scores[2] === 0 && back.timer && Math.abs(back.timer.seconds - 90) < 0.01);
     // انتهاء الوقت: لا حكم تلقائي.
@@ -181,7 +181,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     check(`${tag}«لم ينجح»: «لا نقاط» و«لم ينجح التحدي» بلا مربع، والحدّ في المنتصف، والرصيد كما هو`, await text(audience, '#vtext') === 'لا نقاط' && await text(audience, '#say') === 'لم ينجح التحدي'
       && await audience.evaluate(() => document.getElementById('box').classList.contains('bare')) && !(await cls(audience, 'turn-1')) && !(await cls(audience, 'turn-2'))
       && (await saved(stage)).round.scores[spinner] === 0);
-    check(`${tag}المقدّم: «لا نقاط · لم ينجح التحدي» و«إنهاء العجلة»`, await text(presenter, '#wWho') === 'لا نقاط · لم ينجح التحدي' && await text(presenter, '#wCtl') === 'إنهاء العجلة' && await presenter.$eval('#wClock', e => e.hidden));
+    check(`${tag}المقدّم: «لا نقاط · لم ينجح التحدي» و«إنهاء الشريط»`, await text(presenter, '#wWho') === 'لا نقاط · لم ينجح التحدي' && await text(presenter, '#wCtl') === 'إنهاء الشريط' && await presenter.$eval('#wClock', e => e.hidden));
     await audienceCheck(audience, `${tag}لم ينجح`);
     if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-failed.png') });
     await presenter.click('#wUndo'); await wait(900);
@@ -226,7 +226,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     await stage.screenshot({ path: path.join(shots, 'wheel-run-w1.png') });
     await wait(1500);
     await go('act:won');
-    check('«نجح»: «إنهاء العجلة»، و+5', await near() === 'إنهاء العجلة' && (await saved(stage)).round.scores[(await saved(stage)).round.state.first] === 5);
+    check('«نجح»: «إنهاء الشريط»، و+5', await near() === 'إنهاء الشريط' && (await saved(stage)).round.scores[(await saved(stage)).round.state.first] === 5);
     await audienceCheck(audience, 'نافذة واحدة · نجح');
     await stage.screenshot({ path: path.join(shots, 'wheel-won-w1.png') });
     await go('undo');
@@ -234,7 +234,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     check('«تراجع» والوقت كان يجري: يعود بما بقي منه لا بالدقيقتين', (await saved(stage)).round.state.phase === 'run' && t && t.seconds < 119.5 && t.seconds > 100 && await cls(audience, 'running'));
     await go('act:failed');
     await go('act:finish');
-    check('«إنهاء العجلة»: في البطاقة «ابدأ الجولة 2»', await text(audience, '.scr.end.show .ctl') === 'ابدأ الجولة 2');
+    check('«إنهاء الشريط»: في البطاقة «ابدأ الجولة 2»', await text(audience, '.scr.end.show .ctl') === 'ابدأ الجولة 2');
     await context.close();
   }
 

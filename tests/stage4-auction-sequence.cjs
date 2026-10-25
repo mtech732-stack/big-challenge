@@ -165,8 +165,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('النهاية: «انتهت الجولة 1»، و+5 للأول و+2 للآخر', await audience.isVisible('.scr.show[data-s="end"]') && (await text(audience, '#b1')) === 'انتهت الجولة 1'
     && (await text(audience, '#r' + first)) === '+5' && (await text(audience, '#r' + other(first))) === '+2');
   check('النهاية: «التالي: …» على الشاشة، والحدّ في المنتصف', /^التالي:/.test(await text(audience, '#next')) && await audience.$eval('#canvas', c => !c.classList.contains('turn-1') && !c.classList.contains('turn-2')));
-  check(`المقدّم: «انتهت الجولة 1 · المزاد» وحصيلة الفريقين، وما بعدها («تخطَّ عجلة البونص» حتى ش6) (${await text(presenter, '#endNext')})`, (await text(presenter, '#endHead')) === 'انتهت الجولة 1 · المزاد'
-    && (await text(presenter, '#sum')).includes('+5') && /عجلة البونص/.test(await text(presenter, '#endNext')));
+  check(`المقدّم: «انتهت الجولة 1 · المزاد» وحصيلة الفريقين، وما بعدها («تخطَّ شريط البونص» حتى ش6) (${await text(presenter, '#endNext')})`, (await text(presenter, '#endHead')) === 'انتهت الجولة 1 · المزاد'
+    && (await text(presenter, '#sum')).includes('+5') && /شريط البونص/.test(await text(presenter, '#endNext')));
   await both('نهاية الجولة');
   await stage.screenshot({ path: `${shots}/s4-end.png` });
   await presenter.click('#endUndo'); await wait(1000);
@@ -186,7 +186,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await both('نافذة واحدة · بعد الحكم');
   await stage.screenshot({ path: `${shots}/s4-single-last.png` });
   await cmd(audience, 'act:next'); await wait(1500);
-  check(`النافذة الواحدة: النهاية و«تخطَّ عجلة البونص» في البطاقة (${await card()})`, await audience.isVisible('.scr.show[data-s="end"]') && /عجلة البونص/.test(await card()));
+  check(`النافذة الواحدة: النهاية و«تخطَّ شريط البونص» في البطاقة (${await card()})`, await audience.isVisible('.scr.show[data-s="end"]') && /شريط البونص/.test(await card()));
   await both('نافذة واحدة · النهاية');
   await stage.screenshot({ path: `${shots}/s4-single-end.png` });
   // التراجع إلى الموضوع الثاني ثم «الموضوع التالي» من البطاقة.

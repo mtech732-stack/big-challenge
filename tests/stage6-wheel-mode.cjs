@@ -1,6 +1,6 @@
-// اختبار آلي لوحدة «عجلة البونص» (js/wheel.js) في مرحلة «الدوران» (5.7، design/wheel.md)، دون متصفح:
+// اختبار آلي لوحدة «شريط البونص» (js/wheel.js) في مرحلة «الدوران» (5.7، design/wheel.md)، دون متصفح:
 // الخانات العشر بترتيبها من wheel.json (سبع تحديات وثلاث خانات حظ لا تتجاور)، وكلمة كل خانة ورقمها من التأثير،
-// وخانة الوقوف محسومة من الإعداد، و«أدِر العجلة» ثم «land» لا يُقبل قبل انتهاء الحركة، ولا نص لخانة على الجمهور قبل الوقوف،
+// وخانة الوقوف محسومة من الإعداد، و«أطلق الشريط» ثم «land» لا يُقبل قبل انتهاء الحركة، ولا نص لخانة على الجمهور قبل الوقوف،
 // والتراجع يتخطى الدوران، وموضع العجلة في مسار المباراة، ومن يديرها أولاً (الأقل نقاطاً، وعند التعادل الخاسر في القرعة).
 const fs = require('fs');
 const path = require('path');
@@ -35,8 +35,8 @@ const { reporter } = require('./helpers.cjs');
   check('التحديات بترتيبها في wheel.json، ونص كل خانة حظ من label', s.slots.filter(x => x.kind === 'challenge').map(x => x.id).join(',') === data.challenges.map(c => c.id).join(',')
     && s.slots.filter(x => x.kind === 'luck').every(x => x.text === data.luck.find(l => l.effect === x.effect).label));
   const faces = s.slots.map(W.face);
-  check('كلمة الخانة ورقمها من التأثير: «تحدٍّ +5» · «خصم −3» · «هدية +3» · «اسرق 3»', faces[0].word === 'تحدٍّ' && faces[0].n === '+5' && faces[1].word === 'خصم' && faces[1].n === '−3'
-    && faces[4].word === 'هدية' && faces[4].n === '+3' && faces[7].word === 'اسرق' && faces[7].n === '3');
+  check('كلمة الخانة ورقمها من التأثير: «تحدٍّ +5» · «خسارة −3» · «هدية +3» · «خصم 3»', faces[0].word === 'تحدٍّ' && faces[0].n === '+5' && faces[1].word === 'خسارة' && faces[1].n === '−3'
+    && faces[4].word === 'هدية' && faces[4].n === '+3' && faces[7].word === 'خصم' && faces[7].n === '3');
   check('لو طال label لا تتغير الخانة (الكلمة من effect)', W.face({ kind: 'luck', effect: 'gift-3', text: 'هدية طويلة جداً جداً' }).word === 'هدية');
   check('خانتا الوقوف للدورتين محسومتان في الإعداد (0 إلى 9)', s.stops.length === 2 && s.stops.every(k => Number.isInteger(k) && k >= 0 && k < 10));
   const many = Array.from({ length: 200 }, () => wheel.setup({ content: data, first: 1, rng }).stops[0]);
@@ -50,14 +50,14 @@ const { reporter } = require('./helpers.cjs');
   check('لا نص لأي خانة على الجمهور قبل الوقوف (الكلمة والرقم وحدهما)', !texts.some(t => JSON.stringify(a).includes(t)));
   // والرصيد 0 و0 (لم يُمرَّر): تعادل، فسبب البدء للمقدّم «خسر القرعة».
   check('المقدّم يرى النصوص كاملة، وسبب البدء', wheel.presenter(s).items.every((x, i) => x.text === s.slots[i].text) && wheel.presenter(s).why === 'draw');
-  check('زر واحد: «أدِر العجلة»', JSON.stringify(wheel.actions(s)) === JSON.stringify([{ id: 'spin', label: 'أدِر العجلة' }]));
+  check('زر واحد: «أطلق الشريط»', JSON.stringify(wheel.actions(s)) === JSON.stringify([{ id: 'spin', label: 'أطلق الشريط' }]));
 
   // الدوران.
   const t0 = 1_000_000;
   round = R.act(wheel, round, 'spin', undefined, t0);
   s = round.state;
   const stop = s.stops[0];
-  check('«أدِر العجلة»: تدور إلى خانتها المحسومة، ووقت البدء بساعة الجهاز', s.phase === 'spin' && s.landed === stop && s.at === t0);
+  check('«أطلق الشريط»: تدور إلى خانتها المحسومة، ووقت البدء بساعة الجهاز', s.phase === 'spin' && s.landed === stop && s.at === t0);
   check('ولحظة «spin» بمن يديرها وخانته', round.events.some(e => e.type === 'moment' && e.name === 'spin' && e.team === 2 && e.stop === stop));
   a = wheel.audience(s);
   check('الجمهور يعرف الخانة والوقت ليدور إليها، ولا نص لها بعد', a.spin?.stop === stop && a.spin.at === t0 && !texts.some(t => JSON.stringify(a).includes(t)));
@@ -73,7 +73,7 @@ const { reporter } = require('./helpers.cjs');
   s = round.state;
   a = wheel.audience(s);
   check('بعد الحركة: الخانة ظاهرة (شاشة الخانة)، بنصها كاملاً وكلمتها ورقمها، والحدّ لمن أدارها', s.phase === 'slot' && a.screen === 'slot' && a.text === s.slots[stop].text && a.slot.word === W.face(s.slots[stop]).word && a.turn === 2 && a.by === 2);
-  check('بعد الوقوف: «ابدأ التحدي» إن وقفت على تحدٍّ، و«إنهاء العجلة» على خانة حظ (تطبيقها مرحلة تالية)', wheel.actions(s).map(x => x.id).join() === (s.slots[stop].kind === 'challenge' ? 'start' : 'finish'));
+  check('بعد الوقوف: «ابدأ التحدي» إن وقفت على تحدٍّ، و«إنهاء الشريط» على خانة حظ (تطبيقها مرحلة تالية)', wheel.actions(s).map(x => x.id).join() === (s.slots[stop].kind === 'challenge' ? 'start' : 'finish'));
 
   // التراجع: يتخطى الدوران إلى ما قبله، ثم «أدِر» يقف على الخانة نفسها.
   let m = { step: 'play', round, scores: round.scores };
@@ -89,7 +89,7 @@ const { reporter } = require('./helpers.cjs');
   round = R.act(wheel, round, 'finish', undefined, t0 + ms + 3000);
   s = round.state;
   a = wheel.audience(s);
-  check('«إنهاء العجلة»: النهاية، والحدّ في المنتصف، وحصيلتها', wheel.finished(s) && a.screen === 'end' && a.turn === 0 && a.totals[1] === 0 && a.totals[2] === 0);
+  check('«إنهاء الشريط»: النهاية، والحدّ في المنتصف، وحصيلتها', wheel.finished(s) && a.screen === 'end' && a.turn === 0 && a.totals[1] === 0 && a.totals[2] === 0);
   check('الرصيد لم يتغير في هذه المرحلة', round.scores[1] === 0 && round.scores[2] === 0);
 
   // في مسار المباراة.
@@ -99,7 +99,7 @@ const { reporter } = require('./helpers.cjs');
   check('العجلة تُتخطى إن لم تكن وحدتها بين ما يُلعب (الرابط العادي)', P.nextKind(match, MODES) === 'skip');
   const units = [...MODES, wheel];
   check('وتبدأ إن كانت (رابط المعاينة)', P.nextKind(match, units) === 'start');
-  check('ونصّ ما بعد الجولة «التالي: عجلة البونص»', P.nextText(match, id => id) === 'التالي: عجلة البونص');
+  check('ونصّ ما بعد الجولة «التالي: شريط البونص»', P.nextText(match, id => id) === 'التالي: شريط البونص');
   let started = P.startNext(match, { modes: units, content: { ...files, 'wheel.json': data }, rng });
   check('بدأت العجلة: الموضع التالي في المسار، ولا تُعدّ جولة', started.cursor === 1 && started.round.mode === 'wheel' && started.round.wheel && started.played === 1);
   check('يديرها الأقل نقاطاً أولاً (الأول 4 والثاني 9)', started.round.state.spinners[0] === 1 && started.round.state.why === 'score');

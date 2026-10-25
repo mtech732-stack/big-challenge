@@ -186,7 +186,7 @@
   #app .ctlrow .next + .alt { grid-column: span 4; }
   #app .ctlrow .no { background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
 
-  /* ===== عجلة البونص (design/wheel.md 5، من design/presenter-wheel.html): الخانات العشر بنصوصها الكاملة، ثم الخانة التي وقفت عليها ===== */
+  /* ===== شريط البونص (design/wheel.md 5، من design/presenter-wheel.html): الخانات العشر بنصوصها الكاملة، ثم الخانة التي وقفت عليها ===== */
   .whl { grid-template-columns: 1fr; align-content: center; gap: 0.5rem; }
   .whl h2 { font-size: 1.25rem; }
   /* الخانات كما على التلفاز، من اليمين: عموداً 1–5 ثم 6–10. كل خانة صف: نوعها ونقاطها، ثم نصها الكامل */
@@ -324,7 +324,7 @@
     <div class="ctlrow" id="rCtl"></div>
   </section>
 
-  <!-- عجلة البونص (design/wheel.md 5): الخانات العشر، أو الخانة التي وقفت عليها، ثم الدور وأزرار العجلة -->
+  <!-- شريط البونص (design/wheel.md 5): الخانات العشر، أو الخانة التي وقفت عليها، ثم الدور وأزرار العجلة -->
   <section class="panel whl" data-step="play" data-part="whl" id="wMid" hidden></section>
   <section class="panel" data-step="play" data-part="whl" hidden>
     <div class="row">
@@ -616,8 +616,8 @@
     const kind = P.nextKind(match, units()), item = P.upcoming(match);
     const make = (text, rest) => ({ text, label: num(text), ...rest });
     if (kind === 'final') return make('إلى النتيجة النهائية', { off: true, hint: 'النتيجة النهائية وإعلان الفائز تُبنى في الشريحة <span class="ltr">7</span>.' });
-    if (kind === 'start') return make(item.kind === 'wheel' ? 'عجلة البونص' : `ابدأ الجولة ${item.n}`, { act: 'startNext' });
-    if (item.kind === 'wheel') return make('تخطَّ عجلة البونص', { act: 'skipNext', hint: 'عجلة البونص تُبنى في الشريحة <span class="ltr">6</span>، فتُتخطى الآن في التجربة.' });
+    if (kind === 'start') return make(item.kind === 'wheel' ? 'شريط البونص' : `ابدأ الجولة ${item.n}`, { act: 'startNext' });
+    if (item.kind === 'wheel') return make('تخطَّ شريط البونص', { act: 'skipNext', hint: 'شريط البونص يُبنى في الشريحة <span class="ltr">6</span>، فيُتخطى الآن في التجربة.' });
     return make(`تخطَّ الجولة ${item.n}`, { act: 'skipNext',
       hint: `«${esc(modeName(item.mode))}» يُبنى في الشريحة <span class="ltr">${LATER[item.mode] ?? ''}</span>، فتُتخطى جولته الآن في التجربة.` });
   }
@@ -800,7 +800,7 @@
     if (part === 'rnk') renderRanking(pr, acts);
     if (part === 'whl') renderWheel(pr, acts);
     if (part === 'end') {
-      $('endHead').innerHTML = num(`انتهت ${title}`);
+      $('endHead').innerHTML = num(isWheel ? `انتهى ${title}` : `انتهت ${title}`);
       $('sum').innerHTML = [1, 2].map(k => `<span>${mk(k)} ${tn(k)}</span><span class="pts">${pr.totals[k] < 0 ? '−' + -pr.totals[k] : '+' + pr.totals[k]}</span><span>${num('الرصيد ' + match.round.scores[k])}</span>`).join('');
       const nb = nextButton();
       $('endNext').innerHTML = nb.label;
@@ -945,7 +945,7 @@
     roundAct(($('rRef').classList.contains('mark') ? 'mark:' : 'item:') + el.dataset.r);
   });
 
-  // ===== عجلة البونص في نافذة المقدّم (design/wheel.md 5) =====
+  // ===== شريط البونص في نافذة المقدّم (design/wheel.md 5) =====
   // قبل الوقوف: الخانات العشر بأعمدة التلفاز (1–5 ثم 6–10)، كل خانة نوعها ونقاطها ثم نصها الكامل. وبعد الوقوف: الخانة في مربعها ونصها كاملاً،
   // وسطر القاعدة للمقدّم وحده (وسوم القواعد لا تُكتب على الجمهور، 7.3).
   // الوقت في الرأس من «ابدأ» حتى الحكم، كما على الشاشة (يصل كل ثانية من نافذة الجمهور)، و«0:00» بعد انتهائه.
@@ -965,18 +965,19 @@
     // بعد الحكم: «النجوم · +5 · نجح التحدي» أو «لا نقاط · لم ينجح التحدي» مكان الدور (design/wheel.md 5).
     const v = pr.verdict;
     // وخانة الحظ بما تغيّر فعلاً: «النجوم +3 · الصقور −3» أو «الصقور · −1 · خصم 3 نقاط» (بحد الصفر).
-    const sign = n => (n < 0 ? '−' + -n : '+' + n);
+    // والصفر بلا إشارة حين لا يتغير شيء (ملاحظة المعاين 38).
+    const sign = n => (n < 0 ? '−' + -n : n ? '+' + n : '0');
     $('wWho').innerHTML = !v ? `${mk(pr.by)} دور ${tn(pr.by)}`
-      : `<span class="done">${v.from ? `${esc(match.teams[v.team])} ${num(sign(v.points))} · ${esc(match.teams[v.from])} ${num('−' + v.taken)}`
+      : `<span class="done">${v.from ? `${esc(match.teams[v.team])} ${num(sign(v.points))} · ${esc(match.teams[v.from])} ${num(sign(-v.taken))}`
         : pr.slot.kind === 'luck' ? `${esc(match.teams[v.team])} · ${num(sign(v.points))} · ${num(pr.text)}`
         : `${v.team ? `${esc(match.teams[v.team])} · ${num('+' + v.points)}` : 'لا نقاط'} · ${esc(v.say)}`}</span>`;
     // من يبدأ ولماذا: سطر للمقدّم وحده، يقوله إن سُئل (design/wheel.md 1).
-    $('wState').innerHTML = pr.phase === 'spin' ? 'تدور العجلة' : pr.phase === 'ready' && pr.n === 1 ? (pr.why === 'draw' ? 'خسر القرعة يبدأ' : 'الأقل نقاطاً يبدأ')
+    $('wState').innerHTML = pr.phase === 'spin' ? 'يجري المؤشر' : pr.phase === 'ready' && pr.n === 1 ? (pr.why === 'draw' ? 'خسر القرعة يبدأ' : 'الأقل نقاطاً يبدأ')
       : pr.phase === 'run' && pr.timeup ? 'انتهى الوقت · احكم' : pr.slot?.kind === 'challenge' ? WSTATE[pr.phase] ?? '' : '';
     const ctl = id => acts.find(a => a.id === id);
-    // «أدِر العجلة» بعرض اللوحة، ومعطّل أثناء الدوران. و«ابدأ التحدي · دقيقتان»، ثم «نجح · +5» و«لم ينجح» نصفاً ونصفاً،
-    // وبعد الحكم أو خانة الحظ (تُطبَّق فور الوقوف) «إنهاء العجلة» في هذه المرحلة (الدورة الثانية في المرحلة التالية).
-    $('wCtl').innerHTML = pr.phase === 'spin' ? '<button class="full" disabled>أدِر العجلة</button>'
+    // «أطلق الشريط» بعرض اللوحة، ومعطّل أثناء الدوران. و«ابدأ التحدي · دقيقتان»، ثم «نجح · +5» و«لم ينجح» نصفاً ونصفاً،
+    // وبعد الحكم أو خانة الحظ (تُطبَّق فور الوقوف) «إنهاء الشريط» في هذه المرحلة (الدورة الثانية في المرحلة التالية).
+    $('wCtl').innerHTML = pr.phase === 'spin' ? '<button class="full" disabled>أطلق الشريط</button>'
       : pr.phase === 'run' ? `<button data-act="won">${num(ctl('won').label)}</button><button class="no" data-act="failed">${esc(ctl('failed').label)}</button>`
       : ['spin', 'start', 'finish'].filter(ctl).map(id => `<button class="full" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
     $('wUndo').disabled = !match.round.history.length;
@@ -1068,7 +1069,7 @@
       if (screen === 'topic' && st.phase === 'decided') c.card = act('next');
       if (screen === 'topic' && !b) c.near = st.phase === 'ready' ? [...act('start', 'ابدأ'), ...act('count')] : [...act('count'), ...act('stop', 'توقّف', 'no')];
       if (screen === 'ask') c.near = [...act('start', 'ابدأ'), ...act('correct'), ...act('wrong', null, 'no'), ...act('next', last ? 'إنهاء الجولة' : 'السؤال التالي')];
-      // العجلة (design/wheel.md 4): «أدِر العجلة» قبل الدوران، ولا شيء أثناءه. وبعد الحكم أو خانة الحظ «إنهاء العجلة» في هذه المرحلة.
+      // العجلة (design/wheel.md 4): «أطلق الشريط» قبل الدوران، ولا شيء أثناءه. وبعد الحكم أو خانة الحظ «إنهاء الشريط» في هذه المرحلة.
       // والتحدي «ابدأ · دقيقتان»، ثم «نجح» و«لم ينجح» (بإطار) والوقت يجري أو بعد انتهائه.
       if (screen === 'wheel' || screen === 'slot') c.near = [...act('spin'), ...act('start', 'ابدأ · دقيقتان'), ...act('won', 'نجح'), ...act('failed', null, 'alt'), ...act('finish')];
       if (screen === 'end') { const nb = nextButton(); c.card = [{ cmd: 'next', label: nb.text, off: !!nb.off || wait }]; }

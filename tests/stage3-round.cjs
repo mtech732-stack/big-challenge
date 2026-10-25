@@ -199,7 +199,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await presenter.click('#nextQ');
   await audience.waitForSelector('.scr.show[data-s="end"]');
   await wait(400);
-  check('الجمهور: «انتهت الجولة 1» و«التالي: عجلة البونص»', (await text(audience, '#b1')) === 'انتهت الجولة 1' && (await text(audience, '#next')) === 'التالي: عجلة البونص');
+  check('الجمهور: «انتهت الجولة 1» و«التالي: شريط البونص»', (await text(audience, '#b1')) === 'انتهت الجولة 1' && (await text(audience, '#next')) === 'التالي: شريط البونص');
   check('المقدّم: «انتهت الجولة 1 · آخر حرفين»', (await text(presenter, '#endHead')) === 'انتهت الجولة 1 · آخر حرفين');
   await wait(900);
   await stage.screenshot({ path: `${shots}/s3-end.png` });
@@ -272,7 +272,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('الوصل لا ينقطع في الأسئلة الستة', widest?.joined);
   check('الأزرار لا تعرض الإجابة', !leak);
   await frame.waitForSelector('.scr.show[data-s="end"]', { timeout: 6000 });
-  check('نهاية الجولة بنافذة واحدة: «تخطَّ عجلة البونص» في البطاقة', (await near()) === 'تخطَّ عجلة البونص');
+  check('نهاية الجولة بنافذة واحدة: «تخطَّ شريط البونص» في البطاقة', (await near()) === 'تخطَّ شريط البونص');
   check('نهاية الجولة بنافذة واحدة: «التالي» نص أبيض بلا مربع (15.4)', await frame.$eval('#box', b => b.classList.contains('bare') && !b.querySelector(':scope > i').getClientRects().length && getComputedStyle(b.querySelector('#next')).color === 'rgb(255, 255, 255)'));
   await wait(900);
   await stage.screenshot({ path: `${shots}/s3-single-end.png` });
