@@ -14,6 +14,7 @@ const APP_FILES = [
   'css/ranking.css', 'js/modes/ranking.js',
   'css/wheel.css', 'js/wheel.js',
   'css/final.css', 'js/tiebreak.js',
+  'img/logo.svg',
 ];
 
 self.addEventListener('install', event => {

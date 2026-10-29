@@ -45,14 +45,10 @@
   @keyframes swapfade { from { opacity: .4; } }
 }
 
-/* 2. الشعار أعلى اليسار في كل شاشة (15.7): «التحدي» أبيض 72، وتحته «الكبير» أزرق داكن 104 على صفيحة بيضاء مائلة.
-   ويحلّ محله في النافذة الواحدة صفّا أزرار الزاويتين (css/shared.css) */
-.logo { left: 127px; top: 58px; width: 383px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-.logo .l1 { font-size: 72px; font-weight: 900; line-height: 1.3; color: var(--on-stage); padding: 0 24px; }
-/* الصفيحة 368 تنتهي يميناً عند 510، فيقع طرفها المائل الأيسر على 127 بالضبط، حافة الشبكة في 1.3 (design/system.md 15.10) */
-.logo .l2 { position: relative; width: 368px; height: 120px; display: flex; align-items: center; justify-content: center; }
-.logo .l2 > i { position: absolute; inset: 0; background: var(--card); transform: skewX(calc(-1 * var(--lean))); box-shadow: 10px 10px 0 var(--stage-3); }
-.logo .l2 > b { position: relative; font-size: 104px; font-weight: 900; line-height: 1; color: var(--ink); }
+/* 2. الشعار المعتمد أعلى اليسار في كل شاشة (15.7، design/logo): عرضه 323 من x 127، ومن y 58 إلى 386، فوق البطاقة (410) بفارق 24.
+   والحروف مسارات في img/logo.svg، فلا خط جديد. ويحلّ محله في النافذة الواحدة صفّا أزرار الزاويتين (css/shared.css) */
+.logo { left: 127px; top: 58px; width: 323px; height: 328px; }
+.logo img { display: block; width: 100%; height: 100%; }
 .locked .logo, .has-a .logo { display: none; }
 
 /* 3. لوحة الفريق بلا شكل (15.3): الاسم ثم الرقم الكبير ثم العدّاد (لصاحب الدور)، بفراغ 32، واللوحة تتسع لمحتواها.
