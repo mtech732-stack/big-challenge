@@ -68,7 +68,7 @@ function d2(pick) {
 }
 
 const CSS = `
- #mock{position:absolute;inset:0;z-index:5;direction:rtl;font-family:'Noto Kufi Arabic',sans-serif;color:#0E2C86}
+ #mock{position:absolute;inset:0;z-index:5;direction:rtl;font-family:'Kufi',sans-serif;color:#0E2C86}
  #mock .lg{position:absolute;background:url(${LOGO}) no-repeat center/contain}
  #mock .rays{position:absolute;border-radius:50%;background:repeating-conic-gradient(from 8deg,rgba(255,255,255,.13) 0 7deg,rgba(255,255,255,0) 7deg 20deg);
    -webkit-mask:radial-gradient(closest-side,#000 30%,transparent 100%);mask:radial-gradient(closest-side,#000 30%,transparent 100%)}
@@ -89,7 +89,8 @@ const CSS = `
  #mock .bdg{position:relative;display:block}
  #mock .bdg img{position:absolute;display:block;max-width:none}
  #mock .bdg img.edge{filter:drop-shadow(2px 0 0 #0E2C86) drop-shadow(-2px 0 0 #0E2C86) drop-shadow(0 2px 0 #0E2C86) drop-shadow(0 -2px 0 #0E2C86)}
- #mock .line{margin:0;font-weight:800;font-size:34px;line-height:1.3;color:#0E2C86;text-align:center;white-space:nowrap}
+ #mock .line{margin:0;font-weight:800;font-size:34px;line-height:1.3;color:#0E2C86;text-align:center;white-space:nowrap;max-width:100%}
+ #mock .line.two{white-space:normal;text-wrap:balance;font-size:28px}
  #mock .key{position:absolute;left:0;right:0;bottom:0;height:92px;background:#0E2C86;color:#fff;font-weight:900;font-size:40px;
    display:flex;align-items:center;justify-content:center;gap:20px;z-index:1}
  #mock .key>span{display:inline-flex;align-items:center;gap:20px;transform:skewX(14deg)}
@@ -119,7 +120,7 @@ const CSS = `
  #mock .stamp{position:absolute;left:-30px;top:-40px;width:132px;height:132px;border-radius:50%;background:#fff;color:#0E2C86;font-style:normal;font-weight:900;
    font-size:92px;line-height:132px;text-align:center;transform:rotate(-12deg);box-shadow:0 0 0 7px #0E2C86,0 0 0 13px #fff,8px 10px 0 13px #0B1033;z-index:3}
  #mock .mc.tm2 .stamp{box-shadow:0 0 0 7px #E63946,0 0 0 13px #fff,8px 10px 0 13px #0B1033;color:#E63946}
- #mock .by{position:absolute;left:0;right:0;bottom:-66px;margin:0;text-align:center;font-weight:900;font-size:36px;line-height:1.2;color:#fff;transform:translateX(-${0}px)}`;
+ #mock .by{position:absolute;left:0;right:0;bottom:-52px;margin:0;text-align:center;font-weight:900;font-size:36px;line-height:1.2;color:#fff;transform:translateX(-${0}px)}`;
 
 (async () => {
   const browser = await chromium.launch();
@@ -135,7 +136,13 @@ const CSS = `
   const only = process.env.ONLY;
   for (const [n, fn] of [['د1', d1], ['د2', d2]]) for (const [s, pick] of [['0', {}], ['2', PICK2]]) {
     const name = `اختيار-${n}-${s}`; if (only && !name.includes(only)) continue;
-    await put(fn(pick)); await wait(700); await stage.screenshot({ path: path.join(OUT, name + '.png') });
+    await put(fn(pick)); await wait(500);
+    // سطر التعريف (مشرف المصمّمين 29 أكتوبر): سطر واحد بتصغير لا ينزل عن 28، وإلا فسطران متوازنان بـ 28
+    await f.evaluate(() => { for (const p of document.querySelectorAll('#mock .line')) {
+      const room = p.parentElement.clientWidth - 64; let fs = 34;
+      while (p.scrollWidth > room && fs > 28) p.style.fontSize = --fs + 'px';
+      if (p.scrollWidth > room) { p.style.fontSize = ''; p.classList.add('two'); p.style.maxWidth = room + 'px'; } } });
+    await wait(300); await stage.screenshot({ path: path.join(OUT, name + '.png') });
   }
   await browser.close();
 })().catch(e => { console.error(e); process.exit(1); });
