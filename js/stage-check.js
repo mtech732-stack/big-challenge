@@ -16,12 +16,38 @@ const SAFE = { x1: 96, y1: 54, x2: 1824, y2: 1026 };
 const GRID = { left: [SAFE.x1, 109, 127, 213], right: [SAFE.x2, 1811, 1793] };   // كما في design/check.js (PR #78)، و213 أزرار الزاوية بعد الأيقونة (design/logo/الدمج.md 1.3 ب)
 const visible = n => n.getClientRects().length && getComputedStyle(n).visibility !== 'hidden';
 
+// [data-overhang]: حدود رسم الصورة غير الشفافة (ألفا > 20 من 255) بنسبة من صندوقها، فيدخل ظلّه ويخرج هامشه الشفاف (كما في design/check.js، الملاحظة 43).
+const inkCache = new Map();
+function inkOf(img) {
+  const key = img.currentSrc || img.src;
+  if (inkCache.has(key)) return inkCache.get(key);
+  const W = 400, H = Math.max(1, Math.round(W * img.naturalHeight / img.naturalWidth || W));
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0, W, H);
+  const d = ctx.getImageData(0, 0, W, H).data;
+  let x1 = W, y1 = H, x2 = -1, y2 = -1;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3] > 20) {
+    if (x < x1) x1 = x; if (x > x2) x2 = x; if (y < y1) y1 = y; if (y > y2) y2 = y;
+  }
+  const f = x2 < 0 ? null : { l: x1 / W, t: y1 / H, r: (x2 + 1) / W, b: (y2 + 1) / H };
+  inkCache.set(key, f);
+  return f;
+}
+export function rectOf(n) {
+  const b = n.getBoundingClientRect();
+  if (!n.hasAttribute('data-overhang')) return b;
+  if (n.tagName !== 'IMG' || !n.complete || !n.naturalWidth) return null;
+  const f = inkOf(n); if (!f) return null;
+  return { left: b.left + f.l * b.width, right: b.left + f.r * b.width, top: b.top + f.t * b.height, bottom: b.top + f.b * b.height,
+    width: (f.r - f.l) * b.width, height: (f.b - f.t) * b.height };
+}
+
 function extent(el, scale, origin) {
   let r = null;
   for (const n of [el, ...el.querySelectorAll('*')]) {
-    if (n.closest('.check-layer') || n.closest('.ring polygon') || n.hasAttribute('data-overhang') || !n.getClientRects().length) continue; // المؤشر المخفي يُحسب دائماً (system.md 6.2)
+    if (n.closest('.check-layer') || n.closest('.ring polygon') || !n.getClientRects().length) continue; // المؤشر المخفي يُحسب دائماً (system.md 6.2)
     // إطار الوقت (1.3) يُرسم على حدود اللوحة نفسها، ويتبعها بعد تغيّر قياسها بإطار رسم واحد، فيُحسب بالـsvg لا بنقاط المضلع.
-    const b = n.getBoundingClientRect(); if (!b.width && !b.height) continue;
+    const b = rectOf(n); if (!b || (!b.width && !b.height)) continue;
     const x1 = (b.left - origin.left) / scale, y1 = (b.top - origin.top) / scale;
     const x2 = (b.right - origin.left) / scale, y2 = (b.bottom - origin.top) / scale;
     r = r ? { x1: Math.min(r.x1, x1), y1: Math.min(r.y1, y1), x2: Math.max(r.x2, x2), y2: Math.max(r.y2, y2) } : { x1, y1, x2, y2 };
