@@ -27,6 +27,11 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const context = await browser.newContext({ viewport: { width: 1366, height: 768 }, serviceWorkers: 'block' });
   await usePin(context);
   await context.route('**/content/packs/general/auction.json', route => route.fulfill({ json: bank }));
+  // وقت الوفاء 45 ثانية (الوثيقة 1.6، ويفحصه stage4-auction-mode). وخطوات 30 عنصراً بلقطاتها وإعادة التحميل أطول منه،
+  // فيُمدّ هنا إلى 60 بالمتصفح وحده، فلا ينقضي قبل الحكم. والأرقام أدناه بـ60 لهذا.
+  await context.route('**/js/modes/auction.js', async route => {
+    const r = await route.fetch(); route.fulfill({ response: r, body: (await r.text()).replace('FULFIL_SECONDS = 45', 'FULFIL_SECONDS = 60') });
+  });
   context.on('page', p => {
     p.on('pageerror', e => errors.push(e.message));
     p.on('console', m => m.type() === 'error' && !/content\/packs\/.+\.json/.test(m.location().url) && errors.push(m.text()));

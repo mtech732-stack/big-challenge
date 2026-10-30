@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="css/shared.css">
 <link rel="stylesheet" href="css/final.css">
 <link rel="stylesheet" href="css/hero.css">
+<link rel="stylesheet" href="css/qr.css">
 <style>
   /* اللعبة مغلقة أو بانتظار المقدّم: لا يبقى على الشاشة إلا الخلفية والبطاقة. */
   .locked .team, .locked .badge, .locked .box, .locked .ctl-near, .locked .ctl-corner { display: none; }
@@ -86,6 +87,8 @@
           <div class="rhead">
             <p class="title" id="rtitle" data-fit="عنوان القائمة"></p>
             <p class="sub" id="rsub"></p>
+            <!-- «أخفِ الباركود» ما دام الباركود ظاهراً (design/s8.md 2.1) -->
+            <div class="ctl" id="rnkCtl"></div>
           </div>
           <div class="board" id="board"></div>
         </div>
@@ -147,6 +150,8 @@
       <div class="row" data-fit="لوحة الفريق الثاني"><span class="name" id="n2">الفريق الثاني</span><input class="name-in" id="i2" maxlength="18" autocomplete="off" placeholder="اكتب اسم الفريق الثاني" aria-label="اسم الفريق الثاني"><span class="score" id="s2"></span><span class="cnt" id="c2"></span></div>
     </section>
 
+    <!-- باركود الإجابات يمين البطاقة (design/s8.md 2): أبيض مستقيم 520×520 وخلفه صفيحة مائلة 6° -->
+    <div class="qrbox" id="qrbox" data-hud="الباركود"><div class="plate"></div><div class="sheet"><canvas aria-label="باركود الإجابات"></canvas></div></div>
     <!-- مربع الإعلان أسفل اليمين (15.4): الحكم والإجابة بعد الحكم الأخير · الفائز بالقرعة في المواجهة · «التالي» في نهاية الجولة -->
     <div class="box" id="box" data-hud="مربع الإعلان" hidden><i></i>
       <p class="chip" id="verdict" hidden><i></i><span id="vtext"></span></p>
@@ -163,6 +168,9 @@
     <div class="ctl-corner a" id="cornerA" data-hud="أزرار الزاوية العليا"></div>
     <div class="ctl-corner b" id="cornerB" data-hud="أزرار الزاوية السفلى"></div>
     <div class="ctl-corner c" id="cornerC" data-hud="أزرار الصف الثالث"></div>
+    <!-- الخيارات الجانبية في المواجهة (design/s8.md 1): زر صغير بلا نص، وقائمته تحته -->
+    <div class="ctl-corner opts" id="cornerO" data-hud="زر الخيارات"></div>
+    <div class="optmenu" id="optmenu" data-hud="قائمة الخيارات" hidden></div>
 
     <div class="shine" id="shine"></div>
     <div class="danger"></div>
@@ -178,6 +186,7 @@
   import { PLANNED } from './js/modes/index.js';
   import { play as sound, setMuted } from './js/sound.js';
   import { spinSteps } from './js/wheel.js';
+  import { drawQR } from './js/qr.js';
 
   const $ = id => document.getElementById(id);
   const canvas = $('canvas');
@@ -370,6 +379,7 @@
   function render() {
     if (!view || busy) return;
     if (view.match.step === 'play' && view.play) return renderPlay(view.play);
+    canvas.classList.remove('qr');
     if (view.match.step === 'final') return renderFinal(view);
     const { match: m, modes } = view;
     // نمط لم يُبنَ في مواجهة محفوظة من رابط المعاينة: اسمه العربي من قائمة الأنماط الأربعة، لا معرّفه الإنجليزي (ملاحظة المعاين 1).
@@ -628,13 +638,14 @@
     const asking = a.screen === 'ask' || a.screen === 'topic' || a.screen === 'list' || a.screen === 'wheel' || a.screen === 'slot';
     const v = asking ? a.verdict : null;
     announce(a.screen === 'end' ? { next: p.next } : a.screen === 'list' ? rankBox(a) : a.screen === 'wheel' ? {}
-      // العجلة: «انتهى الوقت» نصاً حتى يحكم المقدّم، ثم الحكم بلا مربع (design/wheel.md 2 و2.5).
+      // العجلة: الحكم بلا مربع (design/wheel.md 2 و2.5)، والتحدي بلا وقت (design/s8.md 4).
       // و«خصم» (الأخذ من الخصم): السطر «[الخصم] · −3» بما أُخذ فعلاً، والصفر بلا إشارة (ملاحظة المعاين 38).
-      : a.screen === 'slot' ? (v ? { verdict: v, say: v.from ? `${name(v.from)} · ${v.taken ? '−' + v.taken : '0'}` : v.say, bare: true } : a.timeup ? { next: 'انتهى الوقت' } : {})
+      : a.screen === 'slot' ? (v ? { verdict: v, say: v.from ? `${name(v.from)} · ${v.taken ? '−' + v.taken : '0'}` : v.say, bare: true } : {})
       // والجولة الفاصلة: الحكم بلا مربع «[الاسم] · أصاب» و«الإجابة: …» (design/final.md 2.5).
       : a.tiebreak ? { verdict: v, answer: a.answer, bare: true }
       : { verdict: v, answer: a.answer, told: v && a.tally ? `ذُكر ${a.tally.n} من ${a.tally.of}` : undefined });
     syncTimer(p.timer, a);
+    showQR(p.qr);
     setTurn(a.turn);
     // الحدّ يكتسح لصاحب الدور من ظهور سؤاله، في القراءة ثم العدّاد بلا حركة بينهما، وللآخر فوراً إن انتقل إليه (المالك 20:39، design/system.md 15.2).
     // وبعد الحكم يقف على من أخذ النقاط، أو يعود إلى المنتصف إن لم يأخذ أحد. وفي غير شاشة السؤال في المنتصف.
@@ -696,6 +707,16 @@
   }
 
   // ===== المزاد (design/auction.md 2): الموضوع، ورقما الفريقين كلٌّ بلونه والأعلى أكبرهما (3.0)، ومن الالتزام العدّ =====
+  // باركود الإجابات (design/s8.md 2): الوعاء يمين البطاقة والبطاقة تضيق، ومربع الإعلان لا يظهر معه.
+  // يُرسم من جديد حين يتغير النص وحده. والصفحة تحفظ آخر ما رُسم للفحص (dataset.bytes و.unit).
+  let qrText = null;
+  function showQR(text) {
+    canvas.classList.toggle('qr', !!text);
+    if (!text || text === qrText) return;
+    qrText = text;
+    const info = drawQR($('qrbox').querySelector('canvas'), text);
+    Object.assign($('qrbox').dataset, { bytes: info.bytes, unit: info.unit, modules: info.modules });
+  }
   function renderAuction(a) {
     $('topic').textContent = a.topic;
     // في المزايدة: «في القائمة 12» للقائمة حتى 20 وحدها (الوثيقة 5.5، design/auction.md 2.1).
@@ -726,9 +747,8 @@
   let shownSaid = 0;
 
   // ===== الترتيب (design/ranking.md 2): العنوان وإشارته، واللوحة: 13 خانة بالترتيب، وgrid-auto-flow يضعها في أعمدتها =====
-  // الخانة المنتظرة رتبتها وحدها · المكشوفة بلون من ذكرها واسمها · الفخ الذي لم يقع فيه أحد مخفي ولا يصل منه شيء (7.2 و7.4)
+  // الخانة المنتظرة رتبتها وحدها · المكشوفة بلون من ذكرها واسمها · الفخاخ ظاهرة الأرقام بلا اسم، والمكشوف منها رقمه خصمه «−13» (design/s8.md 3.1)
   // · وبعد نهاية القائمة ما لم يُذكر باسمه (.left)، و.reveal على القسم (المكشوفة بيضاء بإطار لونها، 1.1).
-  const PEN = { 11: 3, 12: 2, 13: 1 };
   let shownFresh = '';
   // وقت القائمة (design/ranking.md 7.8): «بقي للقائمة» تحت الفخاخ، 5:00 قبل «ابدأ» ثم يجري حتى listEnds بساعة الجهاز، ويُخفى بعد النهاية.
   let listEnds = null;
@@ -744,9 +764,8 @@
     const fresh = a.fresh && key !== shownFresh ? a.fresh : 0;
     shownFresh = key;
     $('board').innerHTML = a.slots.map(x => {
-      if (!x.rank) return '<p class="sl trap"></p>';
       const cls = ['sl', x.trap && 'trap', x.team && 't' + x.team, !x.team && x.name && 'left', x.rank === fresh && 'new'].filter(Boolean).join(' ');
-      return `<p class="${cls}" data-r="${x.rank}"><b>${x.trap ? '−' + PEN[x.rank] : x.rank}</b>${x.name ? `<span data-fit="خانة ${x.rank}">${esc(x.name)}</span>` : ''}</p>`;
+      return `<p class="${cls}" data-r="${x.rank}"><b>${x.trap && x.team ? '−' + x.rank : x.rank}</b>${x.name ? `<span data-fit="خانة ${x.rank}">${esc(x.name)}</span>` : ''}</p>`;
     }).join('') + (a.listClock ? `<p class="clock" id="rclock"><span>بقي للقائمة</span><b>${a.listEnds ? '' : format(a.listSeconds)}</b></p>` : '');
     listEnds = a.listEnds ?? null;
     if (listEnds) $('rclock').querySelector('b').textContent = listText();
@@ -755,11 +774,10 @@
   // ونهاية القائمة بلا مربع: «كُشف 7 من 10» (design/ranking.md 7.6).
   function rankBox(a) {
     if (a.phase === 'listend') return { next: `${a.timeup ? 'انتهى وقت القائمة\n' : ''}كُشف ${a.found} من ${a.of}` };
-    // المقارنة بالنافذة الواحدة: بلا مربع، والخانات تُنقر (design/ranking.md 4).
-    if (a.phase === 'mark') return { next: 'المقارنة بالتسجيل' };
+    // والإصابة لحظتها بالمربع وحدها، ثم يُخفى حين يبدأ الدور التالي. و«خطأ» بلا مربع: «لا نقاط» و«لم تُكشف خانة» (design/s8.md 3.2).
     const v = a.verdict;
     if (!v) return {};
-    return { verdict: v, say: !v.team ? 'لم تُكشف خانة' : v.rank > 10 ? `فخّ المركز ${v.rank}` : `المركز ${v.rank}` };
+    return { verdict: v, say: !v.team ? 'لم تُكشف خانة' : v.rank > 10 ? `فخّ المركز ${v.rank}` : `المركز ${v.rank}`, bare: !v.team };
   }
   // ما ذُكر: أثناء العدّ يبقى الأحدث (يسقط الأقدم). وبعد الحكم يبقى كل ما ذُكر، ويسقط من غير المذكور آخره،
   // وفي آخر الصف «و N غيرها» (design/auction.md 7.2، fitItems في design/auction.html).
@@ -799,17 +817,21 @@
     $('cornerA').innerHTML = rows(c?.a);
     $('cornerB').innerHTML = rows(c?.b);
     $('cornerC').innerHTML = rows(c?.c);
+    // زر الخيارات (design/s8.md 1): ثلاث نقاط بلا نص، وقائمته «ابدأ بنافذتين» تحته ما دام مفتوحاً.
+    $('cornerO').innerHTML = c?.opts ? `<button class="cbtn alt opt${c.opts.open ? ' open' : ''}" data-cmd="opts" aria-label="خيارات"></button>` : '';
+    $('optmenu').innerHTML = c?.opts?.open ? c.opts.menu.map(button).join('') : '';
+    $('optmenu').hidden = !c?.opts?.open;
     // النافذة الواحدة: صفّا أزرار الزاويتين مكان الشعار (1.3).
-    canvas.classList.toggle('has-a', ['cornerA', 'cornerB', 'cornerC'].some(id => $(id).children.length));
+    canvas.classList.toggle('has-a', ['cornerA', 'cornerB', 'cornerC', 'cornerO'].some(id => $(id).children.length));
     placeBadges();   // الشارة المرسومة تصغر بنافذة واحدة (has-a)، فيتغير موضع ما بعدها
     $('count').innerHTML = c?.count ? '<span class="lbl">عدد الأنماط</span>' + [['short', 2], ['full', 4]].map(([m, k]) =>
       `<button class="ctile${c.count.value === m ? ' sel' : ''}${k === 4 && !c.count.four ? ' off' : ''}" data-cmd="count:${m}"><span class="ltr">${k}</span></button>`).join('') : '';
     for (const id of ['err', 'faceErr']) { $(id).hidden = !c?.error; $(id).textContent = c?.error ?? ''; }
     document.querySelector('.scr.title .sub').hidden = !!c;
     $('guide').hidden = !c?.count;
-    // المقارنة في الترتيب: كل خانة تُنقر فيدوّر صاحبها.
-    $('rnk').classList.toggle('mark', !!c?.marks);
-    $('board').querySelectorAll('.sl[data-r]').forEach(el => { if (c?.marks) el.dataset.cmd = 'act:mark:' + el.dataset.r; else delete el.dataset.cmd; });
+    // التحكيم المباشر في الترتيب (design/s8.md 3.2): في الإجابة رقم كل خانة لم تنكشف زرٌّ يحكم بها.
+    $('rnk').classList.toggle('judge', !!c?.judge);
+    $('board').querySelectorAll('.sl[data-r]').forEach(el => { if (c?.judge && !el.classList.contains('t1') && !el.classList.contains('t2')) el.dataset.cmd = 'act:item:' + el.dataset.r; else delete el.dataset.cmd; });
     $('mcards').querySelectorAll('.mc').forEach(t => { if (c?.pick && t.classList.contains('avail')) t.dataset.cmd = 'pick:' + t.dataset.mode; else delete t.dataset.cmd; });
     $('tiles').querySelectorAll('.tile').forEach(t => { if (c?.pick && !t.classList.contains('by1') && !t.classList.contains('by2') && !t.classList.contains('auto') && !t.classList.contains('left')) t.dataset.cmd = 'pick:' + t.dataset.mode; else delete t.dataset.cmd; });
     for (const k of [1, 2]) {
@@ -836,6 +858,8 @@
       renderCtl();
     });
     document.addEventListener('click', e => {
+      // قائمة الخيارات تُغلق بنقرة خارجها (design/s8.md 1).
+      if (ctl?.opts?.open && !e.target.closest('#optmenu, #cornerO')) send('opts:close');
       const b = e.target.closest('[data-cmd]');
       if (!b || b.classList.contains('off') || !ctl) return;
       send(b.dataset.cmd);
@@ -986,7 +1010,7 @@
     if (!count) show(a?.clock ?? 0);
   }
 
-  const waiting = () => { stop(); setLocked(true); setHero('wait', 'بانتظار المقدّم'); canvas.classList.add('pre'); setTurn(0); setSide(0); showScreen('q'); $('letter').textContent = ''; delete $('letter').dataset.key; $('letter').classList.remove('ending'); $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم'; };
+  const waiting = () => { stop(); canvas.classList.remove('qr'); setLocked(true); setHero('wait', 'بانتظار المقدّم'); canvas.classList.add('pre'); setTurn(0); setSide(0); showScreen('q'); $('letter').textContent = ''; delete $('letter').dataset.key; $('letter').classList.remove('ending'); $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم'; };
   const ready = () => {
     if (count) stop();
     setLocked(false); show(10);

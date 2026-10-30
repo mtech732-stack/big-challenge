@@ -27,7 +27,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     let r = R.startRound(wheel, { content: { 'wheel.json': data }, first: 2, scores: { 1: 4, 2: 1 }, rng: () => RND.challenge });
     r = R.act(wheel, r, 'spin', undefined, t0);
     r = R.act(wheel, r, 'land', undefined, t0 + ms);
-    r = R.act(wheel, R.act(wheel, r, 'start', undefined, t0 + ms + 1000), 'won', undefined, t0 + ms + 9000);
+    r = R.act(wheel, r, 'won', undefined, t0 + ms + 9000);
     check('بعد الدورة الأولى: «التالي · الدورة 2» وحده، و«إنهاء الشريط» يُهمل', wheel.actions(r.state).map(x => x.label).join() === 'التالي · الدورة 2'
       && R.act(wheel, r, 'finish', undefined, t0 + 20000).state === r.state);
     const done1 = r;
@@ -37,18 +37,18 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     check('والمسار: الدورة الأولى بنتيجتها، والثانية الجارية', JSON.stringify(wheel.presenter(r.state).track) === JSON.stringify([{ owner: 2, result: 2, now: false }, { owner: 1, result: null, now: true }]));
     check('«التالي» مرة ثانية يُهمل', R.act(wheel, r, 'next', undefined, t0 + 20100).state === r.state);
     const back = R.undo(r, t0 + 21000);
-    check('التراجع من الدورة 2 قبل دورانها: نتيجة الدورة الأولى كما هي', back.state.n === 1 && back.state.phase === 'done' && back.scores[2] === 6);
+    check('التراجع من الدورة 2 قبل دورانها: نتيجة الدورة الأولى كما هي', back.state.n === 1 && back.state.phase === 'done' && back.scores[2] === 11);
     r = R.act(wheel, r, 'spin', undefined, t0 + 30000);
     check('الدورة 2 تقف على خانتها المحسومة في الإعداد', r.state.landed === r.state.stops[1]);
     r = R.act(wheel, r, 'land', undefined, t0 + 30000 + ms);
-    check('والتحدي نفسه يجوز أن يتكرر (جواب المالك): الخانة نفسها، و«ابدأ التحدي»', r.state.landed === done1.state.landed && wheel.actions(r.state)[0]?.id === 'start');
-    r = R.act(wheel, R.act(wheel, r, 'start', undefined, t0 + 40000), 'won', undefined, t0 + 50000);
+    check('والتحدي نفسه يجوز أن يتكرر (جواب المالك): الخانة نفسها، والحكم مباشرة', r.state.landed === done1.state.landed && wheel.actions(r.state)[0]?.id === 'won');
+    r = R.act(wheel, r, 'won', undefined, t0 + 50000);
     check('بعد الدورة 2: «إنهاء الشريط» وحده، و«التالي» يُهمل', wheel.actions(r.state).map(x => x.label).join() === 'إنهاء الشريط' && R.act(wheel, r, 'next', undefined, t0 + 51000).state === r.state);
     const m = P.undo({ step: 'play', round: r, scores: r.scores }, [wheel]);
-    check('التراجع بعد حكم الدورة 2: وقت تحديها والرصيد قبل الحكم', m.round.state.phase === 'run' && m.round.scores[1] === 4);
+    check('التراجع بعد حكم الدورة 2: تحدّيها والرصيد قبل الحكم', m.round.state.phase === 'slot' && m.round.scores[1] === 4);
     r = R.act(wheel, r, 'finish', undefined, t0 + 52000);
     a = wheel.audience(r.state);
-    check('«إنهاء الشريط»: الحصيلة من الدورتين (+5 و+5)، والحدّ في المنتصف', wheel.finished(r.state) && a.screen === 'end' && a.totals[1] === 5 && a.totals[2] === 5 && a.turn === 0);
+    check('«إنهاء الشريط»: الحصيلة من الدورتين (+10 و+10)، والحدّ في المنتصف', wheel.finished(r.state) && a.screen === 'end' && a.totals[1] === 10 && a.totals[2] === 10 && a.turn === 0);
   }
 
   // ===== 2. بالمتصفح =====
@@ -147,7 +147,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     check(`${tag}المؤشر بلون الآخر`, await audience.evaluate(t => !!document.querySelector('#band .ws.t' + t), op));
     await audience.waitForSelector('.scr.q.show #letter.slot.t' + op, { timeout: 9000 });
     await wait(1200);
-    check(`${tag}بعد الدورة 2: +3 للآخر، و«إنهاء الشريط»`, (await saved(stage)).round.scores[op] === 3 && await text(presenter, '#wCtl') === 'إنهاء الشريط');
+    check(`${tag}بعد الدورة 2: +5 للآخر، و«إنهاء الشريط»`, (await saved(stage)).round.scores[op] === 5 && await text(presenter, '#wCtl') === 'إنهاء الشريط');
     if (!LONG) {
       await presenter.click('#wUndo'); await wait(900);
       check('التراجع بعد الدورة 2: قبل دورانها، والرصيد كما كان', (await saved(stage)).round.state.n === 2 && (await saved(stage)).round.state.phase === 'ready' && (await saved(stage)).round.scores[op] === 0);
@@ -156,7 +156,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
       await wait(1200);
     }
     await click('#wCtl [data-act="finish"]');
-    check(`${tag}نهاية الشريط: «+3» لكلٍّ، و«انتهى الشريط»، والمقدّم «ابدأ الجولة 2»`, await text(audience, '#r1') === '+3' && await text(audience, '#r2') === '+3'
+    check(`${tag}نهاية الشريط: «+5» لكلٍّ، و«انتهى الشريط»، والمقدّم «ابدأ الجولة 2»`, await text(audience, '#r1') === '+5' && await text(audience, '#r2') === '+5'
       && await text(audience, '#b1') === 'انتهى الشريط' && await text(presenter, '#endNext') === 'ابدأ الجولة 2');
     const nb = await audience.evaluate(() => [...document.querySelectorAll('#next .nb')].map(e => ({ t: e.textContent, rows: e.getClientRects().length })));
     check(`${tag}الملاحظة 39: «التالي: الجولة 2 ·» و«الحرف المعيّن» مقطعان، وكلٌّ في سطر واحد لا ينكسر`, nb.length === 2 && nb[0].t === 'التالي: الجولة 2 ·' && nb[1].t === 'الحرف المعيّن' && nb.every(x => x.rows === 1));
@@ -171,11 +171,11 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
   {
     const { context, stage, audience } = await open();
     await sharedToFace(audience, { names: ['الصقور', 'النجوم'], count: 'short', picks: ['ranking', 'letter'] });
-    await cmd(audience, 'single');
+    await cmd(audience, 'begin');
     await wait(600);
     const go = async c => { await cmd(audience, c); await wait(800); };
     await go('act:show');
-    for (let k = 0; k < 2; k++) { await go('act:start:one'); await go('act:finish'); await go('act:commit'); await go('act:next'); }
+    for (let k = 0; k < 2; k++) { await go('qr:hide'); await go('act:start'); await go('act:finish'); await go('act:next'); }
     await stage.evaluate(r => { Math.random = () => r; }, RND.gift);
     await go('next');
     const near = () => audience.$$eval('#near button', b => b.map(x => x.textContent.trim()).join('|'));

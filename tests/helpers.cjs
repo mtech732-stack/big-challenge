@@ -63,9 +63,10 @@ async function sharedToFace(frame, { names, count = 'short', picks }) {
   await frame.waitForSelector('.scr.show[data-s="face"]');
 }
 
-// «ابدأ المباراة»: تُفتح نافذة المقدّم بالرقم نفسه، وتبقى هذه شاشة الجمهور.
+// «ابدأ بنافذتين» من زر الخيارات (design/s8.md 1): تُفتح نافذة المقدّم بالرقم نفسه، وتبقى هذه شاشة الجمهور.
 async function beginTwo(context, frame) {
-  const [host] = await Promise.all([context.waitForEvent('page'), cmd(frame, 'begin')]);
+  await cmd(frame, 'opts');
+  const [host] = await Promise.all([context.waitForEvent('page'), cmd(frame, 'two')]);
   await host.waitForSelector('#app:not([hidden])', { timeout: 10000 });
   return host;
 }
@@ -80,13 +81,18 @@ async function fixedSpin(page, start) {
   await wait(800);
   await page.evaluate(() => { Math.random = window.__rnd; });
 }
+// باركود الإجابات يظهر وحده عند بدء سؤال المزاد والترتيب (الوثيقة 1.7)، فيُخفى بزره في النافذة الواحدة إن كان ظاهراً.
+async function hideQr(frame) {
+  if (!(await frame.$('[data-cmd="qr:hide"]'))) return false;
+  await cmd(frame, 'qr:hide');
+  await new Promise(r => setTimeout(r, 800));
+  return true;
+}
 async function passWheel(presenter) {
   await fixedSpin(presenter, () => presenter.click('#endNext'));
   for (const last of [false, true]) {
     await presenter.click('#wCtl [data-act="spin"]');
-    await presenter.click('#wCtl [data-act="start"]', { timeout: 12000 });
-    await wait(500);
-    await presenter.click('#wCtl [data-act="failed"]');
+    await presenter.click('#wCtl [data-act="failed"]', { timeout: 12000 });
     await wait(600);
     await presenter.click(`#wCtl [data-act="${last ? 'finish' : 'next'}"]`);
     await wait(800);
@@ -97,9 +103,9 @@ async function passWheelOne(stage, frame) {
   await fixedSpin(stage, () => cmd(frame, 'next'));
   for (const last of [false, true]) {
     await go('act:spin');
-    await frame.waitForSelector('#near [data-cmd="act:start"]', { timeout: 12000 });
-    await go('act:start'); await go('act:failed'); await go(last ? 'act:finish' : 'act:next');
+    await frame.waitForSelector('#near [data-cmd="act:failed"]', { timeout: 12000 });
+    await go('act:failed'); await go(last ? 'act:finish' : 'act:next');
   }
 }
 
-module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, passWheel, passWheelOne };
+module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, passWheel, passWheelOne, hideQr };

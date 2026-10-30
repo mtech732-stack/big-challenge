@@ -8,8 +8,8 @@
 // ثم «الموضوع التالي» حتى الثالث، و«إنهاء الجولة».
 import { freshFirst, besides } from '../round.js';
 
-// وقت الوفاء 60 (45 مقترحة تُضبط في ش8)، ونقاط الخصم إن لم يفِ الملتزم (قيمة مبدئية تُضبط في ش8).
-export const FULFIL_SECONDS = 60;
+// وقت الوفاء 45، ونقطتان للخصم إن لم يفِ الملتزم (5.5 و12، الوثيقة 1.5 و1.6).
+export const FULFIL_SECONDS = 45;
 export const FAIL_POINTS = 2;
 // القائمة حتى هذا الطول عددها ظاهر للجمهور (5.5).
 export const SHOW_SIZE = 20;

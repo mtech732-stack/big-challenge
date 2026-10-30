@@ -39,15 +39,16 @@
 /* بعد نهاية القائمة: ما لم يُذكر شارته بإطارها واسمه بحبر السؤال، فيُقرأ أنه الإجابة لا ما قيل */
 .rnk .sl.left > span { color: var(--text); font-weight: 700; }
 
-/* الفخاخ: «خلفها 3 مراكز مخفية» (الوثيقة 5.6): لا تُرى حتى يقع فيها فريق أو تنتهي القائمة، وخصمها مكان رتبتها بإطار متقطع.
-   والخصم بحبر الخانة لا بالأحمر، لأن الأحمر على اللوحة يعني الفريق الأول (7.3) */
-.rnk .sl.trap:not(.t1):not(.t2):not(.left) { visibility: hidden; }
+/* الفخاخ 11 و12 و13 ظاهرة الأرقام من أول القائمة (الوثيقة 5.6، 1.7، design/s8.md 3.1): شارة بإطار متقطع ورقمها بحبر السؤال، بلا اسم.
+   فإن وقع فيها فريق امتلأت بلونه وظهر اسمها وصار رقمها خصمها «−13». والخصم بحبر الخانة لا بالأحمر، لأن الأحمر على اللوحة يعني الفريق الأول (7.3).
+   والشارة 88 تتسع لـ «−13» (ثلاثة رموز 36 وزن 900، نحو 70) بحشوة 8 */
+.rnk .sl > b { padding: 0 8px; }
 .rnk .sl.trap > b { color: var(--text); }
 .rnk .sl.trap > b::before { background: var(--card); border: 3px dashed var(--text); }
 .rnk .sl.trap.t1 > b, .rnk .sl.trap.t2 > b { color: var(--on-stage); }
 .rnk .sl.trap.t1 > b::before, .rnk .sl.trap.t2 > b::before { background: var(--c); border: 0; }
 
-/* وقت القائمة (5 دقائق، الوثيقة 5.6) تحت الفخاخ: إشارة بحبر السؤال، لا أصفر (الأصفر لعدّاد الإجابة في لوحة صاحب الدور) */
+/* وقت القائمة (دقيقتان ونصف، الوثيقة 5.6) تحت الفخاخ: إشارة بحبر السؤال، لا أصفر (الأصفر لعدّاد الإجابة في لوحة صاحب الدور) */
 .rnk .clock { grid-row: 4 / span 2; display: flex; align-items: center; justify-content: flex-start; gap: 24px; padding: 0; color: var(--text);
   white-space: nowrap; }
 .rnk .clock > span { font-size: var(--fs-badge); font-weight: 700; line-height: 1; }
@@ -64,9 +65,13 @@
 .anim .rnk .sl.trap.new { animation: shake .24s linear .1s 2; }
 @media (prefers-reduced-motion: reduce) { .rnk .sl, .rnk .sl > span, .rnk .sl > b::before { animation: none !important; } }
 
-/* 4. النافذة الواحدة (design/ranking.md 4): لا حكم في أثناء القائمة. وبعد نهايتها ينقر المقدّم كل خانة لمن قالها أولاً،
-   فتتبدّل بين لا أحد والأول والثاني بالأساليب نفسها. فلا شكل جديد إلا المؤشر */
-.rnk.mark .sl { cursor: pointer; }
+/* 4. التحكيم المباشر بنافذة واحدة (design/s8.md 3.2): في الإجابة الخانات التي لم تنكشف تُنقر (رقمها هو الزر)، والمكشوفة لا تُنقر ثانية */
+.rnk.judge .sl:not(.t1):not(.t2) { cursor: pointer; }
+.rnk.judge .sl.t1, .rnk.judge .sl.t2 { pointer-events: none; }
+/* بعد «خطأ»: زرّا لون الدور التالي في صف الشارات، كزرّي المزايدة بلوني الفريقين (design/auction.md 4) */
+.ctl-near .cbtn.turn { color: var(--on-stage); }
+.ctl-near .cbtn.turn.t1 { background: var(--team-1); box-shadow: inset 0 0 0 3px var(--card); }
+.ctl-near .cbtn.turn.t2 { background: var(--team-2-ink); box-shadow: inset 0 0 0 3px var(--card); }
 
 /* 5. نهاية القائمة بانقضاء وقتها (الملاحظة 36): سطران صريحان بلا « · »: «انتهى وقت القائمة» ثم «كُشف 4 من 10».
    والسطر 44 بتباعد 64 لا 48، فتبقى ضمة «كُشف» بعيدة عن ألف «انتهى». والسطران 128 في المربع 136 */

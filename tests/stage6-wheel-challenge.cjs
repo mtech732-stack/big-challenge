@@ -1,8 +1,8 @@
-// اختبار آلي لمرحلة «التحدي والحكم» في شريط البونص (5.7، design/wheel.md 2 و4 و5) في رابط المعاينة:
-// وحدةً (دون متصفح): «ابدأ التحدي» يبدأ دقيقتين، وانتهاء الوقت لا يحكم، و«نجح» +5 لمن أدارها و«لم ينجح» بلا خصم،
-// والتراجع عن الحكم والوقت يجري يعيد ما بقي منه، والحصيلة في نهاية العجلة.
-// ثم بالمتصفح بنافذتين: الوقت «2:00» في لوحة من أدارها وإطاره يتآكل، والوقت في رأس المقدّم، وآخر 3 ثوانٍ، و«انتهى الوقت» حتى يحكم،
-// والحكم بلا مربع («[الاسم] · +5» و«نجح التحدي»، أو «لا نقاط» و«لم ينجح التحدي»)، ونهاية العجلة بحصيلتها. ثم بأطول محتوى، ثم بالنافذة الواحدة.
+// اختبار آلي لمرحلة «التحدي والحكم» في شريط البونص (5.7، design/wheel.md 2 و5، design/s8.md 4) في رابط المعاينة:
+// وحدةً (دون متصفح): التحدي بلا توقيت، فالحكم من لحظة الوقوف، و«نجح» +10 لمن أدارها و«لم ينجح» بلا خصم،
+// والتراجع عن الحكم يعيده، والحصيلة في نهاية الشريط.
+// ثم بالمتصفح بنافذتين: لا وقت في اللوحة ولا في رأس المقدّم، والحكم بلا مربع («[الاسم] · +10» و«نجح التحدي»،
+// أو «لا نقاط» و«لم ينجح التحدي»)، ونهاية الشريط بحصيلتها. ثم بأطول محتوى، ثم بالنافذة الواحدة.
 // الاستعمال: node tests/stage6-wheel-challenge.cjs [الرابط] [مجلد الصور]
 const fs = require('fs');
 const path = require('path');
@@ -27,45 +27,31 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     round = R.act(wheel, round, 'spin', undefined, t0);
     round = R.act(wheel, round, 'land', undefined, t0 + ms);
     let s = round.state, a = wheel.audience(s);
-    check('وقفت على تحدٍّ: «ابدأ التحدي · دقيقتان» وحده، ولا حكم قبل «ابدأ»', s.phase === 'slot' && wheel.actions(s).map(x => x.label).join('|') === 'ابدأ التحدي · دقيقتان');
-    check('الجمهور: الوقت دقيقتان ثابت، بصيغة m:ss، والحدّ لمن أدارها', a.screen === 'slot' && a.clock === 120 && a.mmss && a.turn === 2 && !a.verdict && !a.timeup);
-    const t1 = t0 + ms + 1000;
-    round = R.act(wheel, round, 'start', undefined, t1);
-    s = round.state;
-    check('«ابدأ»: عدّاد 120 ثانية، والحكم «نجح · +5» و«لم ينجح»', s.phase === 'run' && round.timer?.seconds === 120 && round.events.some(e => e.type === 'timer' && e.seconds === 120)
-      && wheel.actions(s).map(x => x.label).join('|') === 'نجح · +5|لم ينجح');
-    check('نقرة ثانية على «ابدأ» تُهمل', R.act(wheel, round, 'start', undefined, t1 + 100).state === round.state);
-    // الحكم والوقت يجري، ثم التراجع: يعود العدّاد بما بقي منه لا بالدقيقتين.
-    const won = R.act(wheel, round, 'won', undefined, t1 + 30000);
-    check('«نجح»: +5 لمن أدارها، ولحظة right، ويقف العدّاد', won.scores[2] === 5 && won.scores[1] === 0 && won.timer === null && won.events.some(e => e.type === 'moment' && e.name === 'right' && e.team === 2));
+    check('وقفت على تحدٍّ: الحكم مباشرة «نجح · +10» و«لم ينجح»، ولا «ابدأ» ولا عدّاد', s.phase === 'slot' && W.CHALLENGE_POINTS === 10
+      && wheel.actions(s).map(x => x.label).join('|') === 'نجح · +10|لم ينجح' && !round.timer && R.act(wheel, round, 'start', undefined, t0 + ms + 100).state === round.state);
+    check('الجمهور: لا وقت ولا «انتهى الوقت»، والحدّ لمن أدارها', a.screen === 'slot' && !a.clock && !a.mmss && !a.timeup && a.turn === 2 && !a.verdict);
+    const won = R.act(wheel, round, 'won', undefined, t0 + ms + 30000);
+    check('«نجح»: +10 لمن أدارها، ولحظة right', won.scores[2] === 10 && won.scores[1] === 0 && won.timer === null && won.events.some(e => e.type === 'moment' && e.name === 'right' && e.team === 2));
     a = wheel.audience(won.state);
-    check('الجمهور بعد «نجح»: الشارة لمن أدارها «+5» والسطر «نجح التحدي»، والحدّ عنده', a.verdict?.team === 2 && a.verdict.points === 5 && a.verdict.say === 'نجح التحدي' && a.turn === 2);
-    check('بعد الحكم: «التالي · الدورة 2»، والمسار يكتب من أخذ النقاط', wheel.actions(won.state).map(x => x.label).join() === 'التالي · الدورة 2' && wheel.presenter(won.state).track[0].result === 2);
-    const back = R.undo(won, t1 + 31000);
-    check('التراجع عن الحكم والوقت يجري: الرصيد كما كان، والعدّاد بما بقي منه (نحو 90 ثانية)', back.state.phase === 'run' && back.scores[2] === 0 && back.timer && Math.abs(back.timer.seconds - 90) < 0.01);
-    // انتهاء الوقت: لا حكم تلقائي.
-    const out = R.act(wheel, round, 'timeout', round.timer.id, t1 + 120000);
-    s = out.state; a = wheel.audience(s);
-    check('انتهى الوقت: لا حكم ولا نقاط، ويقف العدّاد، و«انتهى الوقت» للجمهور', s.phase === 'run' && s.timeup && out.timer === null && out.scores[2] === 0 && a.timeup && !a.verdict
-      && out.events.some(e => e.type === 'stop-timer'));
-    check('والحكم باقٍ بعده: «نجح · +5» و«لم ينجح»', wheel.actions(s).map(x => x.id).join() === 'won,failed');
-    check('«انتهى الوقت» من عدّاد قديم يُهمل', R.act(wheel, round, 'timeout', round.timer.id + 1, t1 + 120000).state === round.state);
-    const failed = R.act(wheel, out, 'failed', undefined, t1 + 125000);
+    check('الجمهور بعد «نجح»: الشارة لمن أدارها «+10» والسطر «نجح التحدي»، والحدّ عنده', a.verdict?.team === 2 && a.verdict.points === 10 && a.verdict.say === 'نجح التحدي' && a.turn === 2);
+    const back = R.undo(won);
+    check('التراجع عن الحكم: الرصيد كما كان، والحكم من جديد', back.state.phase === 'slot' && back.scores[2] === 0 && !back.timer && wheel.actions(back.state).map(x => x.id).join() === 'won,failed');
+    const failed = R.act(wheel, round, 'failed', undefined, t0 + ms + 30000);
     a = wheel.audience(failed.state);
     check('«لم ينجح»: لا نقاط ولا خصم، والشارة «لا نقاط» والسطر «لم ينجح التحدي»، والحدّ في المنتصف', failed.scores[1] === 0 && failed.scores[2] === 0 && a.verdict?.team === 0 && a.verdict.say === 'لم ينجح التحدي' && a.turn === 0
       && wheel.presenter(failed.state).track[0].result === 0);
+    check('حال «run» محفوظة قبل ش8 تُحكم كالوقوف', wheel.actions({ ...round.state, phase: 'run' }).map(x => x.id).join() === 'won,failed' && wheel.audience({ ...round.state, phase: 'run' }).phase === 'slot');
     // الدورة الثانية للفريق الآخر (الخانة نفسها، تحدٍّ يجوز تكراره): «لم ينجح»، ثم «إنهاء الشريط».
-    let end = R.act(wheel, R.act(wheel, out, 'won', undefined, t1 + 125000), 'next', undefined, t1 + 126000);
-    end = R.act(wheel, end, 'spin', undefined, t1 + 127000);
-    end = R.act(wheel, end, 'land', undefined, t1 + 127000 + ms);
-    end = R.act(wheel, R.act(wheel, end, 'start', undefined, t1 + 140000), 'failed', undefined, t1 + 141000);
-    end = R.act(wheel, end, 'finish', undefined, t1 + 142000);
+    let end = R.act(wheel, won, 'next', undefined, t0 + 60000);
+    end = R.act(wheel, end, 'spin', undefined, t0 + 61000);
+    end = R.act(wheel, end, 'land', undefined, t0 + 61000 + ms);
+    end = R.act(wheel, end, 'failed', undefined, t0 + 80000);
+    end = R.act(wheel, end, 'finish', undefined, t0 + 81000);
     a = wheel.audience(end.state);
-    check('نهاية العجلة: الحصيلة «+5» لمن نجح و«0» للآخر', a.screen === 'end' && a.totals[2] === 5 && a.totals[1] === 0);
-    // خانة حظ: لا تحدي ولا عدّاد (تطبيقها مرحلة تالية).
+    check('نهاية الشريط: الحصيلة «+10» لمن نجح و«0» للآخر', a.screen === 'end' && a.totals[2] === 10 && a.totals[1] === 0);
     let luck = R.startRound(wheel, { content: { 'wheel.json': data }, first: 1, rng: () => 0.15 });
     luck = R.act(wheel, R.act(wheel, luck, 'spin', undefined, t0), 'land', undefined, t0 + W.spinMs(1));
-    check('خانة حظ: لا «ابدأ» ولا وقت', luck.state.slots[1].kind === 'luck' && !wheel.actions(luck.state).some(x => x.id === 'start') && R.act(wheel, luck, 'start', undefined, t0 + 9000).state === luck.state);
+    check('خانة حظ: لا حكم ولا وقت', luck.state.slots[1].kind === 'luck' && !wheel.actions(luck.state).some(x => x.id === 'won') && !luck.timer);
   }
 
   // ===== 2. بالمتصفح =====
@@ -149,37 +135,14 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     await click('#wCtl [data-act="spin"]');
     await audience.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
     await wait(900);
-    check(`${tag}وقفت على تحدٍّ: المقدّم «لم يبدأ الوقت» و«ابدأ التحدي · دقيقتان»، ولا وقت في الرأس`, await text(presenter, '#wState') === 'لم يبدأ الوقت'
-      && await text(presenter, '#wCtl') === 'ابدأ التحدي · دقيقتان' && await presenter.$eval('#wClock', e => e.hidden));
-    check(`${tag}الجمهور: لا وقت يجري قبل «ابدأ»، ولا مربع إعلان`, !(await cls(audience, 'running')) && await audience.evaluate(() => document.getElementById('box').hidden));
-
-    // ابدأ.
-    await click('#wCtl [data-act="start"]');
-    const st = await saved(stage);
-    check(`${tag}«ابدأ»: عدّاد الدقيقتين`, st.round.state.phase === 'run' && st.round.timer?.seconds === 120);
-    const c = await audience.evaluate(t => document.getElementById('c' + t).innerHTML, spinner);
-    check(`${tag}الجمهور: الوقت يجري (.running)، و«1:59» أو «2:00» في لوحة من أدارها داخل span.ltr، وإطار الوقت يتآكل`, await cls(audience, 'running')
-      && /^<span class="ltr">(1:59|2:00)<\/span>$/.test(c) && await audience.evaluate(t => document.querySelector(`#p${t} polygon`).getAnimations().length === 1, spinner)
-      && await audience.evaluate(t => document.getElementById('canvas').classList.contains('turn-' + t), spinner));
-    check(`${tag}المقدّم: «الوقت» في الرأس، و«يؤدّي الفريق التحدي»، و«نجح · +5» و«لم ينجح»`, !(await presenter.$eval('#wClock', e => e.hidden)) && /^الوقت ?(1:5\d|2:00)$/.test(await text(presenter, '#wClock'))
-      && await text(presenter, '#wState') === 'يؤدّي الفريق التحدي' && (await presenter.$$eval('#wCtl button', b => b.map(x => x.textContent.trim()).join('|'))) === 'نجح · +5|لم ينجح');
-    await audienceCheck(audience, `${tag}وقت التحدي`);
-    await presenterCheck(presenter, `${tag}وقت التحدي`);
+    check(`${tag}وقفت على تحدٍّ: المقدّم «يؤدّي الفريق التحدي» و«نجح · +10» و«لم ينجح»، ولا وقت في الرأس`, await text(presenter, '#wState') === 'يؤدّي الفريق التحدي'
+      && (await presenter.$$eval('#wCtl button', b => b.map(x => x.textContent.trim()).join('|'))) === 'نجح · +10|لم ينجح' && await presenter.$eval('#wClock', e => e.hidden)
+      && (await text(presenter, '.rule')).startsWith('بلا توقيت'));
+    check(`${tag}الجمهور: لا وقت يجري ولا عدّاد في لوحة من أدارها، ولا مربع إعلان`, !(await cls(audience, 'running')) && await audience.evaluate(() => document.getElementById('box').hidden)
+      && !/\d:\d\d/.test(await text(audience, '#c' + spinner)) && await cls(audience, 'turn-' + spinner));
+    await audienceCheck(audience, `${tag}التحدي`);
+    await presenterCheck(presenter, `${tag}التحدي`);
     if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-run.png') });
-
-    // آخر 3 ثوانٍ، ثم انتهاء الوقت.
-    await skip(audience, 116000);
-    await wait(700);
-    check(`${tag}آخر 3 ثوانٍ: الحواف النابضة، وثوانٍ من «0:03» إلى «0:01»`, await cls(audience, 'meta-danger') && /^0:0[123]$/.test(await text(audience, '#c' + spinner)));
-    await wait(4000);
-    const out = await saved(stage);
-    check(`${tag}انتهى الوقت: لا حكم تلقائي، والعدّاد وقف`, out.round.state.phase === 'run' && out.round.state.timeup && !out.round.timer && out.round.scores[spinner] === 0);
-    check(`${tag}الجمهور: «انتهى الوقت» نصاً بلا مربع، ولا وقت يجري`, !(await cls(audience, 'running')) && await text(audience, '#next') === 'انتهى الوقت'
-      && await audience.evaluate(() => document.getElementById('box').classList.contains('bare')) && await audience.evaluate(() => document.getElementById('verdict').hidden));
-    check(`${tag}المقدّم: «انتهى الوقت · احكم»، و«الوقت 0:00»، والحكم باقٍ`, await text(presenter, '#wState') === 'انتهى الوقت · احكم' && /^الوقت ?0:00$/.test(await text(presenter, '#wClock'))
-      && (await presenter.$$('#wCtl button')).length === 2);
-    await audienceCheck(audience, `${tag}انتهى الوقت`);
-    if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-timeup.png') });
 
     // لم ينجح، ثم التراجع، ثم نجح.
     await click('#wCtl [data-act="failed"]');
@@ -190,13 +153,13 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     await audienceCheck(audience, `${tag}لم ينجح`);
     if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-failed.png') });
     await presenter.click('#wUndo'); await wait(900);
-    check(`${tag}التراجع: «انتهى الوقت · احكم» من جديد`, (await saved(stage)).round.state.timeup && await text(presenter, '#wState') === 'انتهى الوقت · احكم');
+    check(`${tag}التراجع: الحكم من جديد`, (await saved(stage)).round.state.phase === 'slot' && (await presenter.$$('#wCtl button')).length === 2);
     await click('#wCtl [data-act="won"]');
     const wonM = await saved(stage);
-    check(`${tag}«نجح»: +5 لمن أدارها، و«[الاسم] · +5» و«نجح التحدي» بلا مربع، والحدّ عنده`, wonM.round.scores[spinner] === 5 && await text(audience, '#vtext') === `${who} · +5`
+    check(`${tag}«نجح»: +10 لمن أدارها، و«[الاسم] · +10» و«نجح التحدي» بلا مربع، والحدّ عنده`, wonM.round.scores[spinner] === 10 && await text(audience, '#vtext') === `${who} · +10`
       && await text(audience, '#say') === 'نجح التحدي' && await audience.evaluate(() => document.getElementById('box').classList.contains('bare')) && await cls(audience, 'turn-' + spinner)
-      && await text(audience, '#s' + spinner) === '5');
-    check(`${tag}المقدّم: «[الاسم] · +5 · نجح التحدي»، والمسار يكتبه`, await text(presenter, '#wWho') === `${who} · +5 · نجح التحدي` && !!(await presenter.$(`#pips .pip.won${spinner}`)));
+      && await text(audience, '#s' + spinner) === '10');
+    check(`${tag}المقدّم: «[الاسم] · +10 · نجح التحدي»، والمسار يكتبه`, await text(presenter, '#wWho') === `${who} · +10 · نجح التحدي` && !!(await presenter.$(`#pips .pip.won${spinner}`)));
     await wait(800);
     await audienceCheck(audience, `${tag}نجح`);
     await presenterCheck(presenter, `${tag}نجح`);
@@ -208,10 +171,10 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     await click('#wCtl [data-act="spin"]');
     await audience.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
     await wait(900);
-    await click('#wCtl [data-act="start"]'); await click('#wCtl [data-act="failed"]');
+    await click('#wCtl [data-act="failed"]');
     await click('#wCtl [data-act="finish"]');
-    check(`${tag}نهاية العجلة: «+5» لمن نجح و«+0» للآخر، على الشاشة وفي المقدّم`, await text(audience, '#r' + spinner) === '+5' && await text(audience, '#r' + (3 - spinner)) === '+0'
-      && (await text(presenter, '#sum')).includes('+5'));
+    check(`${tag}نهاية العجلة: «+10» لمن نجح و«+0» للآخر، على الشاشة وفي المقدّم`, await text(audience, '#r' + spinner) === '+10' && await text(audience, '#r' + (3 - spinner)) === '+0'
+      && (await text(presenter, '#sum')).includes('+10'));
     await audienceCheck(audience, `${tag}نهاية العجلة`);
     await context.close();
   }
@@ -220,36 +183,32 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
   {
     const { context, stage, audience } = await open();
     await sharedToFace(audience, { names: ['الصقور', 'النجوم'], count: 'short', picks: ['ranking', 'letter'] });
-    await cmd(audience, 'single');
+    await cmd(audience, 'begin');
     await wait(600);
     const go = async c => { await cmd(audience, c); await wait(800); };
     await go('act:show');
-    for (let k = 0; k < 2; k++) { await go('act:start:one'); await go('act:finish'); await go('act:commit'); await go('act:next'); }
+    for (let k = 0; k < 2; k++) { await go('qr:hide'); await go('act:start'); await go('act:finish'); await go('act:next'); }
     await stage.evaluate(() => { Math.random = () => 0.05; });
     await go('next');
     await go('act:spin');
     await audience.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
     await wait(900);
     const near = () => audience.$$eval('#near button', b => b.map(x => x.textContent.trim()).join('|'));
-    check('نافذة واحدة: «ابدأ · دقيقتان» بجانب الشارات', await near() === 'ابدأ · دقيقتان');
-    await go('act:start');
-    check('والوقت يجري: «نجح» و«لم ينجح» (بإطار)', await near() === 'نجح|لم ينجح' && await audience.$eval('#near button:last-child', b => b.classList.contains('alt')));
-    await audienceCheck(audience, 'نافذة واحدة · وقت التحدي');
+    check('نافذة واحدة: «نجح · +10» و«لم ينجح» (بإطار) بجانب الشارات من لحظة الوقوف', await near() === 'نجح · +10|لم ينجح' && await audience.$eval('#near button:last-child', b => b.classList.contains('no') || b.classList.contains('alt')));
+    await audienceCheck(audience, 'نافذة واحدة · التحدي');
     await stage.screenshot({ path: path.join(shots, 'wheel-run-w1.png') });
-    await wait(1500);
     await go('act:won');
-    check('«نجح»: «التالي · الدورة 2»، و+5', await near() === 'التالي · الدورة 2' && (await saved(stage)).round.scores[(await saved(stage)).round.state.first] === 5);
+    check('«نجح»: «التالي · الدورة 2»، و+10', await near() === 'التالي · الدورة 2' && (await saved(stage)).round.scores[(await saved(stage)).round.state.first] === 10);
     await audienceCheck(audience, 'نافذة واحدة · نجح');
     await stage.screenshot({ path: path.join(shots, 'wheel-won-w1.png') });
     await go('undo');
-    const t = (await saved(stage)).round.timer;
-    check('«تراجع» والوقت كان يجري: يعود بما بقي منه لا بالدقيقتين', (await saved(stage)).round.state.phase === 'run' && t && t.seconds < 119.5 && t.seconds > 100 && await cls(audience, 'running'));
+    check('«تراجع»: الحكم من جديد', (await saved(stage)).round.state.phase === 'slot' && await near() === 'نجح · +10|لم ينجح');
     await go('act:failed');
     await go('act:next');
     await go('act:spin');
     await audience.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
     await wait(900);
-    await go('act:start'); await go('act:failed');
+    await go('act:failed');
     await go('act:finish');
     check('«إنهاء الشريط»: في البطاقة «ابدأ الجولة 2»', await text(audience, '.scr.end.show .ctl') === 'ابدأ الجولة 2');
     await context.close();

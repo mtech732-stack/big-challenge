@@ -17,7 +17,8 @@
 .whl .ws::before { content: ""; position: absolute; z-index: -1; inset: 0; background: var(--card); box-shadow: inset 0 0 0 4px var(--text);
   transform: skewX(calc(-1 * var(--lean))); }
 .whl .ws > span { font-size: var(--fs-badge); font-weight: 700; line-height: 1; }
-.whl .ws > b { font-size: var(--fs-question); font-weight: 900; line-height: 1; direction: ltr; }
+/* الرقم 56 لا 64 (design/s8.md 4): «+10» ثلاثة رموز، وبـ 64 يلامس حافتي الخانة المائلتين. وبـ 56 عرضه نحو 98 في خانة داخلها 127 */
+.whl .ws > b { font-size: 56px; font-weight: 900; line-height: 1; direction: ltr; }
 /* النص قائم، لكن مركزه يتبع ميل الخانة: الكلمة في نصفها الأعلى تُزاح 8 نحو اليمين، والرقم في نصفها الأسفل 8 نحو اليسار،
    فلا تلامس «هدية» و«اسرق» حافتها المائلة (في الأعلى تميل الحافة اليسرى إلى الداخل) */
 .whl .ws > span { translate: 8px 0; }

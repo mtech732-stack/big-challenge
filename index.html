@@ -184,6 +184,10 @@
   /* «التالي · دور [الاسم]» أعرض، لأن أطول اسم (18 حرفاً) فيه */
   #app .ctlrow .next { grid-column: span 8; }
   #app .ctlrow .next + .alt { grid-column: span 4; }
+  /* بعد «خطأ» في الترتيب: «الدور: [الاسم]» بلون كل فريق، نصفين (design/s8.md 3.3) */
+  #app .ctlrow .turn { color: var(--card); box-shadow: none; }
+  #app .ctlrow .turn.t1 { background: var(--team-1); }
+  #app .ctlrow .turn.t2 { background: var(--team-2-ink); }
   #app .ctlrow .no { background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
 
   /* ===== شريط البونص (design/wheel.md 5، من design/presenter-wheel.html): الخانات العشر بنصوصها الكاملة، ثم الخانة التي وقفت عليها ===== */
@@ -317,6 +321,8 @@
     <div class="row">
       <p class="who" id="aWho"></p>
       <p class="state grow" id="aState"></p>
+      <!-- باركود الإجابات على التلفاز (design/s8.md 2.1): يُخفى ويُعاد من هنا بنافذتين -->
+      <button class="alt" id="aQr" data-qr hidden></button>
       <button class="alt" id="aUndo">تراجع</button>
       <button class="alt" data-new>مباراة جديدة</button>
     </div>
@@ -332,7 +338,9 @@
     <div class="row">
       <p class="who" id="rWho"></p>
       <p class="state grow" id="rState"></p>
-      <button class="alt" id="rUndo">تراجع عن آخر حكم</button>
+      <button class="alt" id="rQr" data-qr hidden></button>
+      <!-- «تراجع» كالمزاد: زر الباركود في السطر نفسه (design/s8.md 2.1)، فبالاسم الأطول لا يتسع «تراجع عن آخر حكم» -->
+      <button class="alt" id="rUndo">تراجع</button>
       <button class="alt" data-new>مباراة جديدة</button>
     </div>
     <div class="ctlrow" id="rCtl"></div>
@@ -406,8 +414,11 @@
   import { createLink } from './js/sync.js';
   import { fetchPinRecord, checkPin, watchPin } from './js/pin.js';
   import { loadPacks, loadWheel } from './js/content.js';
-  import WHEEL, { spinMs } from './js/wheel.js';
+  import WHEEL, { spinMs, CHALLENGE_POINTS as WHEEL_POINTS } from './js/wheel.js';
   import TIEBREAK from './js/tiebreak.js';
+  import { answersText } from './js/qr.js';
+  import { HIT_MS as RANK_HIT_MS } from './js/modes/ranking.js';
+  import { STEAL_SECONDS } from './js/modes/word.js';
   import { matchModes, pickableModes, MODES as BUILT, DRAFTS } from './js/modes/index.js';
   import * as M from './js/match.js';
   import * as P from './js/play.js';
@@ -430,7 +441,7 @@
     get: k => { try { return sessionStorage.getItem(k); } catch { return null; } },
     set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} },
   };
-  let link = null, watcher = null, packs = [], wheel = null, match = null, drawing = 0, pin = '', faceError = '';
+  let link = null, watcher = null, packs = [], wheel = null, match = null, drawing = 0, pin = '', faceError = '', optsOpen = false;
   let muted = false;
   try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch {}
   // presenter: هذه النافذة تملك المباراة · stage: سلّمتها لنافذة المقدّم، وبقيت شاشة جمهور.
@@ -553,6 +564,24 @@
     return { match: pub, modes: modes().map(({ id, name }) => ({ id, name })), play: playView(), muted, moments };
   };
   const roundMode = () => match.round && P.modeOf(units(), match.round.mode);
+  // باركود الإجابات (7.1، design/s8.md 2): في سؤال المزاد وقائمة الترتيب. يظهر تلقائياً في بدايته (قبل المزايدة، وقبل «ابدأ»)،
+  // ويخفيه المقدّم بضغطة، ولا يعود إلا بطلبه («الباركود»). والحال في المباراة (match.qr: مفتاح السؤال وظاهر أو لا)، فيبقى بعد إعادة التحميل،
+  // ولا يدخل التراجع. key: الجولة والسؤال · open: السؤال جارٍ (يُعاد فيه بطلب) · auto: بدايته.
+  function qrQuestion() {
+    const mode = match.step === 'play' && roundMode();
+    if (!mode || (mode.id !== 'auction' && mode.id !== 'ranking')) return null;
+    const st = match.round.state, a = mode.audience(st);
+    if (a.screen !== 'topic' && a.screen !== 'list') return null;
+    const auto = mode.id === 'auction' ? st.phase === 'bid' : st.phase === 'read';
+    return { key: `${match.round.n}:${(st.topics ?? st.lists)[st.index]?.id}`, mode, st, auto, open: !['decided', 'listend', 'mark'].includes(st.phase) };
+  }
+  function qrShown() {
+    const q = qrQuestion();
+    if (!q) return null;
+    const on = match.qr?.key === q.key ? match.qr.on && q.open : q.auto;
+    return on ? q : null;
+  }
+  const setQr = on => { const q = qrQuestion(); if (q) update({ ...match, qr: { key: q.key, on } }); };
   function playView() {
     const mode = match.step === 'play' && roundMode();
     if (!mode) return null;
@@ -563,12 +592,14 @@
       timer: match.round.timer ? { ...match.round.timer, at: match.timerAt } : null,
       next: P.nextText(match, modeName),
       fresh: a.screen === 'intro' && match.played === 1,
+      // نص الإجابات للباركود ما دام ظاهراً، يرسمه العرض رمزاً لا نصاً.
+      qr: (q => (q ? answersText(q.mode.id, q.mode.presenter(q.st)) : null))(qrShown()),
     };
   }
   function update(next, anim) {
     next = fitMethod(next);
     if (next === match && !anim) return;
-    if (next.step !== match.step) faceError = '';
+    if (next.step !== match.step) { faceError = ''; optsOpen = false; }
     match = next;
     save();
     if (anim) link?.send('anim', { name: anim, view: view() });
@@ -607,8 +638,7 @@
     clearTimeout(holdTimer);
     holdTimer = setTimeout(render, HOLD_MS + 20);
   }
-  // ونقر خانات المقارنة في الترتيب حرّ كعناصر المزاد: يصحّح المقدّم خانات كثيرة متتالية، والحالة باقية (تقرير المعاين ش5، الملاحظة 35).
-  const roundAct = (action, free = /^mark:/.test(action)) => { if (free || !held()) roundUpdate(P.act(match, units(), action), free); };
+  const roundAct = (action, free = false) => { if (free || !held()) roundUpdate(P.act(match, units(), action), free); };
 
   // وقت القائمة في الترتيب: يُعرض في الرأس كل ربع ثانية، وحين ينقضي ترسل هذه النافذة «انتهى وقت القائمة» (الوحدة تتحقق من وقته).
   const clockText = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -632,6 +662,13 @@
     if (st?.phase === 'spin' && landFor !== st.at && Date.now() >= st.at + spinMs(st.landed)) { landFor = st.at; roundUpdate(P.act(match, units(), 'land')); }
   }
   setInterval(wheelClock, 100);
+  // الترتيب: بعد لحظة الإصابة (1.2 ثانية) ترسل النافذة التي تحكم «turn»، فينتقل الدور إلى الخصم بعدّاده (design/s8.md 3.2).
+  let turnFor = -1;
+  function rankTurn() {
+    const st = role === 'presenter' && $('gate').hidden && match?.step === 'play' && match.round?.mode === 'ranking' ? match.round.state : null;
+    if (st?.phase === 'hit' && turnFor !== st.at && Date.now() >= st.at + RANK_HIT_MS) { turnFor = st.at; roundUpdate(P.act(match, units(), 'turn')); }
+  }
+  setInterval(rankTurn, 100);
 
   // ذاكرة الأسئلة: ما ظهر لا يتكرر حتى يُستنفد البنك.
   const seen = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY)) ?? []; } catch { return []; } };
@@ -679,10 +716,11 @@
     render();
   }
 
-  // «ابدأ المباراة» من المواجهة: بنافذتين تُفتح نافذة المقدّم وتبقى هذه شاشة الجمهور، أو بنافذة واحدة بأزرارها.
+  // «ابدأ المباراة» من المواجهة يبدأ بنافذة واحدة بأزرارها (الأصل، 7.1). و«ابدأ بنافذتين» من الخيارات تُفتح به نافذة المقدّم وتبقى هذه شاشة الجمهور.
   // النافذة تُفتح أولاً في النقرة نفسها، ثم تُحفظ الجولة الأولى قبل أن تقرأها (النافذتان في المتصفح نفسه).
   function begin(single) {
     if (held()) return;
+    optsOpen = false;
     const nb = nextButton();
     if (nb.act !== 'startNext') return actions[nb.act]?.();
     if (!single && !openPresenter()) return;
@@ -858,7 +896,7 @@
       $('qAccept').textContent = pr.accept;
       $('who').innerHTML = `${mk(pr.turn)} دور ${tn(pr.turn)}`;
       $('qState').innerHTML = pr.phase === 'steal'
-        ? `انتقلت الإجابة ${pr.steal.reason === 'timeout' ? 'بعد انتهاء الوقت' : 'بعد الخطأ'} · <span class="ltr">5</span> ثوانٍ`
+        ? `انتقلت الإجابة ${pr.steal.reason === 'timeout' ? 'بعد انتهاء الوقت' : 'بعد الخطأ'} · <span class="ltr">${STEAL_SECONDS}</span> ثوانٍ`
         : STATE_TEXT[pr.phase] ?? '';
       const decided = pr.phase === 'decided';
       $('judge').hidden = decided;
@@ -939,6 +977,7 @@
       // وبعد الحكم «الموضوع التالي» أو «إنهاء الجولة» (design/auction.md 5).
       : ['start', 'stop', 'next'].filter(ctl).map(id => `<button class="${id === 'stop' ? 'no' : id === 'start' ? 'alt' : ''} half" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
     $('aUndo').disabled = !match.round.history.length;
+    qrButtons();
   }
   // سطر الحالة: في الوفاء الوقت الباقي كما على الشاشة (يصل كل ثانية من نافذة الجمهور) وما بقي من العدد.
   let tickText = '';
@@ -981,23 +1020,21 @@
   // ===== الترتيب في نافذة المقدّم (design/ranking.md 5) =====
   // القائمة كاملة كما على التلفاز (13): تُنقر في العدّاد وحده، فيُحكم فوراً، ويمتلئ العنصر بلون صاحبه ولا يُنقر ثانية.
   // وقبل «ابدأ» وبعد الحكم ونهاية القائمة للاطلاع. والحكم يغيّر الأزرار تحته، فالنقرة بالإمهال كغيرها.
-  const PEN = { 11: 3, 12: 2, 13: 1 };
   function renderRanking(pr, acts) {
     const at = pr.title.indexOf(' · ');
     $('rTitle').innerHTML = at < 0 ? esc(pr.title) : `${esc(pr.title.slice(0, at))} <small>· ${num(pr.title.slice(at + 3))}</small>`;
     const ref = $('rRef');
-    // تُنقر في العدّاد (ما قاله الفريق)، وفي المقارنة بالنافذة الواحدة (لمن قالها أولاً، تدوّر صاحبها).
-    ref.classList.toggle('view', !acts.some(a => a.id === 'item' || a.id === 'mark'));
-    ref.classList.toggle('mark', pr.phase === 'mark');
+    // تُنقر في الإجابة (ما قاله الفريق)، فيُحكم بها مباشرة.
+    ref.classList.toggle('view', !acts.some(a => a.id === 'item'));
     const key = pr.n + '|' + pr.items.map(x => x.name).join('|');
     if (ref.dataset.key !== key) {
       ref.dataset.key = key;
-      ref.innerHTML = pr.items.map(x => `<button tabindex="-1" data-r="${x.rank}" class="${x.trap ? 'trap' : ''}"><b>${x.trap ? '−' + PEN[x.rank] : x.rank}</b>` +
+      ref.innerHTML = pr.items.map(x => `<button tabindex="-1" data-r="${x.rank}" class="${x.trap ? 'trap' : ''}"><b>${x.trap ? '−' + x.rank : x.rank}</b>` +
         `<span>${esc(x.name)}${x.alts.length ? ` <small>· ${esc(x.alts.join(' · '))}</small>` : ''}</span></button>`).join('');
     }
     pr.items.forEach((x, i) => { const el = ref.children[i]; el.classList.toggle('t1', x.by === 1); el.classList.toggle('t2', x.by === 2); });
     const v = pr.verdict;
-    $('rWho').innerHTML = pr.phase === 'mark' ? '<span class="done">المقارنة بالتسجيل · انقر كل خانة لمن قالها أولاً</span>'
+    $('rWho').innerHTML = pr.phase === 'wrong' ? '<span class="done">لا نقاط · لم تُكشف خانة</span>'
       : pr.phase === 'listend' ? `<span class="done">${num(`${pr.timeup ? 'انتهى وقت القائمة' : 'انتهت القائمة'} ${pr.n} · كُشف ${pr.found} من ${pr.of}`)}</span>`
       : v ? `<span class="done">${!v.team ? 'لا نقاط · لم تُكشف خانة' : `${esc(match.teams[v.team])} · ${num(v.rank > 10 ? `${v.points ? '−' + -v.points : '0'} · فخّ المركز ${v.rank}` : `+${v.points} · المركز ${v.rank}`)}`}</span>`
       : `${mk(pr.turn)} دور ${tn(pr.turn)}`;
@@ -1005,42 +1042,35 @@
     const ctl = id => acts.find(a => a.id === id);
     const b = (id, cls, label) => `<button class="${cls}" data-act="${id}">${num(label ?? ctl(id).label)}</button>`;
     const next = ctl('next'), finish = ctl('finish');
-    $('rCtl').innerHTML = pr.phase === 'read' ? b('start', '') + b('finish', 'alt')
-      // بنافذة واحدة: «التالي» ينقل الدور بلا حكم، و«أنهِ القائمة». ثم «اعتمد النقاط» في المقارنة.
-      : pr.phase === 'ask' && pr.one ? b('pass', 'next') + b('finish', 'alt')
-      : pr.phase === 'mark' ? b('commit', 'full')
-      : pr.phase === 'ask' || pr.phase === 'steal' ? b('wrong', 'no full')
-      // بعد الحكم: «التالي · دور [الخصم]» و«أنهِ القائمة». وإن انكشفت العشرة فنهايتها وحدها.
-      : pr.phase === 'decided' ? (next ? `<button class="next" data-act="next">التالي · دور ${esc(match.teams[pr.upNext])}</button>` : '') + (finish ? b('finish', next ? 'alt' : 'alt full') : '')
+    // في الإجابة: «خطأ · ليس في القائمة أو مكرر» و«أنهِ القائمة». وبعد «خطأ» زرّان بعرض اللوحة نصفين «الدور: [الاسم]» بلون كل فريق
+    // (design/s8.md 3.3). ولحظة الإصابة بلا أزرار، ثم الدور للخصم تلقائياً.
+    $('rCtl').innerHTML = pr.phase === 'read' ? b('start', '', 'ابدأ العدّاد') + b('finish', 'alt')
+      : pr.phase === 'ask' ? b('wrong', 'no next', 'خطأ · ليس في القائمة أو مكرر') + b('finish', 'alt')
+      : pr.phase === 'wrong' ? [1, 2].map(t => `<button class="turn t${t}" data-act="turn:${t}">الدور: ${esc(match.teams[t])}</button>`).join('')
       : pr.phase === 'listend' ? b('next', 'full') : '';
     $('rUndo').disabled = !match.round.history.length;
+    qrButtons();
   }
   // سطر الحالة: في العدّاد الوقت الباقي كما على الشاشة (يصل كل ثانية من نافذة الجمهور).
   function rankState(pr) {
     $('rState').innerHTML = pr.phase === 'read' ? 'يقرأ الفريق القائمة'
-      : pr.phase === 'ask' ? `<span class="ltr">${esc(tickText || '0:15')}</span>`
-      // السرقة: «بعد الخطأ» ووقت السارق (design/ranking.md 5). وانتهاء الوقت خطأ (5.6)، و«بعد انتهاء الوقت» يكسر الصف بأطول اسم.
-      : pr.phase === 'steal' ? `بعد الخطأ · <span class="ltr">${esc(tickText || '0:05')}</span>` : '';
+      : pr.phase === 'ask' ? `<span class="ltr">${esc(tickText || '0:15')}</span>` : '';
   }
   $('rCtl').addEventListener('click', e => { const el = e.target.closest('button[data-act]'); if (el) roundAct(el.dataset.act); });
   // ما قاله الفريق: يُحكم فوراً، خانته بنقاطها أو فخه بخصمه.
   $('rRef').addEventListener('click', e => {
     const el = e.target.closest('button[data-r]');
     if (!el || $('rRef').classList.contains('view')) return;
-    roundAct(($('rRef').classList.contains('mark') ? 'mark:' : 'item:') + el.dataset.r);
+    roundAct('item:' + el.dataset.r);
   });
 
   // ===== شريط البونص في نافذة المقدّم (design/wheel.md 5) =====
   // قبل الوقوف: الخانات العشر بأعمدة التلفاز (1–5 ثم 6–10)، كل خانة نوعها ونقاطها ثم نصها الكامل. وبعد الوقوف: الخانة في مربعها ونصها كاملاً،
   // وسطر القاعدة للمقدّم وحده (وسوم القواعد لا تُكتب على الجمهور، 7.3).
-  // الوقت في الرأس من «ابدأ» حتى الحكم، كما على الشاشة (يصل كل ثانية من نافذة الجمهور)، و«0:00» بعد انتهائه.
-  function challengeClock(pr) {
-    const on = pr?.phase === 'run';
-    $('wClock').hidden = !on;
-    if (on) $('wClockV').textContent = pr.timeup ? '0:00' : tickText || '2:00';
-  }
-  const WSTATE = { slot: 'لم يبدأ الوقت', run: 'يؤدّي الفريق التحدي' };
-  const RULE = { challenge: 'دقيقتان حداً أقصى · النجاح +5، ولا خصم عند الإخفاق', luck: 'خانة حظ: تُطبَّق فور الوقوف، والرصيد لا ينزل تحت 0' };
+  // التحدي بلا توقيت (1.6، design/s8.md 4): لا وقت في الرأس.
+  const challengeClock = () => { $('wClock').hidden = true; };
+  const WSTATE = { slot: 'يؤدّي الفريق التحدي' };
+  const RULE = { challenge: `بلا توقيت، احكم متى انتهى الفريق · النجاح +${WHEEL_POINTS}، ولا خصم عند الإخفاق`, luck: 'خانة حظ: تُطبَّق فور الوقوف، والرصيد لا ينزل تحت 0' };
   function renderWheel(pr, acts) {
     const mid = $('wMid');
     mid.classList.toggle('got', pr.screen === 'slot');
@@ -1058,15 +1088,15 @@
         : `${v.team ? `${esc(match.teams[v.team])} · ${num('+' + v.points)}` : 'لا نقاط'} · ${esc(v.say)}`}</span>`;
     // من يبدأ ولماذا: سطر للمقدّم وحده، يقوله إن سُئل (design/wheel.md 1).
     $('wState').innerHTML = pr.phase === 'spin' ? 'يجري المؤشر' : pr.phase === 'ready' && pr.n === 1 ? (pr.why === 'draw' ? 'خسر القرعة يبدأ' : 'الأقل نقاطاً يبدأ')
-      : pr.phase === 'run' && pr.timeup ? 'انتهى الوقت · احكم' : pr.slot?.kind === 'challenge' ? WSTATE[pr.phase] ?? '' : '';
+      : pr.slot?.kind === 'challenge' ? WSTATE[pr.phase] ?? '' : '';
     const ctl = id => acts.find(a => a.id === id);
-    // «أطلق الشريط» بعرض اللوحة، ومعطّل أثناء الدوران. و«ابدأ التحدي · دقيقتان»، ثم «نجح · +5» و«لم ينجح» نصفاً ونصفاً،
+    // «أطلق الشريط» بعرض اللوحة، ومعطّل أثناء الدوران. والتحدي «نجح · +10» و«لم ينجح» نصفاً ونصفاً من لحظة الوقوف،
     // وبعد الحكم أو خانة الحظ (تُطبَّق فور الوقوف) الدورة الثانية، ثم «إنهاء الشريط».
     $('wCtl').innerHTML = pr.phase === 'spin' ? '<button class="full" disabled>أطلق الشريط</button>'
-      : pr.phase === 'run' ? `<button data-act="won">${num(ctl('won').label)}</button><button class="no" data-act="failed">${esc(ctl('failed').label)}</button>`
+      : ctl('won') ? `<button data-act="won">${num(ctl('won').label)}</button><button class="no" data-act="failed">${esc(ctl('failed').label)}</button>`
       // والدورة الثانية «التالي · دور [الفريق الآخر]» (design/wheel.md 5).
       : ctl('next') ? `<button class="full" data-act="next">التالي · دور ${esc(match.teams[pr.track[pr.n]?.owner])}</button>`
-      : ['spin', 'start', 'finish'].filter(ctl).map(id => `<button class="full" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
+      : ['spin', 'finish'].filter(ctl).map(id => `<button class="full" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
     $('wUndo').disabled = !match.round.history.length;
   }
   $('wCtl').addEventListener('click', e => { const el = e.target.closest('button[data-act]'); if (el && !el.disabled) roundAct(el.dataset.act); });
@@ -1124,9 +1154,11 @@
     if (step === 'face') {
       const nb = nextButton();
       c.card = nb.act === 'startNext'
-        ? [{ cmd: 'begin', label: 'ابدأ المباراة' }, { cmd: 'single', label: 'بنافذة واحدة', kind: 'alt' }]
+        ? [{ cmd: 'begin', label: 'ابدأ المباراة' }]
         : [{ cmd: 'next', label: nb.text, off: !!nb.off }];
       c.card.push({ cmd: 'replay', label: 'أعد العرض', kind: 'alt' });
+      // النافذتان خيار جانبي (5.2، 7.1، design/s8.md 1): زر «خيارات» صغير تحت صف الزاوية، وقائمته «ابدأ بنافذتين».
+      if (nb.act === 'startNext') c.opts = { open: optsOpen, menu: [{ cmd: 'two', label: 'ابدأ بنافذتين' }] };
       c.error = faceError;
       c.b = [[fresh], fs];
     }
@@ -1136,13 +1168,14 @@
       const act = (id, label, kind) => acts.some(a => a.id === id) ? [{ cmd: 'act:' + id, label: label ?? acts.find(a => a.id === id).label, kind, off: wait }] : [];
       if (screen === 'intro') c.card = act('show');
       const list = st.questions ?? st.topics ?? st.lists, last = !!list && st.index === list.length - 1;
-      // الترتيب بنافذة واحدة (جواب المالك، design/ranking.md 4): لا حكم في أثناء القائمة لأن المقدّم لا يراها. «ابدأ» ثم «التالي»
-      // و«أنهِ القائمة»، ثم المقارنة بالتسجيل: الخانات تُنقر لمن قالها أولاً، و«اعتمد النقاط». ثم «إنهاء الجولة».
+      // الترتيب بالتحكيم المباشر (الوثيقة 5.6، 1.7، design/s8.md 3.2): المقدّم يقرأ القائمة من الباركود. «ابدأ»، ثم في الإجابة
+      // ينقر رقم الخانة على اللوحة، أو «خطأ» (بإطار أحمر) و«أنهِ القائمة». وبعد «خطأ» زرّا لون الدور التالي. ولحظة الإصابة بلا أزرار.
       if (screen === 'list') {
-        if (st.phase === 'read') c.near = act('start', 'ابدأ').map(b => ({ ...b, cmd: 'act:start:one' }));
-        if (st.phase === 'ask' && st.one) c.near = [...act('pass'), ...act('finish', null, 'alt')];
-        if (st.phase === 'mark') { c.near = act('commit'); c.marks = !wait; }
-        if (st.phase === 'listend') c.near = act('next', last ? 'إنهاء الجولة' : `القائمة ${st.index + 2}`);
+        const ph = mode.audience(st).phase;
+        if (ph === 'read') c.near = act('start', 'ابدأ');
+        if (ph === 'ask') { c.near = [...act('wrong', 'خطأ', 'no'), ...act('finish', null, 'alt')]; c.judge = !wait; }
+        if (ph === 'wrong') c.near = [1, 2].map(t => ({ cmd: 'act:turn:' + t, label: 'التالي', kind: 'turn t' + t, off: wait }));
+        if (ph === 'listend') c.near = act('next', last ? 'إنهاء الجولة' : `القائمة ${st.index + 2}`);
       }
       // المزاد (design/auction.md 4، 3.0): زر كل فريق بلونه برقمه («زايد» قبل أول رقم) · «ابدأ» بينهما (معطّل قبل أول رقم).
       const b = screen === 'topic' && st.phase === 'bid';
@@ -1163,8 +1196,8 @@
           ...act('announce'), ...act('again', `المحاولة ${st.attempt + 1}`)];
       } else if (screen === 'ask') c.near = [...act('start', 'ابدأ'), ...act('correct'), ...act('wrong', null, 'no'), ...act('next', last ? 'إنهاء الجولة' : 'السؤال التالي')];
       // العجلة (design/wheel.md 4): «أطلق الشريط» قبل الدوران، ولا شيء أثناءه. وبعد الحكم أو خانة الحظ «التالي · الدورة 2»، ثم «إنهاء الشريط».
-      // والتحدي «ابدأ · دقيقتان»، ثم «نجح» و«لم ينجح» (بإطار) والوقت يجري أو بعد انتهائه.
-      if (screen === 'wheel' || screen === 'slot') c.near = [...act('spin'), ...act('start', 'ابدأ · دقيقتان'), ...act('won', 'نجح'), ...act('failed', null, 'alt'), ...act('next'), ...act('finish')];
+      // والتحدي «نجح · +10» و«لم ينجح» (بإطار) من لحظة الوقوف، بلا توقيت (design/s8.md 4).
+      if (screen === 'wheel' || screen === 'slot') c.near = [...act('spin'), ...act('won', `نجح · +${WHEEL_POINTS}`), ...act('failed', null, 'no'), ...act('next'), ...act('finish')];
       if (screen === 'end') { const nb = nextButton(); c.card = [{ cmd: 'next', label: nb.text, off: !!nb.off || wait }]; }
       c.scores = true;
       // ثلاثة صفوف قصيرة (الملاحظة 26، design/system.md 15.10): الجولة · النوافذ · المباراة، فلا تبلغ لوحة الأول ولا أزرار العدّاد.
@@ -1172,6 +1205,11 @@
       c.b = [[{ cmd: 'presenter', label: 'المقدّم', kind: 'alt' }, ...fs]];
       c.c = [[{ cmd: 'scores', label: 'الرصيد', kind: 'alt' }, fresh]];
     }
+    // الباركود ظاهراً (design/s8.md 2.1): «أخفِ الباركود» في رأس البطاقة وحده، ولا أزرار في صف الشارات حتى يُخفى.
+    // ومخفياً والسؤال جارٍ: «الباركود» يعيده، في صف النوافذ (152) بعد «المقدّم» و«ملء الشاشة». لا في صف المباراة (240) كما في design/s8.md 2.1:
+    // فيه بلغ أزرار المزايدة الثلاثة في صف الشارات (310) بفراغ 6 (مقيس بـ stage-check)، وصف النوافذ بعيد عنها.
+    if (mode && qrShown()) { c.card = [{ cmd: 'qr:hide', label: 'أخفِ الباركود', off: wait }]; c.near = []; }
+    else if (mode && qrQuestion()?.open) c.b[0].push({ cmd: 'qr:show', label: 'الباركود', kind: 'alt' });
     // النهاية (design/final.md 5): «أعلن الفائز» في البطاقة (و«الجولة الفاصلة» معطّلاً عند التعادل حتى «كسر التعادل»)، ثم «مباراة جديدة».
     // والزوايا الثلاث كما في الجولة.
     if (step === 'final') {
@@ -1232,14 +1270,16 @@
     if (cmd === 'draw') match.step === 'setup' ? goDraw() : startDraw();
     if (cmd === 'pick') update(M.pick(match, arg, modes()));
     if (cmd === 'back' && !drawing) update(M.backToSetup(match));
-    if (cmd === 'begin') begin(false);
-    if (cmd === 'single') begin(true);
+    if (cmd === 'begin') begin(true);
+    if (cmd === 'two') begin(false);
+    if (cmd === 'opts' && match.step === 'face') { optsOpen = arg === 'close' ? false : !optsOpen; render(); }
     if (cmd === 'act') roundAct(arg);
     if (cmd === 'raise') raise(Number(arg));
     if (cmd === 'next') actions[nextButton().act]?.();
     if (cmd === 'mute') toggleMute();
     if (cmd === 'presenter') toPresenter();
     if (cmd === 'new') newMatch();
+    if (cmd === 'qr') setQr(arg === 'show');
     if (cmd === 'fullscreen') document.documentElement.requestFullscreen?.().catch(() => {});
     if (['toPick', 'undoPick', 'toFace', 'replay', 'undo', 'scores', 'announce', 'tiebreak'].includes(cmd)) actions[cmd]();
   });
@@ -1285,6 +1325,12 @@
   $('lostSingle').onclick = () => update({ ...match, single: true });
   $('showQ').onclick = () => roundAct('show');
   document.querySelectorAll('#judge [data-act], #nextQ').forEach(b => b.onclick = () => b.dataset.act && roundAct(b.dataset.act));
+  // «أخفِ الباركود» ما دام ظاهراً، و«الباركود» يعيده والسؤال جارٍ (design/s8.md 2.1).
+  function qrButtons() {
+    const q = qrQuestion(), on = !!qrShown();
+    document.querySelectorAll('[data-qr]').forEach(b => { b.hidden = !q?.open; b.textContent = on ? 'أخفِ الباركود' : 'الباركود'; b.dataset.on = on ? '1' : ''; });
+  }
+  document.querySelectorAll('[data-qr]').forEach(b => { b.onclick = () => setQr(!b.dataset.on); });
   $('undo').onclick = $('tbUndo').onclick = $('endUndo').onclick = $('aUndo').onclick = $('rUndo').onclick = $('wUndo').onclick = $('fUndo').onclick = actions.undo;
   $('endNext').onclick = () => actions[nextButton().act]?.();
   $('mute').onclick = toggleMute;

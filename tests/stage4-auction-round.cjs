@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQr } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/'; // الرابط العادي: المزاد في MODES منذ اكتمال ش4
@@ -116,6 +116,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await presenter.click('#showQ');
   await audience.waitForSelector('.scr.show[data-s="auc"]');
   await wait(600);
+  // الباركود يظهر وحده عند المزايدة (الوثيقة 1.7)، ويُخفيه المقدّم من نافذته.
+  check('الموضوع يبدأ بالباركود على التلفاز، و«أخفِ الباركود» في المقدّم', await audience.$eval('#canvas', c => c.classList.contains('qr')) && (await text(presenter, '#aQr')) === 'أخفِ الباركود');
+  await presenter.click('#aQr'); await wait(600);
   check('الجمهور: الموضوع سطراً واحداً، و«الموضوع 1 من 3»، ولا عدّ ولا أرقام', (await text(audience, '#topic')) === TOPIC && (await text(audience, '#b1')) === 'الموضوع 1 من 3'
     && !(await audience.isVisible('#tally')) && (await bids(audience)).length === 0
     && await audience.$eval('#topic', e => e.scrollWidth <= e.clientWidth + 1 && e.getClientRects().length === 1));
@@ -235,6 +238,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await unlock(stage);
   audience = await stageFrame(stage);
   await wait(1000);
+  await hideQr(audience);
   const near = () => audience.$$eval('#near .cbtn', els => els.map(e => e.textContent.trim() + (e.classList.contains('off') ? '(معطّل)' : '')).join(' | '));
   for (let i = 0; i < 20 && (await st()).nums.some(Boolean); i++) { await cmd(audience, 'undo'); await wait(800); }
   check(`النافذة الواحدة · قبل أول رقم: «زايد» · «ابدأ» معطّل · «زايد» (${await near()})`, (await near()) === 'زايد | ابدأ(معطّل) | زايد');

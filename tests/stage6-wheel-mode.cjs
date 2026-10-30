@@ -30,14 +30,14 @@ const { reporter } = require('./helpers.cjs');
   let round = R.startRound(wheel, { content, first: 2, rng });
   let s = round.state;
   const kinds = s.slots.map(x => x.kind === 'luck' ? x.effect : 'c').join(',');
-  check('عشر خانات: سبع تحديات وثلاث حظ، بالترتيب من اليمين (تحدٍّ · خصم · تحدٍّ · تحدٍّ · هدية · تحدٍّ · تحدٍّ · اسرق · تحدٍّ · تحدٍّ)', s.slots.length === 10 && kinds === 'c,lose-3,c,c,gift-3,c,c,steal-3,c,c');
+  check('عشر خانات: سبع تحديات وثلاث حظ، بالترتيب من اليمين (تحدٍّ · خصم · تحدٍّ · تحدٍّ · هدية · تحدٍّ · تحدٍّ · اسرق · تحدٍّ · تحدٍّ)', s.slots.length === 10 && kinds === 'c,lose-5,c,c,gift-5,c,c,steal-5,c,c');
   check('لا تتجاور خانتا حظ', s.slots.every((x, i) => !(x.kind === 'luck' && s.slots[i + 1]?.kind === 'luck')));
   check('التحديات بترتيبها في wheel.json، ونص كل خانة حظ من label', s.slots.filter(x => x.kind === 'challenge').map(x => x.id).join(',') === data.challenges.map(c => c.id).join(',')
     && s.slots.filter(x => x.kind === 'luck').every(x => x.text === data.luck.find(l => l.effect === x.effect).label));
   const faces = s.slots.map(W.face);
-  check('كلمة الخانة ورقمها من التأثير: «تحدٍّ +5» · «خسارة −3» · «هدية +3» · «خصم 3»', faces[0].word === 'تحدٍّ' && faces[0].n === '+5' && faces[1].word === 'خسارة' && faces[1].n === '−3'
-    && faces[4].word === 'هدية' && faces[4].n === '+3' && faces[7].word === 'خصم' && faces[7].n === '3');
-  check('لو طال label لا تتغير الخانة (الكلمة من effect)', W.face({ kind: 'luck', effect: 'gift-3', text: 'هدية طويلة جداً جداً' }).word === 'هدية');
+  check('كلمة الخانة ورقمها من التأثير: «تحدٍّ +10» · «خسارة −5» · «هدية +5» · «خصم 5»', faces[0].word === 'تحدٍّ' && faces[0].n === '+10' && faces[1].word === 'خسارة' && faces[1].n === '−5'
+    && faces[4].word === 'هدية' && faces[4].n === '+5' && faces[7].word === 'خصم' && faces[7].n === '5');
+  check('لو طال label لا تتغير الخانة (الكلمة من effect)', W.face({ kind: 'luck', effect: 'gift-5', text: 'هدية طويلة جداً جداً' }).word === 'هدية');
   check('خانتا الوقوف للدورتين محسومتان في الإعداد (0 إلى 9)', s.stops.length === 2 && s.stops.every(k => Number.isInteger(k) && k >= 0 && k < 10));
   const many = Array.from({ length: 200 }, () => wheel.setup({ content: data, first: 1, rng }).stops[0]);
   check('الخانات العشر كلها يُوقف عليها (200 إعداد)', new Set(many).size === 10);
@@ -73,7 +73,7 @@ const { reporter } = require('./helpers.cjs');
   s = round.state;
   a = wheel.audience(s);
   check('بعد الحركة: الخانة ظاهرة (شاشة الخانة)، بنصها كاملاً وكلمتها ورقمها، والحدّ لمن أدارها', s.phase === 'slot' && a.screen === 'slot' && a.text === s.slots[stop].text && a.slot.word === W.face(s.slots[stop]).word && a.turn === 2 && a.by === 2);
-  check('بعد الوقوف: «ابدأ التحدي» إن وقفت على تحدٍّ، و«التالي · الدورة 2» على خانة حظ (تُطبَّق فوراً)', wheel.actions(s).map(x => x.id).join() === (s.slots[stop].kind === 'challenge' ? 'start' : 'next'));
+  check('بعد الوقوف: الحكم «نجح» و«لم ينجح» إن وقفت على تحدٍّ (بلا توقيت)، و«التالي · الدورة 2» على خانة حظ (تُطبَّق فوراً)', wheel.actions(s).map(x => x.id).join() === (s.slots[stop].kind === 'challenge' ? 'won,failed' : 'next'));
 
   // التراجع: يتخطى الدوران إلى ما قبله، ثم «أدِر» يقف على الخانة نفسها.
   let m = { step: 'play', round, scores: round.scores };
@@ -86,7 +86,7 @@ const { reporter } = require('./helpers.cjs');
 
   // نهاية العجلة (التحدي يُحكم فيه أولاً: «لم ينجح» بلا نقاط).
   // والدورتان: التحدي يُحكم فيه «لم ينجح»، ثم الدورة الثانية بخانتها، ثم «إنهاء الشريط» (اختبار الدورتين في stage6-wheel-turns).
-  const close = (r, at) => (r.state.slots[r.state.landed].kind === 'challenge' ? R.act(wheel, R.act(wheel, r, 'start', undefined, at), 'failed', undefined, at + 1000) : r);
+  const close = (r, at) => (r.state.slots[r.state.landed].kind === 'challenge' ? R.act(wheel, r, 'failed', undefined, at + 1000) : r);
   round = close(round, t0 + ms + 1000);
   round = R.act(wheel, round, 'next', undefined, t0 + ms + 3000);
   round = R.act(wheel, round, 'spin', undefined, t0 + ms + 4000);

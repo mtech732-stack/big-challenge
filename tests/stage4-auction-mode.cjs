@@ -88,7 +88,7 @@ const { reporter } = require('./helpers.cjs');
   let rs = R.act(auction, back, 'start');
   a = auction.audience(rs.state);
   check('«ابدأ»: رسا على الثاني بـ 11، والحدّ له، ولا «في القائمة» ولا أرقام', a.phase === 'fulfil' && a.commit.team === 2 && a.commit.n === 11 && a.turn === 2 && a.size === undefined && a.bids.length === 0);
-  check(`ويبدأ عدّاد الوفاء فوراً (${FULFIL_SECONDS} ثانية)`, rs.timer?.seconds === FULFIL_SECONDS && FULFIL_SECONDS === 60 && rs.events.some(e => e.type === 'timer' && e.seconds === FULFIL_SECONDS));
+  check(`ويبدأ عدّاد الوفاء فوراً (${FULFIL_SECONDS} ثانية)`, rs.timer?.seconds === FULFIL_SECONDS && FULFIL_SECONDS === 45 && rs.events.some(e => e.type === 'timer' && e.seconds === FULFIL_SECONDS));
   check('العدّ «0 من 11» بلون الملتزم', a.tally.n === 0 && a.tally.of === 11 && a.tally.team === 2 && a.clock === FULFIL_SECONDS);
   check('الوفاء: العدّ و«توقّف · لم يفِ»، ولا أزرار مزايدة', ids(auction.actions(rs.state)) === 'item,count,stop' && R.act(auction, rs, 'raise:1').state === rs.state);
   check('التراجع عن «ابدأ»: تعود المزايدة بلا عدّاد', R.undo(rs).state.phase === 'bid' && R.undo(rs).timer === null);
@@ -133,7 +133,7 @@ const { reporter } = require('./helpers.cjs');
   check('أفعال المزايدة تمرّ بالمشغّل: «raise:1»', auction.audience(m2.round.state).bids[0].n === 1);
   check('ونقرتان متتابعتان تُحسبان كلتاهما (2)', auction.audience(P.act(m2, all, 'raise:1').round.state).bids[0].n === 2);
 
-  // الوفاء والعدّ (5.5): للملتزم 60 ثانية، وكل عنصر يذكره +1، فإن بلغ ما التزم به أخذ نقاطه.
+  // الوفاء والعدّ (5.5): للملتزم 45 ثانية، وكل عنصر يذكره +1، فإن بلغ ما التزم به أخذ نقاطه.
   // commitAt(n, team): يرسو المزاد على team بـ n (يزايد الخصم أولاً إن كان n فوق 1)، ثم «ابدأ».
   const commitAt = (n, team = 1, topic = 0, now) => {
     let x = R.act(auction, start(1), 'show');
@@ -174,7 +174,7 @@ const { reporter } = require('./helpers.cjs');
   h = R.act(auction, h, 'item:0', undefined, T + 5000);
   const hd = R.act(auction, h, 'item:1', undefined, T + 10000);
   const hu = R.undo(hd, T + 20000);
-  check('التراجع عن الحكم بعد 10 ثوانٍ: يعود الوفاء بـ 50 ثانية', hu.state.phase === 'fulfil' && Math.round(hu.timer.seconds) === 50 && hu.events.some(e => e.type === 'timer' && Math.round(e.seconds) === 50));
+  check('التراجع عن الحكم بعد 10 ثوانٍ: يعود الوفاء بـ 35 ثانية', hu.state.phase === 'fulfil' && Math.round(hu.timer.seconds) === 35 && hu.events.some(e => e.type === 'timer' && Math.round(e.seconds) === 35));
   const hu2 = R.undo(hu, T + 25000);
   check('ثم التراجع عن عنصر: العدّاد نفسه يبقى (لا وقت زائد)', hu2.timer.id === hu.timer.id && hu2.events.length === 0 && auction.audience(hu2.state).tally.n === 0);
 
@@ -190,12 +190,12 @@ const { reporter } = require('./helpers.cjs');
   check('لا عدّاد بعدها، ولحظة «fail» للخصم (بهزة «خاطئة»)', gs.timer === null && gs.events.some(e => e.type === 'stop-timer') && gs.events.some(e => e.name === 'fail' && e.team === 1 && e.reason === 'wrong')
     && !gs.events.some(e => e.type === 'timer'));
   check('بعد الحكم: «الموضوع التالي» وحده، والعدّ «2 من 5» والقائمة كلها', ids(auction.actions(gs.state)) === 'next' && a.tally.n === 2 && a.tally.of === 5 && a.tally.team === 2 && a.list.length === gs.state.topics[0].items.length);
-  const gt = R.act(auction, g, 'timeout', g.timer.id, T + 60000);
+  const gt = R.act(auction, g, 'timeout', g.timer.id, T + 45000);
   check('انتهى وقت الملتزم: +2 للخصم كـ «توقّف»، بلا «خاطئة»', gt.state.phase === 'decided' && gt.scores[1] === 2 && gt.events.some(e => e.name === 'fail' && e.reason === 'timeout'));
   check('«انتهى الوقت» من عدّاد قديم يُهمل', R.act(auction, g, 'timeout', g.timer.id + 1).state === g.state);
   check('مسار المواضيع: الموضوع للخصم', auction.presenter(gs.state).track[0].result === 1);
   const gu = R.undo(gs, T + 25000);
-  check('التراجع عن «لم يفِ» بعد 20 ثانية: الوفاء للملتزم بـ 40 ثانية، والنقطتان تعودان', gu.state.phase === 'fulfil' && auction.audience(gu.state).turn === 2 && Math.round(gu.timer.seconds) === 40 && gu.scores[1] === 0);
+  check('التراجع عن «لم يفِ» بعد 20 ثانية: الوفاء للملتزم بـ 25 ثانية، والنقطتان تعودان', gu.state.phase === 'fulfil' && auction.audience(gu.state).turn === 2 && Math.round(gu.timer.seconds) === 25 && gu.scores[1] === 0);
   // حالات محفوظة من نسخ سابقة: «إكمال الخصم» يحسمه «توقّف»، والالتزام قبل «ابدأ» يكمل كما كان.
   const oldc = { ...g, state: { ...g.state, phase: 'complete', team: 1 } };
   check('حالة «إكمال» محفوظة: «توقّف» وحده، فيأخذ الخصم 2', ids(auction.actions(oldc.state)) === 'stop' && R.act(auction, oldc, 'stop').scores[1] === 2);
