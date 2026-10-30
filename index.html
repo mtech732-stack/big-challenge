@@ -41,8 +41,6 @@
   .status { font-weight: 700; display: flex; align-items: center; gap: 0.375rem; }
   .status::before { content: ""; width: 0.5rem; height: 0.5rem; background: var(--team-1); }
   .status[data-on="true"]::before { background: #1F9D55; }
-  .notice { border-inline-start: 0.25rem solid var(--ink); padding-inline-start: 0.75rem; }
-  .notice p { white-space: nowrap; }
 
   /* تعديل الرصيد: يُفتح من الرأس في أي وقت */
   .scores { position: fixed; z-index: 7; top: 50%; left: 50%; translate: -50% -50%; width: 36rem; box-shadow: 0.375rem 0.375rem 0 var(--stage-3), 0 0 0 100vmax rgba(5,14,46,.6); }
@@ -66,9 +64,6 @@
   .pip.won1 { background: var(--team-1); box-shadow: none; }
   .pip.won2 { background: var(--team-2); box-shadow: none; }
   .pip.none { background: var(--stage-3); box-shadow: none; }
-  .lost { display: flex; gap: 0.75rem; margin-inline-end: auto; }
-  .lost .warn { background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); display: flex; align-items: center; gap: 0.375rem; }
-  .lost .warn::before { content: ""; width: 0.5rem; height: 0.5rem; background: var(--team-1); }
   .top.playing h1 { margin-inline-end: 0; }
   .q { grid-template-columns: auto 1fr; align-items: center; gap: 0.5rem 1.25rem; }
   .q .letter { min-width: 3.5rem; height: 3.5rem; padding: 0 0.5rem; white-space: nowrap; background: var(--ink); color: var(--hl); display: flex; align-items: center; justify-content: center;
@@ -95,7 +90,6 @@
   #gate h1 { font-size: 1.25rem; }
   #pin { font: inherit; font-size: 1.25rem; text-align: center; letter-spacing: 0.375rem; padding: 0.25rem; border: 3px solid var(--ink); border-radius: 0; direction: ltr; width: 100%; }
   #gate .alert { margin: 0; color: var(--team-1); background: var(--card); padding: 0.25rem 0.5rem; border: 2px solid var(--team-1); }
-  #mirror { font-size: 1.5rem; font-weight: 900; }
 
   /* نظام التصميم 1.2 (design/system.md 9.1): ثلاثة صفوف تملأ الارتفاع: الرأس · السؤال والإجابة (يأخذ ما بقي، ومحتواه في وسطه) ·
      الدور والحكم في الأسفل دائماً، بأزرار 5rem في الموضع نفسه لكل سؤال. و12 عموداً بفاصل 0.75rem لصف ما بعد الحكم */
@@ -117,8 +111,6 @@
   #single { position: fixed; inset: 0; z-index: 6; overflow: clip; background: #050E2E; }
   .frame { position: absolute; top: 50%; left: 50%; width: 1920px; height: 1080px; transform: translate(-50%, -50%) scale(var(--scale, 1)); }
   .frame iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; display: block; }
-  /* بعد تسليم المباراة لنافذة المقدّم: إن أُغلقت تلك النافذة، تُتابَع المباراة من هنا */
-  #resume { position: fixed; z-index: 8; bottom: 1rem; right: 1rem; }
   body.one { overflow: hidden; }
 
   /* ===== المزاد (design/auction.md 5، 4.0): الموضوع والعدّ، والبحث، والقائمة المرجعية الكبيرة تُمرَّر، والمزايدة ===== */
@@ -284,24 +276,10 @@
     <p class="lclock" id="rClock" hidden><span>بقي للقائمة</span><b id="rClockV"></b></p>
     <!-- وقت تحدي العجلة طوال التحدي (design/wheel.md 5)، فلا يقرأ المقدّم من التلفاز -->
     <p class="lclock" id="wClock" hidden><span>الوقت</span><b id="wClockV"></b></p>
-    <!-- إن انقطعت نافذة الجمهور أثناء الجولة: يحلّ هذا محل مسار الأسئلة في الرأس -->
-    <span class="lost" id="lost" hidden><button class="warn" id="lostOpen">افتح نافذة الجمهور</button><button class="on-stage alt" id="lostSingle">نافذة واحدة</button></span>
     <button class="on-stage alt" id="mute" hidden>الصوت</button>
     <button class="on-stage alt" id="openScores">الرصيد</button>
   </header>
 
-  <!-- لوحة الشاشة: تظهر في «?test» وحده (اختبار النافذتين من ش0). وفي اللعب تُفتح نافذة الجمهور من «افتح نافذة الجمهور» في الرأس -->
-  <section class="panel" id="screenPanel" hidden>
-    <div class="row">
-      <span class="status" id="status" data-on="false">نافذة الجمهور غير متصلة</span>
-      <button class="grow" id="open">افتح نافذة الجمهور</button>
-    </div>
-    <div class="notice" id="notice">
-      <p>اجعل الشاشة <b>«ممتدة»</b> لا «مطابقة» (<span class="ltr">Windows + P</span>، أو إعدادات الشاشات في Mac).</p>
-      <p>افتح نافذة الجمهور واسحبها إلى التلفاز ثم «ملء الشاشة».</p>
-    </div>
-    <p id="blocked" class="alert" hidden>منع المتصفح فتح النافذة. اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد المحاولة.</p>
-  </section>
 
   <!-- الجولة في نافذة المقدّم (design/letter.md 4 وdesign/shared.md 6): افتتاحها، ثم السؤال والإجابة والحكم، ثم نهايتها -->
   <section class="panel" data-step="play" data-part="intro" hidden>
@@ -419,15 +397,6 @@
     </div>
   </section>
 
-  <!-- العدّاد التجريبي من ش0: يظهر بإضافة ?test إلى الرابط، لاختبار النافذتين على التلفاز -->
-  <section class="panel" id="testPanel" hidden>
-    <h2>العدّاد التجريبي</h2>
-    <div class="row">
-      <button id="start" disabled>ابدأ <span class="ltr">10</span> ثوانٍ</button>
-      <button id="reset" disabled>صفّر</button>
-      <span>ما تعرضه نافذة الجمهور الآن: <span id="mirror" class="ltr">–</span></span>
-    </div>
-  </section>
 
   <!-- تعديل الرصيد: طبقة فوق الخطوة، تُفتح من «الرصيد» أو من رقم الفريق في الشاشة المشتركة، ويُتراجع عنها -->
   <section class="panel scores" id="scores" hidden>
@@ -443,11 +412,10 @@
 <div id="single" hidden>
   <div class="frame" id="frame"></div>
 </div>
-<button class="on-stage" id="resume" hidden>أُغلقت نافذة المقدّم · تابع بنافذة واحدة</button>
 
 <script type="module">
   import './js/offline.js';
-  import { createLink } from './js/sync.js';
+  import { createLink } from './js/frame-link.js';
   import { fetchPinRecord, checkPin, watchPin } from './js/pin.js';
   import { loadPacks, loadWheel } from './js/content.js';
   import WHEEL, { spinMs, CHALLENGE_POINTS as WHEEL_POINTS } from './js/wheel.js';
@@ -461,32 +429,14 @@
   import * as P from './js/play.js';
 
   const $ = id => document.getElementById(id);
-  const AUDIENCE = 'big-challenge-audience';
-  const PRESENTER = 'big-challenge-presenter';
   const SAVE_KEY = 'big-challenge.match';
   const SEEN_KEY = 'big-challenge.seen';   // ذاكرة الأسئلة المستعملة على هذا الجهاز (docs/decisions.md)
   const MUTE_KEY = 'big-challenge.muted';
-  // في ذاكرة هذا التبويب وحده (sessionStorage)، وتُنسخ إلى النافذة التي يفتحها: الرقم المُدخل، فتفتح نافذة المقدّم
-  // دون إعادة إدخاله، ودور النافذة بعد تسليم المباراة ('stage')، فإن أُعيد تحميلها بقيت شاشة جمهور (docs/decisions.md).
-  const PIN_KEY = 'big-challenge.pin';
-  const ROLE_KEY = 'big-challenge.role';
   const DRAW_MS = 2690; // مدة حركة القرعة على شاشة الجمهور (design/start.md، القسم 6)
   const query = new URLSearchParams(location.search);
-  const TEST = query.has('test');   // صفحة اختبار النافذتين من ش0: لوحة الشاشة والعدّاد التجريبي وحدهما
-  const HOST = query.has('host');   // نافذة المقدّم التي تفتحها «ابدأ المباراة»
-  const session = {
-    get: k => { try { return sessionStorage.getItem(k); } catch { return null; } },
-    set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} },
-  };
-  let link = null, watcher = null, packs = [], wheel = null, match = null, drawing = 0, pin = '', faceError = '', optsOpen = false;
+  let link = null, watcher = null, packs = [], wheel = null, match = null, drawing = 0, pin = '', faceError = '';
   let muted = false;
   try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch {}
-  // presenter: هذه النافذة تملك المباراة · stage: سلّمتها لنافذة المقدّم، وبقيت شاشة جمهور.
-  let role = 'presenter', closing = false;
-  // handing: لحظة التسليم نفسها، فلا تُزال شاشة الجمهور من هذه النافذة ثم تُعاد.
-  let handing = false;
-  // تسليم المباراة بين النوافذ (الشاشة المشتركة ونافذة المقدّم) في المتصفح نفسه.
-  const roles = new BroadcastChannel('big-challenge-roles');
 
   // ===== الرقم السري: لا يبدأ شيء قبله، ولا تُنشأ قناة التزامن قبله =====
   const showError = text => { $('pin-error').textContent = text; $('pin-error').hidden = false; };
@@ -510,19 +460,8 @@
     }
     $('enter').disabled = false;
   };
-  // الرقم المحفوظ في هذا التبويب: يُتحقق منه كما لو أُدخل، وإلا طُلب.
-  async function unlockStored() {
-    const stored = session.get(PIN_KEY);
-    if (!stored) return false;
-    const { record } = await fetchPinRecord();
-    if (!record || !(await checkPin(stored, record))) return false;
-    await unlock(stored);
-    return true;
-  }
-
   async function unlock(value) {
     pin = value;
-    session.set(PIN_KEY, value);
     $('pin').value = '';
     if (!packs.length) [packs, wheel] = await Promise.all([loadPacks(), loadWheel()]);
     const saved = restore();
@@ -535,7 +474,6 @@
     link.send('view', view());
     watcher?.stop();
     watcher = watchPin(pin, lock);
-    if (HOST) roles.postMessage({ type: 'alive' });
     render(reset ? { text: 'عادت المباراة إلى البداية.' } : undefined);
   }
 
@@ -646,7 +584,7 @@
   function update(next, anim) {
     next = fitMethod(next);
     if (next === match && !anim) return;
-    if (next.step !== match.step) { faceError = ''; optsOpen = false; }
+    if (next.step !== match.step) faceError = '';
     match = next;
     save();
     if (anim) link?.send('anim', { name: anim, view: view() });
@@ -705,14 +643,14 @@
   // والوقت من ساعة الجهاز (at)، والوحدة لا تقبله قبل وقته.
   let landFor = 0;
   function wheelClock() {
-    const st = role === 'presenter' && $('gate').hidden && match?.step === 'play' && match.round?.mode === WHEEL.id ? match.round.state : null;
+    const st = $('gate').hidden && match?.step === 'play' && match.round?.mode === WHEEL.id ? match.round.state : null;
     if (st?.phase === 'spin' && landFor !== st.at && Date.now() >= st.at + spinMs(st.landed)) { landFor = st.at; roundUpdate(P.act(match, units(), 'land')); }
   }
   setInterval(wheelClock, 100);
   // الترتيب: بعد لحظة الإصابة (1.2 ثانية) ترسل النافذة التي تحكم «turn»، فينتقل الدور إلى الخصم بعدّاده (design/s8.md 3.2).
   let turnFor = -1;
   function rankTurn() {
-    const st = role === 'presenter' && $('gate').hidden && match?.step === 'play' && match.round?.mode === 'ranking' ? match.round.state : null;
+    const st = $('gate').hidden && match?.step === 'play' && match.round?.mode === 'ranking' ? match.round.state : null;
     if (st?.phase === 'hit' && turnFor !== st.at && Date.now() >= st.at + RANK_HIT_MS) { turnFor = st.at; roundUpdate(P.act(match, units(), 'turn')); }
   }
   setInterval(rankTurn, 100);
@@ -763,90 +701,28 @@
     render();
   }
 
-  // «ابدأ المباراة» من المواجهة يبدأ بنافذة واحدة بأزرارها (الأصل، 7.1). و«ابدأ بنافذتين» من الخيارات تُفتح به نافذة المقدّم وتبقى هذه شاشة الجمهور.
-  // النافذة تُفتح أولاً في النقرة نفسها، ثم تُحفظ الجولة الأولى قبل أن تقرأها (النافذتان في المتصفح نفسه).
-  function begin(single) {
+  // «ابدأ المباراة» من المواجهة: المباراة بنافذة واحدة وحدها (الوثيقة 1.13).
+  function begin() {
     if (held()) return;
-    optsOpen = false;
     const nb = nextButton();
     if (nb.act !== 'startNext') return actions[nb.act]?.();
-    if (!single && !openPresenter()) return;
-    handing = !single;
-    match = { ...match, single };
+    match = { ...match, single: true };
     startNext();
-    if (!single) becomeStage();
   }
-  // نافذة المقدّم: تُفتح من نقرة على الشاشة المشتركة. إن منعها المتصفح بقيت المشتركة وظهر السبب في البطاقة.
-  function openPresenter() {
-    // ورابط المعاينة يبقى معاينة في نافذة المقدّم، فيُلعب فيها ما يُبنى الآن.
-    const win = window.open('index.html?host' + (PREVIEW ? '&preview' : ''), PRESENTER, 'popup,width=1280,height=800');
-    faceError = win ? '' : 'منع المتصفح نافذة المقدّم. اسمح بالنوافذ المنبثقة أو ابدأ بنافذة واحدة.';
-    if (!win) render();
-    return !!win;
-  }
-  // في الجولة بنافذة واحدة: «المقدّم» يفتح نافذته ويسلّمها الجولة كما هي.
-  function toPresenter() {
-    if (!openPresenter()) return;
-    handing = true;
-    update({ ...match, single: false });
-    becomeStage();
-  }
-
-  // ===== تسليم المباراة بين النوافذ =====
-  // هذه النافذة تصير شاشة جمهور: تُغلق قناتها دون «bye»، وتبقى شاشتها كما هي، ونافذة المقدّم تكمل المباراة.
-  function becomeStage() {
-    role = 'stage';
-    handing = false;
-    session.set(ROLE_KEY, 'stage');
-    watcher?.stop(); watcher = null;
-    link?.close(); link = null;
-    $('scores').hidden = true;
-    $('app').hidden = true;
-    $('gate').hidden = true;
-    render();
-  }
-  // تعود المباراة إلى هذه النافذة (مباراة جديدة من نافذة المقدّم، أو «تابع بنافذة واحدة» بعد إغلاقها).
-  async function takeOver(single) {
-    role = 'presenter';
-    session.set(ROLE_KEY, 'presenter');
-    $('resume').hidden = true;
-    // شاشة الجمهور تبقى كما هي أثناء التسليم، فلا تومض على التلفاز.
-    handing = true;
-    const ok = await unlockStored();
-    handing = false;
-    if (!ok) { $('gate').hidden = false; $('app').hidden = true; render(); return; }
-    if (single && match.step === 'play' && !match.single) update({ ...match, single: true });
-    else render();
-    roles.postMessage({ type: 'taken' });
-  }
-  // من نافذة المقدّم: تُعطى المباراة للشاشة المشتركة إن كانت مفتوحة، فتُغلق هذه نفسها. وإلا بقيت هنا.
-  const giveBack = () => roles.postMessage({ type: 'take' });
-  roles.onmessage = ({ data }) => {
-    if (role === 'stage' && data?.type === 'take') takeOver(false);
-    if (role === 'stage' && data?.type === 'gone') { $('resume').hidden = false; }
-    if (role === 'stage' && data?.type === 'alive') { $('resume').hidden = true; }
-    if (role === 'presenter' && HOST && data?.type === 'taken') { closing = true; watcher?.stop(); link?.close(); link = null; window.close(); }
-  };
-  addEventListener('pagehide', () => { if (HOST && role === 'presenter' && !closing) roles.postMessage({ type: 'gone' }); });
-  $('resume').onclick = () => takeOver(true);
 
   function newMatch() {
     if (match.step !== 'setup' && !confirm('تبدأ مباراة جديدة ويُمحى ما سبق. أتتابع؟')) return;
     clearTimeout(drawing); drawing = 0;
     update(M.newMatch({ pack: match.pack, method: match.method }));
-    if (HOST) giveBack();
   }
 
   // ===== العرض =====
   // الشاشة المشتركة ظاهرة: قبل «ابدأ المباراة» دائماً، وفي اللعب بنافذة واحدة، وفي هذه النافذة بعد تسليمها.
   // والنهاية بعد اللعب كالجولة: بنافذتين في نافذة المقدّم، وبنافذة واحدة هنا.
-  const shared = () => !TEST && role === 'presenter' && !$('app').hidden && (!['play', 'final'].includes(match.step) || match.single);
+  const shared = () => !$('app').hidden;
   function render(error) {
     if (!match) return;
     const playing = match.step === 'play' || match.step === 'final';
-    $('screenPanel').hidden = !TEST;
-    $('notice').hidden = !!link?.connected;
-    $('testPanel').hidden = !TEST;
     $('mute').hidden = !playing;
     $('mute').textContent = muted ? 'مكتوم' : 'الصوت';
     renderPlay();
@@ -867,10 +743,9 @@
   // والتعادل: «الجولة الفاصلة» تُبنى في مرحلة «كسر التعادل» بعد هذه، فزرها معطّل الآن.
   const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
   function renderFinal() {
-    const on = !TEST && match.step === 'final' && !match.single;
+    const on = false;
     if (!on) return;
     $('roundChip').hidden = false;
-    $('lost').hidden = !!link?.connected;
     document.querySelectorAll('[data-part="fin"]').forEach(s => s.hidden = false);
     const win = match.final?.phase === 'win', leader = M.leaderOf(match.scores);
     $('roundChip').querySelector('span').textContent = win ? 'انتهت المباراة' : 'النتيجة النهائية';
@@ -920,10 +795,9 @@
       .map(x => (typeof x === 'string' ? { team: 0, html: x } : x)).sort((x, y) => x.team - y.team).map(x => x.html).join('');
   }
   function renderPlay() {
-    const mode = !TEST && match.step === 'play' && !match.single && roundMode();
-    $('roundChip').hidden = !mode;
-    $('pips').hidden = !mode || !link?.connected;
-    $('lost').hidden = !mode || !!link?.connected;
+    const mode = false;
+    $('roundChip').hidden = true;
+    $('pips').hidden = true;
     document.querySelectorAll('[data-part]').forEach(s => s.hidden = true);
     $('wClock').hidden = true;
     // المزاد (design/auction.md 5، 4.0): النافذة بارتفاع الشاشة لا أكثر، فالقائمة وحدها تُمرَّر داخل لوحتها.
@@ -1233,7 +1107,7 @@
 
   // ===== الشاشة المشتركة: شاشة الجمهور في هذه النافذة، وأزرارها (design/shared.md 3 و4) =====
   function renderStage(error) {
-    const on = role === 'stage' || handing || shared();
+    const on = shared();
     $('single').hidden = !on;
     document.body.classList.toggle('one', on);
     let frame = $('frame').querySelector('iframe');
@@ -1243,7 +1117,7 @@
       frame.title = 'شاشة الجمهور';
       $('frame').append(frame);
     }
-    if (!on && frame) frame.remove();
+    if (!on && frame) { frame.remove(); link?.lost(); }
     fitStage();
     if (on) sendCtl(error);
   }
@@ -1255,7 +1129,7 @@
   // لا شيء منها يحمل الإجابة: نصوص الانتقال والحكم وحدها.
   let lastError = null;
   function controls(error) {
-    if (role !== 'presenter' || handing || !shared()) return null;
+    if (!shared()) return null;
     if (error !== undefined) lastError = error;
     if (match.step !== 'setup') lastError = null;
     const step = match.step, wait = held();
@@ -1287,8 +1161,6 @@
         ? [{ cmd: 'begin', label: 'ابدأ المباراة' }]
         : [{ cmd: 'next', label: nb.text, off: !!nb.off }];
       c.card.push({ cmd: 'replay', label: 'أعد العرض', kind: 'alt' });
-      // النافذتان خيار جانبي (5.2، 7.1، design/s8.md 1): زر «خيارات» صغير تحت صف الزاوية، وقائمته «ابدأ بنافذتين».
-      if (nb.act === 'startNext') c.opts = { open: optsOpen, menu: [{ cmd: 'two', label: 'ابدأ بنافذتين' }] };
       c.error = faceError;
       c.b = [[fresh], fs];
     }
@@ -1400,7 +1272,7 @@
     const frame = $('frame').querySelector('iframe');
     if (!frame || e.source !== frame.contentWindow || e.origin !== location.origin || !match) return;
     if (e.data?.bc === 'need-ctl') return sendCtl();
-    if (e.data?.bc !== 'cmd' || role !== 'presenter' || !shared()) return;
+    if (e.data?.bc !== 'cmd' || !shared()) return;
     // والقيمة قد تحمل «:» («act:mark:7»)، فهي كل ما بعد الأول.
     const [cmd, ...rest] = String(e.data.cmd).split(':'), arg = rest.join(':');
     if (cmd === 'teams' && match.step === 'setup') update(M.setTeams(match, String(e.data.a ?? ''), String(e.data.b ?? '')));
@@ -1408,14 +1280,11 @@
     if (cmd === 'draw') match.step === 'setup' ? goDraw() : startDraw();
     if (cmd === 'pick' && !drawing) update(M.pick(match, arg, modes()));
     if (cmd === 'back' && !drawing) update(M.backToSetup(match));
-    if (cmd === 'begin') begin(true);
-    if (cmd === 'two') begin(false);
-    if (cmd === 'opts' && match.step === 'face') { optsOpen = arg === 'close' ? false : !optsOpen; render(); }
+    if (cmd === 'begin') begin();
     if (cmd === 'act') roundAct(arg);
     if (cmd === 'raise') raise(Number(arg));
     if (cmd === 'next') actions[nextButton().act]?.();
     if (cmd === 'mute') toggleMute();
-    if (cmd === 'presenter') toPresenter();
     if (cmd === 'new') newMatch();
     if (cmd === 'qr') setQr(arg === 'show');
     if (cmd === 'fullscreen') document.documentElement.requestFullscreen?.().catch(() => {});
@@ -1425,7 +1294,6 @@
   function startLink() {
     link = createLink('presenter', (type, data) => {
       if (type === 'tick') {
-        $('mirror').textContent = data.text;
         tickText = data.text;
         const st = match?.round?.state, mode = st && roundMode();
         if (mode?.id === 'auction' && st.phase === 'fulfil') auctionState(mode.presenter(st));
@@ -1438,30 +1306,8 @@
       if (type === 'timeout' && match && $('gate').hidden) roundUpdate(P.act(match, units(), 'timeout', data.id));
       if (type === 'need-view') $('gate').hidden && match ? link.send('view', view()) : link.send('lock');
     });
-    link.onStatus(on => {
-      $('status').dataset.on = on;
-      $('status').textContent = on ? 'نافذة الجمهور متصلة' : 'نافذة الجمهور غير متصلة';
-      $('open').textContent = on ? 'أظهر نافذة الجمهور' : 'افتح نافذة الجمهور';
-      $('start').disabled = $('reset').disabled = !on;
-      if (!on) $('mirror').textContent = '–';
-      if (on && !$('gate').hidden) link.send('lock');
-      render();
-    });
   }
 
-  // إن كانت نافذة الجمهور مفتوحة يُكتفى بإظهارها، فلا يُعاد تحميلها ولا تخرج من ملء الشاشة.
-  $('open').onclick = () => {
-    const win = window.open('', AUDIENCE, 'popup,width=1280,height=720');
-    $('blocked').hidden = !!win;
-    if (!win) return;
-    let fresh = true;
-    try { fresh = win.location.href === 'about:blank'; } catch {}
-    if (fresh) win.location.href = 'audience.html';
-    win.focus();
-  };
-  $('lostOpen').onclick = () => $('open').click();
-  // انقطعت نافذة الجمهور في اللعب: تُكمل المباراة في هذه النافذة بنافذة واحدة.
-  $('lostSingle').onclick = () => update({ ...match, single: true });
   $('showQ').onclick = () => roundAct('show');
   $('nextQ').onclick = () => $('nextQ').dataset.act && roundAct($('nextQ').dataset.act);
   $('judge').addEventListener('click', e => { const el = e.target.closest('button[data-act]'); if (el) roundAct(el.dataset.act); });
@@ -1487,20 +1333,7 @@
   };
   // «تراجع» في طبقة الرصيد لا تقع عليه نقرة من زر آخر، فلا يُمهل.
   $('undoScore').onclick = () => (match.step === 'play' ? roundUpdate(P.undo(match, units())) : update(M.undoScore(match)));
-  $('start').onclick = () => link?.send('start', { seconds: 10 });
-  $('reset').onclick = () => { link?.send('reset'); link?.send('view', view()); };
 
-  // ===== عند الفتح =====
-  // نافذة المقدّم تفتح بالرقم الذي أُدخل في الشاشة المشتركة. والشاشة المشتركة بعد تسليمها تبقى شاشة جمهور بعد إعادة التحميل.
-  if (HOST) session.set(ROLE_KEY, 'presenter');
-  if (!HOST && !TEST && session.get(ROLE_KEY) === 'stage') {
-    role = 'stage';
-    $('gate').hidden = true;
-    match = M.newMatch();
-    renderStage();
-  } else if (HOST) {
-    unlockStored();
-  }
 </script>
 </body>
 </html>

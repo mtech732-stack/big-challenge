@@ -169,8 +169,6 @@
     <div class="ctl-corner b" id="cornerB" data-hud="أزرار الزاوية السفلى"></div>
     <div class="ctl-corner c" id="cornerC" data-hud="أزرار الصف الثالث"></div>
     <!-- الخيارات الجانبية في المواجهة (design/s8.md 1): زر صغير بلا نص، وقائمته تحته -->
-    <div class="ctl-corner opts" id="cornerO" data-hud="زر الخيارات"></div>
-    <div class="optmenu" id="optmenu" data-hud="قائمة الخيارات" hidden></div>
     <div class="ctl-more" id="moreMenu" data-hud="لوحة المزيد" hidden></div>
 
     <div class="shine" id="shine"></div>
@@ -181,7 +179,7 @@
 
 <script type="module">
   import './js/offline.js';
-  import { createLink } from './js/sync.js';
+  import { createLink } from './js/frame-link.js';
   import { plan, chooser, picksDone, starter, METHODS, other, gains, leaderOf } from './js/match.js';
   import { rectOf } from './js/stage-check.js';
   import { PLANNED } from './js/modes/index.js';
@@ -867,17 +865,13 @@
     $('cornerA').innerHTML = rows(c?.a);
     $('cornerB').innerHTML = rows(c?.b);
     $('cornerC').innerHTML = rows(c?.c);
-    // زر الخيارات (design/s8.md 1): ثلاث نقاط بلا نص، وقائمته «ابدأ بنافذتين» تحته ما دام مفتوحاً.
-    $('cornerO').innerHTML = c?.opts ? `<button class="cbtn alt opt${c.opts.open ? ' open' : ''}" data-cmd="opts" aria-label="خيارات"></button>` : '';
-    $('optmenu').innerHTML = c?.opts?.open ? c.opts.menu.map(button).join('') : '';
-    $('optmenu').hidden = !c?.opts?.open;
     // لوحة «⋯» (design/s8b.md 7.1): حالتها في هذه الشاشة وحدها. سطر الأيقونات، ثم فاصل، ثم «مباراة جديدة» وحدها.
     const fresh = (c?.more ?? []).filter(b => b.cmd === 'new'), rest = (c?.more ?? []).filter(b => b.cmd !== 'new');
     $('moreMenu').innerHTML = moreOpen ? `<div class="ctl">${rest.map(button).join('')}</div>` + (fresh.length ? `<hr><div class="ctl">${fresh.map(button).join('')}</div>` : '') : '';
     $('moreMenu').hidden = !moreOpen;
     canvas.classList.toggle('more-open', moreOpen);
     // النافذة الواحدة: صفّا أزرار الزاويتين مكان الشعار (1.3).
-    canvas.classList.toggle('has-a', ['cornerA', 'cornerB', 'cornerC', 'cornerO'].some(id => $(id).children.length));
+    canvas.classList.toggle('has-a', ['cornerA', 'cornerB', 'cornerC'].some(id => $(id).children.length));
     placeBadges();   // الشارة المرسومة تصغر بنافذة واحدة (has-a)، فيتغير موضع ما بعدها
     $('count').innerHTML = c?.count ? '<span class="lbl">عدد الأنماط</span>' + [['short', 2], ['full', 4]].map(([m, k]) =>
       `<button class="ctile${c.count.value === m ? ' sel' : ''}${k === 4 && !c.count.four ? ' off' : ''}" data-cmd="count:${m}"><span class="ltr">${k}</span></button>`).join('') : '';
@@ -913,8 +907,6 @@
       renderCtl();
     });
     document.addEventListener('click', e => {
-      // قائمة الخيارات تُغلق بنقرة خارجها (design/s8.md 1).
-      if (ctl?.opts?.open && !e.target.closest('#optmenu, #cornerO')) send('opts:close');
       const b = e.target.closest('[data-cmd]');
       // لوحة «⋯» تُفتح وتُغلق هنا، وتُغلق باختيار زر فيها أو بنقرة خارجها (design/s8b.md 7.1).
       if (b?.dataset.cmd === 'more') { moreOpen = !moreOpen; renderCtl(); return; }
@@ -1113,21 +1105,15 @@
       if (data.play && data.match.step === 'play') roundMoments(data.moments ?? [], prev);
     }
     if (type === 'anim') { if (data.view) view = data.view; if (!count?.test) { setLocked(false); animate(data.name); } }
-    if (type === 'start') {
-      setLocked(false); ctl = null; renderCtl();
-      canvas.classList.remove('pre', 'fresh'); setHero(''); setTurn(0); setSide(0); showScreen('q'); setBadges(); announce();
-      $('label').textContent = 'العدّاد يعمل';
-      begin({ test: true, endAt: Date.now() + data.seconds * 1000 });
-    }
     // أُغلقت اللعبة لتغيّر الرقم السري: لا يبقى على شاشة الجمهور شيء من اللعب.
     if (type === 'lock') { view = null; waiting(); }
-    if (type === 'unlock' || type === 'reset') ready();
+    if (type === 'unlock') ready();
   });
   link.onStatus(on => {
     if (checking) return;
     if (!count && on) ready();
     if (!count && !on) waiting();
-    // اتصلت (أو عادت بعد إعادة تحميل): تطلب حالة المباراة، ولو كانت نافذة جمهور أخرى متصلة قبلها.
+    // اتصلت بالصفحة التي تضمّها (أو عادت بعد إعادة تحميل): تطلب حالة المباراة.
     if (on) { link.send('tick', { text: $('timer').textContent }); link.send('need-view'); }
   });
 
