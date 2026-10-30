@@ -409,7 +409,7 @@
   import { createLink } from './js/sync.js';
   import { fetchPinRecord, checkPin, watchPin } from './js/pin.js';
   import { loadPacks, loadWheel } from './js/content.js';
-  import WHEEL, { spinMs } from './js/wheel.js';
+  import WHEEL, { spinMs, CHALLENGE_POINTS as WHEEL_POINTS } from './js/wheel.js';
   import TIEBREAK from './js/tiebreak.js';
   import { answersText } from './js/qr.js';
   import { matchModes, pickableModes, MODES as BUILT, DRAFTS } from './js/modes/index.js';
@@ -1060,14 +1060,10 @@
   // ===== شريط البونص في نافذة المقدّم (design/wheel.md 5) =====
   // قبل الوقوف: الخانات العشر بأعمدة التلفاز (1–5 ثم 6–10)، كل خانة نوعها ونقاطها ثم نصها الكامل. وبعد الوقوف: الخانة في مربعها ونصها كاملاً،
   // وسطر القاعدة للمقدّم وحده (وسوم القواعد لا تُكتب على الجمهور، 7.3).
-  // الوقت في الرأس من «ابدأ» حتى الحكم، كما على الشاشة (يصل كل ثانية من نافذة الجمهور)، و«0:00» بعد انتهائه.
-  function challengeClock(pr) {
-    const on = pr?.phase === 'run';
-    $('wClock').hidden = !on;
-    if (on) $('wClockV').textContent = pr.timeup ? '0:00' : tickText || '2:00';
-  }
-  const WSTATE = { slot: 'لم يبدأ الوقت', run: 'يؤدّي الفريق التحدي' };
-  const RULE = { challenge: 'دقيقتان حداً أقصى · النجاح +5، ولا خصم عند الإخفاق', luck: 'خانة حظ: تُطبَّق فور الوقوف، والرصيد لا ينزل تحت 0' };
+  // التحدي بلا توقيت (1.6، design/s8.md 4): لا وقت في الرأس.
+  const challengeClock = () => { $('wClock').hidden = true; };
+  const WSTATE = { slot: 'يؤدّي الفريق التحدي' };
+  const RULE = { challenge: `بلا توقيت، احكم متى انتهى الفريق · النجاح +${WHEEL_POINTS}، ولا خصم عند الإخفاق`, luck: 'خانة حظ: تُطبَّق فور الوقوف، والرصيد لا ينزل تحت 0' };
   function renderWheel(pr, acts) {
     const mid = $('wMid');
     mid.classList.toggle('got', pr.screen === 'slot');
@@ -1085,15 +1081,15 @@
         : `${v.team ? `${esc(match.teams[v.team])} · ${num('+' + v.points)}` : 'لا نقاط'} · ${esc(v.say)}`}</span>`;
     // من يبدأ ولماذا: سطر للمقدّم وحده، يقوله إن سُئل (design/wheel.md 1).
     $('wState').innerHTML = pr.phase === 'spin' ? 'يجري المؤشر' : pr.phase === 'ready' && pr.n === 1 ? (pr.why === 'draw' ? 'خسر القرعة يبدأ' : 'الأقل نقاطاً يبدأ')
-      : pr.phase === 'run' && pr.timeup ? 'انتهى الوقت · احكم' : pr.slot?.kind === 'challenge' ? WSTATE[pr.phase] ?? '' : '';
+      : pr.slot?.kind === 'challenge' ? WSTATE[pr.phase] ?? '' : '';
     const ctl = id => acts.find(a => a.id === id);
-    // «أطلق الشريط» بعرض اللوحة، ومعطّل أثناء الدوران. و«ابدأ التحدي · دقيقتان»، ثم «نجح · +5» و«لم ينجح» نصفاً ونصفاً،
+    // «أطلق الشريط» بعرض اللوحة، ومعطّل أثناء الدوران. والتحدي «نجح · +10» و«لم ينجح» نصفاً ونصفاً من لحظة الوقوف،
     // وبعد الحكم أو خانة الحظ (تُطبَّق فور الوقوف) الدورة الثانية، ثم «إنهاء الشريط».
     $('wCtl').innerHTML = pr.phase === 'spin' ? '<button class="full" disabled>أطلق الشريط</button>'
-      : pr.phase === 'run' ? `<button data-act="won">${num(ctl('won').label)}</button><button class="no" data-act="failed">${esc(ctl('failed').label)}</button>`
+      : ctl('won') ? `<button data-act="won">${num(ctl('won').label)}</button><button class="no" data-act="failed">${esc(ctl('failed').label)}</button>`
       // والدورة الثانية «التالي · دور [الفريق الآخر]» (design/wheel.md 5).
       : ctl('next') ? `<button class="full" data-act="next">التالي · دور ${esc(match.teams[pr.track[pr.n]?.owner])}</button>`
-      : ['spin', 'start', 'finish'].filter(ctl).map(id => `<button class="full" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
+      : ['spin', 'finish'].filter(ctl).map(id => `<button class="full" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
     $('wUndo').disabled = !match.round.history.length;
   }
   $('wCtl').addEventListener('click', e => { const el = e.target.closest('button[data-act]'); if (el && !el.disabled) roundAct(el.dataset.act); });
@@ -1192,8 +1188,8 @@
           ...act('announce'), ...act('again', `المحاولة ${st.attempt + 1}`)];
       } else if (screen === 'ask') c.near = [...act('start', 'ابدأ'), ...act('correct'), ...act('wrong', null, 'no'), ...act('next', last ? 'إنهاء الجولة' : 'السؤال التالي')];
       // العجلة (design/wheel.md 4): «أطلق الشريط» قبل الدوران، ولا شيء أثناءه. وبعد الحكم أو خانة الحظ «التالي · الدورة 2»، ثم «إنهاء الشريط».
-      // والتحدي «ابدأ · دقيقتان»، ثم «نجح» و«لم ينجح» (بإطار) والوقت يجري أو بعد انتهائه.
-      if (screen === 'wheel' || screen === 'slot') c.near = [...act('spin'), ...act('start', 'ابدأ · دقيقتان'), ...act('won', 'نجح'), ...act('failed', null, 'alt'), ...act('next'), ...act('finish')];
+      // والتحدي «نجح · +10» و«لم ينجح» (بإطار) من لحظة الوقوف، بلا توقيت (design/s8.md 4).
+      if (screen === 'wheel' || screen === 'slot') c.near = [...act('spin'), ...act('won', `نجح · +${WHEEL_POINTS}`), ...act('failed', null, 'no'), ...act('next'), ...act('finish')];
       if (screen === 'end') { const nb = nextButton(); c.card = [{ cmd: 'next', label: nb.text, off: !!nb.off || wait }]; }
       c.scores = true;
       // ثلاثة صفوف قصيرة (الملاحظة 26، design/system.md 15.10): الجولة · النوافذ · المباراة، فلا تبلغ لوحة الأول ولا أزرار العدّاد.

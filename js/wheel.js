@@ -7,9 +7,8 @@
 // الترتيب من اليمين: تحدٍّ · خسارة · تحدٍّ · تحدٍّ · هدية · تحدٍّ · تحدٍّ · خصم · تحدٍّ · تحدٍّ. والتحديات بترتيبها في wheel.json.
 export const LAYOUT = ['c', 'lose-5', 'c', 'c', 'gift-5', 'c', 'c', 'steal-5', 'c', 'c'];
 export const SLOTS = LAYOUT.length;
-// نقاط التحدي ووقته (مبدئيان، يُضبطان في ش8): دقيقتان حداً أقصى، ويحكم المقدّم (الوثيقة 5.7).
-export const CHALLENGE_POINTS = 5;
-export const CHALLENGE_SECONDS = 120;
+// نقاط التحدي (الوثيقة 5.7 و12، 1.5): +10. والتحدي بلا توقيت (1.6): يحكم المقدّم متى انتهى الفريق.
+export const CHALLENGE_POINTS = 10;
 // الكلمة والرقم في الخانة من التأثير لا من label (label يعدّله المالك وقد يطول، design/wheel.md 2.2).
 // «خسارة» ما يخسره الفريق نفسه، و«خصم» ما يأخذه من خصمه (المالك 25 أكتوبر 2026، design/wheel.md 1.2): فلا «اسرق» على الشاشتين.
 const LUCK_FACE = { lose: (k) => ['خسارة', `−${k}`], steal: (k) => ['خصم', `${k}`], gift: (k) => ['هدية', `+${k}`] };
@@ -25,7 +24,8 @@ export const spinMs = stop => spinSteps(stop).reduce((a, b) => a + b, 0) + LAND_
 // first: من يدير العجلة أولاً (الأقل نقاطاً، وعند التعادل الخاسر في القرعة، يحدده js/play.js) · why: 'score' أو 'draw' (سطر للمقدّم وحده).
 // spinners: من يديرها في كل دورة · n: الدورة الجارية (1 أو 2) · stops: خانة الوقوف لكل دورة، محسومة هنا.
 // phase: ready قبل الدوران · spin تدور (at: متى بدأت بساعة الجهاز) · slot وقفت، والخانة ظاهرة (landed)
-// · run وقت التحدي (timeup: انتهى ولم يحكم المقدّم بعد) · done حُكم في التحدي، أو طُبّقت خانة الحظ · end انتهت العجلة.
+// (والتحدي يُحكم فيه من الوقوف، بلا وقت) · done حُكم في التحدي، أو طُبّقت خانة الحظ · end انتهت العجلة.
+// وrun حال قديمة (وقت التحدي قبل ش8): تُقبل كـ slot، فلا تعلق مباراة محفوظة قبل التحديث.
 // results[i]: نتيجة الدورة i: { team, points } (team 0 إن لم يأخذ أحد، وpoints ما تغيّر فعلاً بإشارته)،
 // ومعها في «خصم» (steal) from وtaken (من أُخذ منه وكم)، أو null ما لم تنتهِ.
 function setup({ content, first, scores = { 1: 0, 2: 0 }, rng = Math.random }) {
@@ -41,7 +41,7 @@ function setup({ content, first, scores = { 1: 0, 2: 0 }, rng = Math.random }) {
 }
 
 const spinner = s => s.spinners[s.n - 1];
-// «تحدٍّ» و«+5»، أو الكلمة والرقم من التأثير («خصم» و«−3»).
+// «تحدٍّ» و«+10»، أو الكلمة والرقم من التأثير («خسارة» و«−5»).
 export function face(slot) {
   if (slot.kind === 'challenge') return { word: 'تحدٍّ', n: `+${CHALLENGE_POINTS}` };
   const [kind, k] = slot.effect.split('-');
@@ -51,12 +51,12 @@ export function face(slot) {
 
 const landedOn = s => (s.landed === null ? null : s.slots[s.landed]);
 const isChallenge = s => landedOn(s)?.kind === 'challenge';
+const judging = s => (s.phase === 'slot' || s.phase === 'run') && isChallenge(s);
 
 function actions(s) {
   if (s.phase === 'ready') return [{ id: 'spin', label: 'أطلق الشريط' }];
-  // التحدي: «ابدأ» يبدأ الدقيقتين، ثم الحكم والوقت يجري أو بعد انتهائه (انتهاؤه لا يحكم، design/wheel.md 2).
-  if (s.phase === 'slot' && isChallenge(s)) return [{ id: 'start', label: 'ابدأ التحدي · دقيقتان' }];
-  if (s.phase === 'run') return [{ id: 'won', label: `نجح · +${CHALLENGE_POINTS}` }, { id: 'failed', label: 'لم ينجح' }];
+  // التحدي بلا توقيت (1.6، design/s8.md 4): الحكم من لحظة الوقوف، ويحكم المقدّم متى انتهى الفريق.
+  if (judging(s)) return [{ id: 'won', label: `نجح · +${CHALLENGE_POINTS}` }, { id: 'failed', label: 'لم ينجح' }];
   // وبعد الحكم أو خانة الحظ: الدورة الثانية للفريق الآخر، ثم بعدها «إنهاء الشريط» (لكل فريق دورته، الوثيقة 5.7).
   if (s.phase === 'done') return s.n < s.spinners.length ? [{ id: 'next', label: `التالي · الدورة ${s.n + 1}` }] : [{ id: 'finish', label: 'إنهاء الشريط' }];
   return [];
@@ -73,13 +73,7 @@ function act(s, action, scores = {}, now = Date.now()) {
     const slot = s.slots[s.landed];
     return slot.kind === 'luck' ? luck(s, slot, scores) : { state: { ...s, phase: 'slot' }, events: [] };
   }
-  if (id === 'start' && s.phase === 'slot' && isChallenge(s)) {
-    // resume: التراجع عن حكم والوقت يجري يعيد ما بقي من الدقيقتين، لا الدقيقتين كاملتين (js/round.js).
-    return { state: { ...s, phase: 'run', timeup: false }, events: [{ type: 'timer', seconds: CHALLENGE_SECONDS, resume: true }] };
-  }
-  // انتهى الوقت: لا حكم تلقائي، فقد يُتم الفريق أداءه مع الثانية الأخيرة. يقف العدّاد، ويبقى الحكم للمقدّم.
-  if (id === 'timeout' && s.phase === 'run' && !s.timeup) return { state: { ...s, timeup: true }, events: [] };
-  if ((id === 'won' || id === 'failed') && s.phase === 'run') {
+  if ((id === 'won' || id === 'failed') && judging(s)) {
     const team = id === 'won' ? spinner(s) : 0, points = team ? CHALLENGE_POINTS : 0;
     const state = { ...s, phase: 'done', results: s.results.map((r, i) => (i === s.n - 1 ? { team, points } : r)) };
     return { state, events: team ? [{ type: 'score', team, points }, { type: 'moment', name: 'right', team }] : [{ type: 'moment', name: 'none' }] };
@@ -92,7 +86,7 @@ function act(s, action, scores = {}, now = Date.now()) {
 
 // ما تعرضه نافذة الجمهور: الخانات العشر بنوعها ونقاطها، لا بنصوصها (التشويق، design/wheel.md 1). ونص الخانة بعد الوقوف وحده.
 // خانة الحظ تُطبَّق فور الوقوف، لا حكم فيها (design/wheel.md 2). والرصيد لا ينزل تحت الصفر (الوثيقة 5.7)،
-// فالنتيجة ما تغيّر فعلاً بالرصيد قبل الفعل: «خصم 3» ورصيده 1 = −1.
+// فالنتيجة ما تغيّر فعلاً بالرصيد قبل الفعل: «خسارة 5» ورصيده 1 = −1.
 // «خصم» (steal) حدث take: يُؤخذ من الخصم ما عنده حتى 5، ويُعطى من أدارها ما أُخذ (عقد الوحدة 4، منذ ش0).
 // وحين يكون عند الخصم أقل من 5 يأخذ ما تبقى فقط (جواب المالك 25 أكتوبر 2026). والقيمة في effect بـ wheel.json (5.7 و12، 1.5).
 function luck(s, slot, scores) {
@@ -137,10 +131,10 @@ function audience(s) {
     // الحدّ بعد الحكم: عند من أخذ النقاط، وفي المنتصف إن لم يأخذ أحد أو كانت «خصم».
     const turn = !verdict ? by : slot.effect?.startsWith('lose') ? 0 : verdict.team;
     return {
-      ...base, screen: 'slot', phase: s.phase, by, turn, landed: s.landed,
+      ...base, screen: 'slot', phase: s.phase === 'run' ? 'slot' : s.phase, by, turn, landed: s.landed,
       slot: { kind: slot.kind, effect: slot.effect, ...face(slot) }, text: slot.text,
-      // الوقت دقيقتان ثابت قبل «ابدأ»، ويُكتب «2:00» لا «120» (design/wheel.md 7.4).
-      clock: CHALLENGE_SECONDS, mmss: true, timeup: s.phase === 'run' && s.timeup, verdict,
+      // بلا عدّاد ولا إطار وقت (1.6، design/s8.md 4).
+      verdict,
     };
   }
   return {

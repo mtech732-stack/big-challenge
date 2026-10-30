@@ -638,9 +638,9 @@
     const asking = a.screen === 'ask' || a.screen === 'topic' || a.screen === 'list' || a.screen === 'wheel' || a.screen === 'slot';
     const v = asking ? a.verdict : null;
     announce(a.screen === 'end' ? { next: p.next } : a.screen === 'list' ? rankBox(a) : a.screen === 'wheel' ? {}
-      // العجلة: «انتهى الوقت» نصاً حتى يحكم المقدّم، ثم الحكم بلا مربع (design/wheel.md 2 و2.5).
+      // العجلة: الحكم بلا مربع (design/wheel.md 2 و2.5)، والتحدي بلا وقت (design/s8.md 4).
       // و«خصم» (الأخذ من الخصم): السطر «[الخصم] · −3» بما أُخذ فعلاً، والصفر بلا إشارة (ملاحظة المعاين 38).
-      : a.screen === 'slot' ? (v ? { verdict: v, say: v.from ? `${name(v.from)} · ${v.taken ? '−' + v.taken : '0'}` : v.say, bare: true } : a.timeup ? { next: 'انتهى الوقت' } : {})
+      : a.screen === 'slot' ? (v ? { verdict: v, say: v.from ? `${name(v.from)} · ${v.taken ? '−' + v.taken : '0'}` : v.say, bare: true } : {})
       // والجولة الفاصلة: الحكم بلا مربع «[الاسم] · أصاب» و«الإجابة: …» (design/final.md 2.5).
       : a.tiebreak ? { verdict: v, answer: a.answer, bare: true }
       : { verdict: v, answer: a.answer, told: v && a.tally ? `ذُكر ${a.tally.n} من ${a.tally.of}` : undefined });
