@@ -11,19 +11,45 @@
    - grid: true (من الإصدار 1.2): يرسم الأعمدة الـ 12، ويعدّ حواف المكوّنات قرب حافتي الشاشة، فكل حافة ليست على
      الهامش (96 أو 1824) ولا على حواف 1.3 (system.md 15.3: منتصف ارتفاع المائل على وجه البطاقة 127 و1793، فيقع
      امتداده المائل على 109 و1811، و213 أزرار الزاوية بعد الأيقونة) خطأ. ويعيد edges: { right, left } بخطوط الحافة في كل جانب.
-   - مقاسات مقصودة في design/logo/الدمج.md، مطابقة لـ js/stage-check.js: [data-overhang] رسم يتجاوز صندوقه بظلّه وهامشه
-     (الصندوق امتداد أصفره المرسوم، 2.2)، فلا يُحسب في الامتداد · [data-free] صندوق موضعه من جدول المصمّم لا من الشبكة،
+   - مقاسات مقصودة في design/logo/الدمج.md: [data-overhang] رسم يتجاوز صندوقه بظلّه وهامشه (الصندوق امتداد أصفره المرسوم، 2.2)،
+     فيُحسب بحدوده غير الشفافة: يدخل ظلّه المرسوم في الامتداد ويخرج هامشه الشفاف وحده (الملاحظة 42) · [data-free] صندوق موضعه من جدول المصمّم لا من الشبكة،
      فلا يُعدّ في حواف الشبكة · [data-edge] الشعار الكبير يتجاوز الهامش الآمن أعلاه عمداً (1.2 و4.1)، فلا يُعدّ في الهامش ولا في الحواف.
    العناصر المخفية (display:none أو visibility:hidden) خارج الحساب. */
 (function () {
   const SAFE = { x1: 96, y1: 54, x2: 1824, y2: 1026 };
   const visible = n => n.getClientRects().length && getComputedStyle(n).visibility !== 'hidden';
 
+  // حدود رسم الصورة غير الشفافة بنسبة من صندوقها (ألفا > 20 من 255)، محفوظة لكل ملف. والصورة من الأصل نفسه فيُقرأ لوحها.
+  const inkCache = new Map();
+  function inkOf(img) {
+    const key = img.currentSrc || img.src;
+    if (inkCache.has(key)) return inkCache.get(key);
+    const W = 400, H = Math.max(1, Math.round(W * img.naturalHeight / img.naturalWidth || W));
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0, W, H);
+    const d = ctx.getImageData(0, 0, W, H).data;
+    let x1 = W, y1 = H, x2 = -1, y2 = -1;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3] > 20) {
+      if (x < x1) x1 = x; if (x > x2) x2 = x; if (y < y1) y1 = y; if (y > y2) y2 = y;
+    }
+    const f = x2 < 0 ? null : { l: x1 / W, t: y1 / H, r: (x2 + 1) / W, b: (y2 + 1) / H };
+    inkCache.set(key, f);
+    return f;
+  }
+  function rectOf(n) {
+    const b = n.getBoundingClientRect();
+    if (!n.hasAttribute('data-overhang')) return b;
+    if (n.tagName !== 'IMG' || !n.complete || !n.naturalWidth) return null;
+    const f = inkOf(n); if (!f) return null;
+    return { left: b.left + f.l * b.width, right: b.left + f.r * b.width, top: b.top + f.t * b.height, bottom: b.top + f.b * b.height,
+      width: (f.r - f.l) * b.width, height: (f.b - f.t) * b.height };
+  }
+
   function extent(el, scale, origin) {
     let r = null;
     for (const n of [el, ...el.querySelectorAll('*')]) {
-      if (n.closest('.check-layer') || n.closest('.ring polygon') || n.hasAttribute('data-overhang') || !n.getClientRects().length) continue; // المؤشر المخفي يُحسب دائماً (system.md 6.2)
-      const b = n.getBoundingClientRect(); if (!b.width && !b.height) continue;
+      if (n.closest('.check-layer') || n.closest('.ring polygon') || !n.getClientRects().length) continue; // المؤشر المخفي يُحسب دائماً (system.md 6.2)
+      const b = rectOf(n); if (!b || (!b.width && !b.height)) continue;
       const x1 = (b.left - origin.left) / scale, y1 = (b.top - origin.top) / scale;
       const x2 = (b.right - origin.left) / scale, y2 = (b.bottom - origin.top) / scale;
       r = r ? { x1: Math.min(r.x1, x1), y1: Math.min(r.y1, y1), x2: Math.max(r.x2, x2), y2: Math.max(r.y2, y2) } : { x1, y1, x2, y2 };
