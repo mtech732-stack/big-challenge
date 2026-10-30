@@ -90,10 +90,12 @@ export function clashes(files) {
 }
 
 // كشف بين النمطين (تدقيق ش8): إجابة سؤال من «الحرف المعيّن» أو صيغتها لا تظهر كلمةً كاملة في نص سؤال من «آخر حرفين»، ولا العكس،
-// فهما يجتمعان في مباراة واحدة. والمقارنة بالتوحيد (fold)، وبحذف «ال» والواو والباء والفاء واللام الملتصقة بأول الكلمة.
-const wordsOf = text => fold(text).replace(/[^\u0621-\u064A0-9 ]/g, ' ').split(' ').filter(Boolean);
-const noArticle = w => w.replace(/^(وال|بال|فال|كال|لل|ال)/, '');
-const bareWord = w => noArticle(w).replace(/^[وبفل](?=..)/, '');
+// فهما يجتمعان في مباراة واحدة. والمقارنة بالتوحيد (fold)، وبحذف «ال» والواو والباء والفاء واللام الملتصقة بأول الكلمة،
+// و«عبد الله» كـ«عبدالله»، و«أبي» و«أبا» كـ«أبو».
+const wordsOf = text => fold(text).replace(/[^\u0621-\u064A0-9 ]/g, ' ').replace(/(^| )([وبفل]?)عبد +(?=ال)/g, '$1$2عبد').split(' ').filter(Boolean);
+const abu = w => w.replace(/^اب[يا]$/, 'ابو');
+const noArticle = w => abu(w.replace(/^(ولل|فلل|وبال|فبال|وال|بال|فال|كال|لل|ال)/, ''));
+const bareWord = w => abu(noArticle(w).replace(/^[وبفل](?=..)/, ''));
 const saysWord = (text, answer) => {
   const a = wordsOf(answer).map(bareWord).join(' ');
   if (!a) return false;

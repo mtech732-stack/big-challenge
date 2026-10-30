@@ -78,6 +78,16 @@ const { reporter } = require('./helpers.cjs');
     const part = examples(), lq3 = part.packs.general['letter.json'].questions[0];
     part.packs.general['last-two.json'].questions[0].prompt = `${lq3.answer}ات كثيرة`;
     check('جزء كلمة لا يُعدّ كشفاً («شاحنات» ليست «شاحن»)', checkContent(part).errors.length === 0);
+    // تحسينات المدقّق على #299: «عبد الله» كـ«عبدالله»، و«أبي» و«أبا» كـ«أبو»، والسوابق المركبة «ولل» و«فلل» و«وبال» و«فبال».
+    const joined = (prompt, answer) => {
+      const c = examples();
+      c.packs.general['letter.json'].questions[0].answer = answer;
+      c.packs.general['last-two.json'].questions[0].prompt = prompt;
+      return checkContent(c).errors.some(e => e.includes('في مباراة واحدة'));
+    };
+    check('«عبد الله» بمسافة كـ«عبدالله»، والعكس', joined('سمّاه عبد الله', 'عبدالله') && joined('سمّاه عبدالله', 'عبد الله'));
+    check('«أبي لهب» و«أبا لهب» كـ«أبو لهب»، و«أبيض» ليست «أبو»', joined('نزلت في أبي لهب', 'أبو لهب') && joined('رأوا أبا لهب', 'أبو لهب') && !joined('ثوب أبيض', 'أبو'));
+    check('السوابق «ولل» و«فلل» و«وبال» و«فبال» تُحذف', joined('وللمسجد باب', 'المسجد') && joined('فللبيت رب', 'البيت') && joined('وبالقلم كتب', 'القلم') && joined('فبالصبر نفوز', 'الصبر'));
     const skip = examples();
     skip.packs.general['last-two.json'].questions[0].prompt = `مع ${skip.packs.general['letter.json'].questions[0].answer}`;
     skip.packs.general['pack.json'].excludeModes = ['last-two'];
