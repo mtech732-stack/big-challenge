@@ -112,9 +112,10 @@
       const t = [...canvas.querySelectorAll('.bx .cbtn')].find(n => n.title === tipFor) ?? more;
       const tip = document.createElement('div'); tip.className = 'bx bx-tip'; tip.dataset.hud = 'اسم الزر'; tip.textContent = tipFor;
       const pan = canvas.querySelector('.bx-pan');
-      if (pan && pan.contains(t)) { canvas.append(tip); const r = t.getBoundingClientRect(); tip.style.left = (r.left - c0.left) / k - 16 - tip.getBoundingClientRect().width / k + 'px'; tip.style.top = (r.top - c0.top) / k + 'px'; }
-      else { const a = at(t, 24); tip.style.left = a.left + 'px'; tip.style.top = a.top + 'px'; }
-      canvas.append(tip);
+      // داخل اللوحة: الاسم جزء منها (ابن لها بلا data-hud)، فيُقاس امتدادها معه ولا يُعدّ تداخلاً معها (ملاحظة التدقيق ش8-أ/49)
+      if (pan && pan.contains(t)) { delete tip.dataset.hud; pan.append(tip); const r = t.getBoundingClientRect(), pr = pan.getBoundingClientRect();
+        tip.style.left = (r.left - pr.left) / k - 16 - tip.getBoundingClientRect().width / k + 'px'; tip.style.top = (r.top - pr.top) / k + 'px'; }
+      else { canvas.append(tip); const a = at(t, 24); tip.style.left = a.left + 'px'; tip.style.top = a.top + 'px'; }
     }
   }
   window.BX = { reset, folded, hidden, icons, merged };
