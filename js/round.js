@@ -46,7 +46,7 @@ function withTimer(round, events, now) {
 }
 
 // والعدّاد الذي يعود بما بقي: يُحفظ معه ما بقي منه لحظة الفعل.
-const left = (t, now) => Math.max(1, t.seconds - (now - (t.at ?? now)) / 1000);
+const left = (t, now) => Math.min(t.seconds, Math.max(1, t.seconds - (now - (t.at ?? now)) / 1000));
 const snapshot = (round, now) => ({ state: round.state, scores: round.scores, timer: round.timer?.resume ? { ...round.timer, left: left(round.timer, now) } : round.timer });
 const rootOf = t => t?.root ?? t?.id;
 
