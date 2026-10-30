@@ -78,13 +78,10 @@ const aucText = t => [`${t.topic} · ${t.items.length}`, ...t.items.map(i => i.n
     await frame.waitForSelector('[data-cmd="draw"]');
     await H.sharedToFace(frame, { names: NAMES, picks: ['ranking', 'auction'] });
     await wait(3000);
-    // ===== 1. المواجهة =====
-    await overlay();
-    await frame.evaluate(() => S8.face(false)); await shot('01-face');
-    await frame.evaluate(() => S8.face(true)); await shot('02-face-menu');
+    // ===== 1. المواجهة: لا تصوير بعد الوثيقة 1.13 (حُذف زر الخيارات، design/s8.md 1) =====
 
     // ===== 2–3. الترتيب =====
-    await frame.evaluate(() => { document.getElementById('s8menu')?.remove(); document.getElementById('s8opts')?.remove(); document.querySelector('[data-cmd="single"]').click(); }); await wait(1200);
+    await frame.evaluate(() => { document.querySelector('[data-cmd="single"]').click(); }); await wait(1200);
     await go('act:show');
     await overlay(); await long();
     const title = await frame.textContent('#rtitle');
