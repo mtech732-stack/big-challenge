@@ -110,7 +110,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     await audienceCheck(audience, `${tag}قبل الدوران`, d);
     check(`${tag}المقدّم: «شريط البونص · الدورة 1 من 2»، والخانات العشر بنصوصها (الحظ بإطار متقطع)`,
       await text(presenter, '#roundChip') === 'شريط البونص · الدورة 1 من 2' && (await presenter.$$('#wMid .slots p')).length === 10
-      && (await presenter.$$('#wMid .slots p.luck')).length === 3 && (await text(presenter, '#wMid .slots p:nth-child(2) > span')) === d.luck.find(l => l.effect === 'lose-3').label);
+      && (await presenter.$$('#wMid .slots p.luck')).length === 3 && (await text(presenter, '#wMid .slots p:nth-child(2) > span')) === d.luck.find(l => l.effect === 'lose-5').label);
     check(`${tag}المقدّم: «دور» من يديرها، و«خسر القرعة يبدأ»، و«أطلق الشريط»`,
       await text(presenter, '#wWho') === 'دور ' + NAMES[spinner - 1] && await text(presenter, '#wState') === 'خسر القرعة يبدأ' && await text(presenter, '#wCtl') === 'أطلق الشريط');
     if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-ready.png') });

@@ -4,7 +4,7 @@
 export const MODES = ['letter', 'last-two', 'auction', 'ranking'];
 export const LEVELS = ['easy', 'medium', 'hard'];
 export const DOMAINS = ['kuwait-gulf', 'geography', 'history', 'religion', 'language', 'science', 'sports', 'daily-life'];
-export const LUCK_EFFECTS = ['lose-3', 'steal-3', 'gift-3'];
+export const LUCK_EFFECTS = ['lose-5', 'steal-5', 'gift-5'];
 
 // حدود ما تتسع له الشاشة دون تصغير الخط (design/system.md، القسم 7)، بالمسافات والتشكيل.
 export const QUESTION_MAX = 85;

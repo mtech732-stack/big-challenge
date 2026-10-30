@@ -84,19 +84,19 @@ const { reporter } = require('./helpers.cjs');
   round = R.undo(round); s = round.state;
   check('التراجع عن الفخ يعيد السؤال وعدّاده', s.phase === 'ask' && round.timer?.seconds === ANSWER_SECONDS && !s.got[0].some(g => g.rank === 11));
   check('رتبة خارج 1–13 أو بلا رقم تُهمل', go('item:0').state.phase === 'ask' && go('item:x').state.phase === 'ask');
-  // السرقة (5.6): انتهى وقت الأول، فتنتقل الإجابة إلى الثاني في 5 ثوانٍ.
+  // السرقة (5.6): انتهى وقت الأول، فتنتقل الإجابة إلى الثاني في 15 ثانية.
   const { STEAL_SECONDS } = await import(path.join(root, 'js/modes/ranking.js'));
   go('timeout', round.timer.id);
-  check('انتهى الوقت: تنتقل الإجابة إلى الخصم بعدّاد 5 ثوانٍ، بلا حكم ولا نقاط', s.phase === 'steal' && s.team === 2 && s.steal.reason === 'timeout' && round.timer?.seconds === STEAL_SECONDS
-    && STEAL_SECONDS === 5 && !a.verdict && round.scores[1] === 0 && round.scores[2] === 7);
-  check('السرقة: الحدّ عند السارق، والعدّاد 5، ولحظة «انتقال» بسببها، ولا كلمة «سرقة» على الجمهور', a.turn === 2 && a.clock === 5
+  check('انتهى الوقت: تنتقل الإجابة إلى الخصم بعدّاد 15 ثانية، بلا حكم ولا نقاط', s.phase === 'steal' && s.team === 2 && s.steal.reason === 'timeout' && round.timer?.seconds === STEAL_SECONDS
+    && STEAL_SECONDS === 15 && !a.verdict && round.scores[1] === 0 && round.scores[2] === 7);
+  check('السرقة: الحدّ عند السارق، والعدّاد 15، ولحظة «انتقال» بسببها، ولا كلمة «سرقة» على الجمهور', a.turn === 2 && a.clock === 15
     && round.events.some(e => e.type === 'moment' && e.name === 'steal' && e.team === 2 && e.reason === 'timeout') && !JSON.stringify(a).includes('سرق'));
   check('السرقة: «عنصر» و«خطأ» للسارق، والمقدّم يعرف السبب', ranking.actions(s).map(x => x.id).join() === 'item,wrong' && ranking.presenter(s).steal?.reason === 'timeout');
   go('item:3');
   check('سرق الثاني المركز 3: +3 له، والخانة بلونه، والتالي دور من أخطأ', s.phase === 'decided' && round.scores[2] === 10 && a.verdict.team === 2 && a.slots[2].team === 2
     && ranking.presenter(s).upNext === 1 && !s.steal);
   round = R.undo(round); s = round.state;
-  check('التراجع عن السرقة يعيدها بعدّاد 5', s.phase === 'steal' && s.team === 2 && round.timer?.seconds === STEAL_SECONDS && round.scores[2] === 7);
+  check('التراجع عن السرقة يعيدها بعدّاد 15', s.phase === 'steal' && s.team === 2 && round.timer?.seconds === STEAL_SECONDS && round.scores[2] === 7);
   go('wrong');
   check('أخطأ السارق: لا نقاط و«لم تُكشف خانة»، والحدّ في المنتصف، والتالي دور من أخطأ أولاً', s.phase === 'decided' && a.verdict.team === 0 && a.turn === 0
     && ranking.presenter(s).upNext === 1 && round.scores[2] === 7);
@@ -105,7 +105,7 @@ const { reporter } = require('./helpers.cjs');
   go('wrong');
   check('«خطأ»: تنتقل الإجابة إلى الخصم بسبب الخطأ', s.phase === 'steal' && s.team === 2 && s.steal.reason === 'wrong'
     && round.events.some(e => e.type === 'moment' && e.name === 'steal' && e.reason === 'wrong'));
-  check('والفخ في السرقة يُخصم من السارق', (() => { const t = R.act(ranking, round, 'item:13'); return t.state.verdict.team === 2 && t.scores[2] === 6 && t.state.verdict.points === -1; })());
+  check('والفخ في السرقة يُخصم من السارق', (() => { const t = R.act(ranking, round, 'item:13'); return t.state.verdict.team === 2 && t.scores[2] === 0 && t.state.verdict.points === -7; })());
   go('timeout', round.timer.id);
   check('انتهى وقت السارق: لا نقاط', s.phase === 'decided' && s.verdict.team === 0 && round.scores[1] === 0 && round.scores[2] === 7);
 
@@ -138,47 +138,47 @@ const { reporter } = require('./helpers.cjs');
     const run = (x, id, at = T) => (r = R.act(ranking, r, x, id, at));
     run('show');
     let a = ranking.audience(r.state);
-    check('وقت القائمة 5 دقائق، ثابت قبل «ابدأ»', LIST_SECONDS === 300 && a.listClock && !a.listEnds && a.listSeconds === 300);
+    check('وقت القائمة دقيقتان ونصف، ثابت قبل «ابدأ»', LIST_SECONDS === 150 && a.listClock && !a.listEnds && a.listSeconds === 150);
     run('start');
     a = ranking.audience(r.state);
-    check('«ابدأ»: وقت القائمة يجري حتى 5 دقائق من الآن', r.state.listEnds === T + 300000 && a.listEnds === T + 300000);
-    check('«انتهى وقت القائمة» قبل وقته يُهمل', run('timeup', undefined, T + 200000).state.phase === 'ask');
+    check('«ابدأ»: وقت القائمة يجري حتى دقيقتين ونصف من الآن', r.state.listEnds === T + 150000 && a.listEnds === T + 150000);
+    check('«انتهى وقت القائمة» قبل وقته يُهمل', run('timeup', undefined, T + 100000).state.phase === 'ask');
     run('item:4', undefined, T + 30000); run('next', undefined, T + 40000);
-    check('ولا يقف بين الإجابتين ولا بعد الحكم', r.state.listEnds === T + 300000);
-    run('timeup', undefined, T + 300000);
+    check('ولا يقف بين الإجابتين ولا بعد الحكم', r.state.listEnds === T + 150000);
+    run('timeup', undefined, T + 150000);
     a = ranking.audience(r.state);
     check('انقضى وقت القائمة في العدّاد: تنتهي القائمة وتنكشف، ويقف العدّاد، ووقتها يُخفى', r.state.phase === 'listend' && r.state.timeup && a.timeup && !r.timer && a.slots.every(x => x.name)
       && !a.listClock && !a.listEnds && a.found === 1);
     r = R.undo(r);
     check('التراجع عن انقضاء الوقت يعيد العدّاد', r.state.phase === 'ask' && !r.state.timeup && r.timer?.seconds === ANSWER_SECONDS);
-    run('wrong', undefined, T + 299000);
-    check('وفي السرقة: ينهيها انقضاء الوقت', r.state.phase === 'steal' && run('timeup', undefined, T + 300500).state.phase === 'listend');
-    run('next', undefined, T + 310000);
+    run('wrong', undefined, T + 149000);
+    check('وفي السرقة: ينهيها انقضاء الوقت', r.state.phase === 'steal' && run('timeup', undefined, T + 150500).state.phase === 'listend');
+    run('next', undefined, T + 160000);
     check('القائمة الثانية بعد انقضاء وقت الأولى: وقتها لم يبدأ، ويبدأها الآخر', r.state.index === 1 && r.state.phase === 'read' && !r.state.listEnds && !r.state.timeup && r.state.team === 2);
-    run('start:one', undefined, T + 320000);
-    check('وقت القائمة الثانية من «ابدأ» نفسها', r.state.listEnds === T + 620000 && r.state.one);
-    run('timeup', undefined, T + 620000);
+    run('start:one', undefined, T + 170000);
+    check('وقت القائمة الثانية من «ابدأ» نفسها', r.state.listEnds === T + 320000 && r.state.one);
+    run('timeup', undefined, T + 320000);
     check('بنافذة واحدة: انقضاء الوقت يفتح المقارنة', r.state.phase === 'mark' && r.state.timeup && !r.timer);
     run('mark:2'); run('commit');
     check('ثم «اعتمد النقاط» و«انتهى وقت القائمة»، و«إنهاء الجولة»', r.state.phase === 'listend' && ranking.audience(r.state).timeup && ranking.actions(r.state)[0].label === 'إنهاء الجولة');
   }
 
-  // الفخاخ بخصمها: −3 و−2 و−1، ولا ينزل الرصيد تحت الصفر، والحكم بما خُصم فعلاً (design/ranking.md 7.7).
+  // الفخاخ بخصمها: −11 و−12 و−13، ولا ينزل الرصيد تحت الصفر، والحكم بما خُصم فعلاً (design/ranking.md 7.7).
   {
     const PEN = (await import(path.join(root, 'js/modes/ranking.js'))).PENALTY;
-    check('خصم الفخاخ: 11 ← 3 · 12 ← 2 · 13 ← 1', PEN[11] === 3 && PEN[12] === 2 && PEN[13] === 1);
+    check('خصم الفخاخ: 11 ← 11 · 12 ← 12 · 13 ← 13', PEN[11] === 11 && PEN[12] === 12 && PEN[13] === 13);
     let r = R.startRound(ranking, { content, first: 1, rng });
     const run = (x, id) => (r = R.act(ranking, r, x, id));
     run('show'); run('start');
-    r = R.setScore(r, 1, 1); r = R.setScore(r, 2, 10);
+    r = R.setScore(r, 1, 1); r = R.setScore(r, 2, 20);
     run('item:11');
     let v = r.state.verdict;
-    check('فخ 11 ورصيده 1: نزل إلى 0، والحكم «−1» لا «−3»', r.scores[1] === 0 && v.points === -1 && v.rank === 11 && r.state.got[0][0].points === -1
+    check('فخ 11 ورصيده 1: نزل إلى 0، والحكم «−1» لا «−11»', r.scores[1] === 0 && v.points === -1 && v.rank === 11 && r.state.got[0][0].points === -1
       && r.events.some(e => e.type === 'score' && e.team === 1 && e.points === -1));
     check('الفخ لا يكشف خانة من العشر، ولا يُنهي القائمة', ranking.audience(r.state).found === 0 && ranking.actions(r.state).map(x => x.id).join() === 'next,finish');
     run('next'); run('item:12');
     v = r.state.verdict;
-    check('فخ 12 ورصيده 10: −2، فصار 8', r.scores[2] === 8 && v.points === -2 && v.team === 2);
+    check('فخ 12 ورصيده 20: −12، فصار 8', r.scores[2] === 8 && v.points === -12 && v.team === 2);
     const p = ranking.presenter(r.state);
     check('المقدّم: الفخ بمن وقع فيه', p.items[10].by === 1 && p.items[11].by === 2 && p.items[12].by === 0);
     run('next');
@@ -187,7 +187,7 @@ const { reporter } = require('./helpers.cjs');
     check('فخ 13 ورصيده 0: لا خصم، والحكم 0', r.scores[1] === 0 && r.state.verdict.points === 0 && r.state.verdict.rank === 13);
     run('finish'); run('next'); run('finish'); run('next');
     const t = ranking.audience(r.state);
-    check('حصيلة الجولة بما خُصم: الأول −1 والثاني −2', ranking.finished(r.state) && t.totals[1] === -1 && t.totals[2] === -2);
+    check('حصيلة الجولة بما خُصم: الأول −1 والثاني −12', ranking.finished(r.state) && t.totals[1] === -1 && t.totals[2] === -12);
   }
 
   // النافذة الواحدة (المالك، design/ranking.md 4): لا حكم في أثناء القائمة، والمقارنة بالتسجيل بعدها، ثم «اعتمد النقاط».
@@ -218,10 +218,11 @@ const { reporter } = require('./helpers.cjs');
     run('mark:3'); run('mark:7'); run('mark:7'); run('mark:12'); run('mark:11'); run('mark:11');
     const p = ranking.presenter(r.state);
     check('المقدّم يرى أصحاب الخانات كما نُقرت', p.items[2].by === 1 && p.items[6].by === 2 && p.items[11].by === 1 && p.items[10].by === 2 && p.items[0].by === 0);
+    r = R.setScore(r, 1, 20); r = R.setScore(r, 2, 20);
     const before = { ...r.scores };
     run('commit');
     a = ranking.audience(r.state);
-    check(`«اعتمد النقاط»: الأول 3 − 2 = +1، والثاني 7 − 3 = +4 (${r.scores[1] - before[1]}، ${r.scores[2] - before[2]})`, r.scores[1] === before[1] + 1 && r.scores[2] === before[2] + 4);
+    check(`«اعتمد النقاط»: الأول 3 − 12 = −9، والثاني 7 − 11 = −4 (${r.scores[1] - before[1]}، ${r.scores[2] - before[2]})`, r.scores[1] === before[1] - 9 && r.scores[2] === before[2] - 4);
     check('ثم نهاية القائمة كما في النافذتين: «كُشف 2 من 10»، والخانات بأصحابها', r.state.phase === 'listend' && a.found === 2 && a.slots[2].team === 1 && a.slots[6].team === 2
       && a.slots[11].team === 1 && a.slots[0].name && !a.slots[0].team);
     r = R.undo(r);

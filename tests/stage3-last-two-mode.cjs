@@ -71,37 +71,37 @@ const { reporter } = require('./helpers.cjs');
   let r = start(1);
   let a = lastTwo.audience(r.state);
   check('الافتتاح: «كل إجابات الجولة تنتهي بـ «…»» بنهاية الجولة، ولا سطر تفاصيل', a.rule === `كل إجابات الجولة تنتهي بـ «ـ${r.state.questions[0].box}»` && a.sub === undefined);
-  check('الافتتاح عند المقدّم: سطر القاعدة بـ 20 ثانية', lastTwo.presenter(r.state).brief.includes('20 ثانية للسؤال'));
+  check('الافتتاح عند المقدّم: سطر القاعدة بـ 30 ثانية', lastTwo.presenter(r.state).brief.includes('30 ثانية للسؤال'));
   r = R.act(lastTwo, r, 'show');
   a = lastTwo.audience(r.state);
   const q = r.state.questions[0];
   check('السؤال: الحرفان مع علامة التطويل، والوصف، ولا مستوى على الجمهور', a.letter === q.box && a.tatweel === true && a.question === q.prompt && a.levelText === undefined && a.level === undefined);
-  check('قبل «ابدأ»: العدّاد ثابت 0:20', a.clock === 20 && r.timer === null);
+  check('قبل «ابدأ»: العدّاد ثابت 0:30', a.clock === 30 && r.timer === null);
   check('قبل «ابدأ»: «ابدأ العدّاد» وزرا الحكم', ids(lastTwo.actions(r.state)) === 'start,correct,wrong');
   const pr = lastTwo.presenter(r.state);
   check('المقدّم: الإجابة النموذجية، وسطر القبول بالحرفين والوصف', pr.answer === q.answer && pr.accept === `وتُقبل أي كلمة أخرى تنتهي بـ «ـ${q.box}» وتنطبق على الوصف.`);
   r = R.act(lastTwo, r, 'start');
-  check('«ابدأ»: عدّاد 20 ثانية', r.timer?.seconds === 20 && r.events.some(e => e.type === 'timer' && e.seconds === 20));
+  check('«ابدأ»: عدّاد 30 ثانية', r.timer?.seconds === 30 && r.events.some(e => e.type === 'timer' && e.seconds === 30));
 
   // الحكم والنقاط.
   r = R.act(lastTwo, r, 'correct');
-  check('صحيحة: +1 لصاحب السؤال، والحكم بدل العدّاد', r.scores[1] === 1 && lastTwo.audience(r.state).verdict?.team === 1 && r.timer === null);
+  check('صحيحة: +3 لصاحب السؤال، والحكم بدل العدّاد', r.scores[1] === 3 && lastTwo.audience(r.state).verdict?.team === 1 && r.timer === null);
   r = R.act(lastTwo, r, 'next');
   r = R.act(lastTwo, r, 'start');
   r = R.act(lastTwo, r, 'correct');
   r = R.act(lastTwo, r, 'next');
-  check('السؤال 3 متوسط: «صحيحة · +2»', lastTwo.actions(r.state).find(x => x.id === 'correct').label === 'صحيحة · +2');
+  check('السؤال 3 متوسط: «صحيحة · +6»', lastTwo.actions(r.state).find(x => x.id === 'correct').label === 'صحيحة · +6');
 
   // السرقة: بعد الخطأ، وبعد انتهاء الوقت.
   r = R.act(lastTwo, r, 'start');
   r = R.act(lastTwo, r, 'wrong');
   a = lastTwo.audience(r.state);
-  check('خاطئة: السرقة للخصم في 5 ثوانٍ', a.phase === 'steal' && a.turn === 2 && a.clock === 5 && r.timer?.seconds === 5 && a.steal.reason === 'wrong');
+  check('خاطئة: السرقة للخصم في 10 ثوانٍ', a.phase === 'steal' && a.turn === 2 && a.clock === 10 && r.timer?.seconds === 10 && a.steal.reason === 'wrong');
   const before = r.scores[2];
   r = R.act(lastTwo, r, 'correct');
-  check('السرقة الصحيحة: النقاط نفسها (+2) للسارق', r.scores[2] === before + 2);
+  check('السرقة الصحيحة: النقاط نفسها (+6) للسارق', r.scores[2] === before + 6);
   r = R.undo(r);
-  check('التراجع: تعود السرقة وعدّادها كاملاً، والرصيد كما كان', r.state.phase === 'steal' && r.scores[2] === before && r.timer?.seconds === 5);
+  check('التراجع: تعود السرقة وعدّادها كاملاً، والرصيد كما كان', r.state.phase === 'steal' && r.scores[2] === before && r.timer?.seconds === 10);
   r = R.act(lastTwo, r, 'timeout', r.timer.id);
   check('انتهى وقت السارق: لا نقاط', lastTwo.audience(r.state).verdict?.team === 0 && r.scores[2] === before);
   r = R.act(lastTwo, r, 'next');
@@ -130,7 +130,7 @@ const { reporter } = require('./helpers.cjs');
   // الحرف المعيّن على جولة الكلمة نفسها، بفروقه.
   let l = R.act(letter, R.startRound(letter, { content, first: 1, rng }), 'show');
   const la = letter.audience(l.state);
-  check('الحرف المعيّن باقٍ: 15 ثانية، وحرف بلا تطويل، وسطر قبوله', la.clock === 15 && !la.tatweel && [...la.letter].length === 1 && letter.presenter(l.state).accept === `وتُقبل أي كلمة أخرى تبدأ بـ «${la.letter}» وتنطبق على المطلوب.`);
+  check('الحرف المعيّن باقٍ: 30 ثانية، وحرف بلا تطويل، وسطر قبوله', la.clock === 30 && !la.tatweel && [...la.letter].length === 1 && letter.presenter(l.state).accept === `وتُقبل أي كلمة أخرى تبدأ بـ «${la.letter}» وتنطبق على المطلوب.`);
   check('حالة محفوظة قبل ش3 (letter بدل box) تُعرض', letter.audience({ ...l.state, questions: l.state.questions.map(({ box, ...x }) => ({ ...x, letter: box })) }).letter === la.letter);
 
   // تتابع المباراة: الجولة 1 «آخر حرفين» ← العجلة (تُتخطى) ← الجولة 2 «الحرف المعيّن» ← النهائية.
@@ -143,12 +143,12 @@ const { reporter } = require('./helpers.cjs');
     const act = lastTwo.actions(m.round.state).map(b => b.id);
     m = P.act(m, MODES, act.includes('next') ? 'next' : act.includes('show') ? 'show' : 'correct');
   }
-  check('بعد الجولة: الحصيلة 6 لكل فريق (2+4+6 ÷ 2… 1+2+3)', lastTwo.audience(m.round.state).totals[1] === 6 && lastTwo.audience(m.round.state).totals[2] === 6);
+  check('بعد الجولة: الحصيلة 18 لكل فريق (3+6+9)', lastTwo.audience(m.round.state).totals[1] === 18 && lastTwo.audience(m.round.state).totals[2] === 18);
   check('«التالي: شريط البونص»', P.nextText(m, name) === 'التالي: شريط البونص' && P.nextKind(m, MODES) === 'skip');
   m = P.skipNext(m, MODES);
   check('ثم «التالي: الجولة 2 · الحرف المعيّن» وتبدأ', P.nextText(m, name) === 'التالي: الجولة 2 · الحرف المعيّن' && P.nextKind(m, MODES) === 'start');
   m = P.startNext(m, { modes: MODES, content, seen: [], rng });
-  check('الجولة 2 للحرف المعيّن، والرصيد من الجولة 1', m.round.mode === 'letter' && m.round.n === 2 && m.scores[1] === 6 && m.scores[2] === 6);
+  check('الجولة 2 للحرف المعيّن، والرصيد من الجولة 1', m.round.mode === 'letter' && m.round.n === 2 && m.scores[1] === 18 && m.scores[2] === 18);
   check('حالة المباراة تُحفظ JSON وتُقرأ سليمة', M.isMatch(JSON.parse(JSON.stringify(m))));
 
   process.exit(finish() ? 0 : 1);

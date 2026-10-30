@@ -348,7 +348,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, passW
   const frame = await stageFrame(presenter);
   const near = () => frame.$$eval('#near .cbtn', b => b.map(x => x.textContent.replace(/\s+/g, ' ').trim()).join(' | '));
   const corners = () => frame.$$eval('.ctl-corner .cbtn', b => b.map(x => x.textContent.trim()).join(' | '));
-  const rowsText = () => frame.$$eval('.ctl-corner', r => r.map(x => [...x.querySelectorAll('.cbtn')].map(b => b.textContent.trim()).join(' | ')).join(' // '));
+  const rowsText = () => frame.$$eval('.ctl-corner:not(.opts)', r => r.map(x => [...x.querySelectorAll('.cbtn')].map(b => b.textContent.trim()).join(' | ')).join(' // '));
   await wait(300);
   // الملاحظة 28: عدّاد السرقة 5 ثوانٍ، وقد ينقضي أثناء الانقطاع وفتح النافذة الواحدة (على الرابط المنشور أبطأ).
   // فتبدأ السرقة من جديد هنا بعدّادها كاملاً: من السرقة «تراجع» ثم «خاطئة»، ومن حكم انقضائها «تراجع» يعيدها كاملة.
@@ -365,7 +365,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, passW
   check('لا شريط سفلي', !(await presenter.$('#band')));
   check('بجانب العدّاد بعد انتقال الإجابة: «صحيحة · +1» «خاطئة»', (await near()) === 'صحيحة · +1 | خاطئة');
   check('الزاوية ثلاثة صفوف (الملاحظة 26): «تراجع» «الصوت» · «المقدّم» «ملء الشاشة» · «الرصيد» «مباراة جديدة»', (await rowsText()) === 'تراجع | الصوت // المقدّم | ملء الشاشة // الرصيد | مباراة جديدة'
-    && JSON.stringify(await frame.$$eval('.ctl-corner', e => e.map(x => x.offsetTop))) === '[64,152,240]');
+    && JSON.stringify(await frame.$$eval('.ctl-corner:not(.opts)', e => e.map(x => x.offsetTop))) === '[64,152,240]');
   const coverFails = [];
   // الملاحظة 25: كل زر ظاهر هو ما يستجيب في خمس نقاط منه (elementFromPoint)، بالاسمين الطويلين وبرقم من خانة وخانتين وثلاث للفريقين.
   const covered = async label => {
