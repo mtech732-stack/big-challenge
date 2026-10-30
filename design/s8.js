@@ -47,10 +47,10 @@
   }
   function unqr() { canvas.classList.remove('qr'); document.querySelectorAll('.qrctl').forEach(n => n.remove()); }
 
-  // «الباركود» لإعادته بطلب: في صف المباراة (240) بعد «مباراة جديدة»
+  // «الباركود» لإعادته بطلب: في صف النوافذ (152) بعد «المقدّم» و«ملء الشاشة» (1.2، كما بناه المهندس)
   function reshow() {
-    const row = $('cornerC');
-    if (!row.querySelector('.reqr')) row.prepend(btn('الباركود', 'alt reqr'));
+    const row = $('cornerB').querySelector('.ctl') ?? $('cornerB');
+    if (!row.querySelector('.reqr')) row.append(btn('الباركود', 'alt reqr'));
   }
 
   // 3. الترتيب: اللوحة بالخانات الثلاث عشرة ظاهرة الأرقام، والمكشوف { r: [فريق، اسم] }، والفخ المكشوف رقمه خصمه
