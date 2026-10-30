@@ -33,7 +33,8 @@
     <div class="stagebg" id="stagebg"><div class="f f1"></div><div class="f f2"></div><div class="e" id="edge"></div>
       <div class="beam"></div><div class="beam w"></div><div class="beam"></div><div class="beam w"></div></div>
     <div class="particles" id="particles"></div>
-    <div class="logo" data-hud="الشعار" aria-label="التحدي الكبير"><span class="l1">التحدي</span><span class="l2"><i></i><b>الكبير</b></span></div>
+    <!-- الشعار كما في audience.html (ش8): الصورة، وأيقونتها في النافذة الواحدة -->
+    <div class="logo" data-hud="الشعار" aria-label="التحدي الكبير"><img class="full" src="logo/logo.svg" width="323" height="328" alt=""><img class="icon" src="logo/icon.svg" width="62" height="64" alt=""></div>
 
     <section class="team t1" id="p1" data-hud="لوحة الفريق الأول">
       <div class="shape"></div><svg class="ring" preserveAspectRatio="none"><polygon pathLength="100"/></svg>
@@ -50,7 +51,6 @@
         <div class="scr auc" data-s="auc" id="auc">
           <div class="ahead">
             <p class="topic" id="topic" data-fit="الموضوع"></p>
-            <p class="size" id="tsize" hidden></p>
             <p class="tally" id="tally" data-fit="العدّ"><b class="n" id="tn"></b><span class="of">من <b class="ltr" id="tof"></b></span></p>
             <div class="ctl" id="aucCtl"></div>
           </div>
@@ -103,37 +103,34 @@
   const LONG = q.has('long');
   const NAMES = LONG ? { 1: 'فريق النخبة الذهبي', 2: 'نجوم المستقبل معاً' } : { 1: 'الصقور', 2: 'النجوم' };
   const SCORES = LONG ? { 1: 188, 2: 176 } : { 1: 14, 2: 9 };
-  // الموضوع: سطر واحد (حد 32 حرفاً، design/auction.md 3). الأطول المختبَر 32 حرفاً بجوار العدّ «12 من 12»
-  const TOPIC = LONG ? 'أشياء تجدها في حقيبة طالب المدرسة' : 'الدول العربية';
-  const ARAB = ['السعودية', 'الكويت', 'الإمارات', 'قطر', 'البحرين', 'عُمان', 'اليمن', 'العراق', 'سوريا', 'الأردن', 'لبنان', 'فلسطين',
-    'مصر', 'السودان', 'ليبيا', 'تونس', 'الجزائر', 'المغرب', 'موريتانيا', 'الصومال', 'جيبوتي', 'جزر القمر'];
-  // قائمة لا تتجاوز 20: عددها ظاهر في المزايدة، ولكل فريق «العدد كاملاً» (الوثيقة 5.5)
-  const MONTHS = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
-  const ULUL = ['نوح', 'إبراهيم', 'موسى', 'عيسى', 'محمد'];
-  const IMAN = ['الإيمان بالله', 'الملائكة', 'الكتب', 'الرسل', 'اليوم الآخر', 'القدر'];
-  const AFRICA = ['مصر', 'السودان', 'ليبيا', 'تونس', 'الجزائر', 'المغرب', 'موريتانيا', 'الصومال', 'جيبوتي', 'جزر القمر', 'إثيوبيا', 'إريتريا',
-    'كينيا', 'أوغندا', 'تنزانيا', 'رواندا', 'بوروندي', 'نيجيريا', 'غانا', 'السنغال', 'مالي', 'النيجر', 'تشاد', 'الكاميرون', 'الغابون',
-    'الكونغو', 'الكونغو الديمقراطية', 'أنغولا', 'زامبيا', 'زيمبابوي', 'موزمبيق', 'ملاوي', 'مدغشقر', 'موريشيوس', 'سيشل', 'ناميبيا',
-    'بوتسوانا', 'جنوب أفريقيا', 'ليسوتو', 'إسواتيني', 'غينيا', 'غينيا بيساو', 'غينيا الاستوائية', 'سيراليون', 'ليبيريا',
-    'ساحل العاج', 'بوركينا فاسو', 'توغو', 'بنين', 'غامبيا', 'الرأس الأخضر', 'جنوب السودان', 'أفريقيا الوسطى', 'ساو تومي وبرينسيب'];
+  // الموضوع: سطر واحد (حد 32 حرفاً، design/auction.md 3). الأطول المختبَر 32 حرفاً بجوار العدّ «40 من 40»
+  const TOPIC = 'أشياء تجدها في حقيبة طالب المدرسة';
+  // التصوّر المفتوح (4.0، ملاحظات المالك 30 أكتوبر، البند 5): موضوع مرح يُعدّ منه بسهولة، والمزايدة الواقعية 15–40.
+  // والقائمة المرجعية (40–200) عون للمقدّم لا حصر، فلا يرى الجمهور منها إلا ما قيل، ولا عددها أبداً.
+  const CARS = ['تويوتا', 'نيسان', 'هوندا', 'لكزس', 'مازدا', 'ميتسوبيشي', 'سوزوكي', 'سوبارو', 'إنفينيتي', 'هيونداي', 'كيا', 'جينيسيس', 'مرسيدس',
+    'بي إم دبليو', 'أودي', 'فولكس فاجن', 'بورشه', 'أوبل', 'فورد', 'شيفروليه', 'جي إم سي', 'كاديلاك', 'دودج', 'جيب', 'كرايسلر', 'لينكولن',
+    'تسلا', 'فيراري', 'لامبورغيني', 'مازيراتي', 'ألفا روميو', 'فيات', 'رولز رويس', 'بنتلي', 'جاكوار', 'لاند روفر', 'ميني', 'أستون مارتن',
+    'ماكلارين', 'بيجو', 'رينو', 'سيتروين', 'فولفو', 'سكودا', 'سيات', 'بوغاتي', 'شانجان', 'جيلي', 'إم جي', 'هافال', 'شيري', 'بي واي دي'];
+  const SHORT = ['تويوتا', 'نيسان'];
 
   // ===== الحالات (design/auction.md 2) =====
   // turn: صاحب الدور (الحدّ يكتسح له) · run: العدّاد يعمل (ثوانٍ) · bids: [فريق، رقم] · said: [فريق، عنصر] · box: مربع الإعلان
   const STATES = {
     intro:    { t: 'افتتاح الجولة', screen: 'intro', turn: 0, badge: 'الجولة 3 من 4' },
     // المزايدة (الوثيقة 5.5): bids رقما الفريقين [الأول، الثاني]، والحدّ في المنتصف حتى «ابدأ»
-    open:     { t: 'المزايدة: ظهور الموضوع (قائمة 12)، ولا رقم بعد', turn: 0, bids: [0, 0], short: true },
-    bid:      { t: 'المزايدة: الأول 8 والثاني 11 (قائمة 12)', turn: 0, bids: [8, 11], short: true },
-    bidlong:  { t: 'المزايدة: قائمة فوق 20 (عددها مخفي)، رقمان من خانتين', turn: 0, bids: [36, 27] },
-    run:      { t: 'الوفاء: العدّاد يعمل، ذُكر 7', turn: 1, of: 12, run: 38, said: ARAB.slice(0, 7).map(x => [1, x]) },
-    runfull:  { t: 'الوفاء: أطول ما ذُكر (يسقط ما لا يتسع)', turn: 1, of: 40, run: 9, said: AFRICA.slice(0, 33).map(x => [1, x]), list: AFRICA },
-    won:      { t: 'بعد الحكم: وفى الأول', turn: 1, of: 12, said: ARAB.slice(0, 12).map(x => [1, x]), verdict: { team: 1, points: 12 }, reveal: true },
-    failed:   { t: 'بعد الحكم: لم يفِ الأول، فللثاني نقطتان', turn: 2, of: 12, said: ARAB.slice(0, 9).map(x => [1, x]), verdict: { team: 2, points: 2 }, reveal: true },
-    wonshort: { t: 'بعد الحكم: وفى الأول بقائمة قصيرة (2 من 5)', turn: 1, of: 2, said: ULUL.slice(0, 2).map(x => [1, x]), verdict: { team: 1, points: 2 }, reveal: true, list: ULUL, topic: 'أولو العزم من الرسل' },
-    failshort:{ t: 'بعد الحكم: لم يفِ الأول بقائمة قصيرة (2 من 4)', turn: 2, of: 4, said: IMAN.slice(0, 2).map(x => [1, x]), verdict: { team: 2, points: 2 }, reveal: true, list: IMAN, topic: 'أركان الإيمان' },
-    won2short:{ t: 'بعد الحكم: وفى الثاني بقائمة قصيرة (2 من 5)', turn: 2, of: 2, said: ULUL.slice(0, 2).map(x => [2, x]), verdict: { team: 2, points: 2 }, reveal: true, list: ULUL, topic: 'أولو العزم من الرسل' },
-    fail2short:{ t: 'بعد الحكم: لم يفِ الثاني بقائمة قصيرة (2 من 4)', turn: 1, of: 4, said: IMAN.slice(0, 2).map(x => [2, x]), verdict: { team: 1, points: 2 }, reveal: true, list: IMAN, topic: 'أركان الإيمان' },
-    revlong:  { t: 'بعد الحكم: قائمة من 54 عنصراً، لم يفِ الأول', turn: 2, of: 20, said: AFRICA.slice(0, 15).map(x => [1, x]), verdict: { team: 2, points: 2 }, reveal: true, list: AFRICA },
+    // 4.0: لا «في القائمة N» أبداً. ورقمان من خانتين كما في المزايدة الواقعية (15–40)
+    open:     { t: 'المزايدة: ظهور الموضوع، ولا رقم بعد', turn: 0, bids: [0, 0] },
+    bid:      { t: 'المزايدة: الأول 17 والثاني 23', turn: 0, bids: [17, 23] },
+    bidlong:  { t: 'المزايدة: رقمان كبيران (40 و36)', turn: 0, bids: [40, 36] },
+    // run: الثواني الباقية، وtotal: وقت الوفاء كله (4.0: يزيد مع الرقم المرسى، والعدّاد يتسع لثلاث خانات)
+    run:      { t: 'الوفاء: العدّاد يعمل، ذُكر 7 من 23', turn: 1, of: 23, run: 38, total: 90, said: CARS.slice(0, 7).map(x => [1, x]) },
+    runfull:  { t: 'الوفاء: أطول ما ذُكر (يسقط أقدمه)، وعدّاد من ثلاث خانات', turn: 1, of: 40, run: 125, total: 150, said: CARS.slice(0, 34).map(x => [1, x]) },
+    // بعد الحكم (4.0): ما قيل وحده، لا القائمة (قد تبلغ 200). وما قيل من خارج القائمة يظهر كغيره
+    won:      { t: 'بعد الحكم: وفى الأول (23)', turn: 1, of: 23, said: CARS.slice(0, 21).concat(['شيري', 'ليفان']).map(x => [1, x]), verdict: { team: 1, points: 23 }, reveal: true },
+    failed:   { t: 'بعد الحكم: لم يفِ الأول، فللثاني نقطتان', turn: 2, of: 23, said: CARS.slice(0, 16).map(x => [1, x]), verdict: { team: 2, points: 2 }, reveal: true },
+    wonlong:  { t: 'بعد الحكم: وفى الأول بـ 40 (لا يتسع كله)', turn: 1, of: 40, said: CARS.slice(0, 40).map(x => [1, x]), verdict: { team: 1, points: 40 }, reveal: true },
+    wonshort: { t: 'بعد الحكم: وفى الأول بقليل (2)', turn: 1, of: 2, said: SHORT.map(x => [1, x]), verdict: { team: 1, points: 2 }, reveal: true },
+    fail2short:{ t: 'بعد الحكم: لم يفِ الثاني بقليل (2 من 15)', turn: 1, of: 15, said: SHORT.map(x => [2, x]), verdict: { team: 1, points: 2 }, reveal: true },
     end:      { t: 'نهاية الجولة', screen: 'end', turn: 0, badge: 'انتهت الجولة 3', totals: { 1: 12, 2: 9 } },
   };
 
@@ -156,7 +153,7 @@
     }[id] ?? [];
     $('near').innerHTML = near.join('');
     // بعد الحكم: «الموضوع التالي» في البطاقة بجوار الموضوع، لا في صف الشارات (design/auction.md 4: يبقى المسرح للحقل)
-    $('aucCtl').innerHTML = st.reveal ? B(id === 'revlong' ? 'إنهاء الجولة' : 'الموضوع التالي') : '';
+    $('aucCtl').innerHTML = st.reveal ? B(id === 'wonlong' ? 'إنهاء الجولة' : 'الموضوع التالي') : '';
     if (id === 'intro') $('introCtl').innerHTML = B('اعرض الموضوع 1');
     if (id === 'end') $('endCtl').innerHTML = B('إلى عجلة البونص');
   }
@@ -181,11 +178,7 @@
       box({ next: 'التالي: عجلة البونص' });
     }
     if (!st.screen) {
-      $('topic').textContent = st.topic ?? (id === 'runfull' || id === 'revlong' ? 'دول قارة أفريقيا' : st.short && !LONG ? 'الأشهر الهجرية' : TOPIC);
-      // في المزايدة: عدد القائمة إشارةً صغيرة بجانب الموضوع، للقائمة حتى 20 وحدها (الوثيقة 5.5)
-      const len = (st.short ? MONTHS : (st.list ?? ARAB)).length;
-      $('tsize').hidden = !(st.bids && len <= 20);
-      $('tsize').innerHTML = `في القائمة <span class="ltr">${len}</span>`;
+      $('topic').textContent = LONG ? TOPIC : 'ماركات السيارات';
       // المزايدة: رقما الفريقين وحدهما، كلٌّ بلونه، والأعلى أكبرهما. ومن لم يزايد بعد لا شارة له
       const [b1, b2] = st.bids ?? [0, 0];
       $('bids').innerHTML = [[1, b1], [2, b2]].filter(([, n]) => n).map(([t, n]) => `<span class="bid t${t}${n === Math.max(b1, b2) ? ' top' : ''}"><i></i><span>${n}</span></span>`).join('');
@@ -198,15 +191,11 @@
         $('tally').className = `tally t${last}`;
       }
       const auc = $('auc'); auc.classList.toggle('reveal', !!st.reveal);
-      // النافذة الواحدة: لا قائمة مع المقدّم، فيعدّ بـ «صحيح · +1» دون أسماء، فلا عناصر قبل الحكم. وبعده القائمة كلها بإطار
+      // النافذة الواحدة: لا قائمة مع المقدّم (في هاتفه بالباركود)، فيعدّ بـ «صحيح · +1» دون أسماء، فلا عناصر قبل الحكم ولا بعده.
+      // وبعد الحكم (4.0) يبقى ما قيل وحده، لا القائمة: أوله، وفي آخره «و N غيرها» إن لم يتسع
       const named = SINGLE ? [] : (said ?? []);
-      let items = named.map(([t, x]) => `<span class="it t${t}"><i></i><span>${esc(x)}</span></span>`);
-      if (st.reveal) {
-        const list = st.list ?? ARAB, done = new Set(named.map(s => s[1]));
-        items = items.concat(list.filter(x => !done.has(x)).map(x => `<span class="it left"><i></i><span>${esc(x)}</span></span>`));
-      }
-      $('items').innerHTML = items.join('');
-      // بعد الحكم: القائمة القصيرة بشارات المزايدة الكبيرة إن اتسعت كلها في صفين، وإلا فبالحجم المعتاد (1.5)
+      $('items').innerHTML = named.map(([t, x]) => `<span class="it t${t}"><i></i><span>${esc(x)}</span></span>`).join('');
+      // بعد الحكم: ما قيل بشارات المزايدة الكبيرة إن اتسع كله في صفين، وإلا فبالحجم المعتاد (1.5)
       if (st.reveal) { auc.classList.add('big'); if (!fitsAll($('items'))) auc.classList.remove('big'); }
       fitItems($('items'), !!st.reveal);
       if (st.verdict) box({ verdict: st.verdict, line: `ذُكر ${said.length} من ${st.of}` });
@@ -217,7 +206,7 @@
 
   // (overflow: clip لا يُحسب في scrollWidth، فالقياس بحدود العناصر)
   const rect = el => el.getBoundingClientRect();
-  // ما ذُكر: أثناء العدّ يبقى الأحدث (يسقط الأقدم). وبعد الحكم يبقى أوله، وفي آخره «و N غيرها»
+  // ما ذُكر: أثناء العدّ يبقى الأحدث (يسقط الأقدم). وبعد الحكم يبقى أوله، وفي آخره «و N غيرها» (4.0: ما قيل وحده)
   const fitsAll = box => !box.lastElementChild || rect(box.lastElementChild).bottom <= rect(box).bottom + 1;
   function fitItems(box, reveal) {
     const all = [...box.children];
@@ -227,9 +216,8 @@
     const more = document.createElement('span'); more.className = 'it more'; box.append(more);
     let hidden = 0;
     // يُحذف من غير المذكور أولاً (من آخره)، كي يبقى كل ما ذُكر
-    const lefts = all.filter(e => e.classList.contains('left'));
-    while (!fits() && (lefts.length || all.length)) {
-      const el = lefts.length ? lefts.pop() : all.pop(); el.remove(); hidden++;
+    while (!fits() && all.length) {
+      all.pop().remove(); hidden++;
       more.innerHTML = `<span>و <span class="ltr">${hidden}</span> غيرها</span>`;
     }
   }
@@ -254,8 +242,9 @@
   function placeNear() {
     const near = $('near'); if (!near.children.length) return;
     // بحدود الشارة الفعلية لا offsetLeft (يُقرَّب، فيصير الفراغ 23 بكسر الميل)
-    const c = canvas.getBoundingClientRect().left;
-    near.style.left = Math.floor(Math.min(...[...document.querySelectorAll('.badge')].map(b => b.getBoundingClientRect().left - c)) - 32 - near.offsetWidth) + 'px';
+    // والقياس بمقاس 1920 ولو صُغّرت الشاشة (1366): حدود الشارة مقسومة على المقياس، وإلا ضاق الفراغ إلى 6 (4.0)
+    const cr = canvas.getBoundingClientRect(), k = cr.width / 1920;
+    near.style.left = Math.floor(Math.min(...[...document.querySelectorAll('.badge')].map(b => (b.getBoundingClientRect().left - cr.left) / k)) - 32 - near.offsetWidth) + 'px';
   }
   function fitRings() {
     for (const team of [$('p1'), $('p2')]) {
@@ -263,8 +252,8 @@
       svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
       svg.querySelector('polygon').setAttribute('points', `${o},0 ${w + o},0 ${w - o},${h} ${-o},${h}`);
       // إطار الوقت متآكل بقدر ما مضى (للصورة الثابتة)
-      const st = STATES[q.get('s')], total = 60;
-      svg.querySelector('polygon').style.strokeDashoffset = st?.run ? 100 * (1 - st.run / total) : 0;
+      const st = STATES[q.get('s')];
+      svg.querySelector('polygon').style.strokeDashoffset = st?.run ? 100 * (1 - st.run / (st.total ?? 60)) : 0;
     }
   }
 
