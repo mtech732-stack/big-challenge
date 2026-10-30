@@ -49,3 +49,11 @@ export function picked(action) {
   const [id, arg] = String(action).split(':');
   return id === 'pick' && ['0', '1', '2'].includes(arg) ? Number(arg) : null;
 }
+
+// العدّاد على الشاشة (design/s8b.md 1.1): total وقت المرحلة كاملاً (5 للتمهيد، 10 لوقت الخصم)، وclock الرقم حين لا عدّاد جارياً
+// (ما بقي إن كان موقوفاً، و0 بعد انتهاء الوقت). وhold: العدّاد ظاهر بلا عدّ (موقوف، أو انتهى وقته). والكشف وما بعده بلا عدّاد.
+export function clockView(s, seconds, stealSeconds = 0) {
+  const total = s.phase === 'ready' ? LEAD_SECONDS : s.steal ? stealSeconds : seconds;
+  const hold = !!s.paused || s.phase === 'over';
+  return { clock: s.paused ? Math.ceil(s.paused) : s.phase === 'over' ? 0 : total, total, lead: s.phase === 'ready', paused: !!s.paused, hold };
+}

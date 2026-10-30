@@ -60,7 +60,7 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   // منذ نهاية ش5 الأنماط الأربعة مبنية في الرابط العادي، فـ4 مختارة افتراضياً ومتاحة.
   check('الإعداد: «عدد الأنماط» بخانتين 2 و4، والمتاح أربعة فـ4 مختارة، و2 متاحة', (await text('#count .lbl')) === 'عدد الأنماط'
     && await frame.$eval('[data-cmd="count:full"]', e => e.classList.contains('sel') && !e.classList.contains('off')) && await frame.$eval('[data-cmd="count:short"]', e => !e.classList.contains('off')));
-  check('الإعداد: «ابدأ القرعة» تحت الشعار، و«عدد الأنماط» عن يمينه من 1114، و«ملء الشاشة» في الزاوية', await vis('#startGo [data-cmd="draw"]') && await vis('#cornerB [data-cmd="fullscreen"]')
+  check('الإعداد: «اختيار الأنماط» تحت الشعار، و«عدد الأنماط» عن يمينه من 1114، و«ملء الشاشة» في الزاوية', (await text('#startGo [data-cmd="draw"]')) === 'اختيار الأنماط' && await vis('#cornerB [data-cmd="fullscreen"]')
     && await frame.$eval('#startSide', e => { const c = document.getElementById('canvas').getBoundingClientRect(), k = c.width / 1920; return (e.getBoundingClientRect().left - c.left) / k >= 1114; }));
   check('الإعداد: لا شارات ولا سطر تحت العنوان', !(await vis('#b1')) && !(await vis('#b2')) && !(await vis('.scr.title .sub')));
   await noWords('الإعداد');
@@ -92,33 +92,27 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   await wait(100);
   check('النقر على 2 يختارها ويحفظها', (await saved()).method === 'short' && await frame.$eval('[data-cmd="count:short"]', e => e.classList.contains('sel')));
 
-  // 2. القرعة: Enter في الحقل الثاني = «ابدأ القرعة»، والرقم السري يُتحقق منه.
+  // 2. صفحة الاختيار والقرعة فيها (1.11، design/s8b.md 3): Enter في الحقل الثاني = «اختيار الأنماط»، والرقم السري يُتحقق منه.
   const before = pinFetches;
   await frame.press('#i2', 'Enter');
-  await frame.waitForSelector('.scr.show[data-s="spin"]', { timeout: 5000 });
-  check('Enter في الحقل الثاني يبدأ القرعة، ويتحقق من الرقم السري', pinFetches > before);
-  check('القرعة: «القرعة» شارة، ولا زر أثناء الحركة', (await text('#b1')) === 'القرعة' && !(await frame.$('.scr.show .ctl .cbtn')));
-  await stageCheck('القرعة');
-  await frame.waitForSelector('[data-cmd="toPick"]', { timeout: 6000 });
-  const W = (await saved()).winner, L = W === 1 ? 2 : 1, names = { 1: 'الصقور', 2: 'النجوم' };
-  check(`القرعة محسومة (الفائز ${W}) واسمه على الشاشة، ثم «اختيار الأنماط»`, (await text('#winner')) === names[W]);
-  check('نتيجة القرعة: الحدّ يقف على طرف الفائز (1.3)', await frame.$eval('#canvas', (c, w) => c.classList.contains('turn-' + w) && !c.classList.contains('drawing'), W));
-  await stageCheck('نتيجة القرعة');
-
-  // ملاحظة المعاين 3: «تعديل الاسمين» يعود إلى الإعداد بالاسمين، ثم «عُد إلى القرعة» يعرض النتيجة نفسها دون قرعة جديدة.
-  await cmd(frame, 'back');
-  await frame.waitForSelector('[data-hero="start"] .hlogo');
-  check('«تعديل الاسمين»: الإعداد بالاسمين، وزر «عُد إلى القرعة»', (await frame.inputValue('#i1')) === names[1] && (await text('#startGo [data-cmd="draw"]')) === 'عُد إلى القرعة');
-  await frame.fill('#i1', 'الصقور الجدد');
+  await frame.waitForSelector('[data-hero="pick"] [data-cmd="draw"]', { timeout: 5000 });
+  const names = { 1: 'الصقور', 2: 'النجوم' };
+  check('Enter في الحقل الثاني يفتح صفحة الاختيار، ويتحقق من الرقم السري', pinFetches > before && (await saved()).step === 'pick' && !(await saved()).winner);
+  check('قبل القرعة: البطاقات الأربع بلا نقر ولا نبض (wait)، ولا مؤشر دور، و«قرعة البداية» وحده', (await frame.$$('#mcards .mc.wait')).length === 4 && !(await frame.$('#mcards .mc[data-cmd]'))
+    && !(await vis('#turnp')) && (await frame.$$eval('#pickCtl .cbtn', b => b.map(x => x.textContent).join('|'))) === 'قرعة البداية');
+  await stageCheck('قبل القرعة');
   await cmd(frame, 'draw');
-  await frame.waitForSelector('.scr.show[data-s="result"]', { timeout: 5000 });
-  check('العودة إلى القرعة: النتيجة نفسها بالاسم المعدّل، ولا قرعة جديدة', (await saved()).winner === W && (await saved()).teams[1] === 'الصقور الجدد'
-    && (await text('#winner')) === (W === 1 ? 'الصقور الجدد' : names[2]));
-  names[1] = 'الصقور الجدد';
+  await wait(600);
+  check('أثناء القرعة: مؤشر الدور يتنقل والبطاقات لا تُنقر، و«إلى المواجهة» معطّل', await frame.$eval('#canvas', c => c.classList.contains('drawing')) && await vis('#turnp')
+    && !(await frame.$('#mcards .mc[data-cmd]')) && await frame.$eval('#pickCtl [data-cmd="toFace"]', e => e.classList.contains('off')));
+  await stageCheck('القرعة');
+  await frame.waitForSelector('#mcards .mc[data-cmd]', { timeout: 6000 });
+  const W = (await saved()).winner, L = W === 1 ? 2 : 1;
+  check(`القرعة محسومة (الفائز ${W}): مؤشر الدور له و«يختار نمط الجولة 1»، والحركة انتهت`, (await text('#turnName')) === names[W] && (await text('#turnLine')) === 'يختار نمط الجولة 1'
+    && await frame.$eval('#canvas', c => !c.classList.contains('drawing')));
+  check('ولا «تراجع» قبل أول اختيار (القرعة لا تُعاد)', !(await frame.$('#pickCtl [data-cmd="undoPick"]')));
 
-  // 3. اختيار الأنماط بالنقر على خاناتها
-  await cmd(frame, 'toPick');
-  await wait(200);
+  // 3. اختيار الأنماط بالنقر على البطاقات
   // اختيار النمط د1 (design/logo/الدمج.md 4): بطاقة لكل نمط، ومؤشر الدور لوحة صاحبه في جهته و«يختار نمط الجولة 1».
   check('الاختيار: البطاقات الأربع المبنية تُنقر (المزاد منذ ش4، والترتيب منذ ش5)، و«يختار نمط الجولة 1»', (await frame.$$('#mcards .mc[data-cmd]')).length === 4
     && (await text('#turnName')) === names[W] && (await text('#turnLine')) === 'يختار نمط الجولة 1' && await frame.$eval('#turnp', (e, w) => e.classList.contains('t' + w), W)
@@ -126,16 +120,19 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   await stageCheck('الاختيار');
   await cmd(frame, 'pick:last-two');
   await wait(200);
-  check('البطاقة بلون الفائز وختم «1» و«اختيار [الفائز]»، ولا تُنقر بعدها، والدور للآخر، و«تراجع» و«قرعة البداية» معطّلاً تحت البطاقات', await frame.$eval('.mc[data-mode="last-two"]', (e, w) => e.classList.contains('tm' + w) && e.classList.contains('picked') && !e.dataset.cmd
+  check('البطاقة بلون الفائز وختم «1» و«اختيار [الفائز]»، ولا تُنقر بعدها، والدور للآخر، و«تراجع» و«إلى المواجهة» معطّلاً تحت البطاقات', await frame.$eval('.mc[data-mode="last-two"]', (e, w) => e.classList.contains('tm' + w) && e.classList.contains('picked') && !e.dataset.cmd
       && e.querySelector('.stamp').textContent === '1', W) && (await text('.mc[data-mode="last-two"] .by')) === 'اختيار ' + names[W]
-    && (await text('#turnName')) === names[L] && await vis('#pickCtl [data-cmd="undoPick"]') && await frame.$eval('#pickCtl [data-cmd="toFace"]', e => e.classList.contains('off') && e.textContent === 'قرعة البداية'));
+    && (await text('#turnName')) === names[L] && await vis('#pickCtl [data-cmd="undoPick"]') && await frame.$eval('#pickCtl [data-cmd="toFace"]', e => e.classList.contains('off') && e.textContent === 'إلى المواجهة'));
   await cmd(frame, 'undoPick');
   await wait(200);
   check('«تراجع» يرفع الاختيار', !(await saved()).picks.length);
   await cmd(frame, 'pick:last-two');
   await cmd(frame, 'pick:letter');
   await wait(200);
-  check('اكتمل: لا مؤشر دور، و«قرعة البداية» مفعّل', !(await vis('#turnp')) && await frame.$eval('#pickCtl [data-cmd="toFace"]', e => !e.classList.contains('off')));
+  check('اكتمل: مؤشر الدور للفائز بسطر «يبدأ الإجابة»، و«إلى المواجهة» مفعّل', await vis('#turnp') && (await text('#turnName')) === names[W] && (await text('#turnLine')) === 'يبدأ الإجابة'
+    && await frame.$eval('#pickCtl [data-cmd="toFace"]', e => !e.classList.contains('off')));
+  check('الختم بلون من يبدأ الجولة: الأولى للفائز والثانية للآخر', await frame.$eval('.mc[data-mode="last-two"]', (e, w) => e.classList.contains('tm' + w), W)
+    && await frame.$eval('.mc[data-mode="letter"]', (e, l) => e.classList.contains('tm' + l), L));
   await stageCheck('اكتمل الاختيار');
 
   // 4. المواجهة
@@ -143,7 +140,7 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   await frame.waitForSelector('.scr.show[data-s="face"]');
   await wait(2700);
   const track = await frame.$$eval('#track .seg', s => s.map(x => [...x.children].map(c => c.textContent.trim()).join(' ')).join(' | '));
-  check('المواجهة: «الفائز بالقرعة» واسمه في مربع الإعلان (1.3)', await vis('#box') && (await text('#faceChip')) === 'الفائز بالقرعة' && (await text('#faceWin')) === (await saved()).teams[(await saved()).winner]);
+  check('المواجهة: «يبدأ الإجابة» واسم الفائز بالقرعة في مربع الإعلان (1.11)', await vis('#box') && (await text('#faceChip')) === 'يبدأ الإجابة' && (await text('#faceWin')) === (await saved()).teams[(await saved()).winner]);
   check(`المواجهة: المسار (${track})`, track === 'الجولة 1 آخر حرفين | شريط البونص | الجولة 2 الحرف المعيّن');
   check('المواجهة: «ابدأ المباراة» و«أعد العرض»، ولا «بنافذة واحدة»', (await frame.$$eval('.scr.show .ctl .cbtn', b => b.map(x => x.textContent).join('|'))) === 'ابدأ المباراة|أعد العرض');
   // النافذتان خيار جانبي (5.2، 7.1، design/s8.md 1): زر «خيارات» على (474، 152)، وقائمته مغلقة حتى يُنقر.
@@ -218,7 +215,8 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   host2.on('dialog', d => d.accept());
   // «مباراة جديدة» في افتتاح الجولة ونهايتها: ننهي السؤال ونصل إلى النهاية بأقصر طريق.
   for (let i = 0; i < 6; i++) {
-    await host2.click('#yes'); await wait(750);
+    await host2.click('#judge [data-act="reveal"]'); await wait(750);
+    await host2.click('#judge [data-act="pick:1"]'); await wait(750);
     await host2.click('#nextQ'); await wait(750);
   }
   const closed = host2.waitForEvent('close', { timeout: 6000 }).then(() => true, () => false);
@@ -241,8 +239,8 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
     if (count === 'full') check('المعاينة: 4 متاحة ومختارة افتراضياً', await frame.$eval('[data-cmd="count:full"]', e => e.classList.contains('sel') && !e.classList.contains('off')));
     await stageCheck(`${count}/الإعداد`);
     await cmd(frame, 'draw');
-    await stageCheck(`${count}/القرعة`);
-    await cmd(frame, 'toPick');
+    await stageCheck(`${count}/قبل القرعة`);
+    await cmd(frame, 'draw');
     const order = count === 'full' ? ['letter', 'last-two', 'auction'] : ['ranking', 'letter'];
     for (const id of order) { await stageCheck(`${count}/اختيار`); await cmd(frame, 'pick:' + id); }
     await wait(350);

@@ -4,7 +4,7 @@
 // من أصاب وأخطأ خصمه في المحاولة نفسها فاز، وإن أصابا معاً أو أخطآ معاً فسؤالان جديدان. ولا انتقال للخصم.
 // وسؤالها كسؤال النمط الأول (1.11، js/judge.js): العدّاد بعد 5 ثوانٍ، ثم «كشف الإجابة» ويختار المقدّم: أصاب، أو «لم يُجب أحد».
 import { freshFirst } from './round.js';
-import { lead, timing, timingActions, picked } from './judge.js';
+import { lead, timing, timingActions, picked, clockView } from './judge.js';
 import { SECONDS } from './modes/letter.js';
 
 // نقاط الإصابة في الجولة الفاصلة: نقاط سؤال صعب من «الحرف المعيّن» (5.1)، بقرار المالك (25 أكتوبر 19:14):
@@ -68,8 +68,8 @@ function audience(s) {
   if (s.phase === 'end') return { ...base, screen: 'end', turn: 0, winner: s.winner };
   const q = current(s), hit = s.hits[s.k];
   return {
-    ...base, screen: 'ask', phase: s.phase, n: s.k + 1, letter: q.box, tatweel: false, question: q.prompt, turn: s.team, steal: null,
-    clock: SECONDS, lead: s.phase === 'ready', paused: !!s.paused,
+    ...base, screen: 'ask', phase: s.phase, n: s.k + 1, letter: q.box, tatweel: false, question: q.prompt, turn: s.phase === 'revealed' ? 0 : s.team, steal: null,
+    ...clockView(s, SECONDS),
     verdict: s.phase === 'decided' ? { team: hit ? s.team : 0, who: s.team, label: hit ? (TIE_POINTS ? `أصاب · +${TIE_POINTS}` : 'أصاب') : 'لم يُصب', points: hit ? TIE_POINTS : 0 } : null,
     answer: s.phase === 'revealed' || s.phase === 'decided' ? q.answer : undefined,
   };

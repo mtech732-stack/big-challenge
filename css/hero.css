@@ -114,7 +114,12 @@
 .mc .stamp { position: absolute; left: -30px; top: -40px; width: 132px; height: 132px; border-radius: 50%; background: #fff; color: var(--ink);
   font-style: normal; font-size: 92px; font-weight: 900; line-height: 132px; text-align: center; transform: rotate(-12deg);
   box-shadow: 0 0 0 7px var(--ink), 0 0 0 13px #fff, 8px 10px 0 13px #0B1033; z-index: 3; }
-.mc.tm2 .stamp { color: var(--team-1); box-shadow: 0 0 0 7px var(--team-1), 0 0 0 13px #fff, 8px 10px 0 13px #0B1033; }
+/* والختم بلون من يبدأ الإجابة في جولته (1.11، design/s8b.md 3.3): الحلقة 7 والرقم بلونه، ثم البيضاء 6 والظل كما هما.
+   المختار يبدأ في الجولات 1–3، فالختم بلون بطاقته. والجولة 4 الباقية للخاسر في القرعة (st1 أو st2) على البطاقة البيضاء */
+.mc.tm1 .stamp, .mc.st1 .stamp { color: var(--team-1); box-shadow: 0 0 0 7px var(--team-1), 0 0 0 13px #fff, 8px 10px 0 13px #0B1033; }
+.mc.tm2 .stamp, .mc.st2 .stamp { color: var(--ink); box-shadow: 0 0 0 7px var(--ink), 0 0 0 13px #fff, 8px 10px 0 13px #0B1033; }
+/* قبل القرعة وأثناءها: البطاقات بوضوحها كاملاً، بلا إطار نبض ولا نقر (design/s8b.md 3.2) */
+.mc.wait::before { display: none; }
 /* «اختيار {الفريق}» تحت البطاقة: 66 في الرسم، وصعد 14 (−52) لأن المختارة تنزل 14، فيبقى 24 عن سطر «يختار …» فوق لوحة الثاني (قرار المصمّم: −52، و−50 كي يبقى 24 بالضبط بعد القياس).
    والسطر الأطول من بطاقته لا يخرج عن الهامش الآمن: يُزاح إلى داخله (pickCards في audience.html).
    وسطر التعريف سطران متوازنان إن لم يتسع، لا أصغر من 32 (حد النص في الشاشة) */

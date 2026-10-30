@@ -47,7 +47,7 @@ const { reporter } = require('./helpers.cjs');
   let a = letter.audience(r.state);
   check('ظهور السؤال: عدّاد التمهيد 5 ثوانٍ يبدأ وحده', a.phase === 'ready' && a.lead && r.timer?.seconds === 5 && r.timer.lead && r.events.some(e => e.type === 'timer' && e.seconds === 5 && e.lead));
   check('في التمهيد: «إيقاف مؤقت» و«وقت الخصم · 10» و«كشف الإجابة»، ولا «صحيحة/خاطئة» ولا «ابدأ»', ids(letter.actions(r.state)) === 'pause,steal,reveal');
-  check('«السؤال 1 من 6»، ولا مستوى على الجمهور (الإصدار 1.1)', a.levelText === undefined && a.level === undefined && a.n === 1 && a.count === 6 && a.clock === 30);
+  check('«السؤال 1 من 6»، ولا مستوى على الجمهور (الإصدار 1.1)', a.levelText === undefined && a.level === undefined && a.n === 1 && a.count === 6 && a.total === 5 && letter.seconds === 30);
   check('«انتهى الوقت» من عدّاد غير جارٍ يُهمل', R.act(letter, r, 'timeout', r.timer.id + 5).state === r.state);
   r = R.act(letter, r, 'timeout', r.timer.id);
   a = letter.audience(r.state);

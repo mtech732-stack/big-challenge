@@ -91,6 +91,12 @@
 .team.t2 .cnt::before { margin-right: 0; margin-left: 32px; }
 .running .team.on .cnt { display: flex; }
 .meta-danger .team.on .cnt { animation: numpulse 1s ease-in-out infinite; }
+/* العدّ قبل الوقت (1.11، design/s8b.md 1.1): 5 ثوانٍ في لوحة صاحب السؤال ومكان الثواني، بالأبيض: «استعدّوا». ثم الأصفر «الوقت يجري» */
+.lead .team.on .cnt { color: var(--card); }
+.lead .team.on > .ring polygon { stroke: var(--card); }
+/* الإيقاف المؤقت: يثبت الرقم وطول الإطار، والإطار متقطع بلونه حتى طوله الباقي (--dash من audience.html)، ولا نبض */
+.paused .team.on > .ring polygon { stroke-dasharray: var(--dash, 1.6 1.2); }
+.paused .team.on .cnt { animation: none; }
 @keyframes numpulse { 50% { color: #FFFFFF; } }
 
 /* 4. شريط الفارق أُلغي (الوثيقة 1.1)، ومربع العدّاد المستقل أُلغي (1.3): الثواني في لوحة صاحب الدور */

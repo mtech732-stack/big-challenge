@@ -56,8 +56,9 @@ async function sharedToFace(frame, { names, count = 'short', picks }) {
   await frame.fill('#i1', names[0]);
   await frame.fill('#i2', names[1]);
   await cmd(frame, 'count:' + count);
-  await cmd(frame, 'draw');
-  await cmd(frame, 'toPick');
+  await cmd(frame, 'draw');   // «اختيار الأنماط»
+  await frame.waitForSelector('[data-hero="pick"] #pickCtl [data-cmd="draw"]', { timeout: 8000 });
+  await cmd(frame, 'draw');   // «قرعة البداية» في صفحة الاختيار (1.11)، والبطاقات تُنقر بعد حركتها
   for (const id of picks) await cmd(frame, 'pick:' + id);
   await cmd(frame, 'toFace');
   await frame.waitForSelector('.scr.show[data-s="face"]');

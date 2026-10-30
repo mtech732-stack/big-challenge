@@ -5,7 +5,7 @@
 // كل نمط يعطي ما يخصه: اسمه، ووقت السؤال، وحقل ما في المربع، ونصوص الافتتاح وسطر القبول.
 import { freshFirst, besides } from '../round.js';
 import { ROUND_PER_LEVEL } from '../content-check.js';
-import { lead, timing, timingActions, picked } from '../judge.js';
+import { lead, timing, timingActions, picked, clockView } from '../judge.js';
 
 export const STEAL_SECONDS = 10;
 export const POINTS = { easy: 3, medium: 6, hard: 9 };
@@ -112,13 +112,12 @@ export function wordMode({ id, name, order, seconds, key, tatweel = false, sameB
       question: q.prompt,
       points: points(q),
       owner: q.owner,
-      turn: s.team,
+      // بعد الكشف لا دور لأحد حتى يُختار، فالحقل محايد (design/s8b.md 1.1).
+      turn: s.phase === 'revealed' ? 0 : s.team,
       steal: s.steal,
-      // وقت العدّاد كاملاً (وقت الخصم في steal)، وlead: عدّاد التمهيد جارٍ، وpaused: موقوف. والحكم يحلّ محله بعد الاختيار.
-      clock: s.phase === 'steal' ? STEAL_SECONDS : seconds,
-      lead: s.phase === 'ready',
-      paused: !!s.paused,
-      verdict: s.phase === 'decided' ? { team: result, points: result ? points(q) : 0 } : null,
+      // العدّاد (js/judge.js): وقته، والتمهيد، والإيقاف. والحكم يحلّ محله بعد الاختيار، و«لم يُجب أحد» مكان «لا نقاط».
+      ...clockView(s, seconds, STEAL_SECONDS),
+      verdict: s.phase === 'decided' ? { team: result, points: result ? points(q) : 0, ...(result ? {} : { none: 'لم يُجب أحد' }) } : null,
       answer: s.phase === 'revealed' || s.phase === 'decided' ? q.answer : undefined,
     };
   }

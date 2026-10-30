@@ -104,6 +104,10 @@
   #app .q .prompt { font-size: 1.25rem; }
   #app .answer .word { font-size: 2.5rem; }
   #app .judge button, #app #after .big { min-height: 5rem; font-size: 1.5rem; }
+  /* بعد كشف الإجابة: اسما الفريقين بلونيهما (1.11، design/s8b.md 1.4)، كزرّي «الدور» في الترتيب */
+  #app .judge .who { color: var(--card); box-shadow: none; }
+  #app .judge .who.t1 { background: var(--team-1); }
+  #app .judge .who.t2 { background: var(--team-2-ink); }
   #app #after { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0.75rem; }
   #app #after .done { grid-column: span 6; }
   #app #after .big { grid-column: span 6; margin: 0; }
@@ -330,11 +334,8 @@
       <button class="alt" id="undo">تراجع عن آخر حكم</button>
       <button class="alt" data-new>مباراة جديدة</button>
     </div>
-    <div class="judge" id="judge">
-      <button class="alt" id="startTimer" data-act="start">ابدأ العدّاد</button>
-      <button id="yes" data-act="correct"></button>
-      <button class="no" id="no" data-act="wrong">خاطئة</button>
-    </div>
+    <!-- أزرار الوقت و«كشف الإجابة»، ثم بعد الكشف من أجاب (design/s8b.md 1.4): من الوحدة، أعمدة متساوية بعرض الصف -->
+    <div class="judge" id="judge"></div>
     <div class="row" id="after">
       <p class="done" id="qDone"></p>
       <button class="big grow" id="nextQ" data-act="next"></button>
@@ -579,8 +580,10 @@
   // مباراة محفوظة بدأت في رابط المعاينة ثم فُتح الرابط العادي، ولم تبدأ مواجهتها: إن كان فيها نمط لا يُختار هنا،
   // أو عدد أنماطها أكبر مما في الحزمة، عادت إلى الإعداد بالاسمين، كي لا يقف الاختيار (تقرير المعاين ش3).
   // وإن بلغت المواجهة فلا تعلق: الجولة التي لم يُبنَ نمطها يُتخطى بزر «تخطَّ».
+  // ومباراة محفوظة في خطوة القرعة قبل 1.11 تُقرأ في خطوة الاختيار، والقرعة فيها (M.fromDraw).
   function fitSaved(m) {
-    if (PREVIEW || !['draw', 'pick'].includes(m.step)) return m;
+    m = M.fromDraw(m);
+    if (PREVIEW || m.step !== 'pick') return m;
     const available = modesOf(packs.find(p => p.id === m.pack));
     const bad = m.picks.some(p => !available.some(x => x.id === p.mode)) || M.METHODS[m.method].rounds > available.length;
     return bad ? { ...M.newMatch({ pack: m.pack, method: 'short' }), teams: m.teams } : m;
@@ -748,11 +751,11 @@
     const result = await watcher?.checkNow();
     if (result === 'changed') return;
     update(M.toDraw(match));
-    startDraw();
   }
 
+  // «قرعة البداية» في صفحة الاختيار (design/s8b.md 3).
   function startDraw() {
-    if (match.step !== 'draw' || match.winner) return;
+    if (match.step !== 'pick' || match.winner || drawing) return;
     update(M.draw(match), 'draw');
     // النتيجة محسومة ومحفوظة، وتظهر أزرارها حين تقف حركتها أمام الجمهور.
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -894,7 +897,28 @@
 
   // ===== الجولة في نافذة المقدّم: من presenter() و actions() في وحدة النمط (design/letter.md 4 وdesign/shared.md 6) =====
   const mk = t => `<i class="mark t${t}"></i>`;
-  const STATE_TEXT = { ready: 'لم يبدأ العدّاد', ask: 'العدّاد يعدّ على الشاشة', decided: 'انتهى السؤال' };
+  // سطر الحال في الحرف المعيّن وآخر حرفين والجولة الفاصلة (design/s8b.md 1.2 و2): الثواني من العدّاد الجاري على الشاشة (tick)،
+  // وما بقي من الموقوف من الوحدة (clock).
+  const secs = (t, d) => { const m = /^(\d+):(\d\d)$/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : d; };
+  const unit = (n, one, few) => `<span class="ltr">${n}</span> ${n >= 3 && n <= 10 ? few : one}`;
+  function wordState(pr, isTie) {
+    const left = pr.paused ? pr.clock : secs(tickText, pr.clock);
+    if (pr.phase === 'revealed') return isTie ? 'كُشفت الإجابة · هل أصاب؟' : `كُشفت الإجابة · من أجاب؟ · <span class="ltr">+${pr.points}</span>`;
+    if (pr.phase === 'over') return pr.steal ? 'انتهى وقت الخصم' : 'انتهى الوقت';
+    if (pr.phase === 'decided') return 'انتهى السؤال';
+    const run = pr.phase === 'ready' ? `يبدأ الوقت بعد <span class="ltr">${left}</span>` : `بقي ${unit(left, 'ثانية', 'ثوانٍ')}`;
+    return (pr.paused ? 'متوقف · ' : pr.phase === 'steal' ? 'وقت الخصم · ' : '') + run;
+  }
+  // الأزرار: «إيقاف مؤقت» (أو «استئناف» أساسياً) · «وقت الخصم · 10 ثوانٍ» · «كشف الإجابة» أساسياً. وبعد الكشف اسما الفريقين بلونيهما
+  // («أصاب [الاسم]» في الجولة الفاصلة) ثم «لم يُجب أحد».
+  function wordJudge(acts, isTie) {
+    const b = (act, html, cls = '') => `<button class="${cls}" data-act="${esc(act)}">${html}</button>`;
+    return acts.map(a => a.id === 'pause' ? b('pause', 'إيقاف مؤقت', 'alt') : a.id === 'resume' ? b('resume', 'استئناف')
+      : a.id === 'steal' ? b('steal', `وقت الخصم · ${unit(STEAL_SECONDS, 'ثانية', 'ثوانٍ')}`, 'alt') : a.id === 'reveal' ? b('reveal', 'كشف الإجابة')
+      : a.id === 'pick' && a.team ? { team: a.team, html: b('pick:' + a.team, isTie ? `أصاب ${esc(match.teams[a.team])}` : esc(match.teams[a.team]), 'who t' + a.team) }
+      : a.id === 'pick' ? { team: 9, html: b('pick:0', 'لم يُجب أحد', 'alt') } : '')
+      .map(x => (typeof x === 'string' ? { team: 0, html: x } : x)).sort((x, y) => x.team - y.team).map(x => x.html).join('');
+  }
   function renderPlay() {
     const mode = !TEST && match.step === 'play' && !match.single && roundMode();
     $('roundChip').hidden = !mode;
@@ -925,7 +949,8 @@
       // ولا مفتتح في المزاد (design/auction.md 3.0): «ثلاثة مواضيع» وحدها.
       // الجولة الفاصلة: «دور [الاسم]» و«خسر القرعة يبدأ»، والقواعد الأربع للمقدّم (design/final.md 6).
       $('introWho').innerHTML = isTie ? `${mk(pr.turn)} دور ${tn(pr.turn)} · ${esc(pr.why)}`
-        : pr.turn ? `${mk(pr.turn)} ${esc(pr.starter ?? 'يبدأ')} ${tn(pr.turn)} (اختير عشوائياً). الافتتاح معروض الآن على الجمهور.`
+        // والبادئ في الجولة من القرعة ثم التناوب (1.11)، فلا «اختير عشوائياً».
+        : pr.turn ? `${mk(pr.turn)} ${esc(pr.starter ?? 'يبدأ')} ${tn(pr.turn)}. الافتتاح معروض الآن على الجمهور.`
         : `${esc(pr.starter ?? '')}. الافتتاح معروض الآن على الجمهور.`;
       $('introBrief').innerHTML = Array.isArray(pr.brief) ? pr.brief.map(t => `<span class="rule-line">${num(t)}</span>`).join('') : num(pr.brief);
       // ومقدمة الجولة الفاصلة «تراجع» إلى النتيجة النهائية (الملاحظة 41).
@@ -941,16 +966,14 @@
       $('qAlts').hidden = !pr.alts.length;
       $('qAlts').textContent = 'ويُقبل أيضاً: ' + pr.alts.join('، ');
       $('qAccept').textContent = pr.accept;
-      $('who').innerHTML = `${mk(pr.turn)} دور ${tn(pr.turn)}`;
-      $('qState').innerHTML = pr.phase === 'steal'
-        ? `انتقلت الإجابة ${pr.steal.reason === 'timeout' ? 'بعد انتهاء الوقت' : 'بعد الخطأ'} · <span class="ltr">${STEAL_SECONDS}</span> ثوانٍ`
-        : STATE_TEXT[pr.phase] ?? '';
+      // وبعد الكشف لا دور على الشاشة (الحقل محايد)، فالسطر لمن كان الدور له.
+      const turn = pr.turn || st.team;
+      $('who').innerHTML = `${mk(turn)} دور ${tn(turn)}`;
+      $('qState').innerHTML = wordState(pr, isTie);
       const decided = pr.phase === 'decided';
       $('judge').hidden = decided;
       $('after').hidden = !decided;
-      // «ابدأ العدّاد» يُخفى ويبقى مكانه، فلا يتمدد «صحيحة» تحت المؤشر (تقرير المعاين ش2).
-      $('startTimer').style.visibility = label('start') ? '' : 'hidden';
-      $('yes').innerHTML = num(label('correct') ?? '');
+      if (!decided) $('judge').innerHTML = wordJudge(acts, isTie);
       if (decided && isTie) {
         // «[الاسم] · أصاب»، ثم بعد الثاني «· فاز [الاسم]» أو «أصابا معاً» أو «أخطآ معاً» (design/presenter-final.html).
         const v = pr.verdict, o = pr.outcome;
@@ -960,7 +983,7 @@
         $('nextQ').innerHTML = act?.id === 'next' ? `التالي · دور ${esc(match.teams[pr.upNext])}` : num(act?.label ?? '');
       } else if (decided) {
         const v = pr.verdict;
-        $('qDone').innerHTML = v.team ? `صحيحة · <span class="ltr">+${v.points}</span> ${toTeam(v.team)}` : 'لا نقاط في هذا السؤال.';
+        $('qDone').innerHTML = v.team ? `<span class="ltr">+${v.points}</span> ${toTeam(v.team)}` : 'لم يُجب أحد · لا نقاط في هذا السؤال.';
         $('nextQ').dataset.act = 'next';
         $('nextQ').innerHTML = num(label('next') ?? '');
       }
@@ -1242,20 +1265,20 @@
     if (step === 'setup') {
       c.names = true;
       c.count = { value: match.method, four: modes().length >= M.METHODS.full.rounds };
-      c.card = [{ cmd: 'draw', label: match.winner ? 'عُد إلى القرعة' : 'ابدأ القرعة' }];
+      c.card = [{ cmd: 'draw', label: 'اختيار الأنماط' }];
       c.error = lastError?.text ?? '';
       c.b = [fs];
     }
-    if (step === 'draw') {
-      if (match.winner && !drawing) c.card = [{ cmd: 'toPick', label: 'اختيار الأنماط' }, { cmd: 'back', label: 'تعديل الاسمين', kind: 'alt' }];
-      c.b = [[fresh], fs];
-    }
+    // صفحة الاختيار والقرعة فيها (design/s8b.md 3): «قرعة البداية» وحده قبلها، ثم «إلى المواجهة» في مكانه معطّلاً حتى يكتمل الاختيار،
+    // و«تراجع» بجانبه بعد أول اختيار (القرعة لا تُعاد بالتراجع). ولا نقر على البطاقات أثناء حركة القرعة.
     if (step === 'pick') {
       const done = M.picksDone(match);
-      c.pick = !done;
-      if (match.picks.length) c.card.push({ cmd: 'undoPick', label: 'تراجع', kind: 'alt' });
-      // «قرعة البداية» كما في رسم المالك (design/logo/الدمج.md 4.1): زر المتابعة إلى المواجهة، معطّل حتى يكتمل الاختيار.
-      c.card.push({ cmd: 'toFace', label: 'قرعة البداية', off: !done });
+      if (!match.winner) c.card = [{ cmd: 'draw', label: 'قرعة البداية' }];
+      else {
+        c.pick = !done && !drawing;
+        if (match.picks.length) c.card.push({ cmd: 'undoPick', label: 'تراجع', kind: 'alt' });
+        c.card.push({ cmd: 'toFace', label: 'إلى المواجهة', off: !done || !!drawing });
+      }
       c.b = [[fresh], fs];
     }
     if (step === 'face') {
@@ -1296,12 +1319,18 @@
       // وبعد الحكم «الموضوع التالي» في البطاقة لا في صف الشارات (design/auction.md 4، 1.1).
       if (screen === 'topic' && st.phase === 'decided') c.card = act('next');
       if (screen === 'topic' && !b) c.near = st.phase === 'ready' ? [...act('start', 'ابدأ'), ...act('count')] : [...act('count'), ...act('stop', 'توقّف', 'no')];
-      // الجولة الفاصلة (design/final.md 5): «ابدأ»، ثم «صحيحة» و«خاطئة»، ثم «التالي · [الآخر]» أو «إلى النتيجة النهائية» أو «المحاولة N».
-      if (screen === 'ask' && mode.id === TIEBREAK.id) {
-        const pr = mode.presenter(st);
-        c.near = [...act('start', 'ابدأ'), ...act('correct'), ...act('wrong', null, 'no'), ...act('next', `التالي · ${match.teams[pr.upNext]}`),
-          ...act('announce'), ...act('again', `المحاولة ${st.attempt + 1}`)];
-      } else if (screen === 'ask') c.near = [...act('start', 'ابدأ'), ...act('correct'), ...act('wrong', null, 'no'), ...act('next', last ? 'إنهاء الجولة' : 'السؤال التالي')];
+      // الحرف المعيّن وآخر حرفين والجولة الفاصلة (1.11، design/s8b.md 1.2 و2): في صف الشارات زرّا الوقت «إيقاف مؤقت» (أو «استئناف» أساسياً)
+      // و«وقت الخصم»، و«كشف الإجابة» أسفل اليمين مكان مربع الإعلان. وبعد الكشف في صف الشارات زرّا الفريقين بلونيهما بالنقاط
+      // («أصاب» في الجولة الفاصلة) ثم «لم يُجب أحد». وبعد الاختيار «السؤال التالي»، وفي الجولة الفاصلة «التالي · [الآخر]» أو الحسم.
+      if (screen === 'ask') {
+        const tb = mode.id === TIEBREAK.id, picks = acts.filter(a => a.id === 'pick');
+        c.near = [...act('pause', null, 'alt pause'), ...act('resume', null, 'pause on'), ...act('steal', 'وقت الخصم', 'alt'),
+          ...picks.filter(a => a.team).sort((x, y) => x.team - y.team).map(a => ({ cmd: 'act:pick:' + a.team, label: tb ? 'أصاب' : a.label, kind: 'who t' + a.team, off: wait })),
+          ...picks.filter(a => !a.team).map(a => ({ cmd: 'act:pick:0', label: a.label, kind: 'alt', off: wait })),
+          ...(tb ? [...act('next', `التالي · ${match.teams[mode.presenter(st).upNext]}`), ...act('announce'), ...act('again', `المحاولة ${st.attempt + 1}`)]
+            : act('next', last ? 'إنهاء الجولة' : 'السؤال التالي'))];
+        c.ans = act('reveal');
+      }
       // العجلة (design/wheel.md 4): «أطلق الشريط» قبل الدوران، ولا شيء أثناءه. وبعد الحكم أو خانة الحظ «التالي · الدورة 2»، ثم «إنهاء الشريط».
       // والتحدي «نجح · +10» و«لم ينجح» (بإطار) من لحظة الوقوف، بلا توقيت (design/s8.md 4).
       if (screen === 'wheel' || screen === 'slot') c.near = [...act('spin'), ...act('won', `نجح · +${WHEEL_POINTS}`), ...act('failed', null, 'no'), ...act('next'), ...act('finish')];
@@ -1315,7 +1344,7 @@
     // الباركود ظاهراً (design/s8.md 2.1): «أخفِ الباركود» في رأس البطاقة وحده، ولا أزرار في صف الشارات حتى يُخفى.
     // ومخفياً والسؤال جارٍ: «الباركود» يعيده، في صف النوافذ (152) بعد «المقدّم» و«ملء الشاشة». لا في صف المباراة (240) كما في design/s8.md 2.1:
     // فيه بلغ أزرار المزايدة الثلاثة في صف الشارات (310) بفراغ 6 (مقيس بـ stage-check)، وصف النوافذ بعيد عنها.
-    if (mode && qrShown()) { c.card = [{ cmd: 'qr:hide', label: 'أخفِ الباركود', off: wait }]; c.near = []; }
+    if (mode && qrShown()) { c.card = [{ cmd: 'qr:hide', label: 'أخفِ الباركود', off: wait }]; c.near = []; c.ans = []; }
     else if (mode && qrQuestion()?.open) c.b[0].push({ cmd: 'qr:show', label: 'الباركود', kind: 'alt' });
     // النهاية (design/final.md 5): «أعلن الفائز» في البطاقة (و«الجولة الفاصلة» معطّلاً عند التعادل حتى «كسر التعادل»)، ثم «مباراة جديدة».
     // والزوايا الثلاث كما في الجولة.
@@ -1375,7 +1404,7 @@
     if (cmd === 'teams' && match.step === 'setup') update(M.setTeams(match, String(e.data.a ?? ''), String(e.data.b ?? '')));
     if (cmd === 'count' && match.step === 'setup' && M.METHODS[arg]?.rounds <= modes().length) update(M.setMethod(match, arg));
     if (cmd === 'draw') match.step === 'setup' ? goDraw() : startDraw();
-    if (cmd === 'pick') update(M.pick(match, arg, modes()));
+    if (cmd === 'pick' && !drawing) update(M.pick(match, arg, modes()));
     if (cmd === 'back' && !drawing) update(M.backToSetup(match));
     if (cmd === 'begin') begin(true);
     if (cmd === 'two') begin(false);
@@ -1401,6 +1430,7 @@
         if (mode?.id === 'ranking' && (st.phase === 'ask' || st.phase === 'steal')) rankState(mode.presenter(st));
         if (mode?.id === WHEEL.id) challengeClock(match.single ? null : mode.presenter(st));
         if (mode?.id === TIEBREAK.id && st.phase === 'ask' && !match.single) $('wClockV').textContent = data.text;
+        if (!$('qState').closest('[hidden]') && st?.questions && mode.id !== 'auction') $('qState').innerHTML = wordState(mode.presenter(st), mode.id === TIEBREAK.id);
       }
       // انتهى عدّاد في نافذة الجمهور: يُطبَّق إن طابق رقمه العدّاد الجاري، وإلا أُهمل (عقد الوحدة 5).
       if (type === 'timeout' && match && $('gate').hidden) roundUpdate(P.act(match, units(), 'timeout', data.id));
@@ -1431,7 +1461,8 @@
   // انقطعت نافذة الجمهور في اللعب: تُكمل المباراة في هذه النافذة بنافذة واحدة.
   $('lostSingle').onclick = () => update({ ...match, single: true });
   $('showQ').onclick = () => roundAct('show');
-  document.querySelectorAll('#judge [data-act], #nextQ').forEach(b => b.onclick = () => b.dataset.act && roundAct(b.dataset.act));
+  $('nextQ').onclick = () => $('nextQ').dataset.act && roundAct($('nextQ').dataset.act);
+  $('judge').addEventListener('click', e => { const el = e.target.closest('button[data-act]'); if (el) roundAct(el.dataset.act); });
   // «أخفِ الباركود» ما دام ظاهراً، و«الباركود» يعيده والسؤال جارٍ (design/s8.md 2.1).
   function qrButtons() {
     const q = qrQuestion(), on = !!qrShown();
