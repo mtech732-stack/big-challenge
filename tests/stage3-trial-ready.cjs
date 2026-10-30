@@ -90,6 +90,8 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
   await cmd(frame, 'pick:letter');
   await cmd(frame, 'pick:last-two');
   check('بعدها يكتمل الاختيار بجولتين', await frame.waitForSelector('[data-cmd="toFace"]', { timeout: 3000 }).then(() => true, () => false));
+  // الملاحظة 42: ينتظر حفظ اللعبة للاختيارين قبل أن يكتب فوقه، وإلا وصل حفظها بعده فمحا ما كتبه الاختبار.
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('big-challenge.match') ?? '{}').picks?.length === 2, null, { timeout: 5000 });
   await saved('draw', { winner: null, picks: [] });
   await reopen();
   check('قرعة بـ4 من رابط المعاينة: تعود إلى الإعداد', await frame.isVisible('[data-cmd="draw"]') && await sel('short'));

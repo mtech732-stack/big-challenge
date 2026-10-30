@@ -2,12 +2,14 @@
 // لكل عنصر أبعد حدوده (ومنها الطرف الأدنى المائل ومؤشر الدور)، ثم: داخل الهامش الآمن؟
 // وبينه وبين كل عنصر آخر 24 على الأقل؟ ولا نص أصغر من 32؟ ولا أرقام هندية؟ ولا سؤال فوق 3 أسطر؟ ولا نص يفيض؟
 
+import { rectOf } from './stage-check.js';
+
 function extent(el, scale, origin) {
   let r = null;
   for (const n of [el, ...el.querySelectorAll('*')]) {
-    if (n.closest('.check-layer') || n.closest('.ring polygon') || n.hasAttribute('data-overhang')) continue;   // [data-overhang]: كما في js/stage-check.js
+    if (n.closest('.check-layer') || n.closest('.ring polygon')) continue;
     // إطار الوقت (1.3) يُرسم على حدود اللوحة نفسها، ويتبعها بعد تغيّر قياسها بإطار رسم واحد، فيُحسب بالـsvg لا بنقاط المضلع.
-    const b = n.getBoundingClientRect(); if (!b.width && !b.height) continue;
+    const b = rectOf(n); if (!b || (!b.width && !b.height)) continue;   // [data-overhang] بحدوده غير الشفافة، كما في js/stage-check.js
     const x1 = (b.left - origin.left) / scale, y1 = (b.top - origin.top) / scale;
     const x2 = (b.right - origin.left) / scale, y2 = (b.bottom - origin.top) / scale;
     r = r ? { x1: Math.min(r.x1, x1), y1: Math.min(r.y1, y1), x2: Math.max(r.x2, x2), y2: Math.max(r.y2, y2) } : { x1, y1, x2, y2 };
