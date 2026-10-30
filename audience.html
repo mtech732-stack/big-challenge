@@ -174,6 +174,7 @@
   import './js/offline.js';
   import { createLink } from './js/sync.js';
   import { plan, chooser, picksDone, METHODS, other, gains, leaderOf } from './js/match.js';
+  import { rectOf } from './js/stage-check.js';
   import { PLANNED } from './js/modes/index.js';
   import { play as sound, setMuted } from './js/sound.js';
   import { spinSteps } from './js/wheel.js';
@@ -322,7 +323,7 @@
     img.hidden = !art;
     if (!art) { el.style.top = el.style.width = el.style.height = el.style.transform = ''; return; }
     const [file, [right, top, w, h], [x, y, iw, ih]] = art;
-    if (img.dataset.file !== file) { img.dataset.file = file; img.src = `design/logo/modes/${file}.svg`; }
+    if (img.dataset.file !== file) { img.dataset.file = file; img.onload = placeBadges; img.src = `design/logo/modes/${file}.svg`; }
     Object.assign(el.style, { right: right + 'px', top: top + 'px', width: w + 'px', height: h + 'px' });
     Object.assign(img.style, { left: x + 'px', top: y + 'px', width: iw + 'px', height: ih + 'px' });
     el.setAttribute('aria-label', $('mode').textContent);
@@ -349,7 +350,11 @@
       if (drawn) right = parseFloat(el.style.right);
       else el.style.right = right + 'px';
       // والشارة النصية بعدها تمتد بميلها نصف lean إلى يمينها، فيُضاف لها ذلك النصف كي يبقى الفراغ 24 بعد الميل.
-      right += Math.ceil(rect(el).width / k + 24 + (drawn ? lean / 2 : lean));
+      // والمرسومة تُقاس من أبعد حدود رسمها يساراً (ظلّها بعد التصغير قد يتجاوز صندوقها بكسر)، كما يقيسها الفحص، فيبقى الفراغ 24 تامة.
+      if (drawn) {
+        const img = el.querySelector('.art'), ink = rectOf(img), c = rect(canvas);
+        right = Math.ceil(1920 - (Math.min(rect(el).left, ink?.left ?? Infinity) - c.left) / k + 24 + lean / 2);
+      } else right += Math.ceil(rect(el).width / k + 24 + lean);
     }
     placeNear();
   }
