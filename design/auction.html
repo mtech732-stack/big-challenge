@@ -123,11 +123,14 @@
     bid:      { t: 'المزايدة: الأول 17 والثاني 23', turn: 0, bids: [17, 23] },
     bidlong:  { t: 'المزايدة: رقمان كبيران (40 و36)', turn: 0, bids: [40, 36] },
     // run: الثواني الباقية، وtotal: وقت الوفاء كله (4.0: يزيد مع الرقم المرسى، والعدّاد يتسع لثلاث خانات)
-    run:      { t: 'الوفاء: العدّاد يعمل، ذُكر 7 من 23', turn: 1, of: 23, run: 38, total: 90, said: CARS.slice(0, 7).map(x => [1, x]) },
+    // plain (4.1): ما احتُسب بزر «صحيحة · +1» دون اسم، يدخل العدّ وحده ولا شارة له
+    run:      { t: 'الوفاء: ذُكر 12 من 23 (7 بأسمائها و5 بالزر)', turn: 1, of: 23, run: 38, total: 90, plain: 5, said: CARS.slice(0, 7).map(x => [1, x]) },
     runfull:  { t: 'الوفاء: أطول ما ذُكر (يسقط أقدمه)، وعدّاد من ثلاث خانات', turn: 1, of: 40, run: 125, total: 150, said: CARS.slice(0, 34).map(x => [1, x]) },
     // بعد الحكم (4.0): ما قيل وحده، لا القائمة (قد تبلغ 200). وما قيل من خارج القائمة يظهر كغيره
     won:      { t: 'بعد الحكم: وفى الأول (23)', turn: 1, of: 23, said: CARS.slice(0, 21).concat(['شيري', 'ليفان']).map(x => [1, x]), verdict: { team: 1, points: 23 }, reveal: true },
-    failed:   { t: 'بعد الحكم: لم يفِ الأول، فللثاني نقطتان', turn: 2, of: 23, said: CARS.slice(0, 16).map(x => [1, x]), verdict: { team: 2, points: 2 }, reveal: true },
+    // 4.1: ما احتُسب بالزر دون اسم يُختصر بعد الحكم في «و 9 غيرها» بعد ما له اسم
+    failed:   { t: 'بعد الحكم: لم يفِ الأول (7 بأسمائها و9 بالزر)، فللثاني نقطتان', turn: 2, of: 23, plain: 9, said: CARS.slice(0, 7).map(x => [1, x]), verdict: { team: 2, points: 2 }, reveal: true },
+    wonplain: { t: 'بعد الحكم: وفى الأول بالزر وحده (17، لا اسم)', turn: 1, of: 17, plain: 17, said: [], verdict: { team: 1, points: 17 }, reveal: true },
     wonlong:  { t: 'بعد الحكم: وفى الأول بـ 40 (لا يتسع كله)', turn: 1, of: 40, said: CARS.slice(0, 40).map(x => [1, x]), verdict: { team: 1, points: 40 }, reveal: true },
     wonshort: { t: 'بعد الحكم: وفى الأول بقليل (2)', turn: 1, of: 2, said: SHORT.map(x => [1, x]), verdict: { team: 1, points: 2 }, reveal: true },
     fail2short:{ t: 'بعد الحكم: لم يفِ الثاني بقليل (2 من 15)', turn: 1, of: 15, said: SHORT.map(x => [2, x]), verdict: { team: 1, points: 2 }, reveal: true },
@@ -186,7 +189,7 @@
       const said = st.said;
       $('tally').hidden = !said;
       if (said) {
-        $('tn').textContent = said.length; $('tof').textContent = st.of;
+        $('tn').textContent = said.length + (st.plain ?? 0); $('tof').textContent = st.of;
         const last = said.length ? said[said.length - 1][0] : st.turn;
         $('tally').className = `tally t${last}`;
       }
@@ -197,8 +200,8 @@
       $('items').innerHTML = named.map(([t, x]) => `<span class="it t${t}"><i></i><span>${esc(x)}</span></span>`).join('');
       // بعد الحكم: ما قيل بشارات المزايدة الكبيرة إن اتسع كله في صفين، وإلا فبالحجم المعتاد (1.5)
       if (st.reveal) { auc.classList.add('big'); if (!fitsAll($('items'))) auc.classList.remove('big'); }
-      fitItems($('items'), !!st.reveal);
-      if (st.verdict) box({ verdict: st.verdict, line: `ذُكر ${said.length} من ${st.of}` });
+      fitItems($('items'), !!st.reveal, st.reveal && !SINGLE ? st.plain ?? 0 : 0);
+      if (st.verdict) box({ verdict: st.verdict, line: `ذُكر ${said.length + (st.plain ?? 0)} من ${st.of}` });
     }
     single(id, st);
     placeBadges(); placeNear(); fitRings();
@@ -208,18 +211,19 @@
   const rect = el => el.getBoundingClientRect();
   // ما ذُكر: أثناء العدّ يبقى الأحدث (يسقط الأقدم). وبعد الحكم يبقى أوله، وفي آخره «و N غيرها» (4.0: ما قيل وحده)
   const fitsAll = box => !box.lastElementChild || rect(box.lastElementChild).bottom <= rect(box).bottom + 1;
-  function fitItems(box, reveal) {
+  // plain (4.1): ما احتُسب بالزر دون اسم، فيدخل «و N غيرها» من أوله. وإن لم يكن لشيء اسم فالبطاقة على الموضوع وحده،
+  // والعدد في سطر الحكم «ذُكر 17 من 17» (لا يتكرر في البطاقة)
+  function fitItems(box, reveal, plain = 0) {
     const all = [...box.children];
+    if (!all.length) return;
     const fits = () => !box.lastElementChild || rect(box.lastElementChild).bottom <= rect(box).bottom + 1;
-    if (fits()) return;
+    if (fits() && !plain) return;
     if (!reveal) { while (!fits() && box.firstElementChild) box.firstElementChild.remove(); return; }
     const more = document.createElement('span'); more.className = 'it more'; box.append(more);
-    let hidden = 0;
-    // يُحذف من غير المذكور أولاً (من آخره)، كي يبقى كل ما ذُكر
-    while (!fits() && all.length) {
-      all.pop().remove(); hidden++;
-      more.innerHTML = `<span>و <span class="ltr">${hidden}</span> غيرها</span>`;
-    }
+    let hidden = plain;
+    const say = () => { more.innerHTML = `<span>و <span class="ltr">${hidden}</span> غيرها</span>`; };
+    say();
+    while (!fits() && all.length) { all.pop().remove(); hidden++; say(); }
   }
   function box({ verdict, line, next }) {
     $('box').hidden = false;
