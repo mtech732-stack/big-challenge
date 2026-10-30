@@ -8,7 +8,7 @@ const path = require('path');
 const { usePin, unlock, reporter } = require('./helpers.cjs');
 
 const root = path.join(__dirname, '..');
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.txt': 'text/plain' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.txt': 'text/plain' };
 
 // كل ملف تطلبه الصفحات: ما تستورده وما تربطه، وما تستورده ملفات الكود، وخطوط التنسيق.
 function referenced() {

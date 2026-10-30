@@ -116,6 +116,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQ
   await presenter.click('#showQ');
   await audience.waitForSelector('.scr.show[data-s="auc"]');
   await wait(600);
+  // الباركود يظهر وحده عند المزايدة (الوثيقة 1.7)، ويُخفيه المقدّم من نافذته.
+  check('الموضوع يبدأ بالباركود على التلفاز، و«أخفِ الباركود» في المقدّم', await audience.$eval('#canvas', c => c.classList.contains('qr')) && (await text(presenter, '#aQr')) === 'أخفِ الباركود');
+  await presenter.click('#aQr'); await wait(600);
   check('الجمهور: الموضوع سطراً واحداً، و«الموضوع 1 من 3»، ولا عدّ ولا أرقام', (await text(audience, '#topic')) === TOPIC && (await text(audience, '#b1')) === 'الموضوع 1 من 3'
     && !(await audience.isVisible('#tally')) && (await bids(audience)).length === 0
     && await audience.$eval('#topic', e => e.scrollWidth <= e.clientWidth + 1 && e.getClientRects().length === 1));
