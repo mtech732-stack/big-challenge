@@ -1,5 +1,5 @@
 // تصوّر الوثيقة 1.11 على اللعبة المبنية (v58): يضيف ما في design/s8b.css إلى الحالة التي تعرضها اللعبة، للتصوير والقياس وحده.
-// يحمّله design/s8b-shots.cjs في شاشة الجمهور (أو إطار الشاشة المشتركة) وفي نافذة المقدّم، ثم ينادي window.S8B.*.
+// يحمّله design/s8b-shots.cjs في إطار الشاشة المشتركة، ثم ينادي window.S8B.*.
 // المهندس يبني هذه العناصر في audience.html وindex.html بقواعد design/s8b.md، والحالة فيها من الوحدة لا من هذا الملف.
 (() => {
   const $ = id => document.getElementById(id);
@@ -81,15 +81,5 @@
     document.querySelectorAll('#track .seg:not(.wheel):not(.by1):not(.by2)').forEach(s => s.classList.add('by' + loser));
   }
 
-  // ===== نافذة المقدّم (index.html) =====
-  // الصف: who (الدور) وstate (السطر)، ثم أزرار الحكم [[النص، الصنف]]
-  function presenter(who, state, list) {
-    if (who !== null) $('who').innerHTML = who;
-    $('qState').innerHTML = state;
-    const j = $('judge'); j.hidden = false; j.querySelectorAll('button').forEach(b => b.style.display = 'none'); j.querySelectorAll('.s8b').forEach(b => b.remove());
-    j.append(...list.map(([label, cls]) => { const b = document.createElement('button'); b.className = (cls ?? '') + ' s8b'; b.textContent = label; return b; }));
-    $('after').hidden = true; $('after').style.display = 'none';
-  }
-
-  window.S8B = { clock, noClock, side, near, placeNear, ans, reveal, hideBox, scores, d1Before, d1Buttons, d1Stamps, d1Starts, face, presenter };
+  window.S8B = { clock, noClock, side, near, placeNear, ans, reveal, hideBox, scores, d1Before, d1Buttons, d1Stamps, d1Starts, face };
 })();

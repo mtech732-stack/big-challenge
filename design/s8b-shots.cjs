@@ -1,8 +1,8 @@
 // صور الوثيقة 1.11 وقياسها (design/s8b.md 7): تبلغ اللعبة المبنية (v58) كل حالة بالنقر كما في tests/،
 // ثم تضيف طبقة التصوّر design/s8b.css وdesign/s8b.js، وتصوّر، وتفحص التداخل والشبكة بـ design/check.js على 1920 و1366 و1280 و3840.
-// ونافذة المقدّم: بلا تمرير على 1280×800 و1366×768، ولا زر ينكسر نصه أو يفيض.
+// ولا نافذة للمقدّم بعد الوثيقة 1.13، فلا صور لها.
 // الاستعمال: node design/s8b-shots.cjs [الرابط] [مجلد الصور]
-// ثم: node design/ratio.cjs [مجلد الصور]/*.png (صور الجمهور وحدها، لا p-*)
+// ثم: node design/ratio.cjs [مجلد الصور]/*.png
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
@@ -41,27 +41,6 @@ async function shot(page, frame, name, settle = 1400) {
   results.push({ name, check });
   const bad = check.filter(c => !c.ok);
   console.log(`${bad.length ? '✗' : '✓'} ${name} · أدنى فراغ ${check.map(c => c.gap).join('/')} (${check[0].pair})${bad.length ? '\n   ' + bad.map(c => c.w + ': ' + c.problems.join('، ')).join('\n   ') : ''}`);
-}
-// نافذة المقدّم: صورة على مقاسها، ثم بلا تمرير على 1280×800 و1366×768، ولا نص يفيض من زره ولا ينكسر
-async function pshot(page, name) {
-  await wait(400);
-  await page.screenshot({ path: path.join(out, 'p-' + name + '.png') });
-  const check = [];
-  for (const [w, h] of [[1280, 800], [1366, 768]]) {
-    await page.setViewportSize({ width: w, height: h }); await wait(250);
-    const r = await page.evaluate(() => {
-      const scroll = document.documentElement.scrollHeight > innerHeight + 1 || document.documentElement.scrollWidth > innerWidth + 1;
-      const over = [...document.querySelectorAll('#judge .s8b')].filter(b => b.scrollWidth > b.clientWidth + 1 || b.getClientRects().length && (() => {
-        const rg = document.createRange(); rg.selectNodeContents(b); return new Set([...rg.getClientRects()].map(x => Math.round(x.top))).size > 1; })()).map(b => b.textContent);
-      const small = [...document.querySelectorAll('#judge .s8b, #qState, #who')].filter(b => parseFloat(getComputedStyle(b).fontSize) < 20).map(b => b.textContent);
-      return { scroll, over, small };
-    });
-    check.push({ w, ok: !r.scroll && !r.over.length && !r.small.length, ...r });
-  }
-  await page.setViewportSize({ width: 1280, height: 800 });
-  results.push({ name: 'p-' + name, check });
-  const bad = check.filter(c => !c.ok);
-  console.log(`${bad.length ? '✗' : '✓'} p-${name} · ${bad.length ? bad.map(c => `${c.w}: ${c.scroll ? 'تمرير ' : ''}${c.over.join('، ')} ${c.small.join('، ')}`).join(' · ') : 'بلا تمرير، والأزرار سطر واحد'}`);
 }
 async function newShared(browser) {
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, serviceWorkers: 'block' });
@@ -124,44 +103,8 @@ const answerOf = stage => stage.evaluate(() => { const st = JSON.parse(localStor
     await context.close();
   }
 
-  // ===== 2. نافذة المقدّم (بنافذتين، بأطول اسمين) =====
-  {
-    const { context, stage, frame } = await newShared(browser);
-    await H.sharedToFace(frame, { names: LONG, picks: ['letter', 'last-two'] });
-    await wait(2700);
-    const host = await H.beginTwo(context, frame);
-    await host.setViewportSize({ width: 1280, height: 800 });
-    await wait(1200);
-    await host.click('#showQ'); await wait(1500);
-    const aud = await H.stageFrame(stage).catch(() => frame);
-    const answer = (await host.textContent('#qAnswer')).trim();
-    const owner = await stage.evaluate(() => { const st = JSON.parse(localStorage.getItem('big-challenge.match')).round.state; return st.questions[st.index].owner; }), opp = 3 - owner;
-    await host.addStyleTag({ path: path.join(__dirname, 's8b.css') }); await host.addScriptTag({ path: path.join(__dirname, 's8b.js') });
-    await overlay(aud);
-    const mk = t => `<i class="mark t${t}"></i> دور <b class="tn t${t}">${LONG[t - 1]}</b>`;
-    const P = (who, state, list) => host.evaluate(([w, s, l]) => S8B.presenter(w, s, l), [who, state, list]);
-    const three = [['إيقاف مؤقت', 'alt'], ['وقت الخصم · 10 ثوانٍ', 'alt'], ['كشف الإجابة', '']];
-    await P(mk(owner), 'يبدأ الوقت بعد 3', three);
-    await aud.evaluate(([o]) => S8B.clock(o, 'lead', 3, 5), [owner]);
-    await pshot(host, 'l1-lead');
-    await shot(stage, aud, '09-two-lead');
-    await P(mk(owner), 'متوقف · يبدأ الوقت بعد 3', [['استئناف', ''], ['وقت الخصم · 10 ثوانٍ', 'alt'], ['كشف الإجابة', '']]);
-    await pshot(host, 'l1-paused');
-    await P(mk(owner), 'بقي 21 ثانية', three);
-    await pshot(host, 'l1-run');
-    await P(mk(owner), 'انتهى الوقت', [['وقت الخصم · 10 ثوانٍ', 'alt'], ['كشف الإجابة', '']]);
-    await pshot(host, 'l1-timeout');
-    await P(mk(opp), 'وقت الخصم · بقي 7 ثوانٍ', [['إيقاف مؤقت', 'alt'], ['كشف الإجابة', '']]);
-    await pshot(host, 'l1-opp');
-    await P(null, 'كُشفت الإجابة · من أجاب؟ · <span class="ltr">+3</span>', [[LONG[0], 'who t1'], [LONG[1], 'who t2'], ['لم يُجب أحد', 'alt']]);
-    await aud.evaluate(([a]) => { S8B.noClock(); S8B.reveal(a); S8B.side(0); }, [answer]);
-    await pshot(host, 'l1-reveal');
-    await shot(stage, aud, '10-two-reveal', 1400);
-    await context.close();
-  }
-
-  // ===== 3. الجولة الفاصلة: بنافذة واحدة بأطول اسمين، ثم نافذة المقدّم =====
-  for (const single of [true, false]) {
+  // ===== 3. الجولة الفاصلة بأطول اسمين (لا نافذة للمقدّم بعد الوثيقة 1.13) =====
+  for (const single of [true]) {
     const tie = await finalMatch({ results: ['xxxxxx', 'xxxxxx'], wheel: ['failed', 'failed'], names: LONG, winner: 2 });
     const fin = { ...tie.P.toFinal(tie.match, tie.modes), single };
     const context = await browser.newContext({ viewport: single ? { width: 1920, height: 1080 } : { width: 1280, height: 800 }, serviceWorkers: 'block' });
@@ -183,20 +126,6 @@ const answerOf = stage => stage.evaluate(() => { const st = JSON.parse(localStor
       await frame.evaluate(([a, s]) => { S8B.noClock(); S8B.ans(null); S8B.reveal(a); S8B.side(0);
         S8B.near([['أصاب', 'who t' + s], ['لم يُجب أحد', 'alt']]); }, [answer, st]);
       await shot(page, frame, '12-tb-reveal', 1400);
-    } else {
-      const aud = await context.newPage();
-      await aud.setViewportSize({ width: 1920, height: 1080 });
-      await aud.goto(base + 'audience.html');
-      await aud.waitForSelector('.scr.show[data-s="fin"]', { timeout: 10000 });
-      await page.click('#fCtl [data-act="tiebreak"]'); await aud.waitForSelector('.scr.show[data-s="intro"]');
-      await wait(900); await page.click('#showQ'); await wait(1500);
-      const st = await aud.evaluate(() => document.getElementById('canvas').classList.contains('turn-2') ? 2 : 1);
-      await page.addStyleTag({ path: path.join(__dirname, 's8b.css') }); await page.addScriptTag({ path: path.join(__dirname, 's8b.js') });
-      const mk = `<i class="mark t${st}"></i> دور <b class="tn t${st}">${LONG[st - 1]}</b>`;
-      await page.evaluate(([w]) => S8B.presenter(w, 'بقي 21 ثانية', [['إيقاف مؤقت', 'alt'], ['كشف الإجابة', '']]), [mk]);
-      await pshot(page, 'tb-run');
-      await page.evaluate(([n, s]) => S8B.presenter(null, 'كُشفت الإجابة · هل أصاب؟', [[`أصاب ${n}`, 'who t' + s], ['لم يُجب أحد', 'alt']]), [LONG[st - 1], st]);
-      await pshot(page, 'tb-reveal');
     }
     await context.close();
   }

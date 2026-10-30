@@ -274,7 +274,7 @@
     const m = document.createElement('div'); m.className = 'menu';
     m.innerHTML = '<h1>ش4 · المزاد · شاشة الجمهور</h1><table>' + Object.entries(STATES).map(([k, s]) =>
       `<tr><td>${esc(s.t)}</td><td><a href="?s=${k}">نافذتان</a></td><td><a href="?s=${k}&w=1">نافذة واحدة</a></td><td><a href="?s=${k}&long=1">أطول محتوى</a></td><td><a href="?s=${k}&w=1&long=1&check=1">الأطول بنافذة واحدة مع الفحص</a></td></tr>`).join('') +
-      '</table><p>التفصيل في design/auction.md. ونافذة المقدّم في <a href="presenter-auction.html">presenter-auction.html</a>.</p>';
+      '</table><p>التفصيل في design/auction.md. ونافذة المقدّم حُذفت بالوثيقة 1.13.</p>';
     document.body.append(m);
   } else {
     // الخطان (العربي والأرقام اللاتينية) قبل القياس: خط الأرقام لا يُحمَّل إلا عند أول رقم، فتتحرك الشارات بعده

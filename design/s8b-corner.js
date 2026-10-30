@@ -11,7 +11,7 @@
   .cbtn.ico { width: 64px; padding: 0; display: grid; place-items: center; }
   .cbtn.ico svg { width: 36px; height: 36px; fill: none; stroke: currentColor; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
   .bx-tip { position: absolute; z-index: 3; height: 64px; padding: 0 24px; display: flex; align-items: center; background: var(--card); color: var(--ink); font-size: 32px; font-weight: 700; white-space: nowrap; }
-  .bx-pan { position: absolute; z-index: 3; display: grid; grid-auto-flow: column; grid-auto-columns: 64px; gap: 16px; padding: 24px; background: transparent; box-shadow: inset 0 0 0 3px var(--card); }
+  .bx-pan { position: absolute; z-index: 3; display: grid; grid-auto-flow: column; grid-auto-columns: 64px; gap: 16px; padding: 24px; min-width: 376px; box-sizing: border-box; background: transparent; box-shadow: inset 0 0 0 3px var(--card); }
   .bx-pan .cbtn { display: grid; place-items: center; width: 64px; height: 64px; padding: 0; background: transparent; color: var(--on-stage); box-shadow: inset 0 0 0 3px var(--card); white-space: nowrap; }
   .bx-pan .cbtn svg { width: 36px; height: 36px; flex: none; fill: none; stroke: currentColor; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
   .bx-pan hr { grid-row: 2; grid-column: 1 / -1; border: 0; height: 3px; background: var(--card); opacity: .4; margin: 0; }
@@ -27,7 +27,7 @@
     for (const id of ['cornerA', 'cornerB', 'cornerC']) { $(id).style.display = ''; $(id).style.left = ''; $(id).querySelectorAll('.cbtn').forEach(b => b.style.display = ''); }
     canvas.classList.add('has-a');
   }
-  const KEYS = { 'تراجع': 'Z', 'الصوت': 'M', 'المقدّم': 'P', 'ملء الشاشة': 'F', 'الباركود': 'Q', 'الرصيد': 'S', 'مباراة جديدة': '' };
+  const KEYS = { 'تراجع': 'Z', 'الصوت': 'M', 'ملء الشاشة': 'F', 'الباركود': 'Q', 'الرصيد': 'S', 'مباراة جديدة': '' };
 
   // 1. قائمة مطوية: «تراجع» و«الصوت» ظاهران، والبقية في «⋯»
   function folded(open) {
@@ -58,7 +58,6 @@
     'تراجع': '<path d="M14 10 6 18l8 8"/><path d="M6 18h16a8 8 0 0 1 0 16h-6"/>',
     'الصوت': '<path d="M5 14h6l8-7v22l-8-7H5z"/><path d="M25 12a9 9 0 0 1 0 12"/><path d="M29 8a14 14 0 0 1 0 20"/>',
     'مكتوم': '<path d="M5 14h6l8-7v22l-8-7H5z"/><path d="m24 13 8 10M32 13l-8 10"/>',
-    'المقدّم': '<rect x="4" y="7" width="18" height="14"/><rect x="14" y="15" width="18" height="14" fill="var(--ico-bg,transparent)"/>',
     'ملء الشاشة': '<path d="M5 13V5h8M23 5h8v8M31 23v8h-8M13 31H5v-8"/>',
     'الباركود': '<rect x="5" y="5" width="10" height="10"/><rect x="21" y="5" width="10" height="10"/><rect x="5" y="21" width="10" height="10"/><path d="M21 21h4v4h-4zM29 29h2M25 29v2M29 21v4"/>',
     'الرصيد': '<path d="M8 30V18M18 30V8M28 30V14"/>',
@@ -69,7 +68,7 @@
     const all = rows();
     const make = b => { const n = document.createElement('button'); n.className = 'cbtn alt ico'; n.title = label(b);
       n.innerHTML = `<svg viewBox="0 0 36 36">${ICON[label(b)] ?? ''}</svg>`; return n; };
-    const first = all.filter(b => ['تراجع', 'الصوت', 'مكتوم', 'المقدّم', 'ملء الشاشة'].includes(label(b)));
+    const first = all.filter(b => ['تراجع', 'الصوت', 'مكتوم', 'ملء الشاشة'].includes(label(b)));
     const second = all.filter(b => !first.includes(b));
     for (const id of ['cornerA', 'cornerB', 'cornerC']) $(id).querySelectorAll('.cbtn').forEach(b => b.style.display = 'none');
     const a = document.createElement('div'); a.className = 'ctl bx'; a.append(...first.map(make)); $('cornerA').append(a);
@@ -100,7 +99,8 @@
     const at = (el, dy) => { const r = el.getBoundingClientRect(); return { left: (r.left - c0.left) / k, top: (r.bottom - c0.top) / k + dy }; };
     if (open) {
       const p = document.createElement('div'); p.className = 'bx bx-pan'; p.dataset.hud = 'لوحة المزيد';
-      const rest = all.filter(b => label(b) !== 'تراجع');
+      // «المقدّم» لا يُعرض بعد الوثيقة 1.13 (حُذفت نافذة المقدّم)، وإن بقي في اللعبة المبنية حتى يحذفه المهندس
+      const rest = all.filter(b => label(b) !== 'تراجع' && label(b) !== 'المقدّم');
       const item = (b, cls = '') => { const n = document.createElement('button'); n.className = 'cbtn ' + cls; n.title = label(b); n.innerHTML = `<svg viewBox="0 0 36 36">${ICON[label(b)] ?? ''}</svg>`; return n; };
       p.append(...rest.filter(b => label(b) !== 'مباراة جديدة').map(b => Object.assign(item(b), { style: 'grid-row: 1' })));
       const fresh = rest.find(b => label(b) === 'مباراة جديدة');
