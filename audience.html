@@ -710,12 +710,17 @@
   // باركود الإجابات (design/s8.md 2): الوعاء يمين البطاقة والبطاقة تضيق، ومربع الإعلان لا يظهر معه.
   // يُرسم من جديد حين يتغير النص وحده. والصفحة تحفظ آخر ما رُسم للفحص (dataset.bytes و.unit).
   let qrText = null;
+  // وإن زاد النص عمّا يسعه الرمز (قائمة كبيرة جداً) لم يُرسم، وبقيت البطاقة كاملة دونه، فلا تتعطل اللعبة (design/auction.md 7.10 لم يُقرّ بعد).
+  let qrFailed = null;
   function showQR(text) {
-    canvas.classList.toggle('qr', !!text);
-    if (!text || text === qrText) return;
-    qrText = text;
-    const info = drawQR($('qrbox').querySelector('canvas'), text);
-    Object.assign($('qrbox').dataset, { bytes: info.bytes, unit: info.unit, modules: info.modules });
+    if (text && text !== qrText && text !== qrFailed) {
+      try {
+        const info = drawQR($('qrbox').querySelector('canvas'), text);
+        Object.assign($('qrbox').dataset, { bytes: info.bytes, unit: info.unit, modules: info.modules });
+        qrText = text;
+      } catch { qrFailed = text; }
+    }
+    canvas.classList.toggle('qr', !!text && text !== qrFailed);
   }
   function renderAuction(a) {
     $('topic').textContent = a.topic;

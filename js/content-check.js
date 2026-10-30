@@ -32,7 +32,7 @@ const length = text => [...String(text)].length;
 
 // أحجام البنك المطلوبة (القسم 6.2 من الوثيقة)، للعرض لا للمنع.
 export const TARGETS = {
-  letter: { easy: 10, medium: 30, hard: 20, tiebreak: 20 },
+  letter: { easy: 20, medium: 20, hard: 20, tiebreak: 20 },
   'last-two': { easy: 20, medium: 20, hard: 20 },
   auction: { easy: 10, medium: 10, hard: 10 },
   ranking: { easy: 10, hard: 10 },
