@@ -451,7 +451,7 @@
   import { loadPacks, loadWheel } from './js/content.js';
   import WHEEL, { spinMs, CHALLENGE_POINTS as WHEEL_POINTS } from './js/wheel.js';
   import TIEBREAK from './js/tiebreak.js';
-  import { answersText, qrMatrix } from './js/qr.js';
+  import { answersText, fits } from './js/qr.js';
   import { HIT_MS as RANK_HIT_MS } from './js/modes/ranking.js';
   import { STEAL_SECONDS } from './js/modes/word.js';
   import { norm } from './js/modes/auction.js';
@@ -616,7 +616,7 @@
   }
   const qrFit = new Map();
   function qrFits(key, text) {
-    if (!qrFit.has(key)) { let ok = true; try { qrMatrix(text()); } catch { ok = false; } qrFit.set(key, ok); }
+    if (!qrFit.has(key)) qrFit.set(key, fits(text()));
     return qrFit.get(key);
   }
   function qrShown() {
