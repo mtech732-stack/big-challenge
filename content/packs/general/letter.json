@@ -41,7 +41,7 @@
     {"id": "general-letter-094", "level": "hard", "letter": "ط", "prompt": "الجبل الذي نادى الله موسى من جانبه الأيمن", "answer": "الطور", "alts": ["طور سيناء"], "domain": "religion", "note": "مريم 52، والقصص 46"},
     {"id": "general-letter-097", "level": "medium", "letter": "ف", "prompt": "ابنة النبي ﷺ الملقّبة بالزهراء", "answer": "فاطمة", "alts": ["فاطمة الزهراء"], "domain": "religion"},
     {"id": "general-letter-098", "level": "hard", "letter": "ت", "prompt": "آخر غزوة خرج فيها النبي ﷺ، في السنة التاسعة للهجرة", "answer": "تبوك", "domain": "religion", "note": "«غزوة تبوك» تُقبل. التوبة 38–49 (غزوة العسرة)"},
-    {"id": "general-letter-099", "level": "hard", "letter": "ج", "prompt": "ابن عمّ النبي ﷺ الذي تكلّم عن المسلمين أمام ملك الحبشة، ولُقّب بذي الجناحين", "answer": "جعفر بن أبي طالب", "domain": "religion", "note": "«جعفر» وحده يُقبل. ويُلقّب أيضاً «الطيّار»"},
+    {"id": "general-letter-099", "level": "hard", "letter": "ج", "prompt": "ابن عمّ النبي ﷺ الذي تكلّم عن المسلمين أمام ملك الحبشة، ولُقّب بالطيّار", "answer": "جعفر بن أبي طالب", "domain": "religion", "note": "«جعفر» وحده يُقبل. ويُلقّب أيضاً «ذا الجناحين»"},
     {"id": "general-letter-100", "level": "hard", "letter": "ن", "prompt": "ملك الحبشة الذي أحسن جوار المسلمين حين لجؤوا إليه", "answer": "النجاشي", "domain": "religion", "note": "أصحمة النجاشي، وصلّى عليه النبي ﷺ صلاة الغائب"},
     {"id": "general-letter-101", "level": "easy", "letter": "س", "prompt": "نبيٌّ سخّر الله له الريح والجن", "answer": "سليمان", "domain": "religion", "note": "سبأ 12، وص 36"},
     {"id": "general-letter-102", "level": "easy", "letter": "خ", "prompt": "لقب نبي الله إبراهيم عليه السلام", "answer": "الخليل", "alts": ["خليل الله"], "domain": "religion", "note": "النساء 125"},
@@ -53,7 +53,7 @@
     {"id": "general-letter-108", "level": "easy", "letter": "ب", "prompt": "أول مؤذن في الإسلام، وكان صوته ندياً", "answer": "بلال بن رباح", "alts": ["بلال"], "domain": "religion"},
     {"id": "general-letter-109", "level": "easy", "letter": "ق", "prompt": "مدينة فيها أولى القبلتين، وثالث المساجد التي تُشدّ إليها الرحال", "answer": "القدس", "domain": "religion", "note": "«بيت المقدس» تُقبل معنىً. وحديث «لا تُشدّ الرحال إلا إلى ثلاثة مساجد» في الصحيحين"},
     {"id": "general-letter-110", "level": "easy", "letter": "ت", "prompt": "الكتاب الذي أنزله الله على موسى عليه السلام", "answer": "التوراة", "domain": "religion", "note": "المائدة 44"},
-    {"id": "general-letter-111", "level": "medium", "letter": "ش", "prompt": "نبيٌّ أُرسل إلى مدين، وأمر قومه بإيفاء الكيل والميزان", "answer": "شعيب", "domain": "religion", "note": "الأعراف 85، وهود 84–85"},
+    {"id": "general-letter-111", "level": "medium", "letter": "ش", "prompt": "نبيُّ أهل مدين، نهى قومه عن نقص المكيال", "answer": "شعيب", "domain": "religion", "note": "الأعراف 85، وهود 84–85"},
     {"id": "general-letter-112", "level": "medium", "letter": "ط", "prompt": "مدينة خرج إليها النبي ﷺ يدعو أهلها، فردّوه ورموه بالحجارة", "answer": "الطائف", "domain": "religion"},
     {"id": "general-letter-113", "level": "medium", "letter": "أ", "prompt": "نبيٌّ ابتُلي في جسده وأهله وماله، فصبر حتى صار مثلاً في الصبر", "answer": "أيوب", "domain": "religion", "note": "الأنبياء 83–84، وص 41–44"},
     {"id": "general-letter-114", "level": "medium", "letter": "ك", "prompt": "حيوان رافق أصحاب الكهف، وبسط ذراعيه بباب الكهف", "answer": "الكلب", "domain": "religion", "note": "الكهف 18"},
@@ -80,6 +80,6 @@
     {"id": "general-letter-135", "level": "hard", "letter": "ي", "prompt": "نبيٌّ ابيضّت عيناه من الحزن على ابنه، ثم ارتدّ بصيراً", "answer": "يعقوب", "domain": "religion", "note": "يوسف 84 و96"},
     {"id": "general-letter-136", "level": "hard", "letter": "ت", "prompt": "السورة الوحيدة في المصحف التي لا تبدأ بالبسملة", "answer": "التوبة", "domain": "religion", "tiebreak": true, "note": "ومن أسمائها «براءة»، ولا تُقبل لأنها لا تبدأ بالتاء"},
     {"id": "general-letter-137", "level": "easy", "letter": "ك", "prompt": "الثوب الذي يُكسى به البيت الحرام، ويُجدَّد كل عام", "answer": "الكسوة", "alts": ["كسوة الكعبة"], "domain": "religion"},
-    {"id": "general-letter-138", "level": "easy", "letter": "ز", "prompt": "البئر التي تفجّرت في مكة لإسماعيل وأمه", "answer": "زمزم", "domain": "religion", "note": "صحيح البخاري 3364"}
+    {"id": "general-letter-138", "level": "easy", "letter": "ز", "prompt": "البئر المباركة التي تفجّرت في مكة لهاجر وابنها الرضيع", "answer": "زمزم", "domain": "religion", "note": "صحيح البخاري 3364"}
   ]
 }
