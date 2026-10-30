@@ -24,13 +24,15 @@ export const RANK_TITLE_MAX = 32;
 export const RANK_SUB_MAX = 31;
 // أقل قائمة في بنك المزاد (المالك، 24 أكتوبر 2026): دونها لا تتحقق المزايدة. حدّ أدنى لا هدف.
 export const AUCTION_MIN = 10;
+// الموضوع المفتوح (المالك، 30 أكتوبر 2026): فئة يُعدّ منها بسهولة، وقائمته المرجعية عون للمقدّم لا حصر، فلا تقل عن 40.
+export const AUCTION_OPEN_MIN = 40;
 // أسئلة كل مستوى في الجولة لكل فريق سؤال (5.3 و5.4)، فسؤالان من كل مستوى في جولة «آخر حرفين» بنهاية واحدة.
 export const ROUND_PER_LEVEL = 2;
 const length = text => [...String(text)].length;
 
 // أحجام البنك المطلوبة (القسم 6.2 من الوثيقة)، للعرض لا للمنع.
 export const TARGETS = {
-  letter: { easy: 20, medium: 20, hard: 20, tiebreak: 20 },
+  letter: { easy: 10, medium: 30, hard: 20, tiebreak: 20 },
   'last-two': { easy: 20, medium: 20, hard: 20 },
   auction: { easy: 10, medium: 10, hard: 10 },
   ranking: { easy: 10, hard: 10 },
@@ -230,16 +232,27 @@ export function checkContent({ index, packs, wheel }) {
         }
 
         if (mode === 'auction') {
-          allowOnly(where, item, ['id', 'level', 'topic', 'items', 'sources', 'domain', 'page', 'note']);
+          allowOnly(where, item, ['id', 'level', 'topic', 'open', 'items', 'sources', 'domain', 'page', 'note']);
           checkCommon(where, item, LEVELS);
           checkNote(where, item);
+          if (item.open !== undefined && item.open !== true) err(where, '«open» إما true وإما يُحذف');
+          // معيار القبول في «note»: ما يُقبل من خارج القائمة وما لا يُقبل. لازم في المفتوح، ومطلوب في غيره.
+          if (item.open && item.note === undefined) err(where, '«note» معيار القبول لازم في الموضوع المفتوح');
+          else if (item.note === undefined) warn(where, 'لا «note» بمعيار القبول');
           checkSources(where, item.sources, 0);
           needText(where, item, 'topic');
           checkLength(where, item, 'topic');
           if (typeof item.topic === 'string' && length(item.topic) > TOPIC_MAX) warn(where, `الموضوع ${length(item.topic)} حرفاً، والحد ${TOPIC_MAX} (سطر واحد بجوار العدّ)`);
           if (!Array.isArray(item.items) || item.items.length < AUCTION_MIN) err(where, `«items» قائمة مرجعية كاملة (${AUCTION_MIN} عناصر على الأقل، لتتحقق المزايدة)`);
+          else if (item.open && item.items.length < AUCTION_OPEN_MIN) err(where, `«items» في الموضوع المفتوح ${AUCTION_OPEN_MIN} عنصراً على الأقل، عوناً للمقدّم (الموجود ${item.items.length})`);
           else {
             checkNames(where, item.items);
+            // لا يكشف نص الموضوع إجابة: لا يقع فيه عنصر من قائمته بكلمته.
+            if (typeof item.topic === 'string') {
+              const words = new Set(item.topic.split(/[\s،,:«»()]+/).filter(Boolean).map(stripArticle));
+              const told = item.items.filter(it => formsOf(it).some(f => !f.includes(' ') && words.has(f))).map(it => it.name);
+              if (told.length) warn(where, `نص الموضوع يكشف إجابة منه: ${told.join('، ')}`);
+            }
             item.items.forEach((it, k) => { if (typeof it?.name === 'string' && length(it.name) > ITEM_MAX) warn(`${where} · العنصر ${k + 1}`, `«${it.name}» ${length(it.name)} حرفاً، والحد ${ITEM_MAX} (شارة العنصر)`); });
           }
           tally(mode, item.level);
