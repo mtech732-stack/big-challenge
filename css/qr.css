@@ -1,0 +1,22 @@
+/* باركود الإجابات (الوثيقة 7.1، design/s8.md 2 وdesign/s8.css القسم 2): يظهر في بداية سؤال المزاد وقائمة الترتيب، ويخفيه المقدّم بزر بجانبه.
+   وعاء أبيض مستقيم 520×520 يمين البطاقة، والإطار المائل 6° خلفه كصفيحة البطاقة (تتجاوزه 12 وميلها 27 = tan 6° × 260):
+   - اليمين: الوعاء 1265–1785، فتنتهي صفيحته عند 1824، الهامش الآمن.
+   - الأسفل: 930 (وصفيحته 942)، وأبعد ما تبلغه لوحة الثاني يميناً 1186، وأدنى طرف أيسر للصفيحة 1226، فالفراغ 40.
+   - مربع الإعلان لا يظهر معه: الباركود في بداية السؤال قبل أي حكم. */
+.qrbox > * { position: absolute; }
+.qrbox { left: 1265px; top: 410px; width: 520px; height: 520px; }
+.qrbox .plate { inset: 12px -12px -12px -12px; background: var(--stage-3); transform: skewX(calc(-1 * var(--tilt))); }
+.qrbox .sheet { inset: 0; background: var(--card); display: flex; align-items: center; justify-content: center; }
+/* الرمز بحبر السؤال المحايد على الأبيض، ووحدته عدد صحيح من النقاط فلا تتميّع الحواف (js/qr.js) */
+.qrbox canvas { position: static; display: block; image-rendering: pixelated; }
+.canvas:not(.qr) .qrbox { display: none; }
+.canvas.qr .box { display: none; }
+
+/* البطاقة وقت الباركود تضيق إلى يساره: 127 → 1163 (1036)، فتنتهي صفيحتها عند 1194، قبل صفيحة الباركود (1226) بـ 32.
+   وفيها العنوان والإشارة وزر «أخفِ الباركود» وحدها، واللوحة والمزايدة بعد الإخفاء. والعنوان يجوز سطرين هنا (64 بسطر 80) */
+.canvas.qr .card-wrap { width: 1036px; }
+.canvas.qr .card .scr.show { flex-direction: column; align-items: flex-start; justify-content: center; gap: 24px; padding-top: 0; }
+.canvas.qr .rnk .rhead, .canvas.qr .auc .ahead { flex-direction: column; align-items: flex-start; height: auto; gap: 16px; }
+.canvas.qr .rnk .title, .canvas.qr .auc .topic { white-space: normal; line-height: 80px; overflow: visible; max-width: 940px; }
+.canvas.qr .rnk .board, .canvas.qr .auc .bids, .canvas.qr .auc .items, .canvas.qr .auc .tally { display: none; }
+.rhead > .ctl:empty { display: none; }

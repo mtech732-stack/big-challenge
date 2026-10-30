@@ -14,7 +14,7 @@ const APP_FILES = [
   'css/ranking.css', 'js/modes/ranking.js',
   'css/wheel.css', 'js/wheel.js',
   'css/final.css', 'js/tiebreak.js',
-  'css/hero.css', 'design/logo/logo.svg', 'design/logo/icon.svg', 'design/logo/icon-48.png',
+  'css/hero.css', 'css/qr.css', 'js/qr.js', 'js/vendor/qrcode.mjs', 'design/logo/logo.svg', 'design/logo/icon.svg', 'design/logo/icon-48.png',
   'design/logo/modes/letter.svg', 'design/logo/modes/last-two.svg', 'design/logo/modes/auction.svg', 'design/logo/modes/ranking.svg',
   'design/logo/modes/letter-stack.svg', 'design/logo/modes/last-two-stack.svg',
 ];

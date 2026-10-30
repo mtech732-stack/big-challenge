@@ -317,6 +317,8 @@
     <div class="row">
       <p class="who" id="aWho"></p>
       <p class="state grow" id="aState"></p>
+      <!-- باركود الإجابات على التلفاز (design/s8.md 2.1): يُخفى ويُعاد من هنا بنافذتين -->
+      <button class="alt" id="aQr" data-qr hidden></button>
       <button class="alt" id="aUndo">تراجع</button>
       <button class="alt" data-new>مباراة جديدة</button>
     </div>
@@ -332,6 +334,7 @@
     <div class="row">
       <p class="who" id="rWho"></p>
       <p class="state grow" id="rState"></p>
+      <button class="alt" id="rQr" data-qr hidden></button>
       <button class="alt" id="rUndo">تراجع عن آخر حكم</button>
       <button class="alt" data-new>مباراة جديدة</button>
     </div>
@@ -408,6 +411,7 @@
   import { loadPacks, loadWheel } from './js/content.js';
   import WHEEL, { spinMs } from './js/wheel.js';
   import TIEBREAK from './js/tiebreak.js';
+  import { answersText } from './js/qr.js';
   import { matchModes, pickableModes, MODES as BUILT, DRAFTS } from './js/modes/index.js';
   import * as M from './js/match.js';
   import * as P from './js/play.js';
@@ -553,6 +557,24 @@
     return { match: pub, modes: modes().map(({ id, name }) => ({ id, name })), play: playView(), muted, moments };
   };
   const roundMode = () => match.round && P.modeOf(units(), match.round.mode);
+  // باركود الإجابات (7.1، design/s8.md 2): في سؤال المزاد وقائمة الترتيب. يظهر تلقائياً في بدايته (قبل المزايدة، وقبل «ابدأ»)،
+  // ويخفيه المقدّم بضغطة، ولا يعود إلا بطلبه («الباركود»). والحال في المباراة (match.qr: مفتاح السؤال وظاهر أو لا)، فيبقى بعد إعادة التحميل،
+  // ولا يدخل التراجع. key: الجولة والسؤال · open: السؤال جارٍ (يُعاد فيه بطلب) · auto: بدايته.
+  function qrQuestion() {
+    const mode = match.step === 'play' && roundMode();
+    if (!mode || (mode.id !== 'auction' && mode.id !== 'ranking')) return null;
+    const st = match.round.state, a = mode.audience(st);
+    if (a.screen !== 'topic' && a.screen !== 'list') return null;
+    const auto = mode.id === 'auction' ? st.phase === 'bid' : st.phase === 'read';
+    return { key: `${match.round.n}:${(st.topics ?? st.lists)[st.index]?.id}`, mode, st, auto, open: !['decided', 'listend', 'mark'].includes(st.phase) };
+  }
+  function qrShown() {
+    const q = qrQuestion();
+    if (!q) return null;
+    const on = match.qr?.key === q.key ? match.qr.on && q.open : q.auto;
+    return on ? q : null;
+  }
+  const setQr = on => { const q = qrQuestion(); if (q) update({ ...match, qr: { key: q.key, on } }); };
   function playView() {
     const mode = match.step === 'play' && roundMode();
     if (!mode) return null;
@@ -563,6 +585,8 @@
       timer: match.round.timer ? { ...match.round.timer, at: match.timerAt } : null,
       next: P.nextText(match, modeName),
       fresh: a.screen === 'intro' && match.played === 1,
+      // نص الإجابات للباركود ما دام ظاهراً، يرسمه العرض رمزاً لا نصاً.
+      qr: (q => (q ? answersText(q.mode.id, q.mode.presenter(q.st)) : null))(qrShown()),
     };
   }
   function update(next, anim) {
@@ -940,6 +964,7 @@
       // وبعد الحكم «الموضوع التالي» أو «إنهاء الجولة» (design/auction.md 5).
       : ['start', 'stop', 'next'].filter(ctl).map(id => `<button class="${id === 'stop' ? 'no' : id === 'start' ? 'alt' : ''} half" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
     $('aUndo').disabled = !match.round.history.length;
+    qrButtons();
   }
   // سطر الحالة: في الوفاء الوقت الباقي كما على الشاشة (يصل كل ثانية من نافذة الجمهور) وما بقي من العدد.
   let tickText = '';
@@ -1015,6 +1040,7 @@
       : pr.phase === 'decided' ? (next ? `<button class="next" data-act="next">التالي · دور ${esc(match.teams[pr.upNext])}</button>` : '') + (finish ? b('finish', next ? 'alt' : 'alt full') : '')
       : pr.phase === 'listend' ? b('next', 'full') : '';
     $('rUndo').disabled = !match.round.history.length;
+    qrButtons();
   }
   // سطر الحالة: في العدّاد الوقت الباقي كما على الشاشة (يصل كل ثانية من نافذة الجمهور).
   function rankState(pr) {
@@ -1175,6 +1201,11 @@
       c.b = [[{ cmd: 'presenter', label: 'المقدّم', kind: 'alt' }, ...fs]];
       c.c = [[{ cmd: 'scores', label: 'الرصيد', kind: 'alt' }, fresh]];
     }
+    // الباركود ظاهراً (design/s8.md 2.1): «أخفِ الباركود» في رأس البطاقة وحده، ولا أزرار في صف الشارات حتى يُخفى.
+    // ومخفياً والسؤال جارٍ: «الباركود» يعيده، في صف النوافذ (152) بعد «المقدّم» و«ملء الشاشة». لا في صف المباراة (240) كما في design/s8.md 2.1:
+    // فيه بلغ أزرار المزايدة الثلاثة في صف الشارات (310) بفراغ 6 (مقيس بـ stage-check)، وصف النوافذ بعيد عنها.
+    if (mode && qrShown()) { c.card = [{ cmd: 'qr:hide', label: 'أخفِ الباركود', off: wait }]; c.near = []; }
+    else if (mode && qrQuestion()?.open) c.b[0].push({ cmd: 'qr:show', label: 'الباركود', kind: 'alt' });
     // النهاية (design/final.md 5): «أعلن الفائز» في البطاقة (و«الجولة الفاصلة» معطّلاً عند التعادل حتى «كسر التعادل»)، ثم «مباراة جديدة».
     // والزوايا الثلاث كما في الجولة.
     if (step === 'final') {
@@ -1244,6 +1275,7 @@
     if (cmd === 'mute') toggleMute();
     if (cmd === 'presenter') toPresenter();
     if (cmd === 'new') newMatch();
+    if (cmd === 'qr') setQr(arg === 'show');
     if (cmd === 'fullscreen') document.documentElement.requestFullscreen?.().catch(() => {});
     if (['toPick', 'undoPick', 'toFace', 'replay', 'undo', 'scores', 'announce', 'tiebreak'].includes(cmd)) actions[cmd]();
   });
@@ -1289,6 +1321,12 @@
   $('lostSingle').onclick = () => update({ ...match, single: true });
   $('showQ').onclick = () => roundAct('show');
   document.querySelectorAll('#judge [data-act], #nextQ').forEach(b => b.onclick = () => b.dataset.act && roundAct(b.dataset.act));
+  // «أخفِ الباركود» ما دام ظاهراً، و«الباركود» يعيده والسؤال جارٍ (design/s8.md 2.1).
+  function qrButtons() {
+    const q = qrQuestion(), on = !!qrShown();
+    document.querySelectorAll('[data-qr]').forEach(b => { b.hidden = !q?.open; b.textContent = on ? 'أخفِ الباركود' : 'الباركود'; b.dataset.on = on ? '1' : ''; });
+  }
+  document.querySelectorAll('[data-qr]').forEach(b => { b.onclick = () => setQr(!b.dataset.on); });
   $('undo').onclick = $('tbUndo').onclick = $('endUndo').onclick = $('aUndo').onclick = $('rUndo').onclick = $('wUndo').onclick = $('fUndo').onclick = actions.undo;
   $('endNext').onclick = () => actions[nextButton().act]?.();
   $('mute').onclick = toggleMute;

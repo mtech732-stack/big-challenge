@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="css/shared.css">
 <link rel="stylesheet" href="css/final.css">
 <link rel="stylesheet" href="css/hero.css">
+<link rel="stylesheet" href="css/qr.css">
 <style>
   /* اللعبة مغلقة أو بانتظار المقدّم: لا يبقى على الشاشة إلا الخلفية والبطاقة. */
   .locked .team, .locked .badge, .locked .box, .locked .ctl-near, .locked .ctl-corner { display: none; }
@@ -86,6 +87,8 @@
           <div class="rhead">
             <p class="title" id="rtitle" data-fit="عنوان القائمة"></p>
             <p class="sub" id="rsub"></p>
+            <!-- «أخفِ الباركود» ما دام الباركود ظاهراً (design/s8.md 2.1) -->
+            <div class="ctl" id="rnkCtl"></div>
           </div>
           <div class="board" id="board"></div>
         </div>
@@ -147,6 +150,8 @@
       <div class="row" data-fit="لوحة الفريق الثاني"><span class="name" id="n2">الفريق الثاني</span><input class="name-in" id="i2" maxlength="18" autocomplete="off" placeholder="اكتب اسم الفريق الثاني" aria-label="اسم الفريق الثاني"><span class="score" id="s2"></span><span class="cnt" id="c2"></span></div>
     </section>
 
+    <!-- باركود الإجابات يمين البطاقة (design/s8.md 2): أبيض مستقيم 520×520 وخلفه صفيحة مائلة 6° -->
+    <div class="qrbox" id="qrbox" data-hud="الباركود"><div class="plate"></div><div class="sheet"><canvas aria-label="باركود الإجابات"></canvas></div></div>
     <!-- مربع الإعلان أسفل اليمين (15.4): الحكم والإجابة بعد الحكم الأخير · الفائز بالقرعة في المواجهة · «التالي» في نهاية الجولة -->
     <div class="box" id="box" data-hud="مربع الإعلان" hidden><i></i>
       <p class="chip" id="verdict" hidden><i></i><span id="vtext"></span></p>
@@ -181,6 +186,7 @@
   import { PLANNED } from './js/modes/index.js';
   import { play as sound, setMuted } from './js/sound.js';
   import { spinSteps } from './js/wheel.js';
+  import { drawQR } from './js/qr.js';
 
   const $ = id => document.getElementById(id);
   const canvas = $('canvas');
@@ -373,6 +379,7 @@
   function render() {
     if (!view || busy) return;
     if (view.match.step === 'play' && view.play) return renderPlay(view.play);
+    canvas.classList.remove('qr');
     if (view.match.step === 'final') return renderFinal(view);
     const { match: m, modes } = view;
     // نمط لم يُبنَ في مواجهة محفوظة من رابط المعاينة: اسمه العربي من قائمة الأنماط الأربعة، لا معرّفه الإنجليزي (ملاحظة المعاين 1).
@@ -638,6 +645,7 @@
       : a.tiebreak ? { verdict: v, answer: a.answer, bare: true }
       : { verdict: v, answer: a.answer, told: v && a.tally ? `ذُكر ${a.tally.n} من ${a.tally.of}` : undefined });
     syncTimer(p.timer, a);
+    showQR(p.qr);
     setTurn(a.turn);
     // الحدّ يكتسح لصاحب الدور من ظهور سؤاله، في القراءة ثم العدّاد بلا حركة بينهما، وللآخر فوراً إن انتقل إليه (المالك 20:39، design/system.md 15.2).
     // وبعد الحكم يقف على من أخذ النقاط، أو يعود إلى المنتصف إن لم يأخذ أحد. وفي غير شاشة السؤال في المنتصف.
@@ -699,6 +707,16 @@
   }
 
   // ===== المزاد (design/auction.md 2): الموضوع، ورقما الفريقين كلٌّ بلونه والأعلى أكبرهما (3.0)، ومن الالتزام العدّ =====
+  // باركود الإجابات (design/s8.md 2): الوعاء يمين البطاقة والبطاقة تضيق، ومربع الإعلان لا يظهر معه.
+  // يُرسم من جديد حين يتغير النص وحده. والصفحة تحفظ آخر ما رُسم للفحص (dataset.bytes و.unit).
+  let qrText = null;
+  function showQR(text) {
+    canvas.classList.toggle('qr', !!text);
+    if (!text || text === qrText) return;
+    qrText = text;
+    const info = drawQR($('qrbox').querySelector('canvas'), text);
+    Object.assign($('qrbox').dataset, { bytes: info.bytes, unit: info.unit, modules: info.modules });
+  }
   function renderAuction(a) {
     $('topic').textContent = a.topic;
     // في المزايدة: «في القائمة 12» للقائمة حتى 20 وحدها (الوثيقة 5.5، design/auction.md 2.1).
@@ -995,7 +1013,7 @@
     if (!count) show(a?.clock ?? 0);
   }
 
-  const waiting = () => { stop(); setLocked(true); setHero('wait', 'بانتظار المقدّم'); canvas.classList.add('pre'); setTurn(0); setSide(0); showScreen('q'); $('letter').textContent = ''; delete $('letter').dataset.key; $('letter').classList.remove('ending'); $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم'; };
+  const waiting = () => { stop(); canvas.classList.remove('qr'); setLocked(true); setHero('wait', 'بانتظار المقدّم'); canvas.classList.add('pre'); setTurn(0); setSide(0); showScreen('q'); $('letter').textContent = ''; delete $('letter').dataset.key; $('letter').classList.remove('ending'); $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم'; };
   const ready = () => {
     if (count) stop();
     setLocked(false); show(10);
