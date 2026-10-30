@@ -5,7 +5,7 @@
 function extent(el, scale, origin) {
   let r = null;
   for (const n of [el, ...el.querySelectorAll('*')]) {
-    if (n.closest('.check-layer') || n.closest('.ring polygon')) continue;
+    if (n.closest('.check-layer') || n.closest('.ring polygon') || n.hasAttribute('data-overhang')) continue;   // [data-overhang]: كما في js/stage-check.js
     // إطار الوقت (1.3) يُرسم على حدود اللوحة نفسها، ويتبعها بعد تغيّر قياسها بإطار رسم واحد، فيُحسب بالـsvg لا بنقاط المضلع.
     const b = n.getBoundingClientRect(); if (!b.width && !b.height) continue;
     const x1 = (b.left - origin.left) / scale, y1 = (b.top - origin.top) / scale;
@@ -38,6 +38,8 @@ export function checkLayout(canvas, layer) {
   const problems = [], bad = new Set();
   for (const it of items) {
     const { x1, y1, x2, y2 } = it.r;
+    // data-edge: الشعار الكبير في شاشات البطل يتجاوز الهامش الآمن عمداً (design/logo/الدمج.md 1.2 و4.1: أعلاه على 40 و24)، ويبقى فحص الفراغ.
+    if (it.el.hasAttribute('data-edge')) continue;
     if (x1 < 96 - .5 || y1 < 54 - .5 || x2 > 1824 + .5 || y2 > 1026 + .5) { problems.push(`${it.name} خارج الهامش الآمن`); bad.add(it); }
   }
   let minGap = Infinity;

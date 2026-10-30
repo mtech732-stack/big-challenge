@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>التحدي الكبير · نافذة المقدّم</title>
-<link rel="icon" href="data:,">
+<link rel="icon" href="design/logo/icon-48.png">
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/base.css">
 <style>
@@ -558,7 +558,7 @@
     if (!mode) return null;
     const a = mode.audience(match.round.state);
     return {
-      n: match.round.n, total: M.rounds(match), modeName: mode.id === WHEEL.id || mode.id === TIEBREAK.id ? mode.name : modeName(mode.id), a, scores: match.round.scores, wheel: mode.id === WHEEL.id,
+      n: match.round.n, total: M.rounds(match), modeName: mode.id === WHEEL.id || mode.id === TIEBREAK.id ? mode.name : modeName(mode.id), modeId: mode.id, a, scores: match.round.scores, wheel: mode.id === WHEEL.id,
       // العدّاد الجاري ووقت بدئه بساعة الجهاز، فتعدّه نافذة الجمهور صحيحاً ولو أُعيد تحميلها.
       timer: match.round.timer ? { ...match.round.timer, at: match.timerAt } : null,
       next: P.nextText(match, modeName),
@@ -1117,7 +1117,8 @@
       const done = M.picksDone(match);
       c.pick = !done;
       if (match.picks.length) c.card.push({ cmd: 'undoPick', label: 'تراجع', kind: 'alt' });
-      if (done) c.card.push({ cmd: 'toFace', label: 'إلى المواجهة' });
+      // «قرعة البداية» كما في رسم المالك (design/logo/الدمج.md 4.1): زر المتابعة إلى المواجهة، معطّل حتى يكتمل الاختيار.
+      c.card.push({ cmd: 'toFace', label: 'قرعة البداية', off: !done });
       c.b = [[fresh], fs];
     }
     if (step === 'face') {

@@ -1,0 +1,122 @@
+/* شاشات البطل (design/logo/الدمج.md، وsystem.md 15.12): الانتظار والبداية واختيار النمط.
+   الشعار فيها كبير بلا ترويسة ولا بطاقة، والهالة والأشعّة خلفه في البداية والاختيار. والحالة في [data-hero] على المسرح. */
+.hero { display: none; position: absolute; inset: 0; overflow: hidden; }   /* الأشعّة أكبر من المسرح، فلا تُحدث تمريراً */
+[data-hero] .hero { display: block; }
+[data-hero] .logo, [data-hero] .card-wrap { display: none; }
+.hero > * { position: absolute; }
+.hero .hlogo img { display: block; width: 100%; height: 100%; }
+.hero .cap, .hero .start-go, .hero .start-side, .hero .turnp, .hero .mcards, .hero .pick-ctl, .hero .halo, .hero .rays { display: none; }
+
+/* الأشعّة: بيضاء 13% من 7° كل 20°، مقنّعة بتدرّج دائري، تدور دورة كل 60 ثانية وتقف مع تقليل الحركة. والهالة ضوء شفيف خلف الشعار */
+.hero .rays { border-radius: 50%;
+  background: repeating-conic-gradient(from 8deg, rgba(255,255,255,.13) 0 7deg, rgba(255,255,255,0) 7deg 20deg);
+  -webkit-mask: radial-gradient(closest-side, #000 30%, transparent 100%); mask: radial-gradient(closest-side, #000 30%, transparent 100%);
+  animation: rays 60s linear infinite; }
+@keyframes rays { to { transform: rotate(1turn); } }
+.hero .halo { border-radius: 50%; background: radial-gradient(closest-side, rgba(255,255,255,.34), rgba(255,255,255,.1) 55%, rgba(255,255,255,0)); }
+@media (prefers-reduced-motion: reduce) { .hero .rays { animation: none; } }
+
+/* 1. الانتظار (1.2): الشعار 820 في الوسط، فوقه 40، وتحته «بانتظار المقدّم» بعد 80 */
+[data-hero="wait"] .hlogo { left: 550px; top: 40px; width: 820px; height: 833px; }
+[data-hero="wait"] .cap { display: block; left: 960px; transform: translateX(-50%); top: 953px; margin: 0; white-space: nowrap; font-size: 40px; font-weight: 700; line-height: 1.2; color: var(--on-stage); }
+/* الشاشة مغلقة بانتظار المقدّم: لا لوحات ولا شارات (كما قبل) */
+
+/* 2. البداية (3): الشعار 620×630 في الوسط، والأشعّة دائرة r 661 حول مركزه، والهالة قطرها 820.
+   نزل هو وما تحته 34 عن الرسم (قرار المصمّم): أعلاه 224 لا 190، كي لا يمسّ لوحة الأول (تنتهي 200) وحقلها، فمركزه (960، 539) */
+[data-hero="start"] .hlogo { left: 650px; top: 224px; width: 620px; height: 630px; }
+[data-hero="start"] .rays { display: block; left: 299px; top: -122px; width: 1322px; height: 1322px; }
+[data-hero="start"] .halo { display: block; left: 550px; top: 129px; width: 820px; height: 820px; }
+/* زر «ابدأ» 260×84 تحت الشعار بـ 24 (878): أبيض 44 على حبر مائل، بحلقة بيضاء 5 وظلّ صلب 10 */
+[data-hero="start"] .start-go { display: flex; left: 830px; top: 878px; width: 260px; height: 84px; justify-content: center; }
+.start-go .cbtn { position: relative; isolation: isolate; width: 260px; height: 84px; padding: 0; background: transparent; color: var(--card); font-size: 44px; font-weight: 900; }
+.start-go .cbtn::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ink); transform: skewX(calc(-1 * var(--lean))); box-shadow: 0 0 0 5px var(--card), 10px 10px 0 5px #0B1033; }
+/* عدد الأنماط (جواب المصمّم): على خط «ابدأ» في الجهة اليمنى حتى 1794، وسطر الخطأ فوقه. بأبيض على المسرح */
+/* من x 1114 فأكثر (نهاية الزر 1090 + 24، الدمج.md 6.2)، وسطر الخطأ فوقه بفراغ 24 وينكسر في عرضه */
+[data-hero="start"] .start-side { display: flex; flex-direction: column; align-items: flex-start;   /* يميناً (rtl) */ gap: 24px; right: 126px; max-width: 680px; bottom: calc(1080px - 962px); }
+.start-side:not(:has(.count:not(:empty))) { display: none !important; }
+.start-side .count .lbl { color: var(--on-stage); }
+.start-side .ctile { width: 120px; height: 84px; border-color: var(--card); color: var(--on-stage); }
+.start-side .ctile.sel { background: var(--card); color: var(--ink); }
+.start-side .err { box-sizing: border-box; max-width: 500px; margin: 0; font-size: 32px; font-weight: 700; line-height: 1.2; color: var(--card); background: var(--team-1); padding: 4px 16px; white-space: normal; text-align: right; }
+/* الخطأ أطول من سطر: يمتد إلى الأعلى بجانب الشعار لا فوقه (500 من 1794 = يبدأ بعد 1270 + 24) */
+
+/* 3. اختيار النمط د1 (4): الشعار 264 في الوسط وأعلاه 24، والأشعّة والهالة بالقياس النسبي نفسه (r = 1.05 × 268 = 281، حول 960، 158) */
+[data-hero="pick"] .hlogo { left: 828px; top: 24px; width: 264px; height: 268px; }
+[data-hero="pick"] .rays { display: block; left: 679px; top: -123px; width: 562px; height: 562px; }
+[data-hero="pick"] .halo { display: block; left: 786px; top: -16px; width: 348px; height: 348px; }
+[data-hero="pick"] .team, [data-hero="pick"] .badge { display: none; }
+[data-hero="pick"] .mcards { display: block; inset: 0; }
+/* «قرعة البداية» 400×80 في الوسط (760) وأعلاه 886، و«تراجع» عن يمينه: الصف يبدأ من 760 ويمتد يميناً */
+[data-hero="pick"] .pick-ctl { display: flex; left: 760px; top: 886px; gap: 24px; }
+.pick-ctl .cbtn { position: relative; isolation: isolate; height: 80px; padding: 0 48px; background: transparent; font-size: 44px; font-weight: 900; }
+.pick-ctl .cbtn:not(.alt) { min-width: 400px; color: var(--ink); }
+.pick-ctl .cbtn::before { content: ''; position: absolute; inset: 0; z-index: -1; transform: skewX(calc(-1 * var(--lean))); }
+.pick-ctl .cbtn:not(.alt)::before { background: var(--card); box-shadow: 10px 10px 0 #0B1033; }
+.pick-ctl .cbtn.alt { color: var(--on-stage); }
+.pick-ctl .cbtn.alt::before { box-shadow: inset 0 0 0 4px var(--card); }
+
+/* مؤشر الدور (4.4): لوحة صاحب الدور بلونه في جهته، 52 أبيض بسطر 84، مائلة بظلّ 8، وحولها الإطار الأصفر 6 على بعد 10 (15.4) */
+[data-hero="pick"] .turnp:not([hidden]) { display: flex; flex-direction: column; gap: 14px; }
+.turnp.t1 { right: 126px; top: 64px; align-items: flex-start; }
+.turnp.t2 { left: 126px; bottom: calc(1080px - 1016px); align-items: flex-end; flex-direction: column-reverse !important; }
+.turnp b { display: inline-block; padding: 0 34px; font-size: 52px; font-weight: 800; line-height: 84px; color: #fff; transform: skewX(calc(-1 * var(--lean)));
+  box-shadow: 8px 8px 0 #0B1033; outline: 6px solid var(--hl); outline-offset: 10px; }
+.turnp.t1 b { background: var(--team-1); }
+.turnp.t2 b { background: var(--ink); }
+.turnp b > span { display: inline-block; transform: skewX(var(--lean)); white-space: nowrap; }
+.turnp p { margin: 0; font-size: 40px; font-weight: 900; line-height: 1.2; color: var(--on-stage); white-space: nowrap; }
+
+/* البطاقة 414×470 على ثلاثة أعمدة، أعلاها 312، مائلة 14° حول مركزها، بظلّ مدرّج من ثلاث درجات */
+.mc { position: absolute; top: 312px; width: 414px; height: 470px; }
+.mc .face { position: absolute; inset: 0; background: var(--card); transform: skewX(calc(-1 * var(--lean))); overflow: hidden;
+  box-shadow: 6px 6px 0 rgba(11,16,51,.75), 12px 12px 0 rgba(11,16,51,.5), 18px 18px 0 rgba(11,16,51,.28); }
+.mc .in { position: absolute; inset: 0 0 92px 0; transform: skewX(var(--lean)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; z-index: 1; }
+.mc .bdg { position: relative; display: block; flex: none; }
+.mc .bdg img { position: absolute; display: block; max-width: none; }
+/* الترتيب على الأبيض: درجاته البيضاء بحدّ حبر رفيع (2.2) */
+.mc .bdg img.edge { filter: drop-shadow(2px 0 0 #0E2C86) drop-shadow(-2px 0 0 #0E2C86) drop-shadow(0 2px 0 #0E2C86) drop-shadow(0 -2px 0 #0E2C86); }
+/* المحتوى (الشارة والسطر) في وسط البطاقة بعرض 318، والسطر ينكسر سطرين متوازنين إن لم يتسع بخط اللعبة */
+.mc .ct { display: flex; flex-direction: column; align-items: center; gap: 28px; max-width: 318px; }
+.mc .line { margin: 0; max-width: 318px; font-size: 34px; font-weight: 800; line-height: 1.3; color: var(--ink); text-align: center; text-wrap: balance; }
+/* مفتاح الاختيار: شريط حبر 92، «اختر» 40 ومربع أبيض 56 فيه رقمه */
+.mc .key { position: absolute; left: 0; right: 0; bottom: 0; height: 92px; background: var(--ink); color: #fff; font-size: 40px; font-weight: 900;
+  display: flex; align-items: center; justify-content: center; z-index: 1; }
+.mc .key > span { display: inline-flex; align-items: center; gap: 20px; transform: skewX(var(--lean)); }
+.mc .key b { display: inline-flex; width: 56px; height: 56px; align-items: center; justify-content: center; background: #fff; color: var(--ink); font-size: 36px; }
+/* النقش: حبر على 6%، لكل نمط نقشه */
+.mc.p-letter .face { background-image: repeating-linear-gradient(90deg, rgba(14,44,134,.06) 0 26px, transparent 26px 60px); }
+.mc.p-last .face { background-image: linear-gradient(135deg, rgba(14,44,134,.06) 25%, transparent 25%), linear-gradient(225deg, rgba(14,44,134,.06) 25%, transparent 25%); background-size: 44px 44px; background-position: 0 0, 22px 0; }
+.mc.p-auction .face { background-image: radial-gradient(rgba(14,44,134,.09) 5px, transparent 6px); background-size: 36px 36px; }
+.mc.p-rank .face { background-image: repeating-linear-gradient(0deg, rgba(14,44,134,.06) 0 14px, transparent 14px 40px); }
+
+/* المتاحة: إطار نبض أبيض 4 يبعد 14، يتردد بين 55% و20% كل 1.6 ثانية، وثابت مع تقليل الحركة */
+.mc.avail::before { content: ''; position: absolute; inset: -14px; transform: skewX(calc(-1 * var(--lean))); border: 4px solid rgba(255,255,255,.55); box-shadow: 0 0 0 8px rgba(255,255,255,.14); animation: pulse 1.6s ease-in-out infinite alternate; }
+@keyframes pulse { to { border-color: rgba(255,255,255,.2); } }
+@media (prefers-reduced-motion: reduce) { .mc.avail::before { animation: none; } }
+.mc[data-cmd] { cursor: pointer; }
+/* لم تُختر بعد اكتمال الاختيار (المباراة بنمطين): باهتة */
+.mc.left { opacity: .45; }
+
+/* المختارة: تنضغط (تنزل 14 وتتحرك 12 نحو ظلّها، والظلّ درجة واحدة)، وتمتلئ بلون فريقها والنقش أبيض، ومفتاحها «الجولة N» */
+.mc.picked { margin-top: 14px; margin-left: 12px; }
+.mc.picked .face { box-shadow: 4px 4px 0 rgba(11,16,51,.75); }
+.mc.tm1 .face { background-color: var(--team-1); }
+.mc.tm2 .face { background-color: var(--ink); }
+.mc.tm1 .line, .mc.tm2 .line { color: #fff; }
+.mc.tm1 .key { background: rgba(11,16,51,.55); }
+.mc.tm2 .key { background: #0B1033; }
+.mc.tm2 .bdg img.edge { filter: none; }
+.mc.tm1.p-letter .face, .mc.tm2.p-letter .face { background-image: repeating-linear-gradient(90deg, rgba(255,255,255,.07) 0 26px, transparent 26px 60px); }
+.mc.tm1.p-last .face, .mc.tm2.p-last .face { background-image: linear-gradient(135deg, rgba(255,255,255,.08) 25%, transparent 25%), linear-gradient(225deg, rgba(255,255,255,.08) 25%, transparent 25%); }
+.mc.tm1.p-auction .face, .mc.tm2.p-auction .face { background-image: radial-gradient(rgba(255,255,255,.12) 5px, transparent 6px); }
+.mc.tm1.p-rank .face, .mc.tm2.p-rank .face { background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.07) 0 14px, transparent 14px 40px); }
+/* ختم رقم الجولة: دائرة بيضاء 132 مائلة −12° عند الزاوية العليا اليسرى، بحلقة الفريق الآخر 7 ثم بيضاء 6 وظلّ */
+.mc .stamp { position: absolute; left: -30px; top: -40px; width: 132px; height: 132px; border-radius: 50%; background: #fff; color: var(--ink);
+  font-style: normal; font-size: 92px; font-weight: 900; line-height: 132px; text-align: center; transform: rotate(-12deg);
+  box-shadow: 0 0 0 7px var(--ink), 0 0 0 13px #fff, 8px 10px 0 13px #0B1033; z-index: 3; }
+.mc.tm2 .stamp { color: var(--team-1); box-shadow: 0 0 0 7px var(--team-1), 0 0 0 13px #fff, 8px 10px 0 13px #0B1033; }
+/* «اختيار {الفريق}» تحت البطاقة: 66 في الرسم، وصعد 14 (−52) لأن المختارة تنزل 14، فيبقى 24 عن سطر «يختار …» فوق لوحة الثاني (قرار المصمّم: −52، و−50 كي يبقى 24 بالضبط بعد القياس).
+   والسطر الأطول من بطاقته لا يخرج عن الهامش الآمن: يُزاح إلى داخله (pickCards في audience.html).
+   وسطر التعريف سطران متوازنان إن لم يتسع، لا أصغر من 32 (حد النص في الشاشة) */
+.mc .by { position: absolute; left: 50%; transform: translateX(-50%); bottom: -50px; margin: 0; text-align: center; font-size: 36px; font-weight: 900; line-height: 1.2; color: #fff; white-space: nowrap; }
+.mc .by.tight { font-size: 32px; }

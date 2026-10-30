@@ -82,7 +82,7 @@ const { TEST_PIN, testPinRecord, unlock, reporter } = require('./helpers.cjs');
   await unlock(presenter, '975310');
   await wait(1500);
   check('الرقم الجديد يعيد فتحها دون إعادة تحميل', await isOpen() && (await presenter.getAttribute('#status', 'data-on')) === 'true');
-  check('شاشة الجمهور تعود بعد الفتح', await audience.isVisible('.team.t1') && await audience.isVisible('.scr.title'));
+  check('شاشة الجمهور تعود بعد الفتح (شاشة البداية بالشعار الكبير)', await audience.isVisible('.team.t1') && await audience.isVisible('.hero .hlogo'));
 
   // التحقق عند بدء كل مباراة جديدة: فوري دون انتظار المدة.
   served = { kind: 'record', record: testPinRecord('112233') };
