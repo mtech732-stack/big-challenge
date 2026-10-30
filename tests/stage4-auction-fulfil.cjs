@@ -1,7 +1,7 @@
 // اختبار آلي لمرحلة «الوفاء والعدّ» في المزاد (ش4، design/auction.md) بالنافذتين وبالنافذة الواحدة، في الرابط العادي:
 // الملتزم قبل «ابدأ» وبعده، ونقر عناصر القائمة في نافذة المقدّم (+1 بلون الملتزم، لا مكرر، ونقرات متتابعة تُحسب كلها)،
-// وما ذُكر على الجمهور وسقوط أقدمه، والعدّاد يبقى يعدّ، والتراجع، والحكم التلقائي عند بلوغ العدد (النقاط، والقائمة كلها، و«ذُكر N من N»)،
-// وإعادة التحميل، و«صحيح · +1» و«توقّف» في النافذة الواحدة (و«لم يفِ» في stage4-auction-fail.cjs)، ولا عنصر لم يُذكر على الجمهور قبل الحكم، وفحص التداخل ونافذة المقدّم.
+// وما ذُكر على الجمهور وسقوط أقدمه، والعدّاد يبقى يعدّ، والتراجع، والحكم التلقائي عند بلوغ العدد (النقاط، وما ذُكر وحده لا القائمة، و«ذُكر N من N»)،
+// وإعادة التحميل، و«صحيح · +1» و«توقّف» في النافذة الواحدة (و«لم يفِ» في stage4-auction-fail.cjs)، ولا عنصر لم يُذكر على الجمهور قبل الحكم ولا بعده، وفحص التداخل ونافذة المقدّم.
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
@@ -56,12 +56,12 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
     const r = await audience.evaluate(() => window.__stageCheck());
     if (!r.ok) { layoutOk = false; fails.push(`${label}: ${r.problems.join('، ')}`); }
     const s = await st();
-    if (s.phase === 'decided') return;
+    // وبعد الحكم كذلك: لا القائمة ولا ما لم يُذكر منها (design/auction.md 4.0).
     const said = new Set((s.said ?? []).filter(x => x.i !== null).map(x => x.i));
     const shown = [...said].flatMap(i => [items[i].name, ...(items[i].alts ?? [])]).sort((a, b) => b.length - a.length);
     const body = await audience.evaluate(ns => { let t = document.querySelector('.canvas').innerText;
       for (const b of document.querySelectorAll('.cbtn')) t = t.replace(b.innerText, '');
-      t = t.replace(document.getElementById('topic').innerText, '').replace(document.getElementById('tsize').innerText, '');
+      t = t.replace(document.getElementById('topic').innerText, '');
       for (const c of ['c1', 'c2']) t = t.replace(document.getElementById(c)?.innerText ?? '', ''); // ثواني العدّاد ليست طول القائمة
       for (const n of ns) t = t.split(n).join(''); return t; }, [...LONG, ...shown]);
     if (/سرقة|سهل|متوسط|صعب|انسحب|في القائمة|عنصر/.test(body)) { leak = true; fails.push(`${label}: نص ممنوع على الجمهور`); }
@@ -69,9 +69,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
     // اسم من حرف أو حرفين («ت» أو «7») يقع في أي نص، فلا يُبحث عنه في نص الشاشة: الشارات وحدها تحمل ما ذُكر.
     const named = n => [...n].length > 2 && body.includes(n);
     if (unsaid.some(named)) { leak = true; fails.push(`${label}: عنصر لم يُذكر على الجمهور (${unsaid.find(named)})`); }
-    // «في القائمة N» في المزايدة للقائمة حتى 20 وحدها (5.5، design/auction.md 2.0).
-    const tsize = await audience.evaluate(() => { const e = document.getElementById('tsize'); return e.hidden ? null : e.innerText.replace(/\s+/g, ' ').trim(); });
-    if (tsize !== (s.phase === 'bid' && items.length <= 20 ? `في القائمة ${items.length}` : null)) { leak = true; fails.push(`${label}: «في القائمة» (${tsize})`); }
+    // ولا طول للقائمة على الجمهور أبداً (4.0).
+    if (await audience.$('#tsize, .auc .size')) { leak = true; fails.push(`${label}: «في القائمة» على الجمهور`); }
     if (body.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
   };
   const presenterCheck = async label => {
@@ -101,8 +100,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const both = async label => { await wait(700); await audienceCheck(label); if (presenter) await sizes(label); };
   const chips = () => audience.$$eval('#items .it', els => els.map(e => ({ name: e.textContent.trim(), t: e.classList.contains('t1') ? 1 : e.classList.contains('t2') ? 2 : 0, left: e.classList.contains('left'), more: e.classList.contains('more') })));
   const tally = async () => `${await text(audience, '#tn')}/${await text(audience, '#tof')}`;
-  // نقرة بالفأرة في موضع العنصر i (لا page.click: ينتظر ثبات الزر فيؤخر النقرة).
-  const at = async i => presenter.$eval(`#aRef button[data-i="${i}"]`, e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  // نقرة بالفأرة في موضع العنصر i بعد تمريره إلى النظر (القائمة تُمرَّر داخل لوحتها، 4.0)، لا page.click: ينتظر ثبات الزر فيؤخر النقرة.
+  const at = async i => presenter.$eval(`#aRef button[data-i="${i}"]`, e => { e.scrollIntoView({ block: "nearest" }); const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
   const tap = async i => { const p = await at(i); await presenter.mouse.click(p.x, p.y); };
 
   // 1. إلى الوفاء: يزايد فريق (عشوائي) بزرّه حتى 30، ثم «ابدأ» يرسي عليه ويبدأ العدّاد فوراً (3.0؛ القائمة 54، فالعدد مخفي).
@@ -127,9 +126,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   let s = await st();
   check(`«ابدأ»: ${LONG[opener - 1]} ملتزم بـ ${N}، والجمهور يعدّ (الإطار يتآكل حول لوحته)`, s.phase === 'fulfil' && s.commit.team === opener && s.commit.n === N
     && await audience.$eval('#canvas', (c, t) => c.classList.contains('running') && c.classList.contains('turn-' + t), opener));
-  check(`المقدّم: «0:5x · بقي ${N}» (الوقت في حاوية ltr) و«توقّف · لم يفِ» وحده`, new RegExp(`^0:5\\d · بقي ${N}$`).test(await text(presenter, '#aState'))
+  check(`المقدّم: «0:5x · بقي ${N}» (الوقت في حاوية ltr) و«صحيحة · +1» · «تراجع» · «توقّف · لم يفِ» (4.1)`, new RegExp(`^0:5\\d · بقي ${N}$`).test(await text(presenter, '#aState'))
     && /^0:5\d$/.test(await presenter.$eval('#aState .ltr', e => e.textContent))
-    && (await presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim()).join(' | '))) === 'توقّف · لم يفِ');
+    && (await presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim()).join(' | '))) === 'صحيحة · +1 | تراجع | توقّف · لم يفِ');
   check('المقدّم: القائمة أزرار تُنقر (لا «للاطلاع»)', !(await presenter.$eval('#aRef', e => e.classList.contains('view'))));
   const timer = (await stored()).round.timer.id;
   await tap(0); await wait(600);
@@ -158,8 +157,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
     && await audience.$eval('#items', e => { const tops = new Set([...e.children].map(x => Math.round(x.getBoundingClientRect().top))); return tops.size <= 3; }));
   await both('الوفاء · 29');
 
-  // 6. التراجع عن عنصر: يعود العدّ، ويبقى العدّاد.
-  await presenter.click('#aUndo'); await wait(900);
+  // 6. التراجع عن عنصر: يعود العدّ، ويبقى العدّاد. و«تراجع» في الوفاء بجانب «صحيحة · +1»، وفي غيره في الصف الأعلى (4.1).
+  const undo = () => presenter.locator('#aUndo:visible, #aCtl [data-undo]').first().click();
+  await undo(); await wait(900);
   check('التراجع: «28 من 30»، والعنصر يعود يُنقر، والعدّاد يبقى', (await tally()) === `28/${N}` && !(await presenter.$eval(`#aRef button[data-i="${N - 2}"]`, e => e.classList.contains('t1') || e.classList.contains('t2')))
     && (await stored()).round.timer?.id === timer);
   // إعادة تحميل الشاشة ثم المقدّم أثناء العدّ.
@@ -183,10 +183,12 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check(`الجمهور: «${LONG[opener - 1]} · +${N}» و«ذُكر 30 من 30»`, (await text(audience, '#vtext')) === `${LONG[opener - 1]} · +${N}` && (await text(audience, '#told')) === `ذُكر ${N} من ${N}`);
   check('الجمهور: الحدّ عند الملتزم، والعدّاد وقف، والعدّ الكبير غاب', await audience.$eval('#canvas', (c, t) => c.classList.contains('turn-' + t) && !c.classList.contains('running'), opener) && !(await audience.isVisible('#tally')));
   c = await chips();
-  // ثلاثون مما ذُكر بأسماء الدول لا تتسع كلها في الصفوف الأربعة: يبقى أولها، و«و N غيرها» عن الباقي كله.
+  // ثلاثون مما ذُكر لا تتسع كلها في الصفوف الأربعة: يبقى أولها، و«و N غيرها» عن باقي ما ذُكر. ولا القائمة (4.0).
   const shownN = c.filter(x => !x.more).length;
-  check(`القائمة كلها بعد الحكم: ما ذُكر بلونه أولاً، و«و ${items.length - shownN} غيرها» عن الباقي (${shownN} ظاهرة)`,
-    c.slice(0, -1).every((x, i) => x.t === opener && x.name === items[i].name) && c[c.length - 1].more && c[c.length - 1].name === `و ${items.length - shownN} غيرها`);
+  const tail = c[c.length - 1];
+  check(`بعد الحكم ما ذُكر وحده بلونه${shownN < N ? `، و«و ${N - shownN} غيرها» عن باقيه` : ' كله'} (${shownN} ظاهرة)، لا القائمة`,
+    c.filter(x => !x.more).every((x, i) => x.t === opener && x.name === items[i].name)
+    && (shownN === N ? !tail.more : tail.more && tail.name === `و ${N - shownN} غيرها`));
   check('المقدّم: الحكم و«الموضوع التالي» وحده، والقائمة للاطلاع', (await text(presenter, '#aWho')).includes(`+${N}`)
     && (await presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim()).join(' | '))) === 'الموضوع التالي' && await presenter.$eval('#aRef', e => e.classList.contains('view')));
   await both('بعد الحكم');
@@ -194,11 +196,11 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
 
   // 8. النافذة الواحدة: «صحيح · +1» دون أسماء، و«توقّف». يُتراجع عن عنصرين (28 من 30).
   const leftAt = async () => Number(await audience.$eval(`#c${opener}`, e => e.textContent));
-  await presenter.click('#aUndo'); await wait(900);
+  await undo(); await wait(900);
   const back = await leftAt();
   check(`التراجع عن الحكم: يعود الوفاء بما بقي من الوقت (${back} ثانية، لا 60)`, (await st()).phase === 'fulfil' && back > 0 && back < 56
     && await audience.$eval('#canvas', c => c.classList.contains('running')));
-  await presenter.click('#aUndo'); await wait(900);
+  await undo(); await wait(900);
   await presenter.close();
   presenter = null;
   await wait(600);
@@ -229,11 +231,11 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await cmd(audience, 'undo'); await wait(900);
   await cmd(audience, 'act:count'); await wait(1200);
   s = await st();
-  check('النافذة الواحدة: بلغ العدد بـ «صحيح · +1»، فيُحكم، والقائمة كلها بعد الحكم', s.phase === 'decided' && (await text(audience, '#told')) === `ذُكر ${N} من ${N}` && (await chips()).some(x => x.left));
+  check('النافذة الواحدة: بلغ العدد بـ «صحيح · +1»، فيُحكم، وتبقى البطاقة على ما قيل، لا القائمة (4.0)', s.phase === 'decided' && (await text(audience, '#told')) === `ذُكر ${N} من ${N}` && !(await chips()).some(x => x.left));
   await both('نافذة واحدة · بعد الحكم');
   await stage.screenshot({ path: `${shots}/s4-single-won.png` });
 
-  // 9. بعد الحكم وما ذُكر 15 (design/auction.md 2.4): يبقى كل ما ذُكر، ثم ما لم يُذكر بإطار، و«و N غيرها».
+  // 9. بعد الحكم وما ذُكر 15 (design/auction.md 4.0): يبقى ما ذُكر وحده بلون الملتزم، لا القائمة، وما لا يتسع في «و N غيرها».
   await stage.evaluate(() => { const m = JSON.parse(localStorage.getItem('big-challenge.match')); const s = m.round.state;
     s.said = s.said.filter(x => x.i !== null).slice(0, 15); localStorage.setItem('big-challenge.match', JSON.stringify(m)); });
   await stage.reload();
@@ -241,9 +243,10 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   audience = await stageFrame(stage);
   await wait(1200);
   c = await chips();
-  const lefts = c.filter(x => x.left), more = c[c.length - 1];
-  check(`15 مما ذُكر بعد الحكم: الخمسة عشر بلون الملتزم، ثم ${lefts.length} بإطار، و«و ${items.length - 15 - lefts.length} غيرها»`,
-    c.slice(0, 15).every(x => x.t === opener) && lefts.length > 5 && c.slice(15, -1).every(x => x.left) && more.more && more.name === `و ${items.length - 15 - lefts.length} غيرها`);
+  const named = c.filter(x => !x.more), more = c.find(x => x.more);
+  check(`15 مما ذُكر بعد الحكم: ${named.length} بلون الملتزم${more ? ` و«${more.name}»` : ''}، ولا ما لم يُذكر`,
+    named.every(x => x.t === opener && !x.left) && named.length + (more ? Number(more.name.replace(/\D/g, '')) : 0) === 15 && named.length >= 10
+    && !named.some(x => !items.some(i => i.name === x.name)));
   await both('بعد الحكم · 15 ذُكر');
   await stage.screenshot({ path: `${shots}/s4-reveal.png` });
 

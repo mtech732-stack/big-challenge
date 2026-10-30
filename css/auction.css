@@ -6,10 +6,7 @@
 .auc .ahead { display: flex; align-items: center; gap: 48px; min-height: 104px; }
 .auc .topic { flex: 0 1 auto; min-width: 0; margin: 0; color: var(--text); font-size: var(--fs-question); font-weight: 700; line-height: 88px;
   white-space: nowrap; overflow: clip; }
-/* في المزايدة: عدد القائمة حتى 20 إشارةً صغيرة بجانب الموضوع، بحبر الموضوع وأصغر خط (الوثيقة 5.5) */
-.auc .size { flex: none; margin: 0; color: var(--text); font-size: var(--fs-badge); font-weight: 700; line-height: 1; white-space: nowrap; }
-.auc .size[hidden] { display: none; }
-/* الموضوع بعرض نصه، فتلاصقه الإشارة، والعدّ وزر «الموضوع التالي» إلى اليسار */
+/* لا عدد للقائمة على الشاشة أبداً (4.0، أُلغي «في القائمة 12»). والموضوع بعرض نصه، والعدّ وزر «الموضوع التالي» إلى اليسار */
 .auc .tally, .auc .ahead > .ctl { margin-inline-start: auto; }
 /* العدّ: ما ذُكر من الالتزام. الرقم بلون الملتزم، و«من 12» بالحبر المحايد */
 .auc .tally { flex: none; display: flex; align-items: baseline; gap: 24px; color: var(--text); white-space: nowrap; }
@@ -40,9 +37,7 @@
 .auc .it > span { position: relative; }
 .auc .it.t1 > i { background: var(--team-1); }
 .auc .it.t2 > i { background: var(--team-2-ink); }
-/* بعد الحكم: ما لم يُذكر من القائمة بإطار داكن 3 ونص داكن، فيُقرأ أنه الإجابة لا ما قيل */
-.auc .it.left { color: var(--ink); font-weight: 800; }
-.auc .it.left > i { background: var(--card); box-shadow: inset 0 0 0 4px var(--ink); }
+/* 4.0: لا «ما لم يُذكر» بعد الحكم. الشاشة تبقى على ما قيل، فالقائمة قد تبلغ 200 */
 /* وما لا يتسع في الصفوف الثلاثة: «و 14 غيرها» في آخرها */
 .auc .it.more { color: var(--text); padding: 0 8px; }
 

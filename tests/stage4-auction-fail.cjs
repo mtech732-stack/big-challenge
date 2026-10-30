@@ -1,7 +1,8 @@
 // اختبار آلي لـ«لم يفِ» في المزاد بقاعدة المالك المصحّحة (5.5، design/auction.md 2.0) بالنافذتين وبالنافذة الواحدة، في الرابط العادي:
 // «توقّف · لم يفِ» يعطي الخصم نقطتين ثابتتين ولا إكمال (اهتزاز البطاقة، ثم الحدّ إلى الخصم وزيادة رقمه)، والحكم «[الخصم] · +2» بلا عدّاد ثانٍ،
-// وسطر المقدّم «[الخصم] · +2» و«لم يفِ · ذُكر 2 من 5»، والتراجع يعيد الوفاء بما بقي من الوقت والرصيد، وفحص التداخل ونافذة المقدّم
-// بقائمة أفريقيا (54) على المقاسات الثلاثة، ولا عنصر لم يُذكر قبل الحكم. (حلّ محل stage4-auction-complete بعد إلغاء «إكمال الخصم».)
+// وسطر المقدّم «[الخصم] · +2» و«لم يفِ · ذُكر 4 من 5»، والتراجع يعيد الوفاء بما بقي من الوقت والرصيد، وفحص التداخل ونافذة المقدّم
+// بأطول قائمة في البنك (4.0: تُمرَّر داخل لوحتها ويُبحث فيها) على المقاسات الثلاثة، و«صحيحة · +1» و«من خارج القائمة» (4.1)،
+// ولا عنصر لم يُذكر على الجمهور، ولا القائمة بعد الحكم. (حلّ محل stage4-auction-complete بعد إلغاء «إكمال الخصم».)
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
@@ -16,13 +17,14 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQ
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const LONG = ['فريق النخبة الذهبي', 'نجوم المستقبل معاً'];
 
-  // بنك تجريبي بأطول محتوى (design/auction.md 3): الموضوع السهل 32 حرفاً بقائمة أفريقيا (54)، والباقي من البنك.
+  // بنك تجريبي بأطول محتوى (design/auction.md 3): الموضوع السهل 32 حرفاً بأطول قائمة في البنك كما هي (مفتوحة أو لا)، والباقي من البنك.
+  // لا يعتمد على اسم قائمة بعينها.
   const real = JSON.parse(fs.readFileSync(path.join(__dirname, '../content/packs/general/auction.json'), 'utf8'));
-  const africa = real.topics.find(t => t.items.length > 30);
+  const africa = real.topics.reduce((x, t) => (t.items.length > x.items.length ? t : x));
   const TOPIC = 'أشياء تجدها في حقيبة طالب مدرسة';
   const bank = { mode: 'auction', topics: [{ ...africa, id: 'test-auction-long', level: 'easy', topic: TOPIC }, ...real.topics.filter(t => t.level !== 'easy')] };
   const items = bank.topics[0].items;
-  const N = 5;
+  const N = 7;
 
   const context = await browser.newContext({ viewport: { width: 1366, height: 768 }, serviceWorkers: 'block' });
   await usePin(context);
@@ -51,21 +53,20 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQ
     const r = await audience.evaluate(() => window.__stageCheck());
     if (!r.ok) { layoutOk = false; fails.push(`${label}: ${r.problems.join('، ')}`); }
     const s = await st();
-    if (s.phase === 'decided') return;
+    // وبعد الحكم كذلك: لا القائمة ولا ما لم يُذكر منها (design/auction.md 4.0).
     const said = new Set((s.said ?? []).filter(x => x.i !== null).map(x => x.i));
     const shown = [...said].flatMap(i => [items[i].name, ...(items[i].alts ?? [])]).sort((a, b) => b.length - a.length);
     const body = await audience.evaluate(ns => { let t = document.querySelector('.canvas').innerText;
       for (const b of document.querySelectorAll('.cbtn')) t = t.replace(b.innerText, '');
-      t = t.replace(document.getElementById('topic').innerText, '').replace(document.getElementById('tsize').innerText, '');
+      t = t.replace(document.getElementById('topic').innerText, '');
       for (const n of ns) t = t.split(n).join(''); return t; }, [...LONG, ...shown]);
     if (/سرقة|سهل|متوسط|صعب|انسحب|في القائمة|عنصر/.test(body)) { leak = true; fails.push(`${label}: نص ممنوع على الجمهور`); }
     const unsaid = items.filter((x, i) => !said.has(i)).flatMap(x => [x.name, ...(x.alts ?? [])]);
     // اسم من حرف أو حرفين («ت» أو «7») يقع في أي نص، فلا يُبحث عنه في نص الشاشة: الشارات وحدها تحمل ما ذُكر.
     const named = n => [...n].length > 2 && body.includes(n);
     if (unsaid.some(named)) { leak = true; fails.push(`${label}: عنصر لم يُذكر على الجمهور (${unsaid.find(named)})`); }
-    // «في القائمة N» في المزايدة للقائمة حتى 20 وحدها (5.5، design/auction.md 2.0).
-    const tsize = await audience.evaluate(() => { const e = document.getElementById('tsize'); return e.hidden ? null : e.innerText.replace(/\s+/g, ' ').trim(); });
-    if (tsize !== (s.phase === 'bid' && items.length <= 20 ? `في القائمة ${items.length}` : null)) { leak = true; fails.push(`${label}: «في القائمة» (${tsize})`); }
+    // ولا طول للقائمة على الجمهور أبداً (4.0).
+    if (await audience.$('#tsize, .auc .size')) { leak = true; fails.push(`${label}: «في القائمة» على الجمهور`); }
     if (body.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
   };
   const presenterCheck = async label => {
@@ -95,8 +96,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQ
   const both = async label => { await wait(700); await audienceCheck(label); if (presenter) await sizes(label); };
   const chips = () => audience.$$eval('#items .it', els => els.map(e => ({ name: e.textContent.trim(), t: e.classList.contains('t1') ? 1 : e.classList.contains('t2') ? 2 : 0, left: e.classList.contains('left'), more: e.classList.contains('more') })));
   const tally = async () => `${await text(audience, '#tn')}/${await text(audience, '#tof')}`;
-  // نقرة بالفأرة في موضع العنصر i (لا page.click: ينتظر ثبات الزر فيؤخر النقرة).
-  const at = async i => presenter.$eval(`#aRef button[data-i="${i}"]`, e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  // نقرة بالفأرة في موضع العنصر i بعد تمريره إلى النظر (القائمة تُمرَّر داخل لوحتها، 4.0)، لا page.click: ينتظر ثبات الزر فيؤخر النقرة.
+  const at = async i => presenter.$eval(`#aRef button[data-i="${i}"]`, e => { e.scrollIntoView({ block: "nearest" }); const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
   const tap = async i => { const p = await at(i); await presenter.mouse.click(p.x, p.y); };
 
 
@@ -117,6 +118,33 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQ
   await presenter.click('#aCtl [data-act="start"]'); await wait(300);
   await tap(0); await wait(100); await tap(1); await wait(4000);
   check(`الوفاء: ${LONG[opener - 1]} ملتزم بـ ${N}، وعنصران بعد «ابدأ» بـ 0.3 ثانية يُحسبان`, (await st()).phase === 'fulfil' && (await st()).commit.team === opener && (await tally()) === `2/${N}`);
+  // القائمة الكبيرة (4.0): النافذة بارتفاع الشاشة، والقائمة وحدها تُمرَّر داخل لوحتها، والحقل مركَّز.
+  check(`أطول قائمة (${items.length}): تُمرَّر داخل لوحتها، والنافذة لا تطول، والحقل مركَّز`, await presenter.$eval('#aRef', e => e.scrollHeight > e.clientHeight + 10 && getComputedStyle(e).overflowY === 'auto')
+    && await presenter.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1 && document.activeElement?.id === 'aQ'));
+  await both(`الوفاء · أطول قائمة ${items.length}`);
+  await presenter.screenshot({ path: `${shots}/s4-presenter-longest.png` });
+  // البحث: أول ثلاثة أحرف من عنصر لم يُذكر ترشّحه وتُبرزه، وEnter يحتسبه، ثم يُفرَّغ الحقل وتعود القائمة كاملة.
+  const pick = items.findIndex((x, i) => i > 1 && [...x.name].length > 3);
+  await presenter.keyboard.type([...items[pick].name].slice(0, 3).join('')); await wait(300);
+  const found = await presenter.$$eval('#aRef button[data-i]', els => ({ shown: els.filter(e => !e.hidden).length, hit: els.find(e => e.classList.contains('hit'))?.dataset.i }));
+  check(`البحث «${[...items[pick].name].slice(0, 3).join('')}»: يرشّح (${found.shown} من ${items.length}) ويُبرز الأول`, found.shown >= 1 && found.shown < items.length && found.hit !== undefined);
+  const hitAt = Number(found.hit);
+  await presenter.keyboard.press('Enter'); await wait(800);
+  check('Enter يحتسب المُبرَز، ويُفرَّغ الحقل، وتعود القائمة كاملة', (await tally()) === `3/${N}` && (await st()).said.some(x => x.i === hitAt)
+    && (await presenter.inputValue('#aQ')) === '' && await presenter.$$eval('#aRef button[data-i]', els => els.every(e => !e.hidden)));
+  // «صحيحة · +1» (4.1): الزر الأكبر، أو مسطرة المسافة والحقل فارغ.
+  await presenter.keyboard.press(' '); await wait(800);
+  check('مسطرة المسافة: «صحيحة · +1»، و«بالزر 1» في سطر المقدّم', (await tally()) === `4/${N}` && (await text(presenter, '#aOuts')) === 'بالزر 1');
+  await presenter.click('#aCtl [data-undo]'); await wait(800);
+  check('«تراجع» بجانبه يعيدها', (await tally()) === `3/${N}` && (await text(presenter, '#aOuts')) === '');
+  await presenter.click('#aCtl [data-yes]'); await wait(800);
+  // من خارج القائمة: نص لا يطابق شيئاً، فسطر «لا يطابق»، وEnter يحتسبه بنصه.
+  const OUT = 'ززز تجربة';
+  await presenter.keyboard.type(OUT); await wait(300);
+  check('لا مطابقة: «لا يطابق شيئاً في القائمة · Enter يحتسبه بنصه من خارجها»', (await text(presenter, '#aRef .none')) === 'لا يطابق شيئاً في القائمة · Enter يحتسبه بنصه من خارجها');
+  await presenter.keyboard.press('Enter'); await wait(800);
+  check(`Enter: «${OUT}» من خارج القائمة، والسطر «بالزر 1 من خارج القائمة: ${OUT}»، والجمهور يراه بنصه`, (await tally()) === `5/${N}`
+    && (await text(presenter, '#aOuts')).replace(/\s/g, '') === `بالزر 1 من خارج القائمة: ${OUT}`.replace(/\s/g, '') && (await chips()).some(x => x.name === OUT && x.t === opener));
   const score = t => audience.$eval('#s' + t, e => e.textContent.replace(/\s+/g, '').trim());
 
   // 2. «توقّف · لم يفِ»: البطاقة تهتز، ثم للخصم نقطتان، ولا عدّاد بعدها.
@@ -128,11 +156,13 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQ
   check(`لم يفِ: +2 للخصم (${LONG[rival - 1]})، ولا شيء للملتزم، والحكم فوراً`, s.phase === 'decided' && sc[rival] === 2 && sc[opener] === 0 && s.results[0].team === rival && s.results[0].points === 2);
   check('الجمهور: الحدّ عند الخصم، ولا عدّاد يعمل، ورقمه الكبير 2', await audience.$eval('#canvas', (c, t) => c.classList.contains('turn-' + t) && !c.classList.contains('running'), rival)
     && (await score(rival)).includes('2'));
-  check(`الجمهور: «${LONG[rival - 1]} · +2» بلا مربع و«ذُكر 2 من ${N}»، والقائمة كلها وما ذكره الملتزم بلونه`, (await text(audience, '#vtext')) === `${LONG[rival - 1]} · +2`
-    && (await text(audience, '#told')) === `ذُكر 2 من ${N}` && await audience.$eval('#box', b => b.classList.contains('bare'))
-    && (await chips()).slice(0, 2).every(x => x.t === opener) && (await chips()).some(x => x.left));
-  check(`المقدّم: «${LONG[rival - 1]} · +2» و«لم يفِ · ذُكر 2 من ${N}» و«الموضوع التالي»`, (await text(presenter, '#aWho')).endsWith(`${LONG[rival - 1]} · +2`)
-    && (await text(presenter, '#aState')) === `لم يفِ · ذُكر 2 من ${N}`
+  const after = await chips();
+  check(`الجمهور: «${LONG[rival - 1]} · +2» بلا مربع و«ذُكر 5 من ${N}»، وما قيل وحده بلون الملتزم (أربعة بأسمائها و«و 1 غيرها»)، لا القائمة (4.0 و4.1)`, (await text(audience, '#vtext')) === `${LONG[rival - 1]} · +2`
+    && (await text(audience, '#told')) === `ذُكر 5 من ${N}` && await audience.$eval('#box', b => b.classList.contains('bare'))
+    && after.filter(x => !x.more).length === 4 && after.filter(x => !x.more).every(x => x.t === opener) && after.at(-1).more && after.at(-1).name === 'و 1 غيرها'
+    && !after.some(x => x.left) && after.some(x => x.name === OUT));
+  check(`المقدّم: «${LONG[rival - 1]} · +2» و«لم يفِ · ذُكر 5 من ${N}» و«الموضوع التالي»`, (await text(presenter, '#aWho')).endsWith(`${LONG[rival - 1]} · +2`)
+    && (await text(presenter, '#aState')) === `لم يفِ · ذُكر 5 من ${N}`
     && (await presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim()).join(' | '))) === 'الموضوع التالي' && await presenter.$eval('#aRef', e => e.classList.contains('view')));
   await both('بعد الحكم · لم يفِ');
   await stage.screenshot({ path: `${shots}/s4-failed-t${rival}.png` });
