@@ -8,10 +8,8 @@
 // ثم «الموضوع التالي» حتى الثالث، و«إنهاء الجولة».
 import { freshFirst, besides } from '../round.js';
 
-// وقت الوفاء يزيد مع الرقم المرسى (المالك، 30 أكتوبر 2026): ثانيتان لكل عنصر بعد مهلة 20، وأقله 45 (الوثيقة 1.6).
-// والمعادلة مقترحة تُحسم في الوثيقة، فهي هنا وحدها.
+// وقت الوفاء 45 ثابتاً لكل القوائم (المالك، 30 أكتوبر 2026: «ابق التوقيت ثابت كما هو لكل القوائم»)، ونقطتان للخصم إن لم يفِ الملتزم (5.5 و12).
 export const FULFIL_SECONDS = 45;
-export const fulfilSeconds = n => Math.max(FULFIL_SECONDS, 20 + 2 * n);
 export const FAIL_POINTS = 2;
 // الموضوع المفتوح (open) لا تحدّه قائمته: المزايدة فوق طولها حتى هذا الرقم.
 export const OPEN_MAX = 99;
@@ -100,9 +98,9 @@ function act(s, action) {
     const team = leader(s);
     if (!team) return { state: s, events: [] };
     const n = topNum(s);
-    return { state: { ...s, phase: 'fulfil', team, commit: { team, n }, said: [] }, events: [{ type: 'timer', seconds: fulfilSeconds(n), resume: true }] };
+    return { state: { ...s, phase: 'fulfil', team, commit: { team, n }, said: [] }, events: [{ type: 'timer', seconds: FULFIL_SECONDS, resume: true }] };
   }
-  if (id === 'start' && s.phase === 'ready') return { state: { ...s, phase: 'fulfil' }, events: [{ type: 'timer', seconds: fulfilSeconds(s.commit.n), resume: true }] };
+  if (id === 'start' && s.phase === 'ready') return { state: { ...s, phase: 'fulfil' }, events: [{ type: 'timer', seconds: FULFIL_SECONDS, resume: true }] };
   if ((id === 'item' || id === 'count' || id === 'out') && ['ready', 'fulfil'].includes(s.phase)) {
     const i = id === 'item' ? Number(arg) : null;
     // لا مكرر (5.5): العنصر الذي ذُكر لا يُحسب ثانية، ولا موضع خارج القائمة.
@@ -168,8 +166,8 @@ function audience(s) {
     // وما عُدّ دون اسم لا شارة له: يظهر في العدّ، وبعد الحكم في «و N غيرها» (plain، design/auction.md 4.1).
     said: saidOf(s).filter(x => x.i !== null || x.text).map(x => ({ name: x.i !== null ? t.items[x.i].name : x.text, team: x.team })),
     plain: saidOf(s).filter(x => x.i === null && !x.text).length,
-    // العدّاد ثابت بوقته قبل «ابدأ»، ووقته من الرقم المرسى.
-    clock: fulfilSeconds(s.commit?.n ?? 0),
+    // العدّاد ثابت بوقته قبل «ابدأ».
+    clock: FULFIL_SECONDS,
     verdict: result ? { ...result } : null,
     // بعد الحكم تبقى البطاقة على ما قيل، ولا تصل القائمة إلى الجمهور أبداً (المالك، 30 أكتوبر 2026، design/auction.md 4.0):
     // القائمة قد تبلغ 200، وهي عون للمقدّم لا الإجابة.
@@ -192,7 +190,7 @@ function presenter(s) {
     outs: hidden ? [] : saidOf(s).filter(x => x.i === null && x.text).map(x => ({ text: x.text, team: x.team })),
     size: hidden ? 0 : t.items.length,
     note: hidden ? '' : t.note,
-    brief: `3 مواضيع. يزايد كل فريق فوق رقم خصمه بما يشاء (زرّه بلونه، كل نقرة +1)، و«ابدأ» يرسي على الأعلى. ولمن رسا عليه ${FULFIL_SECONDS} ثانية فأكثر ليوفي (ثانيتان لكل رقم فوق 12)، فإن لم يفِ أخذ خصمه ${FAIL_POINTS === 2 ? 'نقطتين' : `${FAIL_POINTS} نقاط`}.`,
+    brief: `3 مواضيع. يزايد كل فريق فوق رقم خصمه بما يشاء (زرّه بلونه، كل نقرة +1)، و«ابدأ» يرسي على الأعلى. ولمن رسا عليه ${FULFIL_SECONDS} ثانية ليوفي، فإن لم يفِ أخذ خصمه ${FAIL_POINTS === 2 ? 'نقطتين' : `${FAIL_POINTS} نقاط`}.`,
     track: s.topics.map((x, i) => ({ owner: 0, result: s.results[i] === null ? null : s.results[i].team, now: !hidden && i === s.index })),
   };
 }

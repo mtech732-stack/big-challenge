@@ -7,7 +7,7 @@ const { reporter } = require('./helpers.cjs');
 (async () => {
   const root = path.join(__dirname, '..');
   const auction = (await import(path.join(root, 'js/modes/auction.js'))).default;
-  const { FULFIL_SECONDS, FAIL_POINTS, fulfilSeconds, OPEN_MAX } = await import(path.join(root, 'js/modes/auction.js'));
+  const { FULFIL_SECONDS, FAIL_POINTS, OPEN_MAX } = await import(path.join(root, 'js/modes/auction.js'));
   const { checkMode } = await import(path.join(root, 'js/modes/contract.js'));
   const { MODES, DRAFTS, matchModes, pickableModes } = await import(path.join(root, 'js/modes/index.js'));
   const R = await import(path.join(root, 'js/round.js'));
@@ -230,8 +230,6 @@ const { reporter } = require('./helpers.cjs');
   check('نهاية الجولة: الحصيلة الأول 3 والثاني 2، وانتهت', a.screen === 'end' && a.totals[1] === 3 && a.totals[2] === 2 && auction.finished(q.state) && !auction.actions(q.state).length);
   check('بعد النهاية: لا فعل يُقبل', R.act(auction, q, 'next').state === q.state);
 
-  // وقت الوفاء من الرقم المرسى: 20 + 2 × الرقم، وأقله 45 (المالك، 30 أكتوبر 2026؛ المعادلة مقترحة تُحسم في الوثيقة).
-  check('وقت الوفاء: 10 ← 45 · 12 ← 45 · 13 ← 46 · 15 ← 50 · 40 ← 100', [10, 12, 13, 15, 40].map(fulfilSeconds).join() === '45,45,46,50,100');
   // الموضوع المفتوح (open): لا تحدّ المزايدةَ قائمتُه، و«صحيح · +1» لما قيل من خارجها، وبعد الحكم يرى الجمهور ما قيل فقط.
   {
     const ob = JSON.parse(JSON.stringify(small));
@@ -247,8 +245,8 @@ const { reporter } = require('./helpers.cjs');
     for (let k = 0; k < OPEN_MAX + 5; k++) capped = R.act(auction, capped, 'raise:1');
     check(`والحدّ الأعلى ${OPEN_MAX}`, capped.state.nums[0] === OPEN_MAX);
     o = R.act(auction, o, 'start');
-    check(`رسا على ${len + 3}: عدّاد الوفاء ${20 + 2 * (len + 3)} ثانية، والجمهور يراه قبل أن يعدّ`, o.state.commit.n === len + 3 && o.timer?.seconds === 20 + 2 * (len + 3)
-      && auction.audience(o.state).clock === 20 + 2 * (len + 3));
+    check(`رسا على ${len + 3}: عدّاد الوفاء ${FULFIL_SECONDS} ثانية ثابتاً لكل القوائم (المالك)`, o.state.commit.n === len + 3 && o.timer?.seconds === FULFIL_SECONDS
+      && auction.audience(o.state).clock === FULFIL_SECONDS);
     const who = o.state.commit.team;
     o = R.act(auction, R.act(auction, R.act(auction, o, 'item:0'), 'count'), 'stop');
     const a = auction.audience(o.state);

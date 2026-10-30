@@ -126,9 +126,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   let s = await st();
   check(`«ابدأ»: ${LONG[opener - 1]} ملتزم بـ ${N}، والجمهور يعدّ (الإطار يتآكل حول لوحته)`, s.phase === 'fulfil' && s.commit.team === opener && s.commit.n === N
     && await audience.$eval('#canvas', (c, t) => c.classList.contains('running') && c.classList.contains('turn-' + t), opener));
-  // وقت الوفاء من الرقم المرسى: 20 + 2 × 30 = 80 ثانية (fulfilSeconds)، فيبدأ «1:19».
-  check(`المقدّم: «1:xx · بقي ${N}» (الوقت في حاوية ltr) و«صحيحة · +1» · «تراجع» · «توقّف · لم يفِ» (4.1)`, new RegExp(`^1:[01]\\d · بقي ${N}$`).test(await text(presenter, '#aState'))
-    && /^1:[01]\d$/.test(await presenter.$eval('#aState .ltr', e => e.textContent))
+  check(`المقدّم: «0:5x · بقي ${N}» (الوقت في حاوية ltr) و«صحيحة · +1» · «تراجع» · «توقّف · لم يفِ» (4.1)`, new RegExp(`^0:5\\d · بقي ${N}$`).test(await text(presenter, '#aState'))
+    && /^0:5\d$/.test(await presenter.$eval('#aState .ltr', e => e.textContent))
     && (await presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim()).join(' | '))) === 'صحيحة · +1 | تراجع | توقّف · لم يفِ');
   check('المقدّم: القائمة أزرار تُنقر (لا «للاطلاع»)', !(await presenter.$eval('#aRef', e => e.classList.contains('view'))));
   const timer = (await stored()).round.timer.id;
@@ -199,7 +198,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const leftAt = async () => Number(await audience.$eval(`#c${opener}`, e => e.textContent));
   await undo(); await wait(900);
   const back = await leftAt();
-  check(`التراجع عن الحكم: يعود الوفاء بما بقي من الوقت (${back} ثانية، لا 80)`, (await st()).phase === 'fulfil' && back > 0 && back < 76
+  check(`التراجع عن الحكم: يعود الوفاء بما بقي من الوقت (${back} ثانية، لا 60)`, (await st()).phase === 'fulfil' && back > 0 && back < 56
     && await audience.$eval('#canvas', c => c.classList.contains('running')));
   await undo(); await wait(900);
   await presenter.close();

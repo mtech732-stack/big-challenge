@@ -89,6 +89,32 @@ export function clashes(files) {
   return pairs;
 }
 
+// كشف بين النمطين (تدقيق ش8): إجابة سؤال من «الحرف المعيّن» أو صيغتها لا تظهر كلمةً كاملة في نص سؤال من «آخر حرفين»، ولا العكس،
+// فهما يجتمعان في مباراة واحدة. والمقارنة بالتوحيد (fold)، وبحذف «ال» والواو والباء والفاء واللام الملتصقة بأول الكلمة،
+// و«عبد الله» كـ«عبدالله»، و«أبي» و«أبا» كـ«أبو».
+const wordsOf = text => fold(text).replace(/[^\u0621-\u064A0-9 ]/g, ' ').replace(/(^| )([وبفل]?)عبد +(?=ال)/g, '$1$2عبد').split(' ').filter(Boolean);
+const abu = w => w.replace(/^اب[يا]$/, 'ابو');
+const noArticle = w => abu(w.replace(/^(ولل|فلل|وبال|فبال|وال|بال|فال|كال|لل|ال)(?=..)/, ''));
+const bareWord = w => abu(noArticle(w).replace(/^[وبفل](?=..)/, ''));
+const saysWord = (text, answer) => {
+  const a = wordsOf(answer).map(bareWord).join(' ');
+  if (!a) return false;
+  const ws = wordsOf(text);
+  return [ws.map(bareWord), ws.map(noArticle)].some(v => ` ${v.join(' ')} `.includes(` ${a} `));
+};
+// الأزواج: [{ id, mode, by, byMode, answer }]: نص السؤال id فيه إجابة السؤال by من النمط الآخر.
+export function crossReveals(files) {
+  const found = [];
+  const qs = mode => files?.[`${mode}.json`]?.questions ?? [];
+  for (const [mode, other] of [['letter', 'last-two'], ['last-two', 'letter']]) {
+    for (const p of qs(mode)) for (const q of qs(other)) {
+      const answer = typeof p?.prompt === 'string' && [q?.answer, ...(q?.alts ?? [])].find(x => typeof x === 'string' && saysWord(p.prompt, x));
+      if (answer) found.push({ id: p.id, mode, by: q.id, byMode: other, answer });
+    }
+  }
+  return found;
+}
+
 export function checkContent({ index, packs, wheel }) {
   const errors = [];
   const warnings = [];
@@ -294,6 +320,11 @@ export function checkContent({ index, packs, wheel }) {
           if (LEVELS.some(l => c[l] < ROUND_PER_LEVEL)) err(`${file} · «${ending}»`, `مجموعة ناقصة: كل نهاية تحتاج ${ROUND_PER_LEVEL} من كل مستوى لتكفي جولة (الموجود: سهل ${c.easy} · متوسط ${c.medium} · صعب ${c.hard})`);
         }
       }
+    }
+    // الحرف المعيّن وآخر حرفين في مباراة واحدة: لا يكشف نص سؤال من أحدهما إجابة سؤال من الآخر.
+    if (!excluded.includes('letter') && !excluded.includes('last-two')) for (const c of crossReveals(pack)) {
+      const name = m => (m === 'letter' ? 'الحرف المعيّن' : 'آخر حرفين');
+      err(`${base}/${c.mode}.json · ${c.id}`, `نص السؤال فيه «${c.answer}»، إجابة السؤال «${c.by}» (${name(c.byMode)})، وهما في مباراة واحدة`);
     }
   }
   for (const id of index?.packs ?? []) if (!packs[id]) err('packs/index.json', `الحزمة «${id}» مذكورة ولا مجلد لها`);
