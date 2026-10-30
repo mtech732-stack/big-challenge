@@ -133,7 +133,10 @@ try { jsQR = require('jsqr'); } catch {}
     check('إعادة التحميل: يبقى ظاهراً', (await qrOf(f2)).shown);
     await cmd(f2, 'qr:hide');
     await wait(600);
-    check('«أخفِ الباركود»: يختفي، وتعود المزايدة، و«الباركود» في صف النوافذ', !(await qrOf(f2)).shown && (await near(f2)).includes('ابدأ') && await f2.isVisible('#cornerB [data-cmd="qr:show"]'));
+    check('«أخفِ الباركود»: يختفي، وتعود المزايدة، و«الباركود» في لوحة «⋯» بعد «ملء الشاشة»', !(await qrOf(f2)).shown && (await near(f2)).includes('ابدأ')
+      && !(await f2.$('[data-cmd="qr:show"]')) && (await f2.click('[data-cmd="more"]'), await f2.isVisible('#moreMenu [data-cmd="qr:show"]'))
+      && (await f2.$$eval('#moreMenu .cbtn', b => b.map(x => x.dataset.cmd).join(' '))) === 'mute fullscreen qr:show scores new');
+    await stage.keyboard.press('Escape'); await wait(300);
     await look(f2, 'المزاد بعد الإخفاء');
     await stage.reload(); await unlock(stage);
     f2 = await stageFrame(stage);

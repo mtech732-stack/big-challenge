@@ -382,7 +382,6 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, passW
   const frame = await stageFrame(presenter);
   const near = () => frame.$$eval('#near .cbtn', b => b.map(x => x.textContent.replace(/\s+/g, ' ').trim()).join(' | '));
   const corners = () => frame.$$eval('.ctl-corner .cbtn', b => b.map(x => x.textContent.trim()).join(' | '));
-  const rowsText = () => frame.$$eval('.ctl-corner:not(.opts)', r => r.map(x => [...x.querySelectorAll('.cbtn')].map(b => b.textContent.trim()).join(' | ')).join(' // '));
   await wait(300);
   // الملاحظة 28: وقت الخصم 10 ثوانٍ، وقد ينقضي أثناء الانقطاع وفتح النافذة الواحدة (على الرابط المنشور أبطأ).
   // فيبدأ من جديد هنا بعدّاده كاملاً: «تراجع» إلى ما قبله ثم «وقت الخصم». وما حدث يُطبع صراحةً في سطر فحص، فلا يمرّ بصمت.
@@ -398,8 +397,22 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, passW
   check('لا شريط سفلي', !(await presenter.$('#band')));
   const ans = () => frame.$$eval('#ansCtl .cbtn', b => b.map(x => x.textContent.trim()).join(' | '));
   check('في وقت الخصم: «إيقاف مؤقت» في صف الشارات، و«كشف الإجابة» أسفل اليمين', (await near()) === 'إيقاف مؤقت' && (await ans()) === 'كشف الإجابة');
-  check('الزاوية ثلاثة صفوف (الملاحظة 26): «تراجع» «الصوت» · «المقدّم» «ملء الشاشة» · «الرصيد» «مباراة جديدة»', (await rowsText()) === 'تراجع | الصوت // المقدّم | ملء الشاشة // الرصيد | مباراة جديدة'
-    && JSON.stringify(await frame.$$eval('.ctl-corner:not(.opts)', e => e.map(x => x.offsetTop))) === '[64,152,240]');
+  // أزرار الزاوية أيقونات (design/s8b.md 7): «تراجع» و«⋯» على صف 64، وما سواهما في لوحة «⋯» بأسمائها عند المرور.
+  const labels = sel => frame.$$eval(sel, b => b.map(x => x.getAttribute('aria-label')).join(' | '));
+  check('الزاوية صف واحد: «تراجع» و«⋯» مربعان 64، والصفان 152 و240 فارغان', (await labels('.ctl-corner .cbtn')) === 'تراجع | المزيد' && JSON.stringify(await frame.$$eval('.ctl-corner .cbtn', b => b.map(x => [x.offsetWidth, x.offsetHeight]))) === '[[64,64],[64,64]]'
+      && !(await frame.$('#cornerB .cbtn, #cornerC .cbtn')) && await frame.$eval('#cornerA', e => e.offsetTop) === 64);
+  await frame.click('[data-cmd="more"]');
+  await wait(200);
+  const tip = () => frame.$eval('#moreMenu #ctlTip', t => t.textContent + (t.hasAttribute('data-hud') ? ' hud' : '')).catch(() => '');
+  await frame.hover('#moreMenu [data-cmd="scores"]');
+  check('«⋯»: اللوحة على 152 بالأيقونات، ثم فاصل و«مباراة جديدة» وحدها، والاسم عند المرور', (await labels('#moreMenu .ctl:first-child .cbtn')) === 'الصوت | ملء الشاشة | الرصيد'
+    && (await labels('#moreMenu hr + .ctl .cbtn')) === 'مباراة جديدة' && await frame.$eval('#moreMenu', e => e.offsetTop) === 152
+    && await frame.$eval('[data-cmd="more"]', b => b.classList.contains('open')) && (await tip()) === 'الرصيد');
+  await frame.click('#canvas', { position: { x: 900, y: 600 } });
+  await wait(200);
+  check('النقر خارج اللوحة يغلقها', await frame.$eval('#moreMenu', e => e.hidden));
+  await frame.click('[data-cmd="more"]'); await presenter.keyboard.press('Escape'); await wait(200);
+  check('وEsc يغلقها', await frame.$eval('#moreMenu', e => e.hidden));
   const coverFails = [];
   // الملاحظة 25: كل زر ظاهر هو ما يستجيب في خمس نقاط منه (elementFromPoint)، بالاسمين الطويلين وبرقم من خانة وخانتين وثلاث للفريقين.
   const covered = async label => {

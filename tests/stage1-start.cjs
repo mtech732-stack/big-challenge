@@ -198,30 +198,18 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   await frame.waitForSelector('.scr.show[data-s="q"]', { timeout: 6000 });
   check('إعادة تحميل شاشة الجمهور: تبقى شاشة جمهور بلا رقم، ومتصلة', !(await page.isVisible('#pin')) && !(await frame.$('.cbtn')));
 
-  // 8. أُغلقت نافذة المقدّم: «تابع بنافذة واحدة»، ثم «افتح نافذة المقدّم» من الزاوية.
+  // 8. أُغلقت نافذة المقدّم: «تابع بنافذة واحدة». ولا زر يعيدها (الوثيقة 1.13: النافذة الواحدة وحدها).
   await host.close();
   await page.waitForSelector('#resume:not([hidden])', { timeout: 5000 });
   check('أُغلقت نافذة المقدّم: زر «تابع بنافذة واحدة»', (await page.textContent('#resume')).includes('تابع بنافذة واحدة'));
   await page.click('#resume');
   await frame.waitForSelector('#near .cbtn', { timeout: 6000 });
-  check('المتابعة بنافذة واحدة: أزرار الحكم بجانب العدّاد، والسؤال كما كان', (await saved()).single === true && (await text('#b1')) === 'السؤال 1 من 6'
-    && await vis('#cornerB [data-cmd="presenter"]'));
-  const [host2] = await Promise.all([context.waitForEvent('page'), cmd(frame, 'presenter')]);
-  await host2.waitForSelector('#app:not([hidden])', { timeout: 10000 });
-  await wait(400);
-  check('«افتح نافذة المقدّم»: تُفتح والسؤال فيها، والشاشة بلا أزرار', (await host2.textContent('#qMeta')).includes('السؤال 1 من 6') && !(await frame.$('.cbtn')) && (await saved()).single === false);
+  check('المتابعة بنافذة واحدة: أزرار الحكم بجانب العدّاد، والسؤال كما كان، ولا «المقدّم» في لوحة «⋯»', (await saved()).single === true && (await text('#b1')) === 'السؤال 1 من 6'
+    && await vis('#cornerA [data-cmd="more"]') && (await frame.click('[data-cmd="more"]'), await vis('#moreMenu [data-cmd="new"]')) && !(await frame.$('[data-cmd="presenter"]')));
 
-  // 9. مباراة جديدة من نافذة المقدّم: تعود إلى الشاشة المشتركة، وتُغلق نافذة المقدّم.
-  host2.on('dialog', d => d.accept());
-  // «مباراة جديدة» في افتتاح الجولة ونهايتها: ننهي السؤال ونصل إلى النهاية بأقصر طريق.
-  for (let i = 0; i < 6; i++) {
-    await host2.click('#judge [data-act="reveal"]'); await wait(750);
-    await host2.click('#judge [data-act="pick:1"]'); await wait(750);
-    await host2.click('#nextQ'); await wait(750);
-  }
-  const closed = host2.waitForEvent('close', { timeout: 6000 }).then(() => true, () => false);
-  await host2.click('[data-part="end"] [data-new]');
-  check('مباراة جديدة: نافذة المقدّم تُغلق', await closed);
+  // 9. مباراة جديدة من لوحة «⋯»: برسالة التأكيد، ثم الإعداد.
+  page.once('dialog', d => d.accept());
+  await cmd(frame, 'new');
   await frame.waitForSelector('[data-hero="start"] .hlogo', { timeout: 6000 });
   await wait(300);
   check('والشاشة المشتركة تعود إلى الإعداد بحقليها', await vis('#i1') && await vis('[data-cmd="draw"]') && await page.evaluate(() => sessionStorage.getItem('big-challenge.role')) === 'presenter');

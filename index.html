@@ -1292,6 +1292,14 @@
       c.error = faceError;
       c.b = [[fresh], fs];
     }
+    // أزرار الزاوية في الجولة والنهاية (design/s8b.md 7): أيقونتا «تراجع» و«⋯» وحدهما، وما سواهما في لوحة «⋯» (c.more) تفتحها الشاشة نفسها:
+    // الصوت · ملء الشاشة · (الباركود) · الرصيد، ثم «مباراة جديدة» في سطرها. ولا «المقدّم»: النافذة الواحدة وحدها (الوثيقة 1.13). undoOff: null بلا «تراجع» (مقدمة الجولة).
+    const corner = undoOff => {
+      c.a = [[...(undoOff === null ? [] : [{ cmd: 'undo', label: 'تراجع', kind: 'alt', icon: true, off: undoOff }]), { cmd: 'more', label: 'المزيد', kind: 'alt opt' }]];
+      c.b = []; c.c = [];
+      c.more = [{ cmd: 'mute', label: muted ? 'مكتوم' : 'الصوت', icon: true },
+        ...fs.map(b => ({ ...b, kind: '', icon: true })), { cmd: 'scores', label: 'الرصيد', icon: true }, { ...fresh, kind: '', icon: true }];
+    };
     const mode = step === 'play' && roundMode();
     if (mode) {
       const st = match.round.state, acts = mode.actions(st), screen = mode.audience(st).screen;
@@ -1336,16 +1344,12 @@
       if (screen === 'wheel' || screen === 'slot') c.near = [...act('spin'), ...act('won', `نجح · +${WHEEL_POINTS}`), ...act('failed', null, 'no'), ...act('next'), ...act('finish')];
       if (screen === 'end') { const nb = nextButton(); c.card = [{ cmd: 'next', label: nb.text, off: !!nb.off || wait }]; }
       c.scores = true;
-      // ثلاثة صفوف قصيرة (الملاحظة 26، design/system.md 15.10): الجولة · النوافذ · المباراة، فلا تبلغ لوحة الأول ولا أزرار العدّاد.
-      c.a = [[...(screen !== 'intro' || mode.id === TIEBREAK.id ? [{ cmd: 'undo', label: 'تراجع', kind: 'alt', off: (screen !== 'intro' && !match.round.history.length) || wait }] : []), { cmd: 'mute', label: muted ? 'مكتوم' : 'الصوت', kind: 'alt' }]];
-      c.b = [[{ cmd: 'presenter', label: 'المقدّم', kind: 'alt' }, ...fs]];
-      c.c = [[{ cmd: 'scores', label: 'الرصيد', kind: 'alt' }, fresh]];
+      corner(screen !== 'intro' || mode.id === TIEBREAK.id ? (screen !== 'intro' && !match.round.history.length) || wait : null);
     }
     // الباركود ظاهراً (design/s8.md 2.1): «أخفِ الباركود» في رأس البطاقة وحده، ولا أزرار في صف الشارات حتى يُخفى.
-    // ومخفياً والسؤال جارٍ: «الباركود» يعيده، في صف النوافذ (152) بعد «المقدّم» و«ملء الشاشة». لا في صف المباراة (240) كما في design/s8.md 2.1:
-    // فيه بلغ أزرار المزايدة الثلاثة في صف الشارات (310) بفراغ 6 (مقيس بـ stage-check)، وصف النوافذ بعيد عنها.
+    // ومخفياً والسؤال جارٍ: «الباركود» يعيده، في لوحة «⋯» بعد «ملء الشاشة» (design/s8b.md 7.1).
     if (mode && qrShown()) { c.card = [{ cmd: 'qr:hide', label: 'أخفِ الباركود', off: wait }]; c.near = []; c.ans = []; }
-    else if (mode && qrQuestion()?.open) c.b[0].push({ cmd: 'qr:show', label: 'الباركود', kind: 'alt' });
+    else if (mode && qrQuestion()?.open) c.more.splice(c.more.findIndex(b => b.cmd === 'scores'), 0, { cmd: 'qr:show', label: 'الباركود', icon: true });
     // النهاية (design/final.md 5): «أعلن الفائز» في البطاقة (و«الجولة الفاصلة» معطّلاً عند التعادل حتى «كسر التعادل»)، ثم «مباراة جديدة».
     // والزوايا الثلاث كما في الجولة.
     if (step === 'final') {
@@ -1353,9 +1357,7 @@
       c.card = win ? [{ cmd: 'new', label: 'مباراة جديدة' }]
         : M.leaderOf(match.scores) ? [{ cmd: 'announce', label: 'أعلن الفائز', off: wait }] : [{ cmd: 'tiebreak', label: 'الجولة الفاصلة', off: wait }];
       c.scores = true;
-      c.a = [[{ cmd: 'undo', label: 'تراجع', kind: 'alt', off: wait }, { cmd: 'mute', label: muted ? 'مكتوم' : 'الصوت', kind: 'alt' }]];
-      c.b = [[{ cmd: 'presenter', label: 'المقدّم', kind: 'alt' }, ...fs]];
-      c.c = [[{ cmd: 'scores', label: 'الرصيد', kind: 'alt' }, fresh]];
+      corner(wait);
     }
     c.a = c.a.filter(r => r.length);
     c.b = c.b.filter(r => r.length);

@@ -200,7 +200,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     check('نافذة واحدة: نهاية الجولة 1 وفي البطاقة «شريط البونص»', await text(audience, '.scr.end.show .ctl') === 'شريط البونص');
     await go('next');
     const near = () => audience.$$eval('#near button', b => b.map(x => x.textContent.trim()).join('|'));
-    check('قبل الدوران: «أطلق الشريط» بجانب الشارات، والزوايا الثلاث', await near() === 'أطلق الشريط' && (await audience.$$('#cornerA button, #cornerB button, #cornerC button')).length === 6);
+    check('قبل الدوران: «أطلق الشريط» بجانب الشارات، و«تراجع» و«⋯» وحدهما في الزاوية', await near() === 'أطلق الشريط' && (await audience.$$('#cornerA button, #cornerB button, #cornerC button')).length === 2);
     await audienceCheck(audience, 'نافذة واحدة · قبل الدوران', data);
     await stage.screenshot({ path: path.join(shots, 'wheel-ready-w1.png') });
     await go('act:spin');

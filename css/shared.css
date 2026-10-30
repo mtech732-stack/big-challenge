@@ -93,3 +93,20 @@
 .optmenu { left: 474px; top: 240px; z-index: 3; display: flex; padding: 24px; background: var(--card); box-shadow: 10px 10px 0 var(--stage-3); }
 .optmenu[hidden] { display: none; }
 .optmenu .cbtn { background: var(--ink); color: var(--card); }
+
+/* أزرار الزاوية أيقونات (المالك 30 أكتوبر 2026، design/s8b.md 7، design/s8b-corner.js): «تراجع» و«⋯» مربعان 64 على صف 64،
+   وما سواهما في لوحة «⋯» تحتها بـ 24 على (127، 152): إطار أبيض 3 بلا تعبئة (فلا ينقص الحقل)، سطر أيقونات ثم فاصل ثم «مباراة جديدة» */
+.cbtn.ico { position: relative; width: 64px; height: 64px; padding: 0; display: grid; place-items: center; }
+.cbtn.ico svg { width: 36px; height: 36px; flex: none; pointer-events: none; fill: none; stroke: currentColor; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+.ctl-corner .ctl:has(.cbtn.ico) { gap: 16px; }
+.ctl-more { position: absolute; left: 127px; top: 152px; z-index: 3; display: flex; flex-direction: column; align-items: flex-start; gap: 16px; padding: 24px;
+  box-shadow: inset 0 0 0 3px var(--card); }
+/* عرضها الأدنى 376 (design #321)، وإن قلّت الأيقونات بلا «المقدّم» (1.13)، فيتسع اسم «مباراة جديدة» داخل سطرها ولا يخرج من الهامش */
+.ctl-more { min-width: 376px; }
+.ctl-more[hidden] { display: none; }
+.ctl-more .ctl { gap: 16px; }
+.ctl-more .cbtn { background: transparent; color: var(--on-stage); box-shadow: inset 0 0 0 3px var(--card); }
+.ctl-more hr { align-self: stretch; height: 3px; margin: 0; border: 0; background: var(--card); opacity: .4; }
+/* الاسم عند المرور (#ctlTip): لوح أبيض 64 بحبر السؤال وخط 32، تحت الأيقونة بـ 24 في الزاوية، وبجانبها بـ 16 داخل لوحة «⋯» */
+.ctl-tip { position: absolute; z-index: 4; height: 64px; padding: 0 24px; display: flex; align-items: center; background: var(--card); color: var(--ink);
+  font-size: 32px; font-weight: 700; white-space: nowrap; pointer-events: none; }

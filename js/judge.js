@@ -5,7 +5,8 @@
 // الحالات: ready التمهيد · ask عدّاد صاحب الدور · steal عدّاد الخصم · over انتهى الوقت · revealed كُشفت الإجابة.
 // paused: ما بقي من العدّاد الموقوف (بالثواني)، والحالة كما هي. والعدّاد الجاري يعرف ما بقي منه المشغّل (left، js/round.js).
 export const LEAD_SECONDS = 5;
-export const lead = () => ({ type: 'timer', seconds: LEAD_SECONDS, lead: true });
+// وعدّاداته كلها «resume»: «تراجع» بعد «إيقاف مؤقت» أو «كشف الإجابة» يعيده بما بقي منه لا بوقته كاملاً (js/round.js، ملاحظة المعاين ش8/50).
+export const lead = () => ({ type: 'timer', seconds: LEAD_SECONDS, lead: true, resume: true });
 
 const RUNNING = ['ready', 'ask', 'steal'];
 const OPEN = [...RUNNING, 'over'];
@@ -30,14 +31,14 @@ export function timing(s, action, left, { seconds, stealSeconds = 0 }) {
     return { state: { ...s, paused: null }, events: [{ type: 'timer', seconds: s.paused, resume: true, ...(s.phase === 'ready' ? { lead: true } : {}) }] };
   }
   if (action === 'timeout' && !s.paused) {
-    if (s.phase === 'ready') return { state: { ...s, phase: 'ask' }, events: [{ type: 'timer', seconds }] };
+    if (s.phase === 'ready') return { state: { ...s, phase: 'ask' }, events: [{ type: 'timer', seconds, resume: true }] };
     if (s.phase === 'ask' || s.phase === 'steal') return { state: { ...s, phase: 'over' }, events: [{ type: 'moment', name: 'timeup', team: s.team }] };
   }
   if (action === 'steal' && stealSeconds && !s.steal && open(s)) {
     const reason = s.phase === 'over' ? 'timeout' : 'wrong', team = s.team === 1 ? 2 : 1;
     return {
       state: { ...s, phase: 'steal', team, steal: { team, reason }, paused: null },
-      events: [{ type: 'timer', seconds: stealSeconds }, { type: 'moment', name: 'steal', reason, team }],
+      events: [{ type: 'timer', seconds: stealSeconds, resume: true }, { type: 'moment', name: 'steal', reason, team }],
     };
   }
   if (action === 'reveal' && open(s)) return { state: { ...s, phase: 'revealed', paused: null }, events: [{ type: 'moment', name: 'reveal' }] };

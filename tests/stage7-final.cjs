@@ -181,7 +181,7 @@ const { finalMatch } = require('./final-match.cjs');
     await frame.waitForSelector('.scr.show[data-s="fin"]');
     await wait(1500);
     check('بنافذة واحدة: النتيجة النهائية و«أعلن الفائز» في البطاقة، والزوايا الثلاث', !!(await frame.$('.scr.fin [data-cmd="announce"]'))
-      && !!(await frame.$('#cornerA [data-cmd="undo"]')) && !!(await frame.$('#cornerB [data-cmd="presenter"]')) && !!(await frame.$('#cornerC [data-cmd="new"]')));
+      && !!(await frame.$('#cornerA [data-cmd="undo"]')) && !!(await frame.$('#cornerA [data-cmd="more"]')) && !(await frame.$('#cornerB .cbtn, #cornerC .cbtn')));
     await layout(frame, 'النتيجة بنافذة واحدة وأطول اسمين');
     await page.screenshot({ path: path.join(shots, 's7-fin-w1long1.png') });
     await cmd(frame, 'announce');
