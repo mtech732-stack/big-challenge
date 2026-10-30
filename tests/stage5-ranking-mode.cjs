@@ -236,10 +236,10 @@ const { reporter } = require('./helpers.cjs');
     CLASH_MIN === 7 && auctionPairs.length > 0 && auctionPairs.every(c => c.n >= CLASH_MIN) && reported('auction').join() === withAuction.join());
   check(`جدول «سادساً» (3): قائمتان تشتركان في 7 فأكثر كما يُعدّ من البنك (${reported('ranking').map(x => x.replace(/general-\w+-/g, '')).join(',')})`,
     rankingPairs.length > 0 && rankingPairs.every(c => c.n >= CLASH_MIN) && reported('ranking').join() === withRanking.join());
-  // وعدد ما اشترك فيه كل زوج كما يُعدّ مستقلاً (وأزواج الدفعة الأولى 001–005 بأعدادها في الاسم).
+  // وعدد ما اشترك فيه كل زوج كما يُعدّ مستقلاً (والأزواج بأعدادها في الاسم). لا يعتمد على رقم قائمة بعينها.
   const byId = id => lists.find(l => l.id === id) ?? topics.find(t => t.id === id);
-  const first5 = auctionPairs.filter(c => c.ranking <= 'general-ranking-005').map(c => `${short(c.ranking)}↔${short(c.with)}:${c.n}`).sort().join(',');
-  check(`الأزواج المتقاطعة بعدد ما اشتركا فيه من 13 (الدفعة الأولى: ${first5})`, [...auctionPairs, ...rankingPairs].every(c => c.n === sharedItems(byId(c.ranking), byId(c.with))) && first5.length > 0);
+  const pairsText = [...auctionPairs, ...rankingPairs].map(c => `${short(c.ranking)}↔${short(c.with)}:${c.n}`).sort().join(',');
+  check(`الأزواج المتقاطعة بعدد ما اشتركا فيه من 13 (${pairsText})`, auctionPairs.length > 0 && [...auctionPairs, ...rankingPairs].every(c => c.n === sharedItems(byId(c.ranking), byId(c.with))));
   // (2) سؤال تساوي إجابته أو صيغتها عنصراً بالتطابق التام بعد التوحيد: لا يفوت الفاحص منها شيئاً.
   const exact = [];
   for (const mode of ['letter', 'last-two']) for (const q of fullFiles[`${mode}.json`].questions) for (const l of lists) {
@@ -290,13 +290,17 @@ const { reporter } = require('./helpers.cjs');
   // في المباراة: المزاد أولاً بموضوعه المتقاطع، ثم الترتيب لا يختار قائمته.
   const M = await import(path.join(root, 'js/match.js'));
   const matchOf = () => ({ ...M.newMatch({ pack: 'general', method: 'short' }), step: 'face', picks: [{ mode: 'auction', by: 1 }, { mode: 'ranking', by: 2 }], winner: 1 });
-  const onlyEasy = { ...realFiles['auction.json'], topics: realFiles['auction.json'].topics.filter(t => t.level !== 'easy' || t.id === 'general-auction-047') };
-  const fixedFiles = { ...realFiles, 'auction.json': onlyEasy };
+  // الموضوع: أول موضوع متقاطع مع قائمة في البنك نفسه (لا اسم ثابت)، وحده في مستواه فيُختار حتماً.
+  const clash = auctionPairs[0], topic = byId(clash.with);
+  const crossed = auctionPairs.filter(c => c.with === topic.id).map(c => c.ranking);
+  const onlyOne = { ...realFiles['auction.json'], topics: realFiles['auction.json'].topics.filter(t => t.level !== topic.level || t.id === topic.id) };
+  const fixedFiles = { ...realFiles, 'auction.json': onlyOne };
   let m = P.startNext(matchOf(), { modes: [auctionMode, ranking], content: fixedFiles, rng });
-  check('المباراة تحفظ ما اختير فيها (used)', m.used.includes('general-auction-047') && m.used.length === 3);
+  check(`المباراة تحفظ ما اختير فيها (used، «${short(topic.id)}»)`, m.used.includes(topic.id) && m.used.length === 3);
   m = P.skipNext({ ...m, round: { ...m.round, state: { ...m.round.state, phase: 'end' } } }, [auctionMode, ranking]); // العجلة بينهما (ش6)
   m = P.startNext(m, { modes: [auctionMode, ranking], content: fixedFiles, rng });
-  check('ثم الترتيب في المباراة نفسها: لا يختار «001» المتقاطعة مع «047»', m.round.mode === 'ranking' && !m.round.state.lists.some(l => l.id === 'general-ranking-001'));
+  check(`ثم الترتيب في المباراة نفسها: لا يختار ما يتقاطع مع «${short(topic.id)}» (${crossed.map(short).join('، ')})`, m.round.mode === 'ranking' && crossed.length > 0
+    && !m.round.state.lists.some(l => crossed.includes(l.id)));
 
   process.exit(finish() ? 0 : 1);
 })();
