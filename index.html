@@ -416,7 +416,7 @@
   import { loadPacks, loadWheel } from './js/content.js';
   import WHEEL, { spinMs, CHALLENGE_POINTS as WHEEL_POINTS } from './js/wheel.js';
   import TIEBREAK from './js/tiebreak.js';
-  import { answersText } from './js/qr.js';
+  import { answersText, qrMatrix } from './js/qr.js';
   import { HIT_MS as RANK_HIT_MS } from './js/modes/ranking.js';
   import { STEAL_SECONDS } from './js/modes/word.js';
   import { matchModes, pickableModes, MODES as BUILT, DRAFTS } from './js/modes/index.js';
@@ -573,7 +573,15 @@
     const st = match.round.state, a = mode.audience(st);
     if (a.screen !== 'topic' && a.screen !== 'list') return null;
     const auto = mode.id === 'auction' ? st.phase === 'bid' : st.phase === 'read';
-    return { key: `${match.round.n}:${(st.topics ?? st.lists)[st.index]?.id}`, mode, st, auto, open: !['decided', 'listend', 'mark'].includes(st.phase) };
+    const key = `${match.round.n}:${(st.topics ?? st.lists)[st.index]?.id}`;
+    // وإن زاد النص عمّا يسعه الرمز (قائمة كبيرة جداً) فلا باركود لهذا السؤال، ويمضي كأنه أُخفي (design/auction.md 7.10 قيد القرار).
+    if (!qrFits(key, () => answersText(mode.id, mode.presenter(st)))) return null;
+    return { key, mode, st, auto, open: !['decided', 'listend', 'mark'].includes(st.phase) };
+  }
+  const qrFit = new Map();
+  function qrFits(key, text) {
+    if (!qrFit.has(key)) { let ok = true; try { qrMatrix(text()); } catch { ok = false; } qrFit.set(key, ok); }
+    return qrFit.get(key);
   }
   function qrShown() {
     const q = qrQuestion();

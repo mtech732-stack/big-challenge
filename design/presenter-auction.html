@@ -101,31 +101,59 @@
   #app .q .letter { min-width: 5rem; height: 5rem; font-size: 3.25rem; }
 
 
-  /* ===== المزاد (design/auction.md 5): الموضوع والعدّ، والقائمة المرجعية أزراراً تُنقر، والمزايدة ===== */
-  .auc { grid-template-columns: 1fr auto; align-items: center; align-content: center; gap: 0.5rem 1.25rem; }
-  .auc .topic { font-size: 1.25rem; font-weight: 800; line-height: 1.3; }
+  /* ===== المزاد (design/auction.md 5، 4.0): الموضوع والعدّ، والبحث، والقائمة المرجعية الكبيرة تُمرَّر، والمزايدة ===== */
+  /* 4.0: النافذة بارتفاع الشاشة لا أكثر، فلوحة الموضوع تأخذ ما بقي والقائمة وحدها تُمرَّر داخلها (40–200 عنصراً) */
+  #app.fit { height: 100vh; }
+  #app.fit > .auc { min-height: 0; }
+  .auc { grid-template-columns: 1fr auto; grid-template-rows: auto auto auto minmax(0, 1fr); align-content: stretch; gap: 0.5rem 1.25rem; }
+  .auc .head { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+  .auc .topic { font-size: 1.25rem; font-weight: 800; line-height: 1.3; min-width: 0; }
+  /* علامة الموضوع المفتوح (4.0): القائمة عون لا حصر، فلا سقف للمزايدة بطولها ولا إغلاق آلي. شارة مائلة بإطار الحبر */
+  .auc .open { position: relative; flex: none; min-height: 1.5rem; padding: 0 0.75rem; display: flex; align-items: center; font-weight: 700; white-space: nowrap; color: var(--ink); }
+  .auc .open i { position: absolute; inset: 0; box-shadow: inset 0 0 0 3px var(--ink); transform: skewX(calc(-1 * var(--lean))); }
+  .auc .open span { position: relative; }
   .auc .tally { display: flex; align-items: baseline; gap: 0.5rem; font-weight: 800; white-space: nowrap; }
   .auc .tally b { font-size: 2.5rem; font-weight: 900; line-height: 1; direction: ltr; }
   .auc .tally.t1 b { color: var(--team-1); }
   .auc .tally.t2 b { color: var(--team-2-ink); }
-  /* في المزايدة: طول القائمة مكان العدّ، للمقدّم وحده */
+  /* في المزايدة: طول القائمة المرجعية للمقدّم وحده، مكان العدّ */
   .auc .size { font-weight: 700; white-space: nowrap; }
-  /* لا صف للأرقام هنا (1.3): الرقم الحالي في سطر الحالة «يزايد على 9»، وسلّم الأرقام على شاشة الجمهور */
-  /* القائمة المرجعية: كل عنصر زر بعرض عمودين من 12 (ستة في الصف)، الاسم ثم صيغه البديلة. يُنقر حين يُذكر فيُحسب (+1) */
-  .ref { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-flow: dense; gap: 0.375rem 0.75rem; }
+  /* البحث (4.0): حقل بعرض ثمانية أعمدة من 12 يرشّح القائمة أثناء الكتابة، وبجانبه «من خارج القائمة · +1» (أربعة) في الوفاء وحده */
+  .find { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0.75rem; }
+  .find input { grid-column: span 8; min-width: 0; height: 2.5rem; box-sizing: border-box; padding: 0 1rem; border: 0; border-radius: 0; background: var(--card); color: var(--ink);
+    box-shadow: inset 0 0 0 3px var(--ink); font: inherit; font-size: 1rem; font-weight: 700; }
+  .find input::placeholder { color: var(--ink); opacity: .6; font-weight: 400; }
+  .find input:focus { outline: none; box-shadow: inset 0 0 0 5px var(--ink); }
+  .find.wide input { grid-column: 1 / -1; }
+  /* زر الإجابة من خارج القائمة: +1 لصاحب الدور، فبإطار لونه ونصه */
+  .find .out { grid-column: span 4; min-height: 2.5rem; margin: 0; padding: 0 0.75rem; background: var(--card); color: var(--c); box-shadow: inset 0 0 0 3px var(--c); }
+  .find .out.t1 { --c: var(--team-1); }
+  .find .out.t2 { --c: var(--team-2-ink); }
+  /* ما احتُسب من خارج القائمة: سطر تحت البحث، بنصه إن كُتب، وكلٌّ بلون من قاله. ولا يظهر السطر قبل أولها */
+  .outs { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem 0.75rem; font-weight: 700; }
+  .outs .it { position: relative; min-height: 1.5rem; padding: 0 0.625rem; display: flex; align-items: center; color: var(--card); white-space: nowrap; }
+  .outs .it i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); }
+  .outs .it span { position: relative; }
+  .outs .it.t1 i { background: var(--team-1); }
+  .outs .it.t2 i { background: var(--team-2-ink); }
+  /* القائمة المرجعية: تُمرَّر رأسياً داخل لوحتها. كل عنصر زر بعرض عمودين من 12 (ستة في الصف) بارتفاع 2rem، الاسم ثم صيغه */
+  .ref { grid-column: 1 / -1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; align-content: start;
+    display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-flow: dense; gap: 0.375rem 0.75rem; padding: 0.125rem; }
   .ref button { min-width: 0; overflow: hidden; min-height: 2rem; padding: 0 0.5rem; background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink);
     display: flex; align-items: center; justify-content: center; gap: 0.25rem; font-size: 1rem; line-height: 1.1; white-space: nowrap; text-align: center; }
   .ref button small { font-size: 1rem; font-weight: 400; }
   .ref button.wide { grid-column: span 2; }
   .ref button.wider { grid-column: span 3; }
-  /* القائمة الطويلة (أكثر من 24 عنصراً): تسعة في الصف بارتفاع 1.5rem، فتتسع 54 عنصراً دون تمرير */
-  .ref.dense { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0.125rem 0.5rem; }
-  .ref.dense button { min-height: 1.5rem; padding: 0 0.25rem; }
+  .ref button[hidden] { display: none; }
   /* ما ذُكر: ممتلئ بلون من ذكره، ولا يُنقر ثانية */
   .ref button.t1, .ref button.t2 { color: var(--card); box-shadow: none; pointer-events: none; }
   .ref button.t1 { background: var(--team-1); }
   .ref button.t2 { background: var(--team-2-ink); }
-  /* في المزايدة وبعد الحكم: القائمة للاطلاع، لا تُنقر */
+  /* المطابقة الأولى أثناء البحث: يحتسبها Enter، فتُبرَز بالأصفر (والأسهم تنقل الإبراز) */
+  .ref button.hit { background: var(--hl); box-shadow: inset 0 0 0 3px var(--ink); }
+  /* لا مطابقة: سطر واحد مكان القائمة، وEnter أو الزر يحتسبها من خارج القائمة بنصها */
+  .ref .none { grid-column: 1 / -1; padding: 0.25rem 0; font-weight: 700; }
+  /* في المزايدة وبعد الحكم: القائمة للاطلاع والبحث، لا تُنقر */
   .ref.view button { pointer-events: none; }
   /* أزرار المزايدة: زر كل فريق بلونه (5 أعمدة) يُظهر رقمه، و«ابدأ» بينهما (عمودان). والعدّ: «توقّف · لم يفِ» */
   #app .bidrow { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0.75rem; }
@@ -141,7 +169,7 @@
 </style>
 </head>
 <body>
-<main id="app">
+<main id="app" class="fit">
   <header class="top playing">
     <h1>التحدي الكبير</h1>
     <span class="chip"><i></i><span>المزاد · الموضوع <span class="ltr">2</span> من <span class="ltr">3</span></span></span>
@@ -150,13 +178,15 @@
     <button class="on-stage alt">الرصيد</button>
   </header>
   <section class="panel auc" id="mid">
-    <p class="topic" id="topic"></p>
+    <div class="head"><p class="topic" id="topic"></p><p class="open" id="open" hidden><i></i><span>مفتوح</span></p></div>
     <p class="tally" id="tally"><b id="tn"></b><span>من <span class="ltr" id="tof"></span></span></p>
     <p class="size" id="size"></p>
+    <div class="find" id="find"><input id="q" type="search" enterkeyhint="done" autocomplete="off" spellcheck="false" placeholder="ابحث، أو اكتب ما قيل" aria-label="بحث في القائمة"><button class="out" id="out">من خارج القائمة · <span class="ltr">+1</span></button></div>
+    <div class="outs" id="outs"></div>
     <div class="ref" id="ref"></div>
   </section>
   <section class="panel" id="low">
-    <div class="row"><p class="who" id="who"></p><p class="state grow" id="state"></p><button class="alt">تراجع عن آخر حكم</button><button class="alt">مباراة جديدة</button></div>
+    <div class="row"><p class="who" id="who"></p><p class="state grow" id="state"></p><button class="alt">تراجع</button><button class="alt">مباراة جديدة</button></div>
     <div class="bidrow" id="ctl"></div>
   </section>
 </main>
@@ -168,46 +198,84 @@
   const LONG = q.has('long');
   const NAMES = LONG ? { 1: 'فريق النخبة الذهبي', 2: 'نجوم المستقبل معاً' } : { 1: 'الصقور', 2: 'النجوم' };
   const tn = t => `<span class="mark t${t}"></span> <b class="tn t${t}">${esc(NAMES[t])}</b>`;
-  // القائمة المرجعية بصيغها البديلة (content-format 4.3: items[].name و alts)
-  const ARAB = [['السعودية'], ['الكويت'], ['الإمارات'], ['قطر'], ['البحرين'], ['عُمان', 'عمان'], ['اليمن'], ['العراق'], ['سوريا', 'سورية'], ['الأردن'], ['لبنان'], ['فلسطين'],
-    ['مصر'], ['السودان'], ['ليبيا'], ['تونس'], ['الجزائر'], ['المغرب'], ['موريتانيا'], ['الصومال'], ['جيبوتي'], ['جزر القمر', 'القمر']];
-  const AFRICA = ['مصر', 'السودان', 'ليبيا', 'تونس', 'الجزائر', 'المغرب', 'موريتانيا', 'الصومال', 'جيبوتي', 'جزر القمر', 'إثيوبيا', 'إريتريا',
-    'كينيا', 'أوغندا', 'تنزانيا', 'رواندا', 'بوروندي', 'نيجيريا', 'غانا', 'السنغال', 'مالي', 'النيجر', 'تشاد', 'الكاميرون', 'الغابون',
-    'الكونغو', 'الكونغو الديمقراطية', 'أنغولا', 'زامبيا', 'زيمبابوي', 'موزمبيق', 'ملاوي', 'مدغشقر', 'موريشيوس', 'سيشل', 'ناميبيا',
-    'بوتسوانا', 'جنوب أفريقيا', 'ليسوتو', 'إسواتيني', 'غينيا', 'غينيا بيساو', 'غينيا الاستوائية', 'سيراليون', 'ليبيريا',
-    'ساحل العاج', 'بوركينا فاسو', 'توغو', 'بنين', 'غامبيا', 'الرأس الأخضر', 'جنوب السودان', 'أفريقيا الوسطى', 'ساو تومي وبرينسيب'].map(x => [x]);
-  const MONTHS = ['محرم', 'صفر', 'ربيع الأول', ['ربيع الآخر', 'ربيع الثاني'], 'جمادى الأولى', ['جمادى الآخرة', 'جمادى الثانية'], 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'].map(x => [].concat(x));
+  // القائمة المرجعية بصيغها البديلة (content-format 4.3: items[].name و alts). 4.0: موضوع مفتوح، والقائمة 40–200 عون لا حصر
+  const CARS = [['تويوتا'], ['نيسان'], ['هوندا'], ['لكزس'], ['مازدا'], ['ميتسوبيشي', 'متسوبيشي'], ['سوزوكي'], ['سوبارو'], ['إنفينيتي', 'انفنتي'], ['هيونداي', 'هونداي'],
+    ['كيا'], ['جينيسيس', 'جنسس'], ['مرسيدس', 'بنز'], ['بي إم دبليو', 'بي ام'], ['أودي'], ['فولكس فاجن'], ['بورشه'], ['أوبل'], ['فورد'], ['شيفروليه', 'شفر'],
+    ['جي إم سي', 'جمس'], ['كاديلاك'], ['دودج'], ['جيب'], ['كرايسلر'], ['لينكولن'], ['تسلا'], ['فيراري'], ['لامبورغيني', 'لمبرجيني'], ['مازيراتي'],
+    ['ألفا روميو'], ['فيات'], ['رولز رويس'], ['بنتلي'], ['جاكوار', 'جاغوار'], ['لاند روفر', 'رنج روفر'], ['ميني'], ['أستون مارتن'], ['ماكلارين'], ['بيجو'],
+    ['رينو'], ['سيتروين'], ['فولفو'], ['سكودا'], ['سيات'], ['بوغاتي'], ['شانجان'], ['جيلي'], ['إم جي'], ['هافال'], ['شيري'], ['بي واي دي']];
+  // أطول قائمة: دول العالم (195)، بأطول أسمائها
+  const WORLD = ('السعودية الكويت الإمارات قطر البحرين عُمان اليمن العراق سوريا الأردن لبنان فلسطين مصر السودان ليبيا تونس الجزائر المغرب موريتانيا الصومال جيبوتي '
+    + 'جزر_القمر تركيا إيران باكستان أفغانستان الهند بنغلاديش سريلانكا نيبال بوتان المالديف الصين اليابان كوريا_الجنوبية كوريا_الشمالية منغوليا تايوان '
+    + 'إندونيسيا ماليزيا سنغافورة بروناي الفلبين تايلاند فيتنام لاوس كمبوديا ميانمار تيمور_الشرقية كازاخستان أوزبكستان تركمانستان قيرغيزستان طاجيكستان '
+    + 'أذربيجان أرمينيا جورجيا روسيا أوكرانيا بيلاروسيا مولدوفا رومانيا بلغاريا اليونان ألبانيا مقدونيا_الشمالية صربيا الجبل_الأسود البوسنة_والهرسك كرواتيا '
+    + 'سلوفينيا المجر سلوفاكيا التشيك بولندا ليتوانيا لاتفيا إستونيا فنلندا السويد النرويج الدنمارك آيسلندا أيرلندا بريطانيا هولندا بلجيكا لوكسمبورغ '
+    + 'فرنسا ألمانيا سويسرا النمسا ليختنشتاين إيطاليا مالطا سان_مارينو الفاتيكان موناكو أندورا إسبانيا البرتغال قبرص كندا الولايات_المتحدة المكسيك '
+    + 'غواتيمالا بليز هندوراس السلفادور نيكاراغوا كوستاريكا بنما كوبا جامايكا هايتي الدومينيكان جزر_البهاما باربادوس ترينيداد_وتوباغو غرينادا '
+    + 'سانت_لوسيا دومينيكا أنتيغوا_وباربودا سانت_كيتس_ونيفيس سانت_فنسنت_والغرينادين كولومبيا فنزويلا غيانا سورينام الإكوادور بيرو البرازيل بوليفيا '
+    + 'باراغواي تشيلي الأرجنتين الأوروغواي أستراليا نيوزيلندا بابوا_غينيا_الجديدة فيجي جزر_سليمان فانواتو ساموا تونغا كيريباتي توفالو ناورو بالاو '
+    + 'ميكرونيزيا جزر_مارشال إثيوبيا إريتريا كينيا أوغندا تنزانيا رواندا بوروندي نيجيريا غانا السنغال مالي النيجر تشاد الكاميرون الغابون الكونغو '
+    + 'الكونغو_الديمقراطية أنغولا زامبيا زيمبابوي موزمبيق ملاوي مدغشقر موريشيوس سيشل ناميبيا بوتسوانا جنوب_أفريقيا ليسوتو إسواتيني غينيا غينيا_بيساو '
+    + 'غينيا_الاستوائية سيراليون ليبيريا ساحل_العاج بوركينا_فاسو توغو بنين غامبيا الرأس_الأخضر جنوب_السودان أفريقيا_الوسطى ساو_تومي_وبرينسيب')
+    .split(' ').map(x => [x.replace(/_/g, ' ')]);
   const B = (label, cls = '') => `<button class="${cls}">${num(label)}</button>`;
+  const run = i => [1, i];
   const STATES = {
-    // المزايدة (الوثيقة 5.5): زر كل فريق بلونه يُظهر رقمه (أول نقرة: رقم الخصم + 1، ثم +1 بكل نقرة)، و«ابدأ» بينهما يرسي على الأعلى ويبدأ عدّاد الوفاء
-    open:     { t: 'المزايدة: لا رقم بعد (قائمة 12)', turn: 0, bids: [0, 0], list: MONTHS, done: 'المزايدة · لا رقم بعد', ctl: [B('زايد', 'bidt t1'), B('ابدأ', 'alt go2 held'), B('زايد', 'bidt t2')] },
-    bid:      { t: 'المزايدة: الأول 8 والثاني 11 (قائمة 12)', turn: 0, bids: [8, 11], list: MONTHS, done: 'المزايدة · الأعلى 11', ctl: [B('8', 'bidt t1'), B('ابدأ', 'alt go2'), B('11', 'bidt t2')] },
-    bidhidden:{ t: 'المزايدة: قائمة فوق 20، رقمان من خانتين', turn: 0, bids: [36, 27], done: 'المزايدة · الأعلى 36', ctl: [B('36', 'bidt t1'), B('ابدأ', 'alt go2'), B('27', 'bidt t2')] },
-    run:      { t: 'الوفاء: العدّاد يعمل', turn: 1, of: 12, said: [0, 1, 2, 3, 4, 5, 6].map(i => [1, i]), who: 1, state: '0:38 · بقي 5', ctl: [B('توقّف · لم يفِ', 'no half')] },
-    decided:  { t: 'بعد الحكم: لم يفِ الأول', turn: 0, of: 12, said: [0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => [1, i]), done: 'لم يفِ · ذُكر 9 من 12', ctl: [B('الموضوع التالي · 3 من 3', 'half')] },
-    long:     { t: 'أطول قائمة (54) أثناء العدّ', turn: 1, of: 30, said: [...Array(21).keys()].map(i => [1, i * 2]), list: AFRICA, who: 1, state: '0:09 · بقي 9', ctl: [B('توقّف · لم يفِ', 'no half')] },
+    // المزايدة (الوثيقة 5.5): زر كل فريق بلونه يُظهر رقمه، و«ابدأ» بينهما. والقائمة للاطلاع، ويبحث فيها المقدّم
+    bid:      { t: 'المزايدة: الأول 17 والثاني 23', turn: 0, bids: [17, 23], done: 'المزايدة · الأعلى 23', ctl: [B('17', 'bidt t1'), B('ابدأ', 'alt go2'), B('23', 'bidt t2')] },
+    bidfind:  { t: 'المزايدة: يبحث المقدّم «فو»', turn: 0, bids: [17, 23], find: 'فو', done: 'المزايدة · الأعلى 23', ctl: [B('17', 'bidt t1'), B('ابدأ', 'alt go2'), B('23', 'bidt t2')] },
+    // الوفاء: الحقل جاهز للكتابة، وكل عنصر زر يُنقر
+    run:      { t: 'الوفاء: ذُكر 7 من 23، والحقل فارغ', turn: 1, of: 23, said: [0, 1, 2, 3, 12, 13, 18].map(run), who: 1, state: '1:12 · بقي 16', ctl: [B('توقّف · لم يفِ', 'no half')] },
+    find:     { t: 'الوفاء: كُتب «هون» فطابق اثنين، والأول مُبرَز', turn: 1, of: 23, said: [0, 1, 2, 3, 12, 13, 18].map(run), find: 'هون', who: 1, state: '1:05 · بقي 16', ctl: [B('توقّف · لم يفِ', 'no half')] },
+    nofind:   { t: 'الوفاء: كُتب «ليفان» ولا مطابقة', turn: 1, of: 23, said: [0, 1, 2, 3, 12, 13, 18].map(run), find: 'ليفان', who: 1, state: '0:58 · بقي 16', ctl: [B('توقّف · لم يفِ', 'no half')] },
+    out:      { t: 'الوفاء: احتُسب اثنان من خارج القائمة', turn: 1, of: 23, said: [0, 1, 2, 3, 12, 13, 18].map(run), outs: [[1, 'ليفان'], [1, 'جاك'], [1, '']], who: 1, state: '0:51 · بقي 13', ctl: [B('توقّف · لم يفِ', 'no half')] },
+    decided:  { t: 'بعد الحكم: لم يفِ الأول', turn: 0, of: 23, said: [0, 1, 2, 3, 12, 13, 18, 5, 9].map(run), outs: [[1, 'ليفان']], done: 'لم يفِ · ذُكر 10 من 23', ctl: [B('الموضوع التالي · 3 من 3', 'half')] },
+    long:     { t: 'أطول قائمة (195) أثناء العدّ، والقائمة تُمرَّر', turn: 1, of: 40, said: [...Array(21).keys()].map(i => [1, i * 3]), list: WORLD, who: 1, state: '2:05 · بقي 19', ctl: [B('توقّف · لم يفِ', 'no half')] },
   };
+  // المطابقة (4.0): بلا تشكيل ولا همزات ولا «ال» في أول الكلمة، وبالتاء المربوطة هاءً والألف المقصورة ياءً، في الاسم وصيغه
+  const norm = s => s.normalize('NFKD').replace(/[ً-ٰٟـ]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي')
+    .replace(/ؤ/g, 'و').replace(/ئ/g, 'ي').replace(/(^|\s)ال/g, '$1').trim();
   const id = q.get('s'), st = STATES[id];
   if (!st) {
     document.body.innerHTML = '<div class="menu"><h1>ش4 · المزاد · نافذة المقدّم</h1>' + Object.entries(STATES).map(([k, s]) =>
       `<p>${esc(s.t)}: <a href="?s=${k}">مثال</a> · <a href="?s=${k}&long=1">أطول اسمين</a></p>`).join('') + '</div>';
   } else {
-    const list = st.list ?? ARAB;
-    $('topic').textContent = st.list === AFRICA ? 'دول قارة أفريقيا' : st.list === MONTHS ? 'الأشهر الهجرية' : 'الدول العربية';
+    const list = st.list ?? CARS;
+    const fulfil = !!st.who;
+    $('topic').textContent = st.list === WORLD ? 'دول العالم' : 'ماركات السيارات';
+    $('open').hidden = false;
     $('pips').innerHTML = [1, 2, 1].map((t, i) => `<span class="pip t${t}${i === 1 ? ' now' : ''}${i === 0 ? ' won1' : ''}"></span>`).join('');
+    const outs = st.outs ?? [];
+    const total = (st.said?.length ?? 0) + outs.length;
     $('tally').hidden = !st.said;
-    if (st.said) { $('tn').textContent = st.said.length; $('tof').textContent = st.of; $('tally').className = `tally t${st.said.length ? st.said[st.said.length - 1][0] : st.turn}`; }
-    $('size').hidden = !st.bids; $('size').innerHTML = `في القائمة <span class="ltr">${list.length}</span> عنصراً`;
+    if (st.said) { $('tn').textContent = total; $('tof').textContent = st.of; $('tally').className = `tally t${st.who ?? 1}`; }
+    $('size').hidden = !st.bids; $('size').innerHTML = `في المرجع <span class="ltr">${list.length}</span>`;
+    // البحث: في المزايدة وبعد الحكم للاطلاع (الحقل بعرضه)، وفي الوفاء مع زر «من خارج القائمة» بلون صاحب الدور
+    $('find').classList.toggle('wide', !fulfil);
+    $('out').hidden = !fulfil; $('out').className = `out t${st.who ?? 1}`;
+    $('q').value = st.find ?? '';
+    // ما احتُسب من خارج القائمة: بنصه، أو «بلا نص» إن لم يُكتب
+    $('outs').hidden = !outs.length;
+    $('outs').innerHTML = outs.length ? 'من خارج القائمة: ' + outs.map(([t, x]) => `<span class="it t${t}"><i></i><span>${x ? esc(x) : 'بلا نص'}</span></span>`).join('') : '';
     const by = new Map((st.said ?? []).map(([t, i]) => [i, t]));
-    const dense = list.length > 24;
-    $('ref').className = 'ref' + (st.bids || st.done ? ' view' : '') + (dense ? ' dense' : '');
-    $('ref').innerHTML = list.map(([n, ...alts], i) => `<button class="${by.has(i) ? 't' + by.get(i) : ''}">${esc(n)}${alts.length ? ` <small>· ${esc(alts.join(' · '))}</small>` : ''}</button>`).join('');
+    $('ref').className = 'ref' + (fulfil ? '' : ' view');
+    const f = norm(st.find ?? '');
+    const match = ([n, ...alts]) => !f || [n, ...alts].some(x => norm(x).includes(f));
+    let hit = -1;
+    $('ref').innerHTML = list.map((it, i) => {
+      const [n, ...alts] = it, show = match(it), said = by.has(i);
+      if (f && show && !said && hit < 0 && fulfil) hit = i;
+      return `<button${show ? '' : ' hidden'} class="${said ? 't' + by.get(i) : ''}${hit === i ? ' hit' : ''}">${esc(n)}${alts.length && st.bids === undefined ? ` <small>· ${esc(alts.join(' · '))}</small>` : ''}</button>`;
+    }).join('') + (f && !list.some(match) ? `<p class="none">${num(fulfil ? `لا يطابق شيئاً في القائمة · Enter أو «من خارج القائمة» يحتسبه بنصه` : 'لا يطابق شيئاً في القائمة')}</p>` : '');
     $('who').innerHTML = st.who ? `دور ${tn(st.who)}` : `<span class="done">${num(st.done)}</span>`;
     $('state').innerHTML = st.who ? num(st.state) : '';
     $('ctl').innerHTML = st.ctl.join('');
     // العنصر الذي لا يتسع اسمه (بصيغه) في خانة يأخذ خانتين، فإن لم يتسع فثلاثاً. والفراغات تُملأ بما بعده (dense)
     document.fonts.ready.then(() => {
-      for (const b of $('ref').children) for (const cls of ['wide', 'wider']) if (b.scrollWidth > b.clientWidth + 1) { b.classList.remove('wide'); b.classList.add(cls); }
+      for (const b of $('ref').querySelectorAll('button:not([hidden])')) for (const cls of ['wide', 'wider']) if (b.scrollWidth > b.clientWidth + 1) { b.classList.remove('wide'); b.classList.add(cls); }
+      // في الوفاء الحقل جاهز للكتابة دائماً (لوحة المفاتيح)، وفي «أطول قائمة» تُرى القائمة ممرَّرة إلى منتصفها
+      if (fulfil) $('q').focus();
+      if (id === 'long') $('ref').scrollTop = $('ref').scrollHeight / 6;
       window.__ready = true;
     });
   }

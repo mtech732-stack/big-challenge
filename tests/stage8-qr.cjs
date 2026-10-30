@@ -172,6 +172,33 @@ try { jsQR = require('jsqr'); } catch {}
     await context.close();
   }
 
+  // قائمة أكبر مما يسعه الرمز (مثل المفتوح الكبير): لا يُرسم، وتبقى البطاقة واللعبة تعمل (design/auction.md 7.10 قيد القرار).
+  {
+    const real = read('auction.json');
+    const huge = Array.from({ length: 220 }, (_, i) => ({ name: `عنصر طويل الاسم رقم ${i + 1}`, alts: [`صيغة ${i + 1}`] }));
+    let threw = false;
+    try { Q.qrMatrix(aText({ topic: 'قائمة كبيرة', items: huge })); } catch { threw = true; }
+    check(`نص قائمة 220 عنصراً يزيد عمّا يسعه الرمز (${Buffer.byteLength(aText({ topic: 'قائمة كبيرة', items: huge }))} بايت)`, threw);
+    const bank = { mode: 'auction', topics: real.topics.map(t => ({ ...t, items: huge })) };
+    const { context, stage, frame } = await newStage();
+    await context.route('**/content/packs/general/auction.json', route => route.fulfill({ json: bank }));
+    await stage.reload(); await unlock(stage);
+    const f = await stageFrame(stage);
+    await sharedToFace(f, { names: ['الصقور', 'النجوم'], picks: ['auction', 'ranking'] });
+    await wait(2700);
+    await cmd(f, 'begin');
+    await f.waitForSelector('.scr.show[data-s="intro"]', { timeout: 6000 });
+    await wait(500);
+    await cmd(f, 'act:show');
+    await f.waitForSelector('.scr.show[data-s="auc"]', { timeout: 5000 });
+    await wait(600);
+    check('القائمة الكبيرة: لا باركود، والموضوع ظاهر', !(await qrOf(f)).shown && await f.isVisible('#topic'));
+    await cmd(f, 'raise:1'); await wait(300); await cmd(f, 'act:start'); await wait(600);
+    check('القائمة الكبيرة: المزايدة والوفاء يعملان', (await saved(stage)).round.state.phase === 'fulfil');
+    await look(f, 'القائمة الكبيرة دون باركود');
+    await context.close();
+  }
+
   await browser.close();
   check('فحص التداخل والشبكة في كل حالة', layoutOk);
   check('لا طلب خارج اللعبة لتوليد الباركود', requests.length === 0);
