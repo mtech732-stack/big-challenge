@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQr } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/'; // الرابط العادي: المزاد في MODES منذ اكتمال ش4
@@ -235,6 +235,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await unlock(stage);
   audience = await stageFrame(stage);
   await wait(1000);
+  await hideQr(audience);
   const near = () => audience.$$eval('#near .cbtn', els => els.map(e => e.textContent.trim() + (e.classList.contains('off') ? '(معطّل)' : '')).join(' | '));
   for (let i = 0; i < 20 && (await st()).nums.some(Boolean); i++) { await cmd(audience, 'undo'); await wait(800); }
   check(`النافذة الواحدة · قبل أول رقم: «زايد» · «ابدأ» معطّل · «زايد» (${await near()})`, (await near()) === 'زايد | ابدأ(معطّل) | زايد');

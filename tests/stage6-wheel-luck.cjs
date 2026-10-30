@@ -214,7 +214,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     await wait(600);
     const go = async c => { await cmd(audience, c); await wait(800); };
     await go('act:show');
-    for (let k = 0; k < 2; k++) { await go('act:start:one'); await go('act:finish'); await go('act:commit'); await go('act:next'); }
+    for (let k = 0; k < 2; k++) { await go('qr:hide'); await go('act:start'); await go('act:finish'); await go('act:next'); }
     await stage.evaluate(r => { Math.random = () => r; }, RND.gift);
     await go('next');
     await go('act:spin');

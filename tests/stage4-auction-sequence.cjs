@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQr } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/'; // الرابط العادي: المزاد في MODES منذ اكتمال ش4
@@ -193,6 +193,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   for (let i = 0; i < 12 && !((await st()).index === 1 && (await st()).phase === 'decided'); i++) { await cmd(audience, 'undo'); await wait(800); }
   check(`النافذة الواحدة: «الموضوع التالي» في البطاقة بعد حكم الموضوع 2 (${await card()})`, (await st()).index === 1 && (await card()) === 'الموضوع التالي');
   await cmd(audience, 'act:next'); await wait(1200);
+  check('النافذة الواحدة: الموضوع 3 يبدأ بالباركود ظاهراً (الوثيقة 1.7)، ثم يُخفى', await hideQr(audience));
   check('النافذة الواحدة: الموضوع 3 للمزايدة، و«زايد» · «ابدأ» معطّل · «زايد» في صف الشارات', (await st()).index === 2 && (await st()).phase === 'bid' && (await text(audience, '#b1')) === 'الموضوع 3 من 3'
     && (await audience.$$eval('#near .cbtn', els => els.map(e => e.textContent.trim() + (e.classList.contains('off') ? '(معطّل)' : '')).join(' | '))) === 'زايد | ابدأ(معطّل) | زايد');
 

@@ -339,7 +339,8 @@
       <p class="who" id="rWho"></p>
       <p class="state grow" id="rState"></p>
       <button class="alt" id="rQr" data-qr hidden></button>
-      <button class="alt" id="rUndo">تراجع عن آخر حكم</button>
+      <!-- «تراجع» كالمزاد: زر الباركود في السطر نفسه (design/s8.md 2.1)، فبالاسم الأطول لا يتسع «تراجع عن آخر حكم» -->
+      <button class="alt" id="rUndo">تراجع</button>
       <button class="alt" data-new>مباراة جديدة</button>
     </div>
     <div class="ctlrow" id="rCtl"></div>
@@ -417,6 +418,7 @@
   import TIEBREAK from './js/tiebreak.js';
   import { answersText } from './js/qr.js';
   import { HIT_MS as RANK_HIT_MS } from './js/modes/ranking.js';
+  import { STEAL_SECONDS } from './js/modes/word.js';
   import { matchModes, pickableModes, MODES as BUILT, DRAFTS } from './js/modes/index.js';
   import * as M from './js/match.js';
   import * as P from './js/play.js';
@@ -894,7 +896,7 @@
       $('qAccept').textContent = pr.accept;
       $('who').innerHTML = `${mk(pr.turn)} دور ${tn(pr.turn)}`;
       $('qState').innerHTML = pr.phase === 'steal'
-        ? `انتقلت الإجابة ${pr.steal.reason === 'timeout' ? 'بعد انتهاء الوقت' : 'بعد الخطأ'} · <span class="ltr">5</span> ثوانٍ`
+        ? `انتقلت الإجابة ${pr.steal.reason === 'timeout' ? 'بعد انتهاء الوقت' : 'بعد الخطأ'} · <span class="ltr">${STEAL_SECONDS}</span> ثوانٍ`
         : STATE_TEXT[pr.phase] ?? '';
       const decided = pr.phase === 'decided';
       $('judge').hidden = decided;
@@ -1032,7 +1034,7 @@
     }
     pr.items.forEach((x, i) => { const el = ref.children[i]; el.classList.toggle('t1', x.by === 1); el.classList.toggle('t2', x.by === 2); });
     const v = pr.verdict;
-    $('rWho').innerHTML = pr.phase === 'wrong' ? '<span class="done">لا نقاط · لم تُكشف خانة · اختر الدور التالي</span>'
+    $('rWho').innerHTML = pr.phase === 'wrong' ? '<span class="done">لا نقاط · لم تُكشف خانة</span>'
       : pr.phase === 'listend' ? `<span class="done">${num(`${pr.timeup ? 'انتهى وقت القائمة' : 'انتهت القائمة'} ${pr.n} · كُشف ${pr.found} من ${pr.of}`)}</span>`
       : v ? `<span class="done">${!v.team ? 'لا نقاط · لم تُكشف خانة' : `${esc(match.teams[v.team])} · ${num(v.rank > 10 ? `${v.points ? '−' + -v.points : '0'} · فخّ المركز ${v.rank}` : `+${v.points} · المركز ${v.rank}`)}`}</span>`
       : `${mk(pr.turn)} دور ${tn(pr.turn)}`;

@@ -1,6 +1,7 @@
-// اختبار آلي لمرحلة «اللوحة والكشف» في الترتيب (5.6، design/ranking.md) بالنافذتين، في رابط المعاينة:
-// الافتتاح، وظهور القائمة (العنوان وإشارته، والعشر برتبها، والفخاخ مخفية حتى يقع فيها فريق)، و«ابدأ» وعدّاد 15 ثانية، ونقر ما قاله الفريق فتنكشف خانته
-// بلونه ونقاط رقمها، والتناوب، و«خطأ» بلا نقاط، والتراجع، وإعادة التحميل، ونهاية القائمة (تنكشف كلها) ونهاية الجولة،
+// اختبار آلي للوحة الترتيب بالنافذتين والتحكيم المباشر (5.6، 1.7، design/ranking.md، design/s8.md 3)، في رابط المعاينة:
+// الافتتاح، وظهور القائمة بالباركود ثم إخفاؤه، والعشر برتبها والفخاخ 11–13 ظاهرة الأرقام، و«ابدأ» وعدّاد 15 ثانية، ونقر ما قاله الفريق
+// (في المقدّم أو على التلفاز) فتنكشف خانته بلونه ونقاط رقمها، ثم لحظة والدور للخصم تلقائياً، و«خطأ» ثم لون الدور التالي، والتراجع،
+// وإعادة التحميل، والفخ بخصم رقمه، ونهاية القائمة (تنكشف كلها) ووقتها دقيقتان ونصف، ونهاية الجولة،
 // ولا اسم على الجمهور قبل أن يُكشف، وفحص التداخل في كل حالة، ونافذة المقدّم على ثلاثة مقاسات.
 // ثم أطول محتوى (العنوان 32 وإشارته 31، وأعرض الأسماء، وأطول اسمين، ورقمان من ثلاث خانات) حتى تنكشف العشرة.
 // الاستعمال: node tests/stage5-ranking-board.cjs [الرابط] [مجلد الصور]
@@ -117,81 +118,78 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo } = require
       await shot('intro');
     }
 
-    // 3. ظهور القائمة
+    // 3. ظهور القائمة: الباركود على التلفاز أولاً (1.7)، ثم يُخفيه المقدّم.
     await presenter.click('#showQ');
     await audience.waitForSelector('.scr.show[data-s="rnk"]');
     if (LONGRUN) { await presenter.reload(); await stage.reload(); await unlock(stage).catch(() => {}); audience = await stageFrame(stage); await presenter.waitForSelector('#app:not([hidden])'); }
     await wait(900);
+    check(tag + 'ظهور القائمة: الباركود على التلفاز، و«أخفِ الباركود» في المقدّم', await audience.$eval('#canvas', c => c.classList.contains('qr')) && (await text(presenter, '#rQr')) === 'أخفِ الباركود');
+    await presenter.click('#rQr'); await wait(900);
+    check(tag + 'أُخفي الباركود: «الباركود» يعيده', !(await audience.$eval('#canvas', c => c.classList.contains('qr'))) && (await text(presenter, '#rQr')) === 'الباركود');
     let s = await st();
-    const starter = s.team;
+    const starter = s.team, opp = starter === 1 ? 2 : 1;
     const [main, sub] = first.title.split(' · ');
-    check(tag + `الجمهور: العنوان «${main}» سطراً واحداً، وإشارته بجانبه`, (await text(audience, '#rtitle')) === main && (await text(audience, '#rsub')) === sub
-      && await audience.$eval('#rtitle', e => e.getClientRects().length === 1 && e.scrollWidth <= e.clientWidth + 1));
-    let sl = await slots();
-    check(tag + 'الجمهور: عشر خانات برتبها 1–10 بلا أسماء، والفخاخ الثلاث مخفية بلا رتبة', sl.length === 13 && sl.slice(0, 10).every((x, i) => x.b === String(i + 1) && !x.name && !x.hidden)
-      && sl.slice(10).every(x => x.hidden && !x.b && !x.name));
-    check(tag + 'الجمهور: «القائمة 1 من 2»، والحدّ يكتسح لصاحب الدور', (await text(audience, '#b1')) === 'القائمة 1 من 2' && (await side()) === starter);
-    check(tag + 'الجمهور: الأعمدة 1–5 يميناً ثم 6–10 ثم الفخاخ', await audience.$$eval('#board .sl', els => {
-      const r = els.map(e => e.getBoundingClientRect()); return r[0].left > r[5].left && r[5].left > r[10].left && Math.abs(r[0].top - r[5].top) < 1 && r[4].top > r[0].top; }));
-    check(tag + 'المقدّم: «الترتيب · القائمة 1 من 2»، والعنوان، والقائمة كلها (13) بصيغها للاطلاع', (await text(presenter, '#roundChip')) === 'الترتيب · القائمة 1 من 2'
-      && (await text(presenter, '#rTitle')).startsWith(main) && (await presenter.$$('#rRef button')).length === 13 && await presenter.$eval('#rRef', e => e.classList.contains('view'))
-      && await presenter.$$eval('#rRef button.trap', e => e.length) === 3 && await presenter.$$eval('#rRef small', e => e.length) === items.filter(i => i.alts?.length).length);
-    // المدى بشرطته يُعزل كله يساراً في المقدّم كما في الجمهور، فلا تنقلب السنتان (تقرير المعاين ش5، 32).
     const ranges = sub.match(/\d+[–:]\d+/g) ?? [];
     check(tag + `المقدّم: إشارة العنوان «${sub}» بسنتيها في ترتيبهما`, ranges.length > 0 && await presenter.$eval('#rTitle small', (e, rs) => {
       const iso = [...e.querySelectorAll('.ltr')].map(x => x.textContent); return rs.every(r => iso.includes(r)); }, ranges));
-    check(tag + `المقدّم: «دور [صاحب الدور]» و«ابدأ العدّاد · 15 ثانية» و«أنهِ القائمة» (${await ctl()})`, (await text(presenter, '#rWho')) === `دور ${NAMES[starter - 1]}`
-      && (await ctl()) === 'ابدأ العدّاد · 15 ثانية | أنهِ القائمة');
+    let sl = await slots();
+    check(tag + `الجمهور: العنوان «${main}» سطراً واحداً، وإشارته بجانبه`, (await text(audience, '#rtitle')) === main && (await text(audience, '#rsub')) === sub);
+    check(tag + 'الجمهور: ثلاث عشرة خانة بأرقامها بلا أسماء، والفخاخ 11–13 ظاهرة (1.7)', sl.length === 13 && sl.every((x, i) => x.b === String(i + 1) && !x.name && !x.hidden)
+      && sl.slice(10).every(x => x.cls.includes('trap')));
+    check(tag + 'الجمهور: «القائمة 1 من 2»، والحدّ لصاحب الدور', (await text(audience, '#b1')) === 'القائمة 1 من 2' && (await side()) === starter);
+    check(tag + `المقدّم: «دور [صاحب الدور]» و«ابدأ العدّاد» و«أنهِ القائمة» (${await ctl()})`, (await text(presenter, '#rWho')) === `دور ${NAMES[starter - 1]}`
+      && (await ctl()) === 'ابدأ العدّاد | أنهِ القائمة' && await presenter.$eval('#rRef', e => e.classList.contains('view')));
+    check(tag + 'والخانات لا تُنقر على التلفاز قبل «ابدأ»', !(await audience.$eval('#rnk', e => e.classList.contains('judge'))));
     await both('ظهور القائمة');
     await shot('read');
 
-    // 4. «ابدأ»: العدّاد يعمل لصاحب الدور، والقائمة تُنقر، و«خطأ» بعرض اللوحة.
+    // 4. «ابدأ»: العدّاد لصاحب الدور، والقائمة تُنقر في المقدّم وعلى التلفاز.
     await act('start');
-    check(tag + 'الجمهور: العدّاد يعمل في لوحة صاحب الدور', await audience.$eval('#canvas', c => c.classList.contains('running')) && (await side()) === starter);
-    check(tag + `المقدّم: القائمة تُنقر، و«خطأ · ليس في القائمة أو مكرر» (${await ctl()})`, !(await presenter.$eval('#rRef', e => e.classList.contains('view')))
-      && (await ctl()) === 'خطأ · ليس في القائمة أو مكرر' && /^0:1\d$/.test(await text(presenter, '#rState')));
+    check(tag + 'الجمهور: العدّاد يعمل في لوحة صاحب الدور، والتلفاز بنافذتين بلا نقر (design/s8.md 3.3)', await audience.$eval('#canvas', c => c.classList.contains('running')) && (await side()) === starter
+      && !(await audience.$eval('#rnk', e => e.classList.contains('judge'))));
+    check(tag + `المقدّم: القائمة تُنقر، و«خطأ · ليس في القائمة أو مكرر» و«أنهِ القائمة» (${await ctl()})`, !(await presenter.$eval('#rRef', e => e.classList.contains('view')))
+      && (await ctl()) === 'خطأ · ليس في القائمة أو مكرر | أنهِ القائمة' && /^0:1\d$/.test(await text(presenter, '#rState')));
     await both('العدّاد');
     await shot('run');
 
-    // 5. ما قاله الفريق: المركز 7.
+    // 5. ما قاله الفريق: المركز 7 من المقدّم. لحظة الإصابة، ثم الدور للخصم وحده بعدّاده.
     const before = await scores();
-    await pick(7);
+    await presenter.click('#rRef button[data-r="7"]'); await wait(300);
     sl = await slots();
     check(tag + `الجمهور: الخانة 7 تنكشف بلون صاحب الدور واسمها «${items[6].name}»`, sl[6].cls.includes('t' + starter) && sl[6].name === items[6].name && sl[6].cls.includes('new'));
     check(tag + 'الرصيد +7', (await scores())[starter] === before[starter] + 7);
-    check(tag + 'مربع الإعلان: «[الاسم] · +7» و«المركز 7»، والحدّ عند من أصاب', (await text(audience, '#vtext')) === `${NAMES[starter - 1]} · +7` && (await text(audience, '#say')) === 'المركز 7'
-      && !(await audience.$eval('#box', e => e.hidden || e.classList.contains('bare'))) && (await side()) === starter);
-    const opp = starter === 1 ? 2 : 1;
-    check(tag + `المقدّم: «[الاسم] · +7 · المركز 7» و«التالي · دور [الخصم]» و«أنهِ القائمة» (${await ctl()})`, (await text(presenter, '#rWho')) === `${NAMES[starter - 1]} · +7 · المركز 7`
-      && (await ctl()) === `التالي · دور ${NAMES[opp - 1]} | أنهِ القائمة` && await presenter.$eval('#rRef button[data-r="7"]', (e, t) => e.classList.contains('t' + t), starter));
-    await both('أصاب');
-    await shot('right');
+    check(tag + 'مربع الإعلان: «[الاسم] · +7» و«المركز 7»، والحدّ عند من أصاب، ولا أزرار في المقدّم', (await text(audience, '#vtext')) === `${NAMES[starter - 1]} · +7` && (await text(audience, '#say')) === 'المركز 7'
+      && (await side()) === starter && (await ctl()) === '' && (await text(presenter, '#rWho')) === `${NAMES[starter - 1]} · +7 · المركز 7`);
+    await stage.screenshot({ path: `${shots}/s5-${LONGRUN ? 'long-' : ''}hit.png` });
+    await wait(1600);
+    check(tag + 'بعد اللحظة: دور الخصم بعدّاده، تلقائياً', (await st()).phase === 'ask' && (await st()).team === opp && (await side()) === opp
+      && await audience.$eval('#canvas', c => c.classList.contains('running')) && (await text(presenter, '#rWho')) === `دور ${NAMES[opp - 1]}`);
+    check(tag + 'المكشوف لا يُنقر ثانية', await presenter.$eval('#rRef button[data-r="7"]', e => getComputedStyle(e).pointerEvents === 'none'));
+    await both('بعد الإصابة');
 
     if (!LONGRUN) {
-      // 6. التالي: دور الخصم وعدّاده فوراً. ثم «خطأ»: تنتقل الإجابة إلى صاحب الدور الأول ليسرق في 5 ثوانٍ، ثم «خطأ» ثانية: لا نقاط.
-      await act('next');
-      check('«التالي»: دور الخصم والعدّاد يعمل فوراً', (await side()) === opp && await audience.$eval('#canvas', c => c.classList.contains('running')) && (await text(presenter, '#rWho')) === `دور ${NAMES[opp - 1]}`);
-      check('المكشوف لا يُنقر ثانية', await presenter.$eval('#rRef button[data-r="7"]', e => getComputedStyle(e).pointerEvents === 'none'));
+      // 6. «خطأ»: لا نقاط، ثم يختار المقدّم لون الدور التالي.
       await act('wrong');
-      check(`السرقة: الحدّ والعدّاد عند السارق، ولا مربع حكم، والمقدّم «بعد الخطأ · 0:0x» و«خطأ» (${await text(presenter, '#rState')})`, (await side()) === starter
-        && await audience.$eval('#canvas', c => c.classList.contains('running')) && /^بعد الخطأ · 0:0[0-5]$/.test(await text(presenter, '#rState'))
-        && (await text(presenter, '#rWho')) === `دور ${NAMES[starter - 1]}` && (await ctl()) === 'خطأ · ليس في القائمة أو مكرر'
-        && !(await presenter.$eval('#rRef', e => e.classList.contains('view'))) && (await st()).phase === 'steal');
+      check('«خطأ»: «لا نقاط» و«لم تُكشف خانة»، والحدّ في المنتصف، والعدّاد يقف', (await text(audience, '#vtext')) === 'لا نقاط' && (await text(audience, '#say')) === 'لم تُكشف خانة' && (await side()) === 0
+        && !(await audience.$eval('#canvas', c => c.classList.contains('running'))));
+      check(`المقدّم: «لا نقاط · لم تُكشف خانة» و«الدور: [الاسم]» بلوني الفريقين (${await ctl()})`, (await text(presenter, '#rWho')) === 'لا نقاط · لم تُكشف خانة'
+        && (await ctl()) === `الدور: ${NAMES[0]} | الدور: ${NAMES[1]}` && await presenter.$eval('#rCtl .turn.t1', b => getComputedStyle(b).backgroundColor) !== await presenter.$eval('#rCtl .turn.t2', b => getComputedStyle(b).backgroundColor));
       check('السرقة: لا كلمة «سرقة» على التلفاز', !(await audience.$eval('#canvas', c => c.innerText)).includes('سرق'));
-      await both('السرقة');
-      await shot('steal');
-      await act('wrong');
-      check('«خطأ»: «لا نقاط» و«لم تُكشف خانة»، والحدّ في المنتصف', (await text(audience, '#vtext')) === 'لا نقاط' && (await text(audience, '#say')) === 'لم تُكشف خانة' && (await side()) === 0
-        && (await text(presenter, '#rWho')) === 'لا نقاط · لم تُكشف خانة');
-      await both('لا نقاط');
-      await shot('none');
-      // 7. التراجع: إلى السرقة، ثم إلى دور الخصم وعدّاده.
+      await both('خطأ');
+      await shot('wrong');
+      await presenter.screenshot({ path: `${shots}/s5-presenter-wrong.png` });
+      // 7. التراجع عن «خطأ»: يعود الدور والعدّاد. ثم «خطأ» ولون الخصم نفسه (من أخطأ)، فيجيب ثانية.
       await presenter.click('#rUndo'); await wait(900);
-      check('التراجع عن خطأ السارق: تعود السرقة وعدّادها', (await st()).phase === 'steal' && (await side()) === starter);
-      await presenter.click('#rUndo'); await wait(900);
-      check('والتراجع ثانية: يعود الدور للخصم والعدّاد', (await st()).phase === 'ask' && (await side()) === opp);
-      await pick(2);
-      // 8. إعادة تحميل الشاشة والمقدّم: الخانتان كما هما.
+      check('التراجع عن «خطأ»: يعود الدور لمن أخطأ وعدّاده', (await st()).phase === 'ask' && (await side()) === opp && await audience.$eval('#canvas', c => c.classList.contains('running')));
+      await act('wrong'); await act('turn:' + opp);
+      check('اختار المقدّم لون من أخطأ: الدور له بعدّاده', (await st()).phase === 'ask' && (await st()).team === opp && (await side()) === opp);
+      // 8. الخانة 2 للخصم.
+      await presenter.click('#rRef button[data-r="2"]'); await wait(300);
+      sl = await slots();
+      check('الخانة 2: تنكشف بلون الخصم، +2', sl[1].cls.includes('t' + opp) && sl[1].name === items[1].name && (await scores())[opp] === 2);
+      await wait(1600);
+      check('ثم الدور لصاحب البداية', (await st()).phase === 'ask' && (await st()).team === starter);
+      // 9. إعادة تحميل الشاشة والمقدّم: الخانتان كما هما.
       await stage.reload(); await unlock(stage).catch(() => {});
       audience = await stageFrame(stage);
       await presenter.reload(); await presenter.waitForSelector('#app:not([hidden])', { timeout: 10000 });
@@ -199,21 +197,18 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo } = require
       sl = await slots();
       check('إعادة تحميل النافذتين: الخانتان 2 و7 بلونيهما وأسمائهما', sl[1].cls.includes('t' + opp) && sl[1].name === items[1].name && sl[6].name === items[6].name
         && await presenter.$eval('#rRef button[data-r="2"]', (e, t) => e.classList.contains('t' + t), opp));
-      // 9. الفخ: صاحب الدور (رصيده 7) يذكر عنصر المركز 12، فيُخصم منه 2.
-      await act('next');
+      // 10. الفخ: صاحب الدور (رصيده 7) يذكر عنصر المركز 12، فيُخصم منه 7 (لا ينزل تحت الصفر، والخصم 12).
       const was = (await scores())[starter];
-      await pick(12);
+      // تُوقف ساعة المقدّم (هي التي ترسل «turn» بعد 1.2 ثانية)، فتبقى لحظة الفخ حتى تُفحص إشارة الخصم وتُصوَّر.
+      await presenter.evaluate(() => { const real = Date.now, t = real(); window.__realNow = real; Date.now = () => t; });
+      await presenter.click('#rRef button[data-r="12"]'); await wait(300);
       sl = await slots();
-      check('الفخ: خانة 12 تظهر بلون من وقع فيه واسمها وخصمها «−2»، والفخان الآخران مخفيان', sl[11].cls.includes('t' + starter) && sl[11].name === items[11].name && sl[11].b === '−2'
-        && !sl[11].hidden && sl[10].hidden && sl[12].hidden && sl[11].cls.includes('new'));
-      check(`الفخ: الرصيد −2، ومربع الإعلان «[الاسم] · −2» و«فخّ المركز 12»، والحدّ في المنتصف`, (await scores())[starter] === was - 2
-        && (await text(audience, '#vtext')) === `${NAMES[starter - 1]} · −2` && (await text(audience, '#say')) === 'فخّ المركز 12' && (await side()) === 0);
-      check(`المقدّم: «[الاسم] · −2 · فخّ المركز 12»، والفخ بلونه (${await text(presenter, '#rWho')})`, (await text(presenter, '#rWho')) === `${NAMES[starter - 1]} · −2 · فخّ المركز 12`
-        && await presenter.$eval('#rRef button[data-r="12"]', (e, t) => e.classList.contains('t' + t), starter)
-        && (await ctl()) === `التالي · دور ${NAMES[opp - 1]} | أنهِ القائمة`);
-      await both('فخ');
-      await shot('trap');
-      await presenter.screenshot({ path: `${shots}/s5-presenter-trap.png` });
+      check('الفخ: خانة 12 بلون من وقع فيه واسمها وخصمها «−12»، والفخان الآخران بأرقامهما بلا اسم', sl[11].cls.includes('t' + starter) && sl[11].name === items[11].name && sl[11].b === '−12'
+        && !sl[10].name && !sl[12].name && sl[10].b === '11' && sl[11].cls.includes('new'));
+      check(`الفخ: الرصيد ${was} ← 0، ومربع الإعلان «[الاسم] · −${was}» و«فخّ المركز 12»، والحدّ في المنتصف`, (await scores())[starter] === 0
+        && (await text(audience, '#vtext')) === `${NAMES[starter - 1]} · −${was}` && (await text(audience, '#say')) === 'فخّ المركز 12' && (await side()) === 0);
+      check(`المقدّم: «[الاسم] · −${was} · فخّ المركز 12»، والفخ بلونه (${await text(presenter, '#rWho')})`, (await text(presenter, '#rWho')) === `${NAMES[starter - 1]} · −${was} · فخّ المركز 12`
+        && await presenter.$eval('#rRef button[data-r="12"]', (e, t) => e.classList.contains('t' + t), starter));
       // الإشارة يسار الرقم كما تُرسم (تقرير المعاين ش5، 34: «2-»). مواضع الحروف (Range) لا تكفي، فتُقرأ صورة العازل نفسه:
       // أول عمود داكن من اليسار في وسط السطر وحده (شرطة) لا في أعلاه (رقم).
       const minusLeft = async (page, sel) => {
@@ -227,34 +222,41 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo } = require
           const ink = (x, y) => { const k = (y * c.width + x) * 4; return Math.abs(d[k] - bg[0]) + Math.abs(d[k + 1] - bg[1]) + Math.abs(d[k + 2] - bg[2]) > 200; };
           for (let x = 0; x < c.width; x++) { const ys = []; for (let y = 0; y < c.height; y++) if (ink(x, y)) ys.push(y); if (ys.length) return Math.min(...ys) > c.height * 0.35; }
           return false; }, png); };
-      check('الخصم «−2» بإشارته يسار الرقم كما يُرسم: في سطر الحالة بالمقدّم، وفي مربع الإعلان', await minusLeft(presenter, '#rWho') && await minusLeft(audience, '#vtext'));
-      // 10. «أنهِ القائمة»: تنكشف كلها والفخاخ، بلا مربع: «كُشف 2 من 10».
+      check('الخصم بإشارته يسار الرقم كما يُرسم: في سطر الحالة بالمقدّم، وفي مربع الإعلان', await minusLeft(presenter, '#rWho') && await minusLeft(audience, '#vtext'));
+      await both('فخ');
+      await shot('trap');
+      await presenter.screenshot({ path: `${shots}/s5-presenter-trap.png` });
+      await presenter.evaluate(() => { Date.now = window.__realNow; });
+      await wait(1600);
+      check('ثم الدور للخصم', (await st()).phase === 'ask' && (await st()).team === opp);
+      // 11. «أنهِ القائمة»: تنكشف كلها والفخاخ، بلا مربع: «كُشف 2 من 10».
       await act('finish');
       sl = await slots();
-      check('نهاية القائمة: الثلاث عشرة بأسمائها، والفخاخ ظاهرة بخصمها، وما لم يُذكر .left', sl.every((x, i) => x.name === items[i].name && !x.hidden)
-        && sl.slice(10).map(x => x.b).join(',') === '−3,−2,−1' && sl[0].cls.includes('left') && !sl[6].cls.includes('left'));
+      check('نهاية القائمة: الثلاث عشرة بأسمائها، والفخاخ بأرقامها', sl.every((x, i) => x.name === items[i].name && !x.hidden));
       check('نهاية القائمة: «كُشف 2 من 10» بلا مربع، والحدّ في المنتصف', (await text(audience, '#next')) === 'كُشف 2 من 10' && await audience.$eval('#box', e => e.classList.contains('bare'))
         && (await side()) === 0);
-      check(`المقدّم: «انتهت القائمة 1 · كُشف 2 من 10» و«القائمة 2 · الأخيرة» (${await ctl()})`, (await text(presenter, '#rWho')) === 'انتهت القائمة 1 · كُشف 2 من 10' && (await ctl()) === 'القائمة 2 · الأخيرة');
+      check(`المقدّم: «انتهت القائمة 1 · كُشف 2 من 10» و«القائمة 2» (${await ctl()})`, (await text(presenter, '#rWho')) === 'انتهت القائمة 1 · كُشف 2 من 10' && (await ctl()) === 'القائمة 2');
       check('نهاية القائمة: لا وقت للقائمة على الشاشتين', !(await audience.$('.scr.rnk.show #rclock')) && await presenter.$eval('#rClock', e => e.hidden));
       await both('نهاية القائمة');
       await shot('listend');
-      // 11. القائمة 2 (الأخيرة): يبدؤها الفريق الآخر، ووقتها 5:00 على الشاشتين، ويعدّ تنازلياً من «ابدأ».
+      // 12. القائمة 2: يبدؤها الفريق الآخر، والباركود يعود، ووقتها 2:30 على الشاشتين، ويعدّ تنازلياً من «ابدأ».
       await act('next');
       let s2 = await st();
+      check('القائمة 2: الباركود ظاهر من جديد', await audience.$eval('#canvas', c => c.classList.contains('qr')));
+      await presenter.click('#rQr'); await wait(900);
       sl = await slots();
       check(`القائمة 2: يبدؤها الخصم، و«القائمة 2 من 2»، ولا خانة مكشوفة (${await text(audience, '#b1')})`, s2.index === 1 && s2.phase === 'read' && s2.team === opp
         && (await text(audience, '#b1')) === 'القائمة 2 من 2' && sl.every(x => !x.name) && (await side()) === opp);
-      check(`وقت القائمة 5:00 قبل «ابدأ» على التلفاز وفي رأس المقدّم (${await text(audience, '#rclock b')} · ${await text(presenter, '#rClockV')})`, (await text(audience, '#rclock b')) === '5:00'
-        && (await text(presenter, '#rClockV')) === '5:00' && !(await presenter.$eval('#rClock', e => e.hidden)));
+      check(`وقت القائمة 2:30 قبل «ابدأ» على التلفاز وفي رأس المقدّم (${await text(audience, '#rclock b')} · ${await text(presenter, '#rClockV')})`, (await text(audience, '#rclock b')) === '2:30'
+        && (await text(presenter, '#rClockV')) === '2:30' && !(await presenter.$eval('#rClock', e => e.hidden)));
       await both('القائمة 2');
       await shot('list2');
       await act('start'); await wait(2200);
-      check(`بعد «ابدأ» يعدّ تنازلياً على الشاشتين (${await text(audience, '#rclock b')} · ${await text(presenter, '#rClockV')})`, /^4:5[5-8]$/.test(await text(audience, '#rclock b'))
-        && /^4:5[5-8]$/.test(await text(presenter, '#rClockV')));
+      check(`بعد «ابدأ» يعدّ تنازلياً على الشاشتين (${await text(audience, '#rclock b')} · ${await text(presenter, '#rClockV')})`, /^2:2[5-8]$/.test(await text(audience, '#rclock b'))
+        && /^2:2[5-8]$/.test(await text(presenter, '#rClockV')));
       await both('وقت القائمة يعدّ');
-      // 12. انقضاء الخمس دقائق (بتقديم ساعة المقدّم): تنتهي القائمة بنفسها، وتنكشف، و«انتهى وقت القائمة».
-      await presenter.evaluate(() => { const real = Date.now; Date.now = () => real() + 300000; });
+      // 13. انقضاء الدقيقتين ونصف (بتقديم ساعة المقدّم): تنتهي القائمة بنفسها، وتنكشف، و«انتهى وقت القائمة».
+      await presenter.evaluate(() => { const real = Date.now; Date.now = () => real() + 150000; });
       await wait(1200);
       s2 = await st();
       check(`انتهى وقت القائمة: نهاية القائمة بنفسها، وكلها مكشوفة (${s2.phase})`, s2.phase === 'listend' && s2.timeup && (await slots()).every((x, i) => x.name === bank.lists[1].items[i].name));
@@ -264,25 +266,18 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo } = require
       await both('انتهى وقت القائمة');
       await shot('timeup');
       await act('next');
-      check('نهاية الجولة: الحصيلتان', await audience.isVisible('.scr.show[data-s="end"]') && (await text(audience, `#r${starter}`)) === '+5' && (await text(audience, `#r${opp}`)) === '+2');
+      check('نهاية الجولة: الحصيلتان', await audience.isVisible('.scr.show[data-s="end"]') && ['0', '+0'].includes(await text(audience, `#r${starter}`)) && (await text(audience, `#r${opp}`)) === '+2');
       await both('نهاية الجولة');
     } else {
-      // أطول محتوى: تنكشف العشرة كلها بالتناوب، ثم نهاية القائمة (أسوأ حالة للون في هذه المرحلة).
-      // وانتهاء الوقت: تنتقل الإجابة، وسطر الحالة «بعد الخطأ» (انتهاء الوقت خطأ) بأطول اسم.
-      await act('next'); await wait(15600);
-      check(`الأطول · انتهى الوقت: السرقة بسببها (${await text(presenter, '#rState')})`, (await st()).phase === 'steal' && (await st()).steal?.reason === 'timeout'
-        && /^بعد الخطأ · 0:0[0-5]$/.test(await text(presenter, '#rState')));
-      await both('سرقة بعد انتهاء الوقت');
-      await act('wrong');
-      // ومعها فخ باسمه الأطول: الحكم الأطول في المقدّم «[أطول اسم] · −3 · فخّ المركز 11».
-      await act('next'); await pick(11);
+      // أطول محتوى: انتهاء وقت الإجابة ينقل الدور، ثم فخ باسمه الأطول، ثم تنكشف العشرة كلها بالتناوب (أسوأ حالة للون).
+      await wait(15800);
+      check(`الأطول · انتهى الوقت: الدور لصاحب البداية بعدّاده (${await text(presenter, '#rState')})`, (await st()).phase === 'ask' && (await st()).team === starter && /^0:1\d$/.test(await text(presenter, '#rState')));
+      await presenter.click('#rRef button[data-r="11"]'); await wait(300);
       check('الأطول · الفخ: خانة 11 ظاهرة باسمها، وحكم المقدّم بخصمه', (await slots())[10].name === items[10].name && (await text(presenter, '#rWho')).endsWith('· فخّ المركز 11'));
       await both('فخ'); await shot('trap');
-      for (const r of [1, 2, 3, 4, 5, 6, 8, 9, 10]) { await act('next'); await pick(r); if (r === 9) await both('تسع خانات'); }
-      check('الأطول · انكشفت العشرة: «أنهِ القائمة» وحدها', (await ctl()) === 'أنهِ القائمة');
-      await shot('full');
-      await act('finish');
-      check('الأطول · نهاية القائمة: «كُشف 10 من 10»', (await text(audience, '#next')) === 'كُشف 10 من 10');
+      for (const r of [1, 2, 3, 4, 5, 6, 8, 9, 10]) { await wait(1500); await presenter.click(`#rRef button[data-r="${r}"]`); await wait(300); if (r === 9) await both('تسع خانات'); }
+      await wait(1600);
+      check('الأطول · انكشفت العشرة: نهاية القائمة بنفسها، و«كُشف 10 من 10»', (await st()).phase === 'listend' && (await text(audience, '#next')) === 'كُشف 10 من 10');
       await both('نهاية القائمة بالعشرة');
       await shot('allend');
       await presenter.screenshot({ path: `${shots}/s5-long-presenter-allend.png` });
