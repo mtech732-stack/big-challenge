@@ -1,7 +1,7 @@
 // اختبار آلي لمرحلة «المزايدة» في المزاد بقاعدة المالك (5.5، design/auction.md 3.0) بالنافذتين وبالنافذة الواحدة، في الرابط العادي:
-// الافتتاح، والموضوع و«في القائمة 12» بجانبه، وزر لكل فريق بلونه (أول نقرة رقم الخصم + 1، ثم +1) والنقرات المتتابعة كلها تُحسب،
+// الافتتاح، والموضوع بلا طول القائمة (4.0)، وزر لكل فريق بلونه (أول نقرة رقم الخصم + 1، ثم +1) والنقرات المتتابعة كلها تُحسب،
 // ورقما الفريقين على الجمهور والأعلى أكبرهما، والحدّ في المنتصف حتى «ابدأ» ثم لمن رسا عليه، والسقف طول القائمة،
-// وقائمة فوق 20 بعدد مخفي، والتراجع، وإعادة التحميل،
+// وقائمة 22، والتراجع، وإعادة التحميل،
 // ولا قائمة على الجمهور، وفحص التداخل في كل حالة، ونافذة المقدّم على ثلاثة مقاسات. (والوفاء في stage4-auction-fulfil.cjs.)
 const fs = require('fs');
 const path = require('path');
@@ -17,12 +17,12 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQ
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const LONG = ['فريق النخبة الذهبي', 'نجوم المستقبل معاً'];
 
-  // بنك تجريبي بأطول موضوع (32 حرفاً، design/auction.md 3) بقائمة من 12 (حتى 20) من أول أطول قائمة في البنك، والباقي من البنك.
+  // بنك تجريبي بأطول موضوع (32 حرفاً، design/auction.md 3) بقائمة مغلقة من 12 من أول أطول قائمة في البنك، والباقي من البنك.
   // لا يعتمد على اسم قائمة بعينها.
   const real = JSON.parse(fs.readFileSync(path.join(__dirname, '../content/packs/general/auction.json'), 'utf8'));
   const africa = real.topics.reduce((x, t) => (t.items.length > x.items.length ? t : x));
   const TOPIC = 'أشياء تجدها في حقيبة طالب مدرسة';
-  const bank = { mode: 'auction', topics: [{ ...africa, id: 'test-auction-long', level: 'easy', topic: TOPIC, items: africa.items.slice(0, 12) }, ...real.topics.filter(t => t.level !== 'easy')] };
+  const bank = { mode: 'auction', topics: [{ ...africa, open: undefined, id: 'test-auction-long', level: 'easy', topic: TOPIC, items: africa.items.slice(0, 12) }, ...real.topics.filter(t => t.level !== 'easy')] };
   const names = [...bank.topics[0].items, ...africa.items].flatMap(i => [i.name, ...(i.alts ?? [])]);
 
   const context = await browser.newContext({ viewport: { width: 1366, height: 768 }, serviceWorkers: 'block' });
@@ -46,22 +46,21 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQ
   let layoutOk = true, presenterOk = true, leak = false;
   const fails = [];
   // شاشة الجمهور: التداخل والشبكة، ولا عنصر من القائمة ولا المستوى ولا «انسحب» في نص الشاشة (عدا الأزرار في النافذة الواحدة).
-  // و«في القائمة N» في المزايدة للقائمة حتى 20 وحدها، والطول لا يظهر في غيرها.
+  // ولا طول للقائمة على الشاشة أبداً (design/auction.md 4.0).
   const audienceCheck = async label => {
     const r = await audience.evaluate(() => window.__stageCheck());
     if (!r.ok) { layoutOk = false; fails.push(`${label}: ${r.problems.join('، ')}`); }
     const s = await st();
     const len = s.topics[s.index].items.length;
-    const size = await audience.evaluate(() => { const e = document.getElementById('tsize'); return e.hidden ? null : e.innerText.replace(/\s+/g, ' ').trim(); });
-    if (size !== (s.phase === 'bid' && len <= 20 ? `في القائمة ${len}` : null)) { leak = true; fails.push(`${label}: «في القائمة» (${size})`); }
+    if (await audience.$('#tsize, .auc .size')) { leak = true; fails.push(`${label}: «في القائمة» على الجمهور`); }
     const body = await audience.evaluate(ns => { let t = document.querySelector('.canvas').innerText;
       for (const b of document.querySelectorAll('.cbtn')) t = t.replace(b.innerText, '');
-      t = t.replace(document.getElementById('topic').innerText, '').replace(document.getElementById('tsize').innerText, '');
+      t = t.replace(document.getElementById('topic').innerText, '');
       for (const n of ns) t = t.split(n).join(''); return t; }, LONG);
-    if (/سرقة|سهل|متوسط|صعب|بفارق|انسحب|في القائمة|عنصر/.test(body)) { leak = true; fails.push(`${label}: نص ممنوع على الجمهور`); }
+    if (/سرقة|سهل|متوسط|صعب|بفارق|انسحب|في القائمة|في المرجع|عنصر/.test(body)) { leak = true; fails.push(`${label}: نص ممنوع على الجمهور`); }
     // اسم من حرف أو حرفين يقع في أي نص، فلا يُبحث عنه في نص الشاشة.
     if (names.some(n => [...n].length > 2 && body.includes(n))) { leak = true; fails.push(`${label}: عنصر من القائمة على الجمهور`); }
-    if (s.phase === 'bid' && len > 20 && body.includes(String(len))) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
+    if (s.phase === 'bid' && body.includes(String(len))) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
   };
   const presenterCheck = async label => {
     const r = await presenter.evaluate(() => {
@@ -112,7 +111,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQ
   check('المقدّم: «اعرض الموضوع 1» و«ثلاثة مواضيع» بلا مفتتح', (await text(presenter, '#showQ')) === 'اعرض الموضوع 1' && (await text(presenter, '#introWho')).startsWith('ثلاثة مواضيع'));
   await both('الافتتاح');
 
-  // 3. الموضوع: الحدّ في المنتصف، ولا رقم بعد، و«في القائمة 12».
+  // 3. الموضوع: الحدّ في المنتصف، ولا رقم بعد، ولا طول القائمة.
   await presenter.click('#showQ');
   await audience.waitForSelector('.scr.show[data-s="auc"]');
   await wait(600);
@@ -122,14 +121,13 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQ
   check('الجمهور: الموضوع سطراً واحداً، و«الموضوع 1 من 3»، ولا عدّ ولا أرقام', (await text(audience, '#topic')) === TOPIC && (await text(audience, '#b1')) === 'الموضوع 1 من 3'
     && !(await audience.isVisible('#tally')) && (await bids(audience)).length === 0
     && await audience.$eval('#topic', e => e.scrollWidth <= e.clientWidth + 1 && e.getClientRects().length === 1));
-  check('الجمهور: «في القائمة 12» بجانب أطول موضوع، بخط 32، وبعده بفراغ 48', (await text(audience, '#tsize')) === 'في القائمة 12'
-    && await audience.evaluate(() => { const t = document.getElementById('topic').getBoundingClientRect(), z = document.getElementById('tsize');
-      return Math.round(t.left - z.getBoundingClientRect().right) === 48 && getComputedStyle(z).fontSize === '32px' && Math.abs(t.top + t.height / 2 - (z.getBoundingClientRect().top + z.getBoundingClientRect().height / 2)) < 2; }));
+  check('الجمهور: لا «في القائمة 12» بجانب الموضوع (المالك: العدد مخفي دائماً)', !(await audience.$('#tsize')) && !(await audience.$eval('.scr.auc', e => e.innerText)).includes('12'));
   check('الجمهور: الحدّ في المنتصف', await centered());
-  check('المقدّم: الرأس «المزاد · الموضوع 1 من 3» والموضوع و«في القائمة 12 عنصراً»', (await text(presenter, '#roundChip')) === 'المزاد · الموضوع 1 من 3'
-    && (await text(presenter, '#aTopic')) === TOPIC && (await text(presenter, '#aSize')) === 'في القائمة 12 عنصراً');
+  check('المقدّم: الرأس «المزاد · الموضوع 1 من 3» والموضوع و«في المرجع 12»', (await text(presenter, '#roundChip')) === 'المزاد · الموضوع 1 من 3'
+    && (await text(presenter, '#aTopic')) === TOPIC && (await text(presenter, '#aSize')) === 'في المرجع 12');
   check('المقدّم: القائمة المرجعية أزرار للاطلاع، والاسم وحده بلا صيغه في المزايدة', (await presenter.$$('#aRef button')).length === 12
-    && await presenter.$eval('#aRef', e => e.classList.contains('view') && !e.classList.contains('dense') && !e.querySelector('small')));
+    && await presenter.$eval('#aRef', e => e.classList.contains('view') && !e.querySelector('small')));
+  check('المقدّم: البحث بعرض اللوحة «ابحث في القائمة»، ولا «مفتوح» لموضوع مغلق', await presenter.isVisible('#aQ') && (await presenter.getAttribute('#aQ', 'placeholder')) === 'ابحث في القائمة' && !(await presenter.isVisible('#aOpen')));
   check(`المقدّم: «المزايدة · لا رقم بعد»، و«زايد» · «ابدأ» معطّل · «زايد» (${await ctl()})`, (await text(presenter, '#aWho')) === 'المزايدة · لا رقم بعد' && (await text(presenter, '#aState')) === ''
     && (await ctl()) === 'زايد | ابدأ(معطّل) | زايد');
   check('المقدّم: زر الأول بلونه 5 أعمدة و«ابدأ» 2 وزر الثاني بلونه 5، في صف واحد', await presenter.$$eval('#aCtl button', els => els.map(e => getComputedStyle(e).gridColumnStart).join(',') === 'span 5,span 2,span 5'
@@ -140,7 +138,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQ
   await presenter.screenshot({ path: `${shots}/s4-presenter-open.png` });
 
   // 4. ثلاث نقرات متتابعة بالفأرة على زر الثاني (0.15 ثانية بينها): تُحسب كلها (1 ثم 2 ثم 3).
-  const at = async t => presenter.$eval(`#aCtl [data-raise="${t}"]`, e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  const at = async t => presenter.$eval(`#aCtl [data-raise="${t}"]`, e => { e.scrollIntoView({ block: "nearest" }); const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
   const p2 = await at(2);
   await presenter.mouse.click(p2.x, p2.y);
   await wait(150); await presenter.mouse.click(p2.x, p2.y);
@@ -187,24 +185,28 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQ
   // 7. «ابدأ»: يرسو المزاد على الأعلى (الثاني بـ 11)، ويبدأ الوفاء فوراً، ويكتسح الحدّ إليه.
   await presenter.click('#aCtl [data-act="start"]');
   await wait(900);
-  check('الجمهور: «0 من 11» بلون الثاني، ولا أرقام، ولا «في القائمة»', (await text(audience, '#tn')) === '0' && (await text(audience, '#tof')) === '11' && await audience.$eval('#tally', e => e.classList.contains('t2'))
-    && (await bids(audience)).length === 0 && !(await audience.isVisible('#tsize')));
+  check('الجمهور: «0 من 11» بلون الثاني، ولا أرقام', (await text(audience, '#tn')) === '0' && (await text(audience, '#tof')) === '11' && await audience.$eval('#tally', e => e.classList.contains('t2'))
+    && (await bids(audience)).length === 0);
   check('الجمهور: الحدّ يكتسح إلى الثاني، والعدّاد يعمل', await turnOn(2) && await audience.$eval('#canvas', c => c.classList.contains('running')));
-  check(`المقدّم: «دور [الثاني]» و«توقّف · لم يفِ» وحده (${await ctl()})`, (await text(presenter, '#aWho')) === `دور ${LONG[1]}` && (await ctl()) === 'توقّف · لم يفِ');
+  check(`المقدّم (4.1): «دور [الثاني]» و«صحيحة · +1» بلونه · «تراجع» · «توقّف · لم يفِ» (${await ctl()})`, (await text(presenter, '#aWho')) === `دور ${LONG[1]}` && (await ctl()) === 'صحيحة · +1 | تراجع | توقّف · لم يفِ'
+    && await presenter.$$eval('#aCtl button', els => els.map(e => getComputedStyle(e).gridColumnStart).join(',') === 'span 6,span 2,span 4') && await presenter.$eval('#aCtl .yes', e => e.classList.contains('t2'))
+    && !(await presenter.isVisible('#aUndo')));
+  check('المقدّم: في الوفاء الحقل مركَّز، والقائمة تُنقر', await presenter.evaluate(() => document.activeElement?.id === 'aQ') && !(await presenter.$eval('#aRef', e => e.classList.contains('view'))));
   check('المقدّم: من «ابدأ» تظهر الصيغ البديلة', await presenter.$$eval('#aRef small', e => e.length) === bank.topics[0].items.filter(i => i.alts?.length).length);
   await both('بعد ابدأ');
   await stage.screenshot({ path: `${shots}/s4-start.png` });
 
-  // 8. التراجع، ثم السقف: لا يتجاوز رقمٌ العدد (12).
-  await presenter.click('#aUndo'); await wait(900);
-  check('التراجع عن «ابدأ»: تعود المزايدة والرقمان و«في القائمة 12»، والحدّ في المنتصف', (await st()).phase === 'bid' && (await bids(audience)).length === 2 && !(await audience.isVisible('#tally')) && await audience.isVisible('#tsize') && await centered());
+  // 8. التراجع، ثم السقف: لا يتجاوز رقمٌ العدد (12). و«تراجع» في الوفاء بجانب «صحيحة · +1»، وفي غيره في الصف الأعلى.
+  const undo = () => presenter.locator('#aUndo:visible, #aCtl [data-undo]').first().click();
+  await undo(); await wait(900);
+  check('التراجع عن «ابدأ»: تعود المزايدة والرقمان، والحدّ في المنتصف', (await st()).phase === 'bid' && (await bids(audience)).length === 2 && !(await audience.isVisible('#tally')) && await centered());
   await presenter.click('#aCtl [data-raise="1"]'); await wait(500);
   check(`الأول إلى 12 (فوق 11): بلغ العدد، فيُعطَّل الزرّان (${await ctl()})`, (await st()).nums.join(',') === '12,11' && (await ctl()) === '12(معطّل) | ابدأ | 11(معطّل)');
   await presenter.click('#aCtl [data-act="start"]'); await wait(900);
   s = await st();
   check('«ابدأ»: رسا على الأول بـ 12، «0 من 12»', s.phase === 'fulfil' && s.commit.team === 1 && s.commit.n === 12 && (await text(audience, '#tof')) === '12' && await turnOn(1));
-  await presenter.click('#aUndo'); await wait(900);
-  await presenter.click('#aUndo'); await wait(900);
+  await undo(); await wait(900);
+  await undo(); await wait(900);
 
   // 8.1 قائمة فوق 20 (22 عنصراً): العدد مخفي عن الجمهور، والمقدّم يراه، وبلا تمرير.
   const items12 = (await st()).topics[0].items;
@@ -216,8 +218,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQ
   await wait(1500);
   audience = await stageFrame(stage).catch(() => audience);
   check(`قائمة 22: «4» · «ابدأ» · «11» (${await ctl()})، وستة في الصف`, (await ctl()) === '4 | ابدأ | 11'
-    && (await presenter.$$('#aRef button')).length === 22 && !(await presenter.$eval('#aRef', e => e.classList.contains('dense'))));
-  check('قائمة 22: المقدّم يرى «في القائمة 22 عنصراً»، ولا «في القائمة» على الجمهور', (await text(presenter, '#aSize')) === 'في القائمة 22 عنصراً' && !(await audience.isVisible('#tsize')));
+    && (await presenter.$$('#aRef button')).length === 22);
+  check('قائمة 22: المقدّم يرى «في المرجع 22»', (await text(presenter, '#aSize')) === 'في المرجع 22');
   await presenter.click('#aCtl [data-raise="1"]'); await wait(500);
   check('قائمة 22: الأول إلى 12 فوق 11، والزرّان يعملان (السقف 22)', (await ctl()) === '12 | ابدأ | 11');
   await both('قائمة 22');
@@ -264,7 +266,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, hideQ
 
   check(`فحص التداخل والشبكة في كل حالة سليم${layoutOk ? '' : ' · ' + fails.filter(f => !f.startsWith('المقدّم')).join(' | ')}`, layoutOk);
   check(`نافذة المقدّم على 1366×768 و1280×800 و1920×1080 بلا تمرير ولا فيض ولا نص أصغر من 32${presenterOk ? '' : ' · ' + fails.filter(f => f.startsWith('المقدّم')).join(' | ')}`, presenterOk);
-  check(`لا قائمة ولا طول فوق 20 ولا نص قواعد على شاشة الجمهور، و«في القائمة» في موضعه وحده${leak ? ' · ' + fails.filter(f => !f.startsWith('المقدّم')).join(' | ') : ''}`, !leak);
+  check(`لا قائمة ولا طولها ولا نص قواعد على شاشة الجمهور${leak ? ' · ' + fails.filter(f => !f.startsWith('المقدّم')).join(' | ') : ''}`, !leak);
   check(`لا أخطاء في الصفحات${errors.length ? ': ' + errors.join(' | ') : ''}`, errors.length === 0);
   await browser.close();
   process.exit(finish() ? 0 : 1);

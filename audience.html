@@ -74,7 +74,6 @@
         <div class="scr auc" data-s="auc" id="auc">
           <div class="ahead">
             <p class="topic" id="topic" data-fit="الموضوع"></p>
-            <p class="size" id="tsize" hidden></p>
             <p class="tally" id="tally" data-fit="العدّ" hidden><b class="n" id="tn"></b><span class="of">من <b class="ltr" id="tof"></b></span></p>
             <!-- بعد الحكم: «الموضوع التالي» هنا في النافذة الواحدة، لا في صف الشارات (design/auction.md 4) -->
             <div class="ctl" id="aucCtl"></div>
@@ -723,33 +722,30 @@
     canvas.classList.toggle('qr', !!text && text !== qrFailed);
   }
   function renderAuction(a) {
+    // لا عدد للقائمة على الشاشة أبداً (design/auction.md 4.0).
     $('topic').textContent = a.topic;
-    // في المزايدة: «في القائمة 12» للقائمة حتى 20 وحدها (الوثيقة 5.5، design/auction.md 2.1).
-    $('tsize').hidden = !a.size;
-    $('tsize').innerHTML = a.size ? `في القائمة <span class="ltr">${a.size}</span>` : '';
     const bids = a.phase === 'bid' ? a.bids : [];
     $('bids').innerHTML = bids.map(b => `<span class="bid t${b.team}${b.top ? ' top' : ''}"><i></i><span>${num(b.n)}</span></span>`).join('');
     const t = a.tally;
     $('tally').hidden = !t;
     if (t) { $('tn').textContent = t.n; $('tof').textContent = t.of; $('tally').className = `tally t${t.team}`; }
-    // ما ذُكر بلون من ذكره، والأحدث يظهر بحركته. وبعد الحكم القائمة كلها: ما ذُكر أولاً، ثم ما لم يُذكر بإطار (design/auction.md 2.3 و2.4).
-    // وفي النافذة الواحدة يُعدّ دون أسماء، فلا عناصر قبل الحكم، وبعده القائمة كلها بإطار.
-    const reveal = !!a.list;
+    // ما ذُكر بلون من ذكره، والأحدث يظهر بحركته. وبعد الحكم يبقى ما قيل وحده، لا القائمة (design/auction.md 4.0).
+    // وما احتُسب دون اسم («صحيحة · +1») لا شارة له، ويدخل بعد الحكم «و N غيرها» (4.1). وفي النافذة الواحدة لا أسماء، فتبقى البطاقة على الموضوع.
+    const reveal = !!a.reveal;
     $('auc').classList.toggle('reveal', reveal);
     const it = (x, cls) => `<span class="it ${cls}"><i></i><span>${esc(x.name)}</span></span>`;
     const said = a.said ?? [];
-    const fresh = !reveal && said.length > shownSaid;
-    shownSaid = said.length;
-    const items = said.map((x, i) => it(x, `t${x.team}${fresh && i === said.length - 1 ? ' new' : ''}`));
-    if (reveal) items.push(...a.list.filter(x => !x.by).map(x => it(x, 'left')));
-    $('items').innerHTML = items.join('');
+    const counted = t?.n ?? 0, fresh = !reveal && counted > shownSaid;
+    const named = fresh && said.length > shownNamed;
+    shownSaid = counted; shownNamed = said.length;
+    $('items').innerHTML = said.map((x, i) => it(x, `t${x.team}${named && i === said.length - 1 ? ' new' : ''}`)).join('');
     // بعد الحكم: القائمة القصيرة بشارات المزايدة الكبيرة إن اتسعت كلها في صفين، وإلا فبالحجم المعتاد (design/auction.md 7.6)
     $('auc').classList.toggle('big', reveal);
     if (reveal && !fitsAll($('items'))) $('auc').classList.remove('big');
-    fitItems($('items'), reveal);
+    fitItems($('items'), reveal, reveal ? a.plain ?? 0 : 0);
     if (fresh) replay($('tally'), 'bump');
   }
-  let shownSaid = 0;
+  let shownSaid = 0, shownNamed = 0;
 
   // ===== الترتيب (design/ranking.md 2): العنوان وإشارته، واللوحة: 13 خانة بالترتيب، وgrid-auto-flow يضعها في أعمدتها =====
   // الخانة المنتظرة رتبتها وحدها · المكشوفة بلون من ذكرها واسمها · الفخاخ ظاهرة الأرقام بلا اسم، والمكشوف منها رقمه خصمه «−13» (design/s8.md 3.1)
@@ -784,23 +780,21 @@
     if (!v) return {};
     return { verdict: v, say: !v.team ? 'لم تُكشف خانة' : v.rank > 10 ? `فخّ المركز ${v.rank}` : `المركز ${v.rank}`, bare: !v.team };
   }
-  // ما ذُكر: أثناء العدّ يبقى الأحدث (يسقط الأقدم). وبعد الحكم يبقى كل ما ذُكر، ويسقط من غير المذكور آخره،
-  // وفي آخر الصف «و N غيرها» (design/auction.md 7.2، fitItems في design/auction.html).
+  // ما ذُكر: أثناء العدّ يبقى الأحدث (يسقط الأقدم). وبعد الحكم يبقى أوله، وفي آخره «و N غيرها» مع ما احتُسب دون اسم
+  // (design/auction.md 4.0 و4.1، fitItems في design/auction.html).
   const fitsAll = box => !box.lastElementChild || rect(box.lastElementChild).bottom <= rect(box).bottom + 1;
-  function fitItems(box, reveal) {
+  // plain (4.1): ما احتُسب بالزر دون اسم، فيدخل «و N غيرها» من أوله. وإن لم يكن لشيء اسم فالبطاقة على الموضوع وحده.
+  function fitItems(box, reveal, plain = 0) {
     const all = [...box.children];
+    if (!all.length) return;
     const fits = () => !box.lastElementChild || rect(box.lastElementChild).bottom <= rect(box).bottom + 1;
-    if (fits()) return;
+    if (fits() && !plain) return;
     if (!reveal) { while (!fits() && box.firstElementChild) box.firstElementChild.remove(); return; }
     const more = document.createElement('span'); more.className = 'it more'; box.append(more);
-    let hidden = 0;
-    const lefts = all.filter(e => e.classList.contains('left'));
-    while (!fits()) {
-      const el = lefts.length ? lefts.pop() : all.filter(e => e.isConnected).pop();
-      if (!el) break;
-      el.remove(); hidden++;
-      more.innerHTML = `<span>و <span class="ltr">${hidden}</span> غيرها</span>`;
-    }
+    let hidden = plain;
+    const say = () => { more.innerHTML = `<span>و <span class="ltr">${hidden}</span> غيرها</span>`; };
+    say();
+    while (!fits() && all.length) { all.pop().remove(); hidden++; say(); }
   }
 
   // ===== أزرار الشاشة المشتركة (design/shared.md 3): المقدّم يقرر ما يظهر (ctl)، وهنا موضعه =====

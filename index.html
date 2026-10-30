@@ -117,41 +117,73 @@
   #resume { position: fixed; z-index: 8; bottom: 1rem; right: 1rem; }
   body.one { overflow: hidden; }
 
-  /* ===== المزاد (design/auction.md 5، من design/presenter-auction.html): الموضوع والعدّ، والقائمة المرجعية أزراراً، والمزايدة ===== */
-  .auc { grid-template-columns: 1fr auto; align-items: center; align-content: center; gap: 0.5rem 1.25rem; }
-  .auc .topic { font-size: 1.25rem; font-weight: 800; line-height: 1.3; }
+  /* ===== المزاد (design/auction.md 5، 4.0): الموضوع والعدّ، والبحث، والقائمة المرجعية الكبيرة تُمرَّر، والمزايدة ===== */
+  /* 4.0: النافذة بارتفاع الشاشة لا أكثر، فلوحة الموضوع تأخذ ما بقي والقائمة وحدها تُمرَّر داخلها (40–200 عنصراً) */
+  #app.fit { height: 100vh; }
+  #app.fit > .auc { min-height: 0; }
+  .auc { grid-template-columns: 1fr auto; grid-template-rows: auto auto auto minmax(0, 1fr); align-content: stretch; gap: 0.5rem 1.25rem; }
+  .auc .head { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+  .auc .topic { font-size: 1.25rem; font-weight: 800; line-height: 1.3; min-width: 0; }
+  /* علامة الموضوع المفتوح (4.0): القائمة عون لا حصر، فلا سقف للمزايدة بطولها ولا إغلاق آلي. شارة مائلة بإطار الحبر */
+  .auc .open { position: relative; flex: none; min-height: 1.5rem; padding: 0 0.75rem; display: flex; align-items: center; font-weight: 700; white-space: nowrap; color: var(--ink); }
+  .auc .open i { position: absolute; inset: 0; box-shadow: inset 0 0 0 3px var(--ink); transform: skewX(calc(-1 * var(--lean))); }
+  .auc .open span { position: relative; }
   .auc .tally { display: flex; align-items: baseline; gap: 0.5rem; font-weight: 800; white-space: nowrap; }
-  .auc .tally[hidden], .auc .size[hidden] { display: none; }
+  .auc .tally[hidden], .auc .size[hidden], .auc .open[hidden] { display: none; }
   .auc .tally b { font-size: 2.5rem; font-weight: 900; line-height: 1; direction: ltr; }
   .auc .tally.t1 b { color: var(--team-1); }
   .auc .tally.t2 b { color: var(--team-2-ink); }
-  /* في المزايدة: طول القائمة مكان العدّ، للمقدّم وحده */
+  /* في المزايدة: طول القائمة المرجعية للمقدّم وحده، مكان العدّ */
   .auc .size { font-weight: 700; white-space: nowrap; }
-  /* القائمة المرجعية: كل عنصر زر بعرض عمودين من 12 (ستة في الصف)، الاسم ثم صيغه البديلة */
-  .ref { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-flow: dense; gap: 0.375rem 0.75rem; }
-  .ref button { min-width: 0; overflow: hidden; min-height: 2rem; padding: 0 0.5rem; background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink);
+  /* البحث (4.0): حقل بعرض اللوحة يرشّح القائمة أثناء الكتابة، للاطلاع (4.1: الاحتساب بزر «صحيحة · +1» في الأسفل) */
+  .find { grid-column: 1 / -1; display: grid; }
+  .find input { min-width: 0; height: 2.5rem; box-sizing: border-box; padding: 0 1rem; border: 0; border-radius: 0; background: var(--card); color: var(--ink);
+    box-shadow: inset 0 0 0 3px var(--ink); font: inherit; font-size: 1rem; font-weight: 700; }
+  .find input::placeholder { color: var(--ink); opacity: .6; font-weight: 400; }
+  .find input:focus { outline: none; box-shadow: inset 0 0 0 5px var(--ink); }
+  /* ما احتُسب دون عنصر من القائمة (4.1): سطر تحت البحث «بالزر 9» وما كُتب من خارجها بنصه، كلٌّ بلون من قاله. ولا يظهر السطر قبل أولها */
+  .outs { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem 0.75rem; font-weight: 700; }
+  .outs .it { position: relative; min-height: 1.5rem; padding: 0 0.625rem; display: flex; align-items: center; color: var(--card); white-space: nowrap; }
+  .outs .it i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); }
+  .outs .it span { position: relative; }
+  .outs .it.t1 i { background: var(--team-1); }
+  .outs .it.t2 i { background: var(--team-2-ink); }
+  /* القائمة المرجعية: تُمرَّر رأسياً داخل لوحتها. كل عنصر زر بعرض عمودين من 12 (ستة في الصف) بارتفاع 2rem، الاسم ثم صيغه */
+  .auc .ref { grid-column: 1 / -1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; align-content: start;
+    display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-flow: dense; gap: 0.375rem 0.75rem; padding: 0.125rem; }
+  .auc .ref button { min-width: 0; overflow: hidden; min-height: 2rem; padding: 0 0.5rem; background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink);
     display: flex; align-items: center; justify-content: center; gap: 0.25rem; font-size: 1rem; line-height: 1.1; white-space: nowrap; text-align: center; }
-  .ref button small { font-size: 1rem; font-weight: 400; }
-  /* القائمة الطويلة (أكثر من 24 عنصراً): 12 عموداً بارتفاع 1.5rem، وكل عنصر بعدد ما يلزم اسمه منها (design/auction.md 5، 1.2) */
-  .ref.dense { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0.125rem 0.375rem; }
-  .ref.dense button { min-height: 1.5rem; padding: 0 0.25rem; }
-  .ref button.t1, .ref button.t2 { color: var(--card); box-shadow: none; pointer-events: none; }
-  .ref button.t1 { background: var(--team-1); }
-  .ref button.t2 { background: var(--team-2-ink); }
-  /* في المزايدة: القائمة للاطلاع، لا تُنقر */
-  .ref.view button { pointer-events: none; cursor: default; }
-  /* أزرار المزايدة: «−» و«+» عمودان لكل منهما، و«زايد» أربعة، و«انسحب» أربعة */
+  .auc .ref button small { font-size: 1rem; font-weight: 400; }
+  .auc .ref button.wide { grid-column: span 2; }
+  .auc .ref button.wider { grid-column: span 3; }
+  .auc .ref button[hidden] { display: none; }
+  /* ما ذُكر: ممتلئ بلون من ذكره، ولا يُنقر ثانية */
+  .auc .ref button.t1, .auc .ref button.t2 { color: var(--card); box-shadow: none; pointer-events: none; }
+  .auc .ref button.t1 { background: var(--team-1); }
+  .auc .ref button.t2 { background: var(--team-2-ink); }
+  /* المطابقة الأولى أثناء البحث: يحتسبها Enter، فتُبرَز بالأصفر (والأسهم تنقل الإبراز) */
+  .auc .ref button.hit { background: var(--hl); box-shadow: inset 0 0 0 3px var(--ink); }
+  /* لا مطابقة: سطر واحد مكان القائمة، وEnter أو الزر يحتسبها من خارج القائمة بنصها */
+  .auc .ref .none { grid-column: 1 / -1; padding: 0.25rem 0; font-weight: 700; }
+  /* في المزايدة وبعد الحكم: القائمة للاطلاع والبحث، لا تُنقر */
+  .auc .ref.view button { pointer-events: none; }
+  /* أزرار المزايدة: زر كل فريق بلونه (5 أعمدة) يُظهر رقمه، و«ابدأ» بينهما (عمودان). والعدّ: «توقّف · لم يفِ» */
   #app .bidrow { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0.75rem; }
   #app .bidrow:empty { display: none; }
   #app .bidrow button { min-height: 5rem; font-size: 1.5rem; margin: 0; }
-  /* المزايدة رقماً رقماً (2.0): «زايد · 4» أربعة أعمدة، و«العدد كاملاً · 12» خمسة، و«توقّف» ثلاثة. وفوق 20 عنصراً «زايد» ثمانية و«توقّف» أربعة */
-  /* المزايدة (design/auction.md 5، 3.0): زر كل فريق بلونه يُظهر رقمه (5 أعمدة)، و«ابدأ» أبيض بإطار بينهما (عمودان) */
   #app .bidrow .bidt { grid-column: span 5; color: var(--card); font-size: 2.5rem; font-weight: 900; box-shadow: none; }
   #app .bidrow .bidt.t1 { background: var(--team-1); }
   #app .bidrow .bidt.t2 { background: var(--team-2-ink); }
   #app .bidrow .go2 { grid-column: span 2; }
   #app .bidrow .no { grid-column: span 3; background: var(--card); color: var(--team-1); box-shadow: inset 0 0 0 3px var(--team-1); }
   #app .bidrow .half { grid-column: span 6; }
+  /* الوفاء (4.1، المالك): «صحيحة · +1» الزر الأكبر، ستة أعمدة ممتلئة بلون صاحب الدور ونصها 2.5rem، أول الصف (تحت الإبهام الأيمن) وفي موضعه دائماً.
+     يُضغط مع كل إجابة صحيحة تُسمع، دون بحث. و«تراجع» بجانبه (عمودان) للضغطة الزائدة، و«توقّف · لم يفِ» أربعة في الطرف الآخر */
+  #app .bidrow .yes { grid-column: span 6; color: var(--card); font-size: 2.5rem; font-weight: 900; box-shadow: none; }
+  #app .bidrow .yes.t1 { background: var(--team-1); }
+  #app .bidrow .yes.t2 { background: var(--team-2-ink); }
+  #app .bidrow .undo { grid-column: span 2; }
+  #app .bidrow .no.q4 { grid-column: span 4; }
   #app .bidrow button:disabled { opacity: .45; cursor: default; }
 
   /* ===== الترتيب (design/ranking.md 5، من design/presenter-ranking.html): العنوان، والقائمة كاملة (13) أزراراً تُنقر ===== */
@@ -311,9 +343,12 @@
 
   <!-- المزاد (design/auction.md 5): الموضوع والعدّ، والمزايدة، والقائمة المرجعية (للمقدّم وحده)، ثم الدور وأزرار المزايدة -->
   <section class="panel auc" data-step="play" data-part="auc" hidden>
-    <p class="topic" id="aTopic"></p>
+    <div class="head"><p class="topic" id="aTopic"></p><p class="open" id="aOpen" hidden><i></i><span>مفتوح</span></p></div>
     <p class="tally" id="aTally" hidden><b id="aTn"></b><span>من <span class="ltr" id="aTof"></span></span></p>
     <p class="size" id="aSize" hidden></p>
+    <!-- البحث (design/auction.md 5، 4.0): يرشّح القائمة أثناء الكتابة، وفي الوفاء Enter يحتسب المُبرَز أو ما كُتب من خارجها -->
+    <div class="find"><input id="aQ" type="search" enterkeyhint="done" autocomplete="off" spellcheck="false" placeholder="ابحث في القائمة" aria-label="بحث في القائمة"></div>
+    <div class="outs" id="aOuts"></div>
     <div class="ref view" id="aRef"></div>
   </section>
   <section class="panel" data-step="play" data-part="auc" hidden>
@@ -419,6 +454,7 @@
   import { answersText, qrMatrix } from './js/qr.js';
   import { HIT_MS as RANK_HIT_MS } from './js/modes/ranking.js';
   import { STEAL_SECONDS } from './js/modes/word.js';
+  import { norm } from './js/modes/auction.js';
   import { matchModes, pickableModes, MODES as BUILT, DRAFTS } from './js/modes/index.js';
   import * as M from './js/match.js';
   import * as P from './js/play.js';
@@ -866,12 +902,15 @@
     $('lost').hidden = !mode || !!link?.connected;
     document.querySelectorAll('[data-part]').forEach(s => s.hidden = true);
     $('wClock').hidden = true;
+    // المزاد (design/auction.md 5، 4.0): النافذة بارتفاع الشاشة لا أكثر، فالقائمة وحدها تُمرَّر داخل لوحتها.
+    $('app').classList.remove('fit');
     if (!mode) return;
     const st = match.round.state, pr = mode.presenter(st), acts = mode.actions(st);
     const label = id => acts.find(a => a.id === id)?.label;
     const part = pr.screen === 'intro' ? 'intro' : pr.screen === 'end' ? 'end' : pr.screen === 'topic' ? 'auc' : pr.screen === 'list' ? 'rnk'
       : pr.screen === 'wheel' || pr.screen === 'slot' ? 'whl' : 'q';
     document.querySelectorAll(`[data-part="${part}"]`).forEach(s => s.hidden = false);
+    $('app').classList.toggle('fit', part === 'auc');
     const n = match.round.n, isWheel = mode.id === WHEEL.id, isTie = mode.id === TIEBREAK.id, title = isWheel || isTie ? mode.name : `الجولة ${n} · ${mode.name}`;
     $('roundChip').querySelector('span').innerHTML = num(isWheel ? `${mode.name} · الدورة ${pr.n} من ${pr.count}` : isTie ? (part === 'intro' ? mode.name : `${mode.name} · المحاولة ${pr.attempt}`) : part === 'auc' ? `${mode.name} · الموضوع ${pr.n} من ${pr.count}`
       : part === 'rnk' ? `${mode.name} · القائمة ${pr.n} من ${pr.count}` : `الجولة ${n} من ${M.rounds(match)} · ${mode.name}`);
@@ -946,29 +985,36 @@
   // المزايدة الحرة (design/auction.md 3.0): زر كل فريق يرسل «raise:1» أو «raise:2»، وكل نقرة +1 فوق رقمه ورقم خصمه.
   // فالنقرات المتتابعة تُحسب كلها (لا إمهال بينها: الحالة لا تتغير، والزر في مكانه). و«ابدأ» بالإمهال كغيره.
   const raise = team => roundAct('raise:' + team, true);
-  const count = (n, one) => (n >= 3 && n <= 10 ? `${n} عناصر` : n === 2 ? 'عنصران' : n === 1 ? one : `${n} عنصراً`);
   function renderAuction(pr, acts) {
     $('aTopic').textContent = pr.topic;
+    // «مفتوح» بجانب الموضوع إن كان مفتوحاً (القائمة عون لا حصر)، و«في المرجع 52» في المزايدة للمقدّم وحده (design/auction.md 5، 4.0).
+    $('aOpen').hidden = !pr.open;
     const t = pr.tally;
     $('aTally').hidden = !t;
     if (t) { $('aTn').textContent = t.n; $('aTof').textContent = t.of; $('aTally').className = `tally t${t.team}`; }
     $('aSize').hidden = pr.phase !== 'bid';
-    $('aSize').innerHTML = num(`في القائمة ${count(pr.size, 'عنصر واحد')}`);
+    $('aSize').innerHTML = num(`في المرجع ${pr.size}`);
+    // ما احتُسب دون عنصر من القائمة (4.1): «بالزر 9» بلون صاحب الدور، ثم «من خارج القائمة:» وما كُتب بنصه.
+    const plain = pr.plain ?? 0, outs = pr.outs ?? [], chip = (team, text) => `<span class="it t${team}"><i></i><span>${text}</span></span>`;
+    $('aOuts').innerHTML = (plain ? chip(pr.commit?.team ?? pr.turn, num('بالزر ' + plain)) : '')
+      + (outs.length ? 'من خارج القائمة: ' + outs.map(x => chip(x.team, esc(x.text))).join('') : '');
     // لا صف أرقام هنا (design/auction.md 5، 1.3): الرقم الحالي في سطر الحالة وفي «زايد»، والسلّم كاملاً على شاشة الجمهور.
     const ref = $('aRef');
     // في المزايدة الاسم وحده بلا صيغه (للاطلاع)، وتظهر الصيغ حين يختفي صف المزايدة، فتُعاد الخانات (design/auction.md 5، 1.2).
     // وفي الوفاء كل عنصر زر يُنقر حين يُذكر، فيمتلئ بلون من ذكره ولا يُنقر ثانية. وفي غيره للاطلاع.
     const alts = pr.phase !== 'bid';
     const key = pr.items.map(x => x.name).join('|') + (alts ? '/alts' : '');
-    ref.classList.toggle('dense', pr.items.length > 24);
-    ref.classList.toggle('view', !acts.some(a => a.id === 'item'));
+    const counting = acts.some(a => a.id === 'item');
+    ref.classList.toggle('view', !counting);
     if (ref.dataset.key !== key) {
       ref.dataset.key = key;
-      ref.innerHTML = pr.items.map((x, i) => `<button tabindex="-1" data-i="${i}">${esc(x.name)}${alts && x.alts.length ? ` <small>· ${esc(x.alts.join(' · '))}</small>` : ''}</button>`).join('');
-      fitRef();
-      document.fonts?.ready.then(fitRef);
+      ref.innerHTML = pr.items.map((x, i) => `<button tabindex="-1" data-i="${i}" data-norm="${esc([x.name, ...x.alts].map(norm).join('\n'))}">${esc(x.name)}${alts && x.alts.length ? ` <small>· ${esc(x.alts.join(' · '))}</small>` : ''}</button>`).join('')
+        + '<p class="none" hidden></p>';
+      $('aQ').value = '';
+      ref.scrollTop = 0;
     }
     pr.items.forEach((x, i) => { const el = ref.children[i]; el.classList.toggle('t1', x.by === 1); el.classList.toggle('t2', x.by === 2); });
+    filterRef();
     const v = pr.verdict;
     // في المزايدة لا دور (الحدّ في المنتصف): «المزايدة · الأعلى 11» مكان الدور، ولا سطر حالة (design/auction.md 5، 3.0).
     const top = Math.max(0, ...pr.bids.map(b => b.n));
@@ -977,15 +1023,23 @@
     auctionState(pr);
     const ctl = id => acts.find(a => a.id === id);
     // المزايدة (design/auction.md 5، 3.0): زر الأول بلونه برقمه · «ابدأ» (معطّل قبل أول رقم) · زر الثاني بلونه.
-    // ويُعطَّل زر من بلغ رقمه طول القائمة.
+    // ويُعطَّل زر من بلغ رقمه حدّه (طول القائمة، أو 99 للمفتوح).
     const tb = t => { const r = acts.find(a => a.id === 'raise' && a.team === t), n = pr.bids.find(x => x.team === t)?.n;
       return `<button class="bidt t${t}" data-raise="${t}"${r ? '' : ' disabled'}>${n ? num(n) : 'زايد'}</button>`; };
+    // الوفاء (4.1، المالك): «صحيحة · +1» الزر الأكبر بلون صاحب الدور، يُضغط مع كل إجابة تُسمع · «تراجع» بجانبه · «توقّف · لم يفِ».
+    // و«تراجع» الصف الأعلى يُخفى فيه فلا يتكرر.
+    const fulfil = pr.phase === 'fulfil';
+    $('aUndo').hidden = fulfil;
     $('aCtl').innerHTML = pr.phase === 'bid' ? tb(1) + `<button class="alt go2" data-act="start"${ctl('start') ? '' : ' disabled'}>ابدأ</button>` + tb(2)
-      // الوفاء (design/auction.md 5): «ابدأ العدّاد» و«توقّف · لم يفِ» قبل «ابدأ»، و«توقّف» وحده والعدّاد يعدّ.
-      // وبعد الحكم «الموضوع التالي» أو «إنهاء الجولة» (design/auction.md 5).
+      : fulfil ? `<button class="yes t${pr.turn}" data-yes>${num('صحيحة · +1')}</button><button class="alt undo" data-undo${match.round.history.length ? '' : ' disabled'}>تراجع</button>`
+        + `<button class="no q4" data-act="stop">${num(ctl('stop').label)}</button>`
+      // قبل «ابدأ» في نسخة سابقة: «ابدأ العدّاد» و«توقّف · لم يفِ». وبعد الحكم «الموضوع التالي» أو «إنهاء الجولة» (design/auction.md 5).
       : ['start', 'stop', 'next'].filter(ctl).map(id => `<button class="${id === 'stop' ? 'no' : id === 'start' ? 'alt' : ''} half" data-act="${id}">${num(ctl(id).label)}</button>`).join('');
     $('aUndo').disabled = !match.round.history.length;
     qrButtons();
+    // في الوفاء الحقل جاهز للكتابة دائماً (لوحة المفاتيح)، إلا إن كان التركيز في حقل آخر (الرصيد).
+    if (counting && !$('app').hidden && (document.activeElement === document.body || document.activeElement?.closest?.('#aCtl, #aRef'))) $('aQ').focus({ preventScroll: true });
+    fitRef();
   }
   // سطر الحالة: في الوفاء الوقت الباقي كما على الشاشة (يصل كل ثانية من نافذة الجمهور) وما بقي من العدد.
   let tickText = '';
@@ -994,35 +1048,80 @@
     $('aState').innerHTML = pr.phase === 'bid' ? ''
       : pr.phase === 'ready' ? num(`التزم بـ ${pr.commit.n} · ${pr.clock} ثانية${pr.tally.n ? ` · بقي ${left}` : ''}`)
       // الوقت «0:38» في حاوية ltr كاملاً، وإلا انقلب في السطر العربي («38:0»).
-      : pr.phase === 'fulfil' ? `<span class="ltr">${esc(tickText || '1:00')}</span> · ${num(`بقي ${left}`)}`
+      : pr.phase === 'fulfil' ? `<span class="ltr">${esc(tickText || `${Math.floor(pr.clock / 60)}:${String(pr.clock % 60).padStart(2, "0")}`)}</span> · ${num(`بقي ${left}`)}`
       // بعد الحكم: إن لم يفِ الملتزم «لم يفِ · ذُكر 9 من 12» (design/auction.md 5، 2.0). واسم الخصم ونقطتاه في «[الاسم] · +2» قبله،
       // فلا يتكرر الاسم هنا: بأطول اسم ينكسر السطر وتطول النافذة عن الشاشة.
       : pr.phase === 'decided' ? (pr.verdict && pr.verdict.team !== pr.commit.team ? 'لم يفِ · ' : '') + num(`ذُكر ${pr.tally.n} من ${pr.tally.of}`) : '';
   }
-  // العنصر الذي لا يتسع اسمه بصيغه في خانة يأخذ خانتين، فإن لم يتسع فثلاثاً، وهكذا حتى يتسع (design/auction.md 5).
-  // ويُعاد القياس بعد تحميل الخط وعند تغيّر عرض النافذة.
+  // البحث (design/auction.md 5، 4.0): يرشّح القائمة أثناء الكتابة في الاسم وصيغه (norm)، وما لا يطابق يُخفى.
+  // والمُبرَز .hit في الوفاء: أول ما ظهر ولم يُذكر، تنقله ↑↓ ويحتسبه Enter. ولا مطابقة: سطر مكان القائمة.
+  let hitAt = 0;
+  function filterRef() {
+    const ref = $('aRef'), f = norm($('aQ').value), counting = !ref.classList.contains('view');
+    const btns = [...ref.querySelectorAll('button[data-i]')];
+    for (const b of btns) b.hidden = !!f && !b.dataset.norm.split('\n').some(x => x.includes(f));
+    const open = btns.filter(b => !b.hidden && !b.classList.contains('t1') && !b.classList.contains('t2'));
+    hitAt = Math.max(0, Math.min(hitAt, open.length - 1));
+    btns.forEach(b => b.classList.remove('hit'));
+    if (f && counting && open.length) open[hitAt].classList.add('hit');
+    const none = ref.querySelector('.none');
+    none.hidden = !f || btns.some(b => !b.hidden);
+    none.innerHTML = counting ? 'لا يطابق شيئاً في القائمة · Enter يحتسبه بنصه من خارجها' : 'لا يطابق شيئاً في القائمة';
+    fitRef();
+    return open;
+  }
+  $('aQ').addEventListener('input', () => { hitAt = 0; filterRef(); $('aRef').scrollTop = 0; });
+  $('aQ').addEventListener('keydown', e => {
+    const counting = !$('aRef').classList.contains('view');
+    if (e.key === 'Escape') { e.preventDefault(); $('aQ').value = ''; hitAt = 0; filterRef(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const n = filterRef().length;
+      if (n) { hitAt = (hitAt + (e.key === 'ArrowDown' ? 1 : n - 1)) % n; filterRef(); $('aRef').querySelector('.hit')?.scrollIntoView({ block: 'nearest' }); }
+      return;
+    }
+    if (!counting) return;
+    // مسطرة المسافة تضغط «صحيحة · +1» ما دام الحقل فارغاً (4.1).
+    if (e.key === ' ' && !$('aQ').value) { e.preventDefault(); countYes(); return; }
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const text = $('aQ').value.trim(), hit = $('aRef').querySelector('.hit');
+    if (!text) return;
+    if (hit) roundAct('item:' + hit.dataset.i, true);
+    else if (!$('aRef').querySelector('.none').hidden) roundAct('out:' + text, true);
+    else return;
+    $('aQ').value = ''; hitAt = 0; filterRef();
+  });
+  const countYes = () => { roundAct('count', true); };
+  // العنصر الذي لا يتسع اسمه بصيغه في خانة يأخذ خانتين، فإن لم يتسع فثلاثاً، وهكذا حتى الصف كله (design/auction.md 5).
+  // ويُعاد القياس بعد تحميل الخط، وبعد كل ترشيح، وعند تغيّر عرض النافذة. ويُقاس الظاهر وحده، وما قيس لا يُعاد.
   function fitRef() {
-    const ref = $('aRef'), cols = getComputedStyle(ref).gridTemplateColumns.split(' ').length;
-    for (const b of ref.children) {
-      b.style.gridColumn = '';
-      for (let k = 2; k <= cols && b.scrollWidth > b.clientWidth + 1; k++) b.style.gridColumn = `span ${k}`;
+    for (const b of $('aRef').querySelectorAll('button[data-i]:not([hidden]):not([data-fit])')) {
+      b.dataset.fit = '';
+      for (let k = 2; k <= 6 && b.scrollWidth > b.clientWidth + 1; k++) b.style.gridColumn = `span ${k}`;
     }
   }
-  // بعد تحميل الخط (عرضه غير عرض الخط البديل)، وكلما تغيّر عرض القائمة.
-  document.fonts?.addEventListener('loadingdone', fitRef);
-  new ResizeObserver(fitRef).observe($('aRef'));
+  const refitRef = () => { for (const b of $('aRef').querySelectorAll('button[data-i]')) { b.style.gridColumn = ''; delete b.dataset.fit; } fitRef(); };
+  document.fonts?.addEventListener('loadingdone', refitRef);
+  document.fonts?.ready.then(refitRef);
+  new ResizeObserver(refitRef).observe($('aRef'));
+  $('aCtl').addEventListener('mousedown', e => e.target.closest('[data-yes], [data-undo]') && e.preventDefault());
   $('aCtl').addEventListener('click', e => {
     const el = e.target.closest('button');
     if (!el || el.disabled) return;
     if (el.dataset.raise) raise(Number(el.dataset.raise));
+    else if ('yes' in el.dataset) countYes();
+    else if ('undo' in el.dataset) actions.undo();
     else if (el.dataset.act) roundAct(el.dataset.act);
   });
   // عنصر ذكره الفريق: يُحسب لصاحب الدور (+1). نقرات متتابعة على عناصر مختلفة تُحسب كلها (لا إمهال بينها)،
-  // ونقرتان على العنصر نفسه عنصر واحد (لا مكرر، 5.5).
+  // ونقرتان على العنصر نفسه عنصر واحد (لا مكرر، 5.5). والنقر لا ينقل التركيز عن الحقل، ثم يُفرَّغ الحقل.
+  $('aRef').addEventListener('mousedown', e => e.target.closest('button[data-i]') && e.preventDefault());
   $('aRef').addEventListener('click', e => {
     const el = e.target.closest('button[data-i]');
     if (!el || $('aRef').classList.contains('view')) return;
     roundAct('item:' + el.dataset.i, true);
+    if ($('aQ').value) { $('aQ').value = ''; hitAt = 0; filterRef(); }
   });
 
   // ===== الترتيب في نافذة المقدّم (design/ranking.md 5) =====

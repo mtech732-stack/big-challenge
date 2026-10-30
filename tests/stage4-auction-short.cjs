@@ -1,6 +1,6 @@
-// اختبار آلي لـ«بعد الحكم» بقائمة قصيرة في المزاد (design/auction.md 1.5 و7.6) بالنافذتين وبالنافذة الواحدة، بالبنك الحقيقي، في الرابط العادي:
-// الحكم بلا مربع (الشارة بيضاء بنص صاحبها، والسطر على الطرف)، والقائمة القصيرة بشارات كبيرة إن اتسعت في صفين،
-// وأطول قائمة في البنك بالحجم المعتاد و«و N غيرها». وبقاعدة 2.0: «لم يفِ» في القصيرة الأولى (للخصم +2) ووفاء في الثانية.
+// اختبار آلي لـ«بعد الحكم» في المزاد (design/auction.md 1.5 و7.6، و4.0: ما قيل وحده لا القائمة) بالنافذتين وبالنافذة الواحدة، بالبنك الحقيقي:
+// الحكم بلا مربع (الشارة بيضاء بنص صاحبها، والسطر على الطرف)، وما قيل قليلاً بشارات كبيرة إن اتسع في صفين،
+// وما قيل كثيراً (40 من أطول قائمة) بالحجم المعتاد و«و N غيرها». وبقاعدة 2.0: «لم يفِ» في القصيرة الأولى (للخصم +2) ووفاء في الثانية.
 // ولا يعتمد على اسم قائمة بعينها: القصيرتان من أقصر أسماء أطول قائمة، بالحد الأدنى للبنك (10 عناصر).
 // وفحص التداخل ونافذة المقدّم في كل حالة، وصور لـ ratio.cjs.
 const fs = require('fs');
@@ -49,28 +49,27 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
 
   let layoutOk = true, presenterOk = true, leak = false;
   const fails = [];
-  // شاشة الجمهور: التداخل والشبكة، ولا عنصر لم يُذكر قبل الحكم، ولا طول القائمة ولا نص قواعد.
+  // شاشة الجمهور: التداخل والشبكة، ولا عنصر لم يُذكر قبل الحكم ولا بعده، ولا طول القائمة ولا نص قواعد.
   const audienceCheck = async label => {
     const r = await audience.evaluate(() => window.__stageCheck());
     if (!r.ok) { layoutOk = false; fails.push(`${label}: ${r.problems.join('، ')}`); }
     const s = await st();
-    if (s.phase === 'decided') return;
+    // وبعد الحكم كذلك: لا القائمة ولا ما لم يُذكر منها (design/auction.md 4.0).
     if (!s.topics[s.index]) return;
     const items = s.topics[s.index].items;
     const said = new Set((s.said ?? []).filter(x => x.i !== null).map(x => x.i));
     const shown = [...said].flatMap(i => [items[i].name, ...(items[i].alts ?? [])]).sort((a, b) => b.length - a.length);
     const body = await audience.evaluate(ns => { let t = document.querySelector('.canvas').innerText;
       for (const b of document.querySelectorAll('.cbtn')) t = t.replace(b.innerText, '');
-      t = t.replace(document.getElementById('topic').innerText, '').replace(document.getElementById('tsize').innerText, '');
+      t = t.replace(document.getElementById('topic').innerText, '');
       for (const n of ns) t = t.split(n).join(''); return t; }, [...LONG, ...shown]);
     if (/سرقة|سهل|متوسط|صعب|انسحب|في القائمة|عنصر/.test(body)) { leak = true; fails.push(`${label}: نص ممنوع على الجمهور`); }
     const unsaid = items.filter((x, i) => !said.has(i)).flatMap(x => [x.name, ...(x.alts ?? [])]);
     // اسم من حرف أو حرفين («ت» أو «7») يقع في أي نص، فلا يُبحث عنه في نص الشاشة: الشارات وحدها تحمل ما ذُكر.
     const named = n => [...n].length > 2 && body.includes(n);
     if (unsaid.some(named)) { leak = true; fails.push(`${label}: عنصر لم يُذكر على الجمهور (${unsaid.find(named)})`); }
-    // «في القائمة N» في المزايدة للقائمة حتى 20 وحدها (5.5، design/auction.md 2.0).
-    const tsize = await audience.evaluate(() => { const e = document.getElementById('tsize'); return e.hidden ? null : e.innerText.replace(/\s+/g, ' ').trim(); });
-    if (tsize !== (s.phase === 'bid' && items.length <= 20 ? `في القائمة ${items.length}` : null)) { leak = true; fails.push(`${label}: «في القائمة» (${tsize})`); }
+    // ولا طول للقائمة على الجمهور أبداً (4.0).
+    if (await audience.$('#tsize, .auc .size')) { leak = true; fails.push(`${label}: «في القائمة» على الجمهور`); }
     if (body.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
   };
   const presenterCheck = async label => {
@@ -100,8 +99,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   const both = async label => { await wait(700); await audienceCheck(label); if (presenter) await sizes(label); };
   const chips = () => audience.$$eval('#items .it', els => els.map(e => ({ name: e.textContent.trim(), t: e.classList.contains('t1') ? 1 : e.classList.contains('t2') ? 2 : 0, left: e.classList.contains('left'), more: e.classList.contains('more') })));
   const tally = async () => `${await text(audience, '#tn')}/${await text(audience, '#tof')}`;
-  // نقرة بالفأرة في موضع العنصر i (لا page.click: ينتظر ثبات الزر فيؤخر النقرة).
-  const at = async i => presenter.$eval(`#aRef button[data-i="${i}"]`, e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  // نقرة بالفأرة في موضع العنصر i بعد تمريره إلى النظر (القائمة تُمرَّر داخل لوحتها، 4.0)، لا page.click: ينتظر ثبات الزر فيؤخر النقرة.
+  const at = async i => presenter.$eval(`#aRef button[data-i="${i}"]`, e => { e.scrollIntoView({ block: "nearest" }); const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
   const tap = async i => { const p = await at(i); await presenter.mouse.click(p.x, p.y); };
 
 
@@ -144,7 +143,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check(`الحكم بلا مربع: الشارة والسطر «ذُكر 2 من 4» ظاهران، وخلفية المربع مخفية (${l.bg})`, l.bare && l.bg === 'none' && l.shown && l.told === 'ذُكر 2 من 4');
   check(`الشارة بيضاء (${l.chipBg})`, l.chipBg === await color('var(--card)'));
   check(`نص الشارة بلون صاحبها: ${win === 1 ? 'الأول بلونه' : 'الثاني بالحبر'} (${l.chipInk})`, win === 1 ? l.chipInk === await color('var(--team-1)') : l.chipInk === await color('var(--ink)'));
-  check(`القائمة القصيرة (${SHORT}) بشارات كبيرة 88 في صفين على الأكثر (${l.h}، ${l.rows} صف)`, l.big && l.h === 88 && l.rows <= 2 && l.n === SHORT && !l.more);
+  check(`ما قيل (2) وحده بشارات كبيرة 88 في صف، لا القائمة (${l.h}، ${l.rows} صف، ${l.n})`, l.big && l.h === 88 && l.rows === 1 && l.n === 2 && !l.more);
   await both('القصيرة الأولى · لم يفِ');
   await shot(`s4-short-1-fail-t${win}`);
 
@@ -154,16 +153,20 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await tap(0); await wait(100); await tap(1); await wait(1500);
   l = await look();
   check(`القصيرة الثانية: وفى الفريق ${win} بـ 2 (رصيده 4)`, (await st()).phase === 'decided' && (await round()).scores[win] === 4);
-  check(`القصيرة الثانية: الحكم بلا مربع، والقائمة (${SHORT}) كبيرة (${l.h}، ${l.rows} صف)`, l.bare && l.bg === 'none' && l.big && l.h === 88 && l.rows <= 2 && l.n === SHORT);
+  check(`القصيرة الثانية: الحكم بلا مربع، وما قيل (2) كبير (${l.h}، ${l.rows} صف)`, l.bare && l.bg === 'none' && l.big && l.h === 88 && l.rows === 1 && l.n === 2);
   await both('القصيرة الثانية · بعد الحكم');
   await shot(`s4-short-2-t${win}`);
 
-  // 3. الموضوع 3 «أطول قائمة»: يرسو على الآخر بـ 2 فيفي، والقائمة بالحجم المعتاد و«و N غيرها».
+  // 3. الموضوع 3 «أطول قائمة»: يرسو على الآخر بـ 40 فيفي بأربعين من أسمائها (wonlong)، فما قيل بالحجم المعتاد و«و N غيرها».
   await presenter.click('#aCtl [data-act="next"]'); await wait(1200);
-  await bidTo(2, other(first));
-  await tap(0); await wait(100); await tap(1); await wait(1500);
+  const MANY = Math.min(40, LONGEST);
+  await bidTo(MANY, other(first));
+  for (let i = 0; i < MANY; i++) { await tap(i); await wait(80); }
+  await wait(1500);
   l = await look();
-  check(`أطول قائمة: الحكم بلا مربع، والقائمة بالحجم المعتاد 44 و«و N غيرها» (${l.h}، ${l.rows} صفوف)`, l.bare && l.bg === 'none' && !l.big && l.h === 44 && l.more && l.rows <= 4);
+  const moreN = await audience.$eval('#items', e => Number(e.querySelector('.more')?.textContent.replace(/\D/g, '') ?? 0));
+  check(`أطول قائمة: وفى بـ ${MANY}، والحكم بلا مربع، وما قيل بالحجم المعتاد 44 (${l.n - 1}) و«و ${moreN} غيرها» عن باقيه (${l.h}، ${l.rows} صفوف)`, (await st()).phase === 'decided'
+    && l.bare && l.bg === 'none' && !l.big && l.h === 44 && l.more && l.rows <= 4 && l.n - 1 + moreN === MANY);
   await both('أطول قائمة · بعد الحكم');
   await shot(`s4-long-t${other(first)}`);
 
@@ -184,10 +187,10 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   check('النافذة الواحدة · أطول قائمة: بلا مربع وبالحجم المعتاد', l.bare && !l.big && l.more);
   await both('نافذة واحدة · أطول قائمة');
   await shot(`s4-single-long-t${other(first)}`);
-  for (let i = 0; i < 12 && !((await st()).index === 1 && (await st()).phase === 'decided'); i++) { await cmd(audience, 'undo'); await wait(800); }
+  for (let i = 0; i < 120 && !((await st()).index === 1 && (await st()).phase === 'decided'); i++) { await cmd(audience, 'undo'); await wait(350); }
   await wait(800);
   l = await look();
-  check(`النافذة الواحدة · القصيرة الثانية: بلا مربع، والقائمة كلها بإطار وكبيرة (${l.h})`, (await st()).index === 1 && l.bare && l.big && l.h === 88 && l.n === SHORT);
+  check(`النافذة الواحدة · القصيرة الثانية: بلا مربع، وما قيل كبير (${l.h})`, (await st()).index === 1 && l.bare && l.big && l.h === 88 && l.n === 2);
   await both('نافذة واحدة · القصيرة الثانية');
   await shot(`s4-single-short-2-t${win}`);
   // والسؤال التالي يعود بالمربع: «الموضوع التالي» ثم المزايدة بلا حكم.
