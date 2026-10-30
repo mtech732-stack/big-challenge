@@ -67,6 +67,25 @@ const { reporter } = require('./helpers.cjs');
     told.packs.general['auction.json'].topics[0].topic = 'أشهر السنة من يناير';
     const w = checkContent(told);
     check('نص الموضوع يكشف إجابة منه: تنبيه باسمها', w.errors.length === 0 && w.warnings.some(x => x.includes('يكشف إجابة') && x.includes('يناير')));
+    // كشف بين النمطين (تدقيق ش8): إجابة الحرف المعيّن كلمةً في نص آخر حرفين (وبحرف ملتصق كـ«والشاحن»)، أو العكس: خطأ باسميهما.
+    const cross = examples(), lq = cross.packs.general['letter.json'].questions[0], tq = cross.packs.general['last-two.json'].questions[0];
+    tq.prompt = `يحمله المسافر وال${lq.answer} في جيبه`;
+    const x = checkContent(cross);
+    check(`إجابة «${lq.answer}» في نص سؤال من آخر حرفين: خطأ باسميهما`, x.errors.some(e => e.includes(tq.id) && e.includes(lq.id) && e.includes(`«${lq.answer}»`)));
+    const back = examples(), lq2 = back.packs.general['letter.json'].questions[0], tq2 = back.packs.general['last-two.json'].questions[0];
+    lq2.prompt = `قبل ${tq2.answer} بقليل`;
+    check('والعكس: إجابة آخر حرفين في نص الحرف المعيّن خطأ', checkContent(back).errors.some(e => e.includes(lq2.id) && e.includes(tq2.id)));
+    const part = examples(), lq3 = part.packs.general['letter.json'].questions[0];
+    part.packs.general['last-two.json'].questions[0].prompt = `${lq3.answer}ات كثيرة`;
+    check('جزء كلمة لا يُعدّ كشفاً («شاحنات» ليست «شاحن»)', checkContent(part).errors.length === 0);
+    const skip = examples();
+    skip.packs.general['last-two.json'].questions[0].prompt = `مع ${skip.packs.general['letter.json'].questions[0].answer}`;
+    skip.packs.general['pack.json'].excludeModes = ['last-two'];
+    check('حزمة تستثني أحد النمطين: لا كشف بينهما', !checkContent(skip).errors.some(e => e.includes('في مباراة واحدة')));
+    const { crossReveals } = await import(path.join(__dirname, '..', 'js', 'content-check.js'));
+    const bank = f => JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'content', 'packs', 'general', f), 'utf8'));
+    const found = crossReveals({ 'letter.json': bank('letter.json'), 'last-two.json': bank('last-two.json') });
+    check(`البنك الحالي: لا كشف بين الحرف المعيّن وآخر حرفين${found.length ? ' · ' + found.map(c => `${c.id}←${c.by}`).join('، ') : ''}`, found.length === 0);
     const { TARGETS } = await import(path.join(__dirname, '..', 'js', 'content-check.js'));
     check('الحرف المعيّن: 20 لكل مستوى، و20 لكسر التعادل', JSON.stringify(TARGETS.letter) === '{"easy":20,"medium":20,"hard":20,"tiebreak":20}');
   }
