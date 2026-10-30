@@ -1,10 +1,11 @@
 // جولة الكلمة: ما يشترك فيه النمطان الأول والثاني («الحرف المعيّن» و«آخر حرفين»، الوثيقة 5.3 و5.4).
-// 6 أسئلة في الجولة، لكل فريق 3 بالتناوب: سهل ثم متوسط ثم صعب. يبدأ العدّاد بزر «ابدأ»، فإن أخطأ الفريق
-// أو انتهى وقته انتقلت الإجابة إلى الخصم (السرقة) في 10 ثوانٍ بالنقاط نفسها (5.3 و5.4 و12).
-// وما يُعرض لا يذكر المستوى ولا كلمة «سرقة» (الوثيقة 1.1، 7.3)، وبعد الحكم الأخير تظهر الإجابة النموذجية للجمهور (7.1).
+// 6 أسئلة في الجولة، لكل فريق 3 بالتناوب: سهل ثم متوسط ثم صعب. والتوقيت والحكم في js/judge.js (الوثيقة 1.11):
+// يبدأ العدّاد تلقائياً بعد 5 ثوانٍ، و«وقت الخصم» بزر في 10 ثوانٍ بالنقاط نفسها، ثم «كشف الإجابة» واختيار من أجاب.
+// وما يُعرض لا يذكر المستوى ولا كلمة «سرقة» (الوثيقة 1.1، 7.3)، والإجابة النموذجية تظهر للجمهور بعد الكشف (7.1).
 // كل نمط يعطي ما يخصه: اسمه، ووقت السؤال، وحقل ما في المربع، ونصوص الافتتاح وسطر القبول.
 import { freshFirst, besides } from '../round.js';
 import { ROUND_PER_LEVEL } from '../content-check.js';
+import { lead, timing, timingActions, picked } from '../judge.js';
 
 export const STEAL_SECONDS = 10;
 export const POINTS = { easy: 3, medium: 6, hard: 9 };
@@ -28,11 +29,11 @@ function pickGroup(bank, seen, key, rng) {
 // rule: نص الافتتاح، أو دالة تأخذ ما في المربع وتعيده.
 export function wordMode({ id, name, order, seconds, key, tatweel = false, sameBox = false, rule, accept }) {
   const box = q => (tatweel ? 'ـ' : '') + boxOf(q);
-  const BRIEF = `6 أسئلة، لكل فريق 3 بالتناوب. ${seconds} ثانية للسؤال، وإن أخطأ الفريق أو انتهى وقته انتقلت الإجابة إلى خصمه في ${STEAL_SECONDS} ثوانٍ.`;
+  const BRIEF = `6 أسئلة، لكل فريق 3 بالتناوب. ${seconds} ثانية للسؤال تبدأ وحدها، وإن أخطأ الفريق أو انتهى وقته فوقت الخصم ${STEAL_SECONDS} ثوانٍ.`;
   const ruleOf = s => (typeof rule === 'function' ? rule(s.questions[0] ? box(s.questions[0]) : '') : rule);
 
-  // الحالات: intro افتتاح الجولة · ready السؤال ظاهر والعدّاد لم يبدأ · ask عدّاد صاحب الدور
-  // · steal عدّاد الخصم · decided انتهى السؤال · end انتهت الجولة.
+  // الحالات: intro افتتاح الجولة · ready السؤال ظاهر وعدّاد التمهيد · ask عدّاد صاحب الدور · steal عدّاد الخصم
+  // · over انتهى الوقت · revealed كُشفت الإجابة · decided اختير من أجاب · end انتهت الجولة. وpaused في js/judge.js.
   // results[i]: من أخذ نقاط السؤال i (رقم الفريق، أو 0 إن لم يأخذها أحد)، أو null ما لم ينتهِ.
   // avoid: أسئلة تساوي إجابتها عنصراً من قائمة ترتيب اختيرت في المباراة (تدقيق ش5 «رابعاً»)، تُترك ما وُجد غيرها.
   function setup({ content, first, seen = [], avoid = [], rng = Math.random }) {
@@ -46,7 +47,7 @@ export function wordMode({ id, name, order, seconds, key, tatweel = false, sameB
       const q = picked[l][k];
       if (q) questions.push({ id: q.id, level: q.level, box: q[key], prompt: q.prompt, answer: q.answer, alts: q.alts ?? [], owner: k === 0 ? first : other(first) });
     }
-    return { first, questions, index: 0, phase: 'intro', team: first, steal: null, results: questions.map(() => null) };
+    return { first, questions, index: 0, phase: 'intro', team: first, steal: null, paused: null, results: questions.map(() => null) };
   }
 
   // q.letter: حالة محفوظة قبل ش3، كي تكمل مباراة جارية بعد التحديث.
@@ -56,42 +57,34 @@ export function wordMode({ id, name, order, seconds, key, tatweel = false, sameB
 
   function actions(s) {
     const q = current(s);
-    const judge = q ? [{ id: 'correct', label: `صحيحة · +${points(q)}` }, { id: 'wrong', label: 'خاطئة' }] : [];
     if (s.phase === 'intro') return [{ id: 'show', label: 'اعرض السؤال 1' }];
-    // زرا الحكم مفعّلان قبل «ابدأ»: الفريق قد يجيب قبل أن يبدأ العدّاد (design/letter.md 4.3).
-    if (s.phase === 'ready') return [{ id: 'start', label: 'ابدأ العدّاد' }, ...judge];
-    if (s.phase === 'ask' || s.phase === 'steal') return judge;
+    // بعد الكشف: صاحب السؤال، ثم خصمه، ثم «لم يُجب أحد».
+    if (s.phase === 'revealed') {
+      return [...[q.owner, other(q.owner)].map(team => ({ id: 'pick', team, label: `+${points(q)}` })), { id: 'pick', team: 0, label: 'لم يُجب أحد' }];
+    }
     if (s.phase === 'decided') {
       const last = s.index === s.questions.length - 1;
       return [{ id: 'next', label: last ? 'إنهاء الجولة' : `السؤال التالي · ${s.index + 2} من ${s.questions.length}` }];
     }
-    return [];
+    return timingActions(s, STEAL_SECONDS);
   }
 
-  function act(s, action) {
+  // left: ما بقي من العدّاد الجاري (js/round.js)، لـ«إيقاف مؤقت».
+  function act(s, action, scores, now, left) {
     const q = current(s);
-    if (action === 'show') return { state: { ...s, phase: 'ready' }, events: [] };
-    if (action === 'start') return { state: { ...s, phase: 'ask' }, events: [{ type: 'timer', seconds }] };
-    if (action === 'next') {
+    if (action === 'show' && s.phase === 'intro') return { state: { ...s, phase: 'ready' }, events: [lead()] };
+    if (action === 'next' && s.phase === 'decided') {
       const index = s.index + 1;
       if (index >= s.questions.length) return { state: { ...s, phase: 'end', steal: null }, events: [] };
       const owner = s.questions[index].owner;
-      return { state: { ...s, index, phase: 'ready', team: owner, steal: null }, events: [] };
+      return { state: { ...s, index, phase: 'ready', team: owner, steal: null, paused: null }, events: [lead()] };
     }
-    const decide = winner => ({ ...s, phase: 'decided', results: s.results.map((r, i) => (i === s.index ? winner : r)) });
-    if (action === 'correct') {
-      return { state: decide(s.team), events: [{ type: 'score', team: s.team, points: points(q) }, { type: 'moment', name: 'right', team: s.team }] };
-    }
-    // خاطئة أو انتهى الوقت: من صاحب السؤال تنتقل إلى السرقة، ومن السارق لا نقاط.
-    if (s.phase === 'ready' || s.phase === 'ask') {
-      const reason = action === 'timeout' ? 'timeout' : 'wrong';
-      const thief = other(s.team);
-      return {
-        state: { ...s, phase: 'steal', team: thief, steal: { team: thief, reason } },
-        events: [{ type: 'timer', seconds: STEAL_SECONDS }, { type: 'moment', name: 'steal', reason, team: thief }],
-      };
-    }
-    return { state: decide(0), events: [{ type: 'moment', name: 'none' }] };
+    const t = timing(s, action, left, { seconds, stealSeconds: STEAL_SECONDS });
+    if (t) return t;
+    const winner = picked(action);
+    if (winner === null || s.phase !== 'revealed') return { state: s, events: [] };
+    const state = { ...s, phase: 'decided', results: s.results.map((r, i) => (i === s.index ? winner : r)) };
+    return { state, events: winner ? [{ type: 'score', team: winner, points: points(q) }, { type: 'moment', name: 'right', team: winner }] : [{ type: 'moment', name: 'none' }] };
   }
 
   // حصيلة الجولة لكل فريق، من نتائج أسئلتها.
@@ -101,7 +94,7 @@ export function wordMode({ id, name, order, seconds, key, tatweel = false, sameB
     return sum;
   }
 
-  // ما تعرضه نافذة الجمهور: لا إجابة فيه قبل الحكم الأخير، ولا ما يدل عليها. وبعده الإجابة النموذجية وحدها (لا البدائل).
+  // ما تعرضه نافذة الجمهور: لا إجابة فيه قبل الكشف، ولا ما يدل عليها. وبعده الإجابة النموذجية وحدها (لا البدائل).
   // letter: ما في المربع بلا تطويل، وtatweel: هل يُعرض قبله «ـ» (تضيفه الشاشة في عنصر مستقل للحركة).
   function audience(s) {
     const q = current(s);
@@ -121,10 +114,12 @@ export function wordMode({ id, name, order, seconds, key, tatweel = false, sameB
       owner: q.owner,
       turn: s.team,
       steal: s.steal,
-      // العدّاد ثابت بوقته كاملاً قبل «ابدأ»، و0:05 في السرقة؛ والحكم يحلّ محله بعد انتهاء السؤال.
+      // وقت العدّاد كاملاً (وقت الخصم في steal)، وlead: عدّاد التمهيد جارٍ، وpaused: موقوف. والحكم يحلّ محله بعد الاختيار.
       clock: s.phase === 'steal' ? STEAL_SECONDS : seconds,
+      lead: s.phase === 'ready',
+      paused: !!s.paused,
       verdict: s.phase === 'decided' ? { team: result, points: result ? points(q) : 0 } : null,
-      answer: s.phase === 'decided' ? q.answer : undefined,
+      answer: s.phase === 'revealed' || s.phase === 'decided' ? q.answer : undefined,
     };
   }
 

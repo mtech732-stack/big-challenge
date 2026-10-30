@@ -73,6 +73,9 @@ const { reporter } = require('./helpers.cjs');
   m = M.toFace(m);
   const plan = M.plan(m).map(s => s.kind === 'wheel' ? 'عجلة' : `${s.n}:${s.mode}:${s.by}`).join(' ');
   check(`مسار الكاملة: عجلتان بعد الثانية وبعد الثالثة (${plan})`, plan === '1:auction:2 2:letter:1 عجلة 3:ranking:2 عجلة 4:last-two:0');
+  // 1.11: الفائز بالقرعة يبدأ الإجابة في الجولة الأولى، ثم التناوب، فيُعرف البادئ قبل أول سؤال.
+  check('البادئ في الجولات: الفائز ثم الآخر بالتناوب (2،1،2،1)', M.plan(m).filter(x => x.kind === 'round').map(x => x.first).join() === '2,1,2,1'
+    && M.starter(m, 1) === 2 && M.starter(m, 4) === 1 && M.starter({ ...m, winner: null }, 1) === 0);
 
   // القصيرة: جولتان وعجلة بينهما.
   let s = M.toPick(M.draw(M.toDraw(M.setMethod(M.setTeams(M.newMatch({ pack: 'general' }), 'أ', 'ب'), 'short')), () => 0.1));

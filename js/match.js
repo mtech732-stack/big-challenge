@@ -79,6 +79,10 @@ export function chooser(match) {
 
 export const picksDone = match => match.picks.length === rounds(match);
 
+// من يبدأ الإجابة في الجولة n (من 1): الفائز بالقرعة في الأولى، ثم يتناوب الفريقان (1.11، 5.2).
+// فيُعرف البادئ قبل أول سؤال، ويُلوَّن به رقم الجولة في صفحة الاختيار. و0 ما لم تُحسم القرعة.
+export const starter = (match, n) => (!match.winner ? 0 : n % 2 === 1 ? match.winner : other(match.winner));
+
 // available: الأنماط المتاحة لهذه الحزمة بترتيبها ([{ id, name }]). النمط لا يتكرر في المباراة.
 export function pick(match, modeId, available) {
   const team = chooser(match);
@@ -107,7 +111,7 @@ export function plan(match) {
   const { wheelsAfter } = METHODS[match.method];
   const list = [];
   match.picks.forEach((p, i) => {
-    list.push({ kind: 'round', n: i + 1, mode: p.mode, by: p.by });
+    list.push({ kind: 'round', n: i + 1, mode: p.mode, by: p.by, first: starter(match, i + 1) });
     if (wheelsAfter.includes(i + 1)) list.push({ kind: 'wheel', after: i + 1 });
   });
   return list;

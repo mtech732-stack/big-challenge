@@ -1,7 +1,7 @@
 // مشغّل الجولة: يربط وحدة النمط بالمباراة. الوحدة تقرر ما يحدث، والمشغّل وحده يغيّر الرصيد،
 // ويحفظ تاريخاً للتراجع، ويبقي الحالة كلها بيانات قابلة للحفظ (JSON) لتعود المباراة بعد إعادة التحميل.
 
-// اختيار عشوائي لمن يبدأ الجولة (قرار المالك، docs/decisions.md).
+// اختيار عشوائي لمن يبدأ، لما لا يُعطى فيه البادئ. وجولات المباراة يبدؤها الفائز بالقرعة ثم بالتناوب (1.11، starter في js/match.js).
 export const pickFirst = (rng = Math.random) => (rng() < 0.5 ? 1 : 2);
 
 // لا ينزل رصيد تحت الصفر بأي سبب (docs/decisions.md).
@@ -30,6 +30,7 @@ export function startRound(mode, { content, scores = { 1: 0, 2: 0 }, first, seen
 // العدّاد: لكل عدّاد رقم يميّزه، و«انتهى الوقت» يحمل رقمه، فيُهمل ما جاء من عدّاد قديم
 // (حكم في اللحظة الأخيرة ثم وصل «انتهى الوقت» بعده). وكل فعل يوقف العدّاد الجاري ما لم يبدأ غيره.
 // والفعل الذي لا يُنهي الوقت (عنصر يُعدّ في وفاء المزاد) يحمل «keep-timer»، فيبقى العدّاد الجاري كما هو.
+// lead: عدّاد التمهيد قبل وقت السؤال (js/judge.js)، يُعرض بغير ما يُعرض به وقت السؤال.
 // resume: عدّاد يعود بالتراجع بما بقي من وقته لا بوقته كاملاً (المزاد، تقرير المعاين ش4). at: متى بدأ (ms)،
 // وroot: أول عدّاد في سلسلته (العدّاد الذي عاد بالتراجع يُعدّ هو نفسه).
 function withTimer(round, events, now) {
@@ -38,8 +39,8 @@ function withTimer(round, events, now) {
   if (!start && events.some(e => e.type === 'keep-timer')) return { timer: round.timer, timers: round.timers, events: rest };
   if (start) {
     const id = round.timers + 1;
-    const timer = { id, seconds: start.seconds, at: now, root: start.root ?? id, ...(start.resume ? { resume: true } : {}) };
-    return { timer, timers: id, events: [...rest, { type: 'timer', seconds: start.seconds, id }] };
+    const timer = { id, seconds: start.seconds, at: now, root: start.root ?? id, ...(start.resume ? { resume: true } : {}), ...(start.lead ? { lead: true } : {}) };
+    return { timer, timers: id, events: [...rest, { type: 'timer', seconds: start.seconds, id, ...(start.lead ? { lead: true } : {}) }] };
   }
   return { timer: null, timers: round.timers, events: round.timer ? [{ type: 'stop-timer' }, ...rest] : rest };
 }
@@ -62,8 +63,9 @@ export function act(mode, round, action, timerId, now = Date.now()) {
   // و'timeup' (انقضاء وقت القائمة في الترتيب) وما في mode.auto (انتهاء دوران العجلة) لا زر لهما: الوحدة تتحقق من وقتهما بساعة الجهاز.
   const auto = action === 'timeup' || !!mode.auto?.includes(action);
   if (action === 'timeout' ? !round.timer || round.timer.id !== timerId : !auto && !mode.actions(round.state).some(a => a.id === String(action).split(':')[0])) return ignored(round);
-  // والرصيد قبل الفعل للوحدة التي تكتب حكمها بما خُصم فعلاً (فخ الترتيب)، وساعة الجهاز لوقت القائمة.
-  const { state, events = [] } = mode.act(round.state, action, round.scores, now);
+  // والرصيد قبل الفعل للوحدة التي تكتب حكمها بما خُصم فعلاً (فخ الترتيب)، وساعة الجهاز لوقت القائمة،
+  // وما بقي من العدّاد الجاري لـ«إيقاف مؤقت» (js/judge.js).
+  const { state, events = [] } = mode.act(round.state, action, round.scores, now, round.timer ? left(round.timer, now) : null);
   if (state === round.state) return ignored(round);
   const scores = applyEvents(round.scores, events);
   const lead = leader(scores) && leader(scores) !== leader(round.scores) ? [{ type: 'moment', name: 'lead', team: leader(scores) }] : [];
@@ -85,7 +87,7 @@ export function undo(round, now = Date.now()) {
   // التراجع عن تعديل يدوي للرصيد لا يمس عدّاداً جارياً.
   if (rootOf(last.timer) === rootOf(round.timer)) return { ...back, events: [] };
   const t = last.timer;
-  return { ...back, ...withTimer(round, t ? [{ type: 'timer', seconds: t.resume ? t.left ?? t.seconds : t.seconds, resume: t.resume, root: rootOf(t) }] : [], now) };
+  return { ...back, ...withTimer(round, t ? [{ type: 'timer', seconds: t.resume ? t.left ?? t.seconds : t.seconds, resume: t.resume, lead: t.lead, root: rootOf(t) }] : [], now) };
 }
 
 // تعديل الرصيد يدوياً بيد المقدّم، ويُتراجع عنه كأي حكم. لا يمس العدّاد.
