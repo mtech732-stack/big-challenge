@@ -747,9 +747,8 @@
   let shownSaid = 0;
 
   // ===== الترتيب (design/ranking.md 2): العنوان وإشارته، واللوحة: 13 خانة بالترتيب، وgrid-auto-flow يضعها في أعمدتها =====
-  // الخانة المنتظرة رتبتها وحدها · المكشوفة بلون من ذكرها واسمها · الفخ الذي لم يقع فيه أحد مخفي ولا يصل منه شيء (7.2 و7.4)
+  // الخانة المنتظرة رتبتها وحدها · المكشوفة بلون من ذكرها واسمها · الفخاخ ظاهرة الأرقام بلا اسم، والمكشوف منها رقمه خصمه «−13» (design/s8.md 3.1)
   // · وبعد نهاية القائمة ما لم يُذكر باسمه (.left)، و.reveal على القسم (المكشوفة بيضاء بإطار لونها، 1.1).
-  const PEN = { 11: 3, 12: 2, 13: 1 };
   let shownFresh = '';
   // وقت القائمة (design/ranking.md 7.8): «بقي للقائمة» تحت الفخاخ، 5:00 قبل «ابدأ» ثم يجري حتى listEnds بساعة الجهاز، ويُخفى بعد النهاية.
   let listEnds = null;
@@ -765,9 +764,8 @@
     const fresh = a.fresh && key !== shownFresh ? a.fresh : 0;
     shownFresh = key;
     $('board').innerHTML = a.slots.map(x => {
-      if (!x.rank) return '<p class="sl trap"></p>';
       const cls = ['sl', x.trap && 'trap', x.team && 't' + x.team, !x.team && x.name && 'left', x.rank === fresh && 'new'].filter(Boolean).join(' ');
-      return `<p class="${cls}" data-r="${x.rank}"><b>${x.trap ? '−' + PEN[x.rank] : x.rank}</b>${x.name ? `<span data-fit="خانة ${x.rank}">${esc(x.name)}</span>` : ''}</p>`;
+      return `<p class="${cls}" data-r="${x.rank}"><b>${x.trap && x.team ? '−' + x.rank : x.rank}</b>${x.name ? `<span data-fit="خانة ${x.rank}">${esc(x.name)}</span>` : ''}</p>`;
     }).join('') + (a.listClock ? `<p class="clock" id="rclock"><span>بقي للقائمة</span><b>${a.listEnds ? '' : format(a.listSeconds)}</b></p>` : '');
     listEnds = a.listEnds ?? null;
     if (listEnds) $('rclock').querySelector('b').textContent = listText();
@@ -776,11 +774,10 @@
   // ونهاية القائمة بلا مربع: «كُشف 7 من 10» (design/ranking.md 7.6).
   function rankBox(a) {
     if (a.phase === 'listend') return { next: `${a.timeup ? 'انتهى وقت القائمة\n' : ''}كُشف ${a.found} من ${a.of}` };
-    // المقارنة بالنافذة الواحدة: بلا مربع، والخانات تُنقر (design/ranking.md 4).
-    if (a.phase === 'mark') return { next: 'المقارنة بالتسجيل' };
+    // والإصابة لحظتها بالمربع وحدها، ثم يُخفى حين يبدأ الدور التالي. و«خطأ» بلا مربع: «لا نقاط» و«لم تُكشف خانة» (design/s8.md 3.2).
     const v = a.verdict;
     if (!v) return {};
-    return { verdict: v, say: !v.team ? 'لم تُكشف خانة' : v.rank > 10 ? `فخّ المركز ${v.rank}` : `المركز ${v.rank}` };
+    return { verdict: v, say: !v.team ? 'لم تُكشف خانة' : v.rank > 10 ? `فخّ المركز ${v.rank}` : `المركز ${v.rank}`, bare: !v.team };
   }
   // ما ذُكر: أثناء العدّ يبقى الأحدث (يسقط الأقدم). وبعد الحكم يبقى كل ما ذُكر، ويسقط من غير المذكور آخره،
   // وفي آخر الصف «و N غيرها» (design/auction.md 7.2، fitItems في design/auction.html).
@@ -832,9 +829,9 @@
     for (const id of ['err', 'faceErr']) { $(id).hidden = !c?.error; $(id).textContent = c?.error ?? ''; }
     document.querySelector('.scr.title .sub').hidden = !!c;
     $('guide').hidden = !c?.count;
-    // المقارنة في الترتيب: كل خانة تُنقر فيدوّر صاحبها.
-    $('rnk').classList.toggle('mark', !!c?.marks);
-    $('board').querySelectorAll('.sl[data-r]').forEach(el => { if (c?.marks) el.dataset.cmd = 'act:mark:' + el.dataset.r; else delete el.dataset.cmd; });
+    // التحكيم المباشر في الترتيب (design/s8.md 3.2): في الإجابة رقم كل خانة لم تنكشف زرٌّ يحكم بها.
+    $('rnk').classList.toggle('judge', !!c?.judge);
+    $('board').querySelectorAll('.sl[data-r]').forEach(el => { if (c?.judge && !el.classList.contains('t1') && !el.classList.contains('t2')) el.dataset.cmd = 'act:item:' + el.dataset.r; else delete el.dataset.cmd; });
     $('mcards').querySelectorAll('.mc').forEach(t => { if (c?.pick && t.classList.contains('avail')) t.dataset.cmd = 'pick:' + t.dataset.mode; else delete t.dataset.cmd; });
     $('tiles').querySelectorAll('.tile').forEach(t => { if (c?.pick && !t.classList.contains('by1') && !t.classList.contains('by2') && !t.classList.contains('auto') && !t.classList.contains('left')) t.dataset.cmd = 'pick:' + t.dataset.mode; else delete t.dataset.cmd; });
     for (const k of [1, 2]) {

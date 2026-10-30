@@ -1,6 +1,7 @@
-// اختبار آلي لوحدة «الترتيب» (js/modes/ranking.js) في مرحلة «اللوحة والكشف» (5.6، design/ranking.md)، دون متصفح:
-// قائمتان سهلة ثم صعبة، والعدّاد 15 ثانية، والعنصر الصحيح يُكشف في خانته بنقاط رقمها، والتناوب، ونهاية القائمة بالعشرة أو «أنهِ القائمة»،
-// ولا اسم ولا فخ ولا مستوى على الجمهور قبل نهاية القائمة. والفخاخ بخصمها وبما خُصم فعلاً (مرحلة «الفخاخ»). والسرقة في 5 ثوانٍ (مرحلة «السرقة»). والنافذة الواحدة: المقارنة و«اعتمد النقاط». وحدود الفاحص الثلاثة.
+// اختبار آلي لوحدة «الترتيب» (js/modes/ranking.js) بالتحكيم المباشر (الوثيقة 5.6، 1.7، design/s8.md 3)، دون متصفح:
+// قائمتان سهلة ثم صعبة، والعدّاد 15 ثانية، ونقر رقم الخانة يكشفها بنقاط رقمها ثم لحظة 1.2 ثانية والدور للخصم، والفخ يُخصم رقمه دون الصفر،
+// و«خطأ» ثم لون الدور التالي، وانتهاء الوقت ينقل الدور، ونهاية القائمة بالعشرة أو «أنهِ القائمة» أو انقضاء دقيقتين ونصف.
+// ولا اسم ولا مستوى على الجمهور قبل نهاية القائمة، والفخاخ ظاهرة الأرقام. وحدود الفاحص الثلاثة.
 const fs = require('fs');
 const path = require('path');
 const { reporter } = require('./helpers.cjs');
@@ -49,74 +50,71 @@ const { reporter } = require('./helpers.cjs');
 
   const go = (action, id) => { round = R.act(ranking, round, action, id); s = round.state; a = ranking.audience(s); return round; };
   go('show');
-  check('ظهور القائمة: الدور لمن بدأ، والعدّاد لم يبدأ، و«ابدأ العدّاد · 15 ثانية» و«أنهِ القائمة»', s.phase === 'read' && a.turn === 2 && !round.timer
-    && ranking.actions(s).map(x => x.label).join('|') === `ابدأ العدّاد · ${ANSWER_SECONDS} ثانية|أنهِ القائمة`);
-  check('الجمهور: العنوان، و10 خانات برتبها بلا أسماء، والفخاخ الثلاثة بلا رتبة ولا اسم', a.screen === 'list' && a.title === bank.lists[0].title && a.n === 1 && a.count === 2
-    && a.slots.length === 13 && a.slots.slice(0, 10).every((x, i) => x.rank === i + 1 && !x.name && !x.team)
-    && a.slots.slice(10).every(x => x.trap && !x.rank && !x.name));
+  check('ظهور القائمة: الدور لمن بدأ، والعدّاد لم يبدأ، و«ابدأ» و«أنهِ القائمة»', s.phase === 'read' && a.turn === 2 && !round.timer
+    && ranking.actions(s).map(x => x.label).join('|') === 'ابدأ|أنهِ القائمة');
+  check('الجمهور: العنوان، و13 خانة بأرقامها بلا أسماء، والفخاخ 11–13 ظاهرة الأرقام (1.7)', a.screen === 'list' && a.title === bank.lists[0].title && a.n === 1 && a.count === 2
+    && a.slots.length === 13 && a.slots.every((x, i) => x.rank === i + 1 && !x.name && !x.team) && a.slots.slice(10).every(x => x.trap) && !a.slots[9].trap);
   check('الجمهور: لا اسم من القائمة ولا صيغة ولا مستوى', leaks(a).length === 0 && !('level' in a));
   check('النقر قبل «ابدأ» لا يحكم', go('item:3').state.phase === 'read');
   go('start');
-  check('«ابدأ»: عدّاد 15 ثانية لصاحب الدور', s.phase === 'ask' && round.timer?.seconds === ANSWER_SECONDS && a.turn === 2);
-  check('في العدّاد: «خطأ · ليس في القائمة أو مكرر»', ranking.actions(s).some(x => x.id === 'wrong' && x.label === 'خطأ · ليس في القائمة أو مكرر'));
+  check('«ابدأ»: عدّاد 15 ثانية لصاحب الدور، والخانات تُنقر', s.phase === 'ask' && round.timer?.seconds === ANSWER_SECONDS && a.turn === 2 && a.judge);
+  check('في الإجابة: الخانة و«خطأ» و«أنهِ القائمة»', ranking.actions(s).map(x => x.id).join() === 'item,wrong,finish');
 
-  // الإصابة: المركز 7 للثاني.
-  go('item:7');
-  check('أصاب المركز 7: +7 للثاني، والخانة تنكشف باسمها ولونه', s.phase === 'decided' && round.scores[2] === 7 && a.verdict.team === 2 && a.verdict.points === 7 && a.verdict.rank === 7
-    && a.slots[6].name === s.lists[0].items[6].name && a.slots[6].team === 2 && a.fresh === 7);
-  check('لحظة «صحيحة»، والعدّاد يقف', round.events.some(e => e.type === 'moment' && e.name === 'right' && e.team === 2) && !round.timer);
-  check('بعد الحكم: الحدّ عند من أصاب، ولا اسم غير المكشوف', a.turn === 2 && leaks(a).length === 1);
+  // الإصابة: المركز 7 للثاني، ثم لحظة 1.2 ثانية والدور للأول تلقائياً.
+  const { HIT_MS } = await import(path.join(root, 'js/modes/ranking.js'));
+  let T = Date.now();
+  const at = (action, t, id) => { round = R.act(ranking, round, action, id, t); s = round.state; a = ranking.audience(s); return round; };
+  at('item:7', T);
+  check('أصاب المركز 7: +7 للثاني، والخانة تنكشف باسمها ولونه، والعدّاد يقف', s.phase === 'hit' && round.scores[2] === 7 && a.verdict.team === 2 && a.verdict.points === 7 && a.verdict.rank === 7
+    && a.slots[6].name === s.lists[0].items[6].name && a.slots[6].team === 2 && a.fresh === 7 && !round.timer && !a.judge);
+  check('لحظة «صحيحة»، والحدّ عند من أصاب، ولا اسم غير المكشوف، ولا أزرار', round.events.some(e => e.type === 'moment' && e.name === 'right' && e.team === 2) && a.turn === 2
+    && leaks(a).length === 1 && ranking.actions(s).length === 0);
   const pr = ranking.presenter(s);
   check('المقدّم: القائمة كلها (13) بصيغها، والمكشوف بمن كشفه، والفخاخ مُعلَّمة، والتالي دور الأول', pr.items.length === 13 && pr.items[6].by === 2 && pr.items[10].trap && !pr.items[9].trap
     && pr.items[1].alts.length === 1 && pr.upNext === 1 && pr.level === 'easy');
-  check('بعد الحكم: «التالي» و«أنهِ القائمة»', ranking.actions(s).map(x => x.id).join() === 'next,finish');
-
-  // التالي: دور الأول وعدّاده فوراً.
-  go('next');
-  check('«التالي»: دور الأول، وعدّاده 15 ثانية فوراً', s.phase === 'ask' && s.team === 1 && round.timer?.seconds === ANSWER_SECONDS && a.verdict === null);
-  check('المكرر لا يُكشف ثانية', go('item:7').state.phase === 'ask' && round.scores[1] === 0);
-  // الفخ ورصيد الأول صفر: لا خصم، والحكم «0 · فخّ المركز 11»، والخانة تظهر بلونه، والفخاخ الأخرى مخفية.
-  go('item:11');
-  check('الفخ برصيد صفر: الحكم بخصم 0 (ما خُصم فعلاً)، ولا حدث نقاط، ولحظة «فخ»', s.phase === 'decided' && a.verdict.team === 1 && a.verdict.points === 0 && a.verdict.rank === 11
-    && round.scores[1] === 0 && round.events.some(e => e.type === 'moment' && e.name === 'trap' && e.team === 1 && e.rank === 11));
-  check('الفخ: الحدّ في المنتصف، وخانته باسمها ولون من وقع فيه، والفخان الآخران بلا رتبة ولا اسم', a.turn === 0 && a.slots[10].rank === 11 && a.slots[10].trap
-    && a.slots[10].team === 1 && a.slots[10].name === s.lists[0].items[10].name && a.fresh === 11 && !a.slots[11].rank && !a.slots[12].name);
-  round = R.undo(round); s = round.state;
+  check('«turn» قبل 1.2 ثانية يُهمل', at('turn', T + 100).state.phase === 'hit' && HIT_MS === 1200);
+  at('turn', T + HIT_MS);
+  check('بعد اللحظة: دور الأول، وعدّاده 15 ثانية، ولا حكم', s.phase === 'ask' && s.team === 1 && round.timer?.seconds === ANSWER_SECONDS && a.verdict === null && a.turn === 1);
+  check('المكرر لا يُكشف ثانية', at('item:7', T + 2000).state.phase === 'ask' && round.scores[1] === 0);
+  // الفخ ورصيد الأول صفر: لا خصم، والحكم 0، والخانة «−11» بلونه.
+  at('item:11', T + 3000);
+  check('الفخ برصيد صفر: الحكم بخصم 0 (ما خُصم فعلاً)، ولا حدث نقاط، ولحظة «فخ»', s.phase === 'hit' && a.verdict.team === 1 && a.verdict.points === 0 && a.verdict.rank === 11
+    && round.scores[1] === 0 && round.events.some(e => e.type === 'moment' && e.name === 'trap' && e.team === 1 && e.rank === 11) && !round.events.some(e => e.type === 'score'));
+  check('الفخ: الحدّ في المنتصف، وخانته باسمها ولون من وقع فيه، والفخان الآخران بأرقامهما بلا اسم', a.turn === 0 && a.slots[10].trap && a.slots[10].team === 1
+    && a.slots[10].name === s.lists[0].items[10].name && a.fresh === 11 && a.slots[11].rank === 12 && !a.slots[11].name && !a.slots[12].name);
+  // التراجع: لحظة الإصابة عابرة، فالتراجع من الدور التالي يعود إلى ما قبل الحكم (js/play.js).
+  {
+    const P = await import(path.join(root, 'js/play.js'));
+    const after = R.act(ranking, round, 'turn', undefined, T + 5000);
+    const m = P.undo({ step: 'play', round: after, scores: after.scores }, [ranking]);
+    check('«تراجع» بعد انتقال الدور: يُرفع الفخ ويعود الدور لمن وقع فيه بعدّاده', m.round.state.phase === 'ask' && m.round.state.team === 1 && m.round.timer?.seconds === ANSWER_SECONDS
+      && !m.round.state.got[0].some(g => g.rank === 11));
+  }
+  round = R.undo(round); s = round.state; a = ranking.audience(s);
   check('التراجع عن الفخ يعيد السؤال وعدّاده', s.phase === 'ask' && round.timer?.seconds === ANSWER_SECONDS && !s.got[0].some(g => g.rank === 11));
-  check('رتبة خارج 1–13 أو بلا رقم تُهمل', go('item:0').state.phase === 'ask' && go('item:x').state.phase === 'ask');
-  // السرقة (5.6): انتهى وقت الأول، فتنتقل الإجابة إلى الثاني في 15 ثانية.
-  const { STEAL_SECONDS } = await import(path.join(root, 'js/modes/ranking.js'));
-  go('timeout', round.timer.id);
-  check('انتهى الوقت: تنتقل الإجابة إلى الخصم بعدّاد 15 ثانية، بلا حكم ولا نقاط', s.phase === 'steal' && s.team === 2 && s.steal.reason === 'timeout' && round.timer?.seconds === STEAL_SECONDS
-    && STEAL_SECONDS === 15 && !a.verdict && round.scores[1] === 0 && round.scores[2] === 7);
-  check('السرقة: الحدّ عند السارق، والعدّاد 15، ولحظة «انتقال» بسببها، ولا كلمة «سرقة» على الجمهور', a.turn === 2 && a.clock === 15
-    && round.events.some(e => e.type === 'moment' && e.name === 'steal' && e.team === 2 && e.reason === 'timeout') && !JSON.stringify(a).includes('سرق'));
-  check('السرقة: «عنصر» و«خطأ» للسارق، والمقدّم يعرف السبب', ranking.actions(s).map(x => x.id).join() === 'item,wrong' && ranking.presenter(s).steal?.reason === 'timeout');
-  go('item:3');
-  check('سرق الثاني المركز 3: +3 له، والخانة بلونه، والتالي دور من أخطأ', s.phase === 'decided' && round.scores[2] === 10 && a.verdict.team === 2 && a.slots[2].team === 2
-    && ranking.presenter(s).upNext === 1 && !s.steal);
-  round = R.undo(round); s = round.state;
-  check('التراجع عن السرقة يعيدها بعدّاد 15', s.phase === 'steal' && s.team === 2 && round.timer?.seconds === STEAL_SECONDS && round.scores[2] === 7);
+  check('رتبة خارج 1–13 أو بلا رقم تُهمل', go('item:0').state.phase === 'ask' && go('item:x').state.phase === 'ask' && go('item:14').state.phase === 'ask');
+  // «خطأ»: صفر، ويقف العدّاد، ولون الدور التالي.
   go('wrong');
-  check('أخطأ السارق: لا نقاط و«لم تُكشف خانة»، والحدّ في المنتصف، والتالي دور من أخطأ أولاً', s.phase === 'decided' && a.verdict.team === 0 && a.turn === 0
-    && ranking.presenter(s).upNext === 1 && round.scores[2] === 7);
-  round = R.undo(round); round = R.undo(round); s = round.state;
-  check('التراجع مرتين يعيد السؤال للأول وعدّاده', s.phase === 'ask' && s.team === 1 && round.timer?.seconds === ANSWER_SECONDS);
-  go('wrong');
-  check('«خطأ»: تنتقل الإجابة إلى الخصم بسبب الخطأ', s.phase === 'steal' && s.team === 2 && s.steal.reason === 'wrong'
-    && round.events.some(e => e.type === 'moment' && e.name === 'steal' && e.reason === 'wrong'));
-  check('والفخ في السرقة يُخصم من السارق', (() => { const t = R.act(ranking, round, 'item:13'); return t.state.verdict.team === 2 && t.scores[2] === 0 && t.state.verdict.points === -7; })());
+  check('«خطأ»: لا نقاط و«لم تُكشف خانة»، والحدّ في المنتصف، والعدّاد يقف، وزرّا لون الدور التالي', s.phase === 'wrong' && a.verdict.team === 0 && a.turn === 0 && !round.timer
+    && ranking.actions(s).filter(x => x.id === 'turn').map(x => x.team).join() === '1,2' && round.events.some(e => e.name === 'none'));
+  check('لون خاطئ يُهمل', go('turn:3').state.phase === 'wrong' && go('turn').state.phase === 'wrong');
+  go('turn:1');
+  check('اختار المقدّم لون من أخطأ نفسه: الدور له بعدّاده', s.phase === 'ask' && s.team === 1 && round.timer?.seconds === ANSWER_SECONDS);
+  go('wrong'); go('turn:2');
+  check('أو لون الخصم: الدور للثاني', s.phase === 'ask' && s.team === 2);
+  // انتهى وقت الإجابة: إلى الخصم بعدّاده، بلا اختيار، ولحظة انتقال.
   go('timeout', round.timer.id);
-  check('انتهى وقت السارق: لا نقاط', s.phase === 'decided' && s.verdict.team === 0 && round.scores[1] === 0 && round.scores[2] === 7);
+  check('انتهى الوقت: الدور للخصم بعدّاد 15 ثانية، بلا حكم ولا نقاط، ولحظة «انتقال»', s.phase === 'ask' && s.team === 1 && round.timer?.seconds === ANSWER_SECONDS && !a.verdict
+    && round.events.some(e => e.type === 'moment' && e.name === 'steal' && e.reason === 'timeout' && e.team === 1) && !JSON.stringify(a).includes('سرق'));
 
-  // العشرة كلها: يُكشف ما بقي بالتناوب، ثم نهاية القائمة وحدها.
-  for (const r of [1, 2, 3, 4, 5, 6, 8, 9, 10]) { go('next'); go('item:' + r); }
-  check('انكشفت العشرة: «أنهِ القائمة» وحدها', ranking.actions(s).map(x => x.id).join() === 'finish' && a.found === 10);
+  // العشرة كلها: يُكشف ما بقي بالتناوب، ثم نهاية القائمة بنفسها بعد آخر لحظة.
+  T = Date.now();
+  for (const r of [1, 2, 3, 4, 5, 6, 8, 9, 10]) { at('item:' + r, T); at('turn', T + HIT_MS); T += 2000; }
+  check('انكشفت العشرة: نهاية القائمة بعد اللحظة الأخيرة', s.phase === 'listend' && a.found === 10);
   const sum = round.scores[1] + round.scores[2];
   check('النقاط بقدر الرتب: 55 للعشرة', sum === 55);
-  go('finish');
-  check('نهاية القائمة: القائمة كلها بأسمائها والفخاخ، و«كُشف 10 من 10»، والحدّ في المنتصف', s.phase === 'listend' && a.slots.every(x => x.name) && a.found === 10 && a.of === 10 && a.turn === 0 && !a.verdict);
-  check('نهاية القائمة الأولى: «القائمة 2 · الأخيرة»', ranking.actions(s).map(x => x.label).join() === 'القائمة 2 · الأخيرة');
+  check('نهاية القائمة: القائمة كلها بأسمائها والفخاخ، و«كُشف 10 من 10»، والحدّ في المنتصف', a.slots.every(x => x.name) && a.found === 10 && a.of === 10 && a.turn === 0 && !a.verdict);
+  check('نهاية القائمة الأولى: «القائمة 2»', ranking.actions(s).map(x => x.label).join() === 'القائمة 2');
   // القائمة الثانية (الصعبة): تظهر مباشرة، ويبدأها الفريق الآخر.
   go('next');
   check('القائمة الثانية: تظهر مباشرة بعنوانها، و«القائمة 2 من 2»، والدور للآخر (بدأ الثاني الأولى)', s.phase === 'read' && s.index === 1 && a.n === 2 && a.title === s.lists[1].title
@@ -125,12 +123,13 @@ const { reporter } = require('./helpers.cjs');
   const s1 = round.scores[1];
   go('start'); go('item:10');
   check('القائمة الثانية تُلعب كالأولى: +10 للأول', round.scores[1] === s1 + 10 && s.got[1].length === 1 && a.found === 1);
-  go('finish');
-  check('نهاية القائمة الثانية: «إنهاء الجولة»', ranking.actions(s).map(x => x.label).join() === 'إنهاء الجولة');
+  check('ولا زر في لحظة الإصابة', ranking.actions(s).length === 0 && go('finish').state.phase === 'hit');
+  at('turn', Date.now() + HIT_MS); go('finish');
+  check('«أنهِ القائمة» في الإجابة: تنتهي، و«إنهاء الجولة»', s.phase === 'listend' && ranking.actions(s).map(x => x.label).join() === 'إنهاء الجولة');
   go('next');
   check('نهاية الجولة: حصيلتا الفريقين في القائمتين', s.phase === 'end' && ranking.finished(s) && a.screen === 'end' && a.totals[1] + a.totals[2] === 65);
 
-  // وقت القائمة (5.6): 5 دقائق من «ابدأ» بلا توقف، فإن انقضت انتهت القائمة. والمشغّل يمرّر ساعة الجهاز.
+  // وقت القائمة (5.6): دقيقتان ونصف من «ابدأ» بلا توقف، فإن انقضت انتهت القائمة. والمشغّل يمرّر ساعة الجهاز.
   {
     const { LIST_SECONDS } = await import(path.join(root, 'js/modes/ranking.js'));
     const T = 1_000_000;
@@ -143,7 +142,7 @@ const { reporter } = require('./helpers.cjs');
     a = ranking.audience(r.state);
     check('«ابدأ»: وقت القائمة يجري حتى دقيقتين ونصف من الآن', r.state.listEnds === T + 150000 && a.listEnds === T + 150000);
     check('«انتهى وقت القائمة» قبل وقته يُهمل', run('timeup', undefined, T + 100000).state.phase === 'ask');
-    run('item:4', undefined, T + 30000); run('next', undefined, T + 40000);
+    run('item:4', undefined, T + 30000); run('turn', undefined, T + 32000);
     check('ولا يقف بين الإجابتين ولا بعد الحكم', r.state.listEnds === T + 150000);
     run('timeup', undefined, T + 150000);
     a = ranking.audience(r.state);
@@ -152,87 +151,53 @@ const { reporter } = require('./helpers.cjs');
     r = R.undo(r);
     check('التراجع عن انقضاء الوقت يعيد العدّاد', r.state.phase === 'ask' && !r.state.timeup && r.timer?.seconds === ANSWER_SECONDS);
     run('wrong', undefined, T + 149000);
-    check('وفي السرقة: ينهيها انقضاء الوقت', r.state.phase === 'steal' && run('timeup', undefined, T + 150500).state.phase === 'listend');
+    check('وبعد «خطأ»: ينهيها انقضاء الوقت', r.state.phase === 'wrong' && run('timeup', undefined, T + 150500).state.phase === 'listend');
     run('next', undefined, T + 160000);
     check('القائمة الثانية بعد انقضاء وقت الأولى: وقتها لم يبدأ، ويبدأها الآخر', r.state.index === 1 && r.state.phase === 'read' && !r.state.listEnds && !r.state.timeup && r.state.team === 2);
-    run('start:one', undefined, T + 170000);
-    check('وقت القائمة الثانية من «ابدأ» نفسها', r.state.listEnds === T + 320000 && r.state.one);
-    run('timeup', undefined, T + 320000);
-    check('بنافذة واحدة: انقضاء الوقت يفتح المقارنة', r.state.phase === 'mark' && r.state.timeup && !r.timer);
-    run('mark:2'); run('commit');
-    check('ثم «اعتمد النقاط» و«انتهى وقت القائمة»، و«إنهاء الجولة»', r.state.phase === 'listend' && ranking.audience(r.state).timeup && ranking.actions(r.state)[0].label === 'إنهاء الجولة');
+    run('start', undefined, T + 170000);
+    check('وقت القائمة الثانية من «ابدأ» نفسها', r.state.listEnds === T + 320000);
+    run('item:3', undefined, T + 319000);
+    check('وفي لحظة الإصابة: ينهيها انقضاء الوقت، و«إنهاء الجولة»', run('timeup', undefined, T + 320000).state.phase === 'listend' && ranking.audience(r.state).timeup
+      && ranking.actions(r.state)[0].label === 'إنهاء الجولة');
   }
 
   // الفخاخ بخصمها: −11 و−12 و−13، ولا ينزل الرصيد تحت الصفر، والحكم بما خُصم فعلاً (design/ranking.md 7.7).
   {
     const PEN = (await import(path.join(root, 'js/modes/ranking.js'))).PENALTY;
     check('خصم الفخاخ: 11 ← 11 · 12 ← 12 · 13 ← 13', PEN[11] === 11 && PEN[12] === 12 && PEN[13] === 13);
+    let T = Date.now();
     let r = R.startRound(ranking, { content, first: 1, rng });
-    const run = (x, id) => (r = R.act(ranking, r, x, id));
+    const run = (x, id) => { r = R.act(ranking, r, x, id, T); T += 2000; return r; };
     run('show'); run('start');
     r = R.setScore(r, 1, 1); r = R.setScore(r, 2, 20);
     run('item:11');
     let v = r.state.verdict;
     check('فخ 11 ورصيده 1: نزل إلى 0، والحكم «−1» لا «−11»', r.scores[1] === 0 && v.points === -1 && v.rank === 11 && r.state.got[0][0].points === -1
       && r.events.some(e => e.type === 'score' && e.team === 1 && e.points === -1));
-    check('الفخ لا يكشف خانة من العشر، ولا يُنهي القائمة', ranking.audience(r.state).found === 0 && ranking.actions(r.state).map(x => x.id).join() === 'next,finish');
-    run('next'); run('item:12');
+    run('turn');
+    check('الفخ لا يكشف خانة من العشر، ولا يُنهي القائمة', ranking.audience(r.state).found === 0 && r.state.phase === 'ask' && r.state.team === 2);
+    run('item:12');
     v = r.state.verdict;
     check('فخ 12 ورصيده 20: −12، فصار 8', r.scores[2] === 8 && v.points === -12 && v.team === 2);
     const p = ranking.presenter(r.state);
     check('المقدّم: الفخ بمن وقع فيه', p.items[10].by === 1 && p.items[11].by === 2 && p.items[12].by === 0);
-    run('next');
+    run('turn');
     check('الفخ لا يُنقر ثانية (المكرر خطأ)', run('item:12').state.phase === 'ask');
     run('item:13');
     check('فخ 13 ورصيده 0: لا خصم، والحكم 0', r.scores[1] === 0 && r.state.verdict.points === 0 && r.state.verdict.rank === 13);
-    run('finish'); run('next'); run('finish'); run('next');
+    run('turn'); run('finish'); run('next'); run('finish'); run('next');
     const t = ranking.audience(r.state);
     check('حصيلة الجولة بما خُصم: الأول −1 والثاني −12', ranking.finished(r.state) && t.totals[1] === -1 && t.totals[2] === -12);
   }
 
-  // النافذة الواحدة (المالك، design/ranking.md 4): لا حكم في أثناء القائمة، والمقارنة بالتسجيل بعدها، ثم «اعتمد النقاط».
+  // حالات محفوظة قبل ش8 (سرقة وحكم ومقارنة) تُقرأ بما يقابلها، فلا تعلق مباراة جارية.
   {
     let r = R.startRound(ranking, { content, first: 1, rng });
-    const run = (x, id) => (r = R.act(ranking, r, x, id));
-    run('show'); run('start:one');
-    check('النافذة الواحدة: «ابدأ» بنافذة واحدة يبدأ عدّاد صاحب الدور، و«التالي» و«أنهِ القائمة» وحدهما', r.state.phase === 'ask' && r.state.one && r.timer?.seconds === ANSWER_SECONDS
-      && ranking.actions(r.state).map(x => x.id).join() === 'pass,finish' && ranking.audience(r.state).one);
-    check('النافذة الواحدة: لا حكم ولا خطأ في أثناء القائمة', run('item:3').state.phase === 'ask' && run('wrong').state.phase === 'ask' && !r.state.got[0].length);
-    const t1 = r.timer.id;
-    run('pass');
-    check('«التالي»: الدور للثاني وعدّاد جديد، بلا لحظة ولا نقاط', r.state.team === 2 && r.timer.id !== t1 && r.timer.seconds === ANSWER_SECONDS && r.state.phase === 'ask'
-      && !r.events.some(e => e.type === 'moment' || e.type === 'score'));
-    run('timeout', r.timer.id);
-    check('انتهى الوقت بنافذة واحدة: ينتقل الدور كـ«التالي»، لا سرقة', r.state.team === 1 && r.state.phase === 'ask' && r.timer?.seconds === ANSWER_SECONDS);
-    check('النافذة الواحدة: لا اسم على الجمهور في أثناء القائمة', ranking.audience(r.state).slots.every(x => !x.name));
-    r = R.setScore(r, 2, 0);
-    run('finish');
-    let a = ranking.audience(r.state);
-    check('«أنهِ القائمة»: المقارنة، والقائمة كلها بأسمائها بلا أصحاب، والحدّ في المنتصف، والعدّاد يقف', r.state.phase === 'mark' && a.slots.every(x => x.name && !x.team)
-      && a.turn === 0 && !r.timer && ranking.actions(r.state).map(x => x.id).join() === 'mark,commit');
-    run('mark:1'); const c1 = ranking.audience(r.state).slots[0].team;
-    run('mark:1'); const c2 = ranking.audience(r.state).slots[0].team;
-    run('mark:1'); const c3 = ranking.audience(r.state).slots[0].team;
-    check('النقر يدوّر الخانة: الأول ← الثاني ← لا أحد', c1 === 1 && c2 === 2 && c3 === 0 && !(1 in r.state.marks));
-    check('رتبة خارج القائمة تُهمل في المقارنة', run('mark:14').state === r.state && run('mark:x').state === r.state);
-    run('mark:3'); run('mark:7'); run('mark:7'); run('mark:12'); run('mark:11'); run('mark:11');
-    const p = ranking.presenter(r.state);
-    check('المقدّم يرى أصحاب الخانات كما نُقرت', p.items[2].by === 1 && p.items[6].by === 2 && p.items[11].by === 1 && p.items[10].by === 2 && p.items[0].by === 0);
-    r = R.setScore(r, 1, 20); r = R.setScore(r, 2, 20);
-    const before = { ...r.scores };
-    run('commit');
-    a = ranking.audience(r.state);
-    check(`«اعتمد النقاط»: الأول 3 − 12 = −9، والثاني 7 − 11 = −4 (${r.scores[1] - before[1]}، ${r.scores[2] - before[2]})`, r.scores[1] === before[1] - 9 && r.scores[2] === before[2] - 4);
-    check('ثم نهاية القائمة كما في النافذتين: «كُشف 2 من 10»، والخانات بأصحابها', r.state.phase === 'listend' && a.found === 2 && a.slots[2].team === 1 && a.slots[6].team === 2
-      && a.slots[11].team === 1 && a.slots[0].name && !a.slots[0].team);
-    r = R.undo(r);
-    check('التراجع يعيد ما قبل «اعتمد»: المقارنة بخاناتها والرصيد', r.state.phase === 'mark' && r.state.marks[3] === 1 && r.state.marks[11] === 2 && r.scores[1] === before[1] && r.scores[2] === before[2]);
-    // فخ برصيد صفر: لا ينزل تحته.
-    r = R.setScore(r, 1, 0); r = R.setScore(r, 2, 0);
-    run('mark:3'); run('mark:3'); run('mark:7'); run('mark:12'); run('mark:12'); run('mark:11');
-    check('المقارنة بعد التفريغ: لا خانة لأحد', !Object.keys(r.state.marks).length);
-    run('mark:13'); run('commit');
-    check('فخ برصيد صفر في المقارنة: لا ينزل تحته، والخانة تُحسب له بصفر', r.scores[1] === 0 && r.scores[2] === 0 && r.state.got[0].find(g => g.rank === 13)?.points === 0);
+    r = R.act(ranking, r, 'show'); r = R.act(ranking, r, 'start');
+    const old = ph => ({ ...r.state, phase: ph });
+    check('حال «steal» القديمة: إجابة تُنقر', ranking.actions(old('steal')).map(x => x.id).join() === 'item,wrong,finish');
+    check('وحال «decided» تنتقل بالدور، و«mark» تختار اللون', ranking.act(old('decided'), 'turn', {}, Date.now()).state.phase === 'ask'
+      && ranking.actions(old('mark')).some(x => x.id === 'turn'));
   }
 
   // «أنهِ القائمة» من ظهورها: تنكشف كلها، و«كُشف 0 من 10».
