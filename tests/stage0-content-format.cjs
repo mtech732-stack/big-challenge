@@ -88,6 +88,7 @@ const { reporter } = require('./helpers.cjs');
     check('«عبد الله» بمسافة كـ«عبدالله»، والعكس', joined('سمّاه عبد الله', 'عبدالله') && joined('سمّاه عبدالله', 'عبد الله'));
     check('«أبي لهب» و«أبا لهب» كـ«أبو لهب»، و«أبيض» ليست «أبو»', joined('نزلت في أبي لهب', 'أبو لهب') && joined('رأوا أبا لهب', 'أبو لهب') && !joined('ثوب أبيض', 'أبو'));
     check('السوابق «ولل» و«فلل» و«وبال» و«فبال» تُحذف', joined('وللمسجد باب', 'المسجد') && joined('فللبيت رب', 'البيت') && joined('وبالقلم كتب', 'القلم') && joined('فبالصبر نفوز', 'الصبر'));
+    check('«فلل» و«وبال» كلمتين كاملتين لا تفرغان بحذف السابقة', joined('سكنوا فلل البحر', 'فلل') && joined('كان وبال أمرهم', 'وبال'));
     const skip = examples();
     skip.packs.general['last-two.json'].questions[0].prompt = `مع ${skip.packs.general['letter.json'].questions[0].answer}`;
     skip.packs.general['pack.json'].excludeModes = ['last-two'];
