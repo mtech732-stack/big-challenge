@@ -68,7 +68,7 @@ const { reporter } = require('./helpers.cjs');
     const w = checkContent(told);
     check('نص الموضوع يكشف إجابة منه: تنبيه باسمها', w.errors.length === 0 && w.warnings.some(x => x.includes('يكشف إجابة') && x.includes('يناير')));
     const { TARGETS } = await import(path.join(__dirname, '..', 'js', 'content-check.js'));
-    check('الحرف المعيّن: سهل 10 ومتوسط 30 وصعب 20، و20 لكسر التعادل', JSON.stringify(TARGETS.letter) === '{"easy":10,"medium":30,"hard":20,"tiebreak":20}');
+    check('الحرف المعيّن: 20 لكل مستوى، و20 لكسر التعادل', JSON.stringify(TARGETS.letter) === '{"easy":20,"medium":20,"hard":20,"tiebreak":20}');
   }
 
   // طلبات الكاتب: ما صار تنبيهاً بعد أن كان خطأً.
