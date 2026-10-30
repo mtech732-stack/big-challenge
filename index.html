@@ -1053,8 +1053,8 @@
   }
   // سطر الحالة: في العدّاد الوقت الباقي كما على الشاشة (يصل كل ثانية من نافذة الجمهور).
   function rankState(pr) {
-    $('rState').innerHTML = pr.phase === 'read' ? 'يقرأ الفريق القائمة'
-      : pr.phase === 'ask' ? `<span class="ltr">${esc(tickText || '0:15')}</span>` : '';
+    // ولا سطر حالة في ظهور القائمة: «ابدأ العدّاد» تحته يكفي، وبأطول اسمين مع زر الباركود لا يتسع السطر (ملاحظة ش8-أ).
+    $('rState').innerHTML = pr.phase === 'ask' ? `<span class="ltr">${esc(tickText || '0:15')}</span>` : '';
   }
   $('rCtl').addEventListener('click', e => { const el = e.target.closest('button[data-act]'); if (el) roundAct(el.dataset.act); });
   // ما قاله الفريق: يُحكم فوراً، خانته بنقاطها أو فخه بخصمه.

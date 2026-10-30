@@ -124,6 +124,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo } = require
     if (LONGRUN) { await presenter.reload(); await stage.reload(); await unlock(stage).catch(() => {}); audience = await stageFrame(stage); await presenter.waitForSelector('#app:not([hidden])'); }
     await wait(900);
     check(tag + 'ظهور القائمة: الباركود على التلفاز، و«أخفِ الباركود» في المقدّم', await audience.$eval('#canvas', c => c.classList.contains('qr')) && (await text(presenter, '#rQr')) === 'أخفِ الباركود');
+    await both('الباركود');
     await presenter.click('#rQr'); await wait(900);
     check(tag + 'أُخفي الباركود: «الباركود» يعيده', !(await audience.$eval('#canvas', c => c.classList.contains('qr'))) && (await text(presenter, '#rQr')) === 'الباركود');
     let s = await st();
