@@ -94,7 +94,7 @@ export function clashes(files) {
 // و«عبد الله» كـ«عبدالله»، و«أبي» و«أبا» كـ«أبو».
 const wordsOf = text => fold(text).replace(/[^\u0621-\u064A0-9 ]/g, ' ').replace(/(^| )([وبفل]?)عبد +(?=ال)/g, '$1$2عبد').split(' ').filter(Boolean);
 const abu = w => w.replace(/^اب[يا]$/, 'ابو');
-const noArticle = w => abu(w.replace(/^(ولل|فلل|وبال|فبال|وال|بال|فال|كال|لل|ال)/, ''));
+const noArticle = w => abu(w.replace(/^(ولل|فلل|وبال|فبال|وال|بال|فال|كال|لل|ال)(?=..)/, ''));
 const bareWord = w => abu(noArticle(w).replace(/^[وبفل](?=..)/, ''));
 const saysWord = (text, answer) => {
   const a = wordsOf(answer).map(bareWord).join(' ');
