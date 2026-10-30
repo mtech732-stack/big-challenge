@@ -30,6 +30,9 @@ const { reporter } = require('./helpers.cjs');
     ['نهاية بالتطويل', c => { c.packs.general['last-two.json'].questions[0].ending = 'ـان'; }, '«ending» حرفان عربيان'],
     ['عنصر مزاد مكرر بصيغة أخرى', c => { c.packs.general['auction.json'].topics[1].items.push({ name: 'ذو الحجّة' }); }, 'يتكرر مع العنصر'],
     ['قائمة مزاد دون 10 عناصر', c => { c.packs.general['auction.json'].topics[0].items.length = 9; }, '10 عناصر على الأقل'],
+    ['«open» بغير true', c => { c.packs.general['auction.json'].topics[0].open = 'yes'; }, '«open» إما true وإما يُحذف'],
+    ['موضوع مفتوح دون 40 عنصراً', c => { c.packs.general['auction.json'].topics[0].open = true; }, '40 عنصراً على الأقل'],
+    ['موضوع مفتوح بلا معيار القبول', c => { const t = c.packs.general['auction.json'].topics[0]; t.open = true; delete t.note; }, '«note» معيار القبول لازم'],
     ['قائمة ترتيب من 12 عنصراً', c => { c.packs.general['ranking.json'].lists[0].items.pop(); }, '13 عنصراً بالضبط'],
     ['ترتيب خارج تسلسله', c => { c.packs.general['ranking.json'].lists[0].items[4].rank = 7; }, '«rank» يجب أن يكون 5'],
     ['مصدر واحد للترتيب', c => { c.packs.general['ranking.json'].lists[0].sources.pop(); }, 'مصدران على الأقل'],
@@ -46,6 +49,26 @@ const { reporter } = require('./helpers.cjs');
     mutate(content);
     const { errors } = checkContent(content);
     check(`يكتشف: ${name}`, errors.some(e => e.includes(expected)));
+  }
+
+  // المزاد المفتوح (المالك، 30 أكتوبر 2026): 40 عنصراً فأكثر مع معيار القبول سليم، وما لا يُعدّ خطأً تنبيهاتٌ يراجعها الكاتب.
+  {
+    const open = examples();
+    const t = open.packs.general['auction.json'].topics[0];
+    t.open = true;
+    t.items = Array.from({ length: 40 }, (_, i) => ({ name: `عنصر ${i + 1}` }));
+    const r = checkContent(open);
+    check('موضوع مفتوح بـ40 عنصراً ومعيار القبول: سليم بلا تنبيه', r.errors.length === 0 && r.warnings.length === 0);
+    const noNote = examples();
+    delete noNote.packs.general['auction.json'].topics[1].note;
+    const n = checkContent(noNote);
+    check('موضوع غير مفتوح بلا معيار القبول: تنبيه لا خطأ', n.errors.length === 0 && n.warnings.some(x => x.includes('general-auction-002') && x.includes('معيار القبول')));
+    const told = examples();
+    told.packs.general['auction.json'].topics[0].topic = 'أشهر السنة من يناير';
+    const w = checkContent(told);
+    check('نص الموضوع يكشف إجابة منه: تنبيه باسمها', w.errors.length === 0 && w.warnings.some(x => x.includes('يكشف إجابة') && x.includes('يناير')));
+    const { TARGETS } = await import(path.join(__dirname, '..', 'js', 'content-check.js'));
+    check('الحرف المعيّن: 20 لكل مستوى، و20 لكسر التعادل', JSON.stringify(TARGETS.letter) === '{"easy":20,"medium":20,"hard":20,"tiebreak":20}');
   }
 
   // طلبات الكاتب: ما صار تنبيهاً بعد أن كان خطأً.
