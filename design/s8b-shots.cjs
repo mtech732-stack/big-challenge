@@ -116,6 +116,9 @@ const answerOf = stage => stage.evaluate(() => { const st = JSON.parse(localStor
     const tn = names[opp - 1];
     await set(([a, n, p]) => { S8B.reveal(a, `${n} · <span class="ltr">+3</span>`, p); S8B.side(p); S8B.near([['السؤال التالي']]); }, [answer, tn, opp]);
     if (all) await shot(stage, frame, `07-${tag}-opp-won`, 1400);
+    // والفريق الآخر في الحالة نفسها، فتُقاس بالفريقين مهما كان صاحب السؤال
+    await set(([a, n, p]) => { S8B.reveal(a, `${n} · <span class="ltr">+3</span>`, p); S8B.side(p); }, [answer, names[owner - 1], owner]);
+    if (all) await shot(stage, frame, `07-${tag}-own-won`, 1400);
     await set(([a]) => { S8B.reveal(a, 'لم يُجب أحد', 0); S8B.side(0); }, [answer]);
     if (all) await shot(stage, frame, `08-${tag}-none`, 1400);
     await context.close();
