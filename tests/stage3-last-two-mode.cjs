@@ -76,38 +76,42 @@ const { reporter } = require('./helpers.cjs');
   a = lastTwo.audience(r.state);
   const q = r.state.questions[0];
   check('السؤال: الحرفان مع علامة التطويل، والوصف، ولا مستوى على الجمهور', a.letter === q.box && a.tatweel === true && a.question === q.prompt && a.levelText === undefined && a.level === undefined);
-  check('قبل «ابدأ»: العدّاد ثابت 0:30', a.clock === 30 && r.timer === null);
-  check('قبل «ابدأ»: «ابدأ العدّاد» وزرا الحكم', ids(lastTwo.actions(r.state)) === 'start,correct,wrong');
+  check('ظهور السؤال: وقته 30، وعدّاد التمهيد 5 ثوانٍ يبدأ وحده (1.11)', lastTwo.seconds === 30 && a.clock === 5 && a.lead && r.timer?.seconds === 5 && r.timer.lead);
+  check('الأفعال: «إيقاف مؤقت» و«وقت الخصم» و«كشف الإجابة»', ids(lastTwo.actions(r.state)) === 'pause,steal,reveal');
   const pr = lastTwo.presenter(r.state);
   check('المقدّم: الإجابة النموذجية، وسطر القبول بالحرفين والوصف', pr.answer === q.answer && pr.accept === `وتُقبل أي كلمة أخرى تنتهي بـ «ـ${q.box}» وتنطبق على الوصف.`);
-  r = R.act(lastTwo, r, 'start');
-  check('«ابدأ»: عدّاد 30 ثانية', r.timer?.seconds === 30 && r.events.some(e => e.type === 'timer' && e.seconds === 30));
+  check('الجمهور: لا إجابة قبل الكشف', a.answer === undefined);
+  r = R.act(lastTwo, r, 'timeout', r.timer.id);
+  check('بعد التمهيد: عدّاد 30 ثانية', r.timer?.seconds === 30 && !r.timer.lead && r.events.some(e => e.type === 'timer' && e.seconds === 30));
 
-  // الحكم والنقاط.
-  r = R.act(lastTwo, r, 'correct');
-  check('صحيحة: +3 لصاحب السؤال، والحكم بدل العدّاد', r.scores[1] === 3 && lastTwo.audience(r.state).verdict?.team === 1 && r.timer === null);
-  r = R.act(lastTwo, r, 'next');
-  r = R.act(lastTwo, r, 'start');
-  r = R.act(lastTwo, r, 'correct');
-  r = R.act(lastTwo, r, 'next');
-  check('السؤال 3 متوسط: «صحيحة · +6»', lastTwo.actions(r.state).find(x => x.id === 'correct').label === 'صحيحة · +6');
-
-  // السرقة: بعد الخطأ، وبعد انتهاء الوقت.
-  r = R.act(lastTwo, r, 'start');
-  r = R.act(lastTwo, r, 'wrong');
-  a = lastTwo.audience(r.state);
-  check('خاطئة: السرقة للخصم في 10 ثوانٍ', a.phase === 'steal' && a.turn === 2 && a.clock === 10 && r.timer?.seconds === 10 && a.steal.reason === 'wrong');
-  const before = r.scores[2];
-  r = R.act(lastTwo, r, 'correct');
-  check('السرقة الصحيحة: النقاط نفسها (+6) للسارق', r.scores[2] === before + 6);
+  // الكشف ثم الاختيار والنقاط.
+  const pick = (x, t) => R.act(lastTwo, R.act(lastTwo, x, 'reveal'), `pick:${t}`);
+  r = R.act(lastTwo, r, 'reveal');
+  check('«كشف الإجابة»: الإجابة النموذجية للجمهور، ولا عدّاد', lastTwo.audience(r.state).answer === q.answer && r.timer === null);
+  r = R.act(lastTwo, r, 'pick:1');
+  check('اختيار صاحب السؤال: +3 له، والحكم', r.scores[1] === 3 && lastTwo.audience(r.state).verdict?.team === 1 && r.timer === null);
+  r = pick(R.act(lastTwo, r, 'next'), 2);
+  r = R.act(lastTwo, R.act(lastTwo, r, 'next'), 'reveal');
+  check('السؤال 3 متوسط: «+6»', lastTwo.actions(r.state).find(x => x.id === 'pick').label === '+6');
   r = R.undo(r);
-  check('التراجع: تعود السرقة وعدّادها كاملاً، والرصيد كما كان', r.state.phase === 'steal' && r.scores[2] === before && r.timer?.seconds === 10);
-  r = R.act(lastTwo, r, 'timeout', r.timer.id);
-  check('انتهى وقت السارق: لا نقاط', lastTwo.audience(r.state).verdict?.team === 0 && r.scores[2] === before);
+
+  // وقت الخصم بالزر، بعد الخطأ وبعد انتهاء الوقت.
+  r = R.act(lastTwo, r, 'steal');
+  a = lastTwo.audience(r.state);
+  check('«وقت الخصم»: للخصم في 10 ثوانٍ', a.phase === 'steal' && a.turn === 2 && a.clock === 10 && r.timer?.seconds === 10 && a.steal.reason === 'wrong');
+  const before = r.scores[2];
+  r = pick(r, 2);
+  check('إصابة الخصم: النقاط نفسها (+6)', r.scores[2] === before + 6);
+  r = R.undo(r);
+  check('التراجع: الإجابة مكشوفة والرصيد كما كان', r.state.phase === 'revealed' && r.scores[2] === before);
+  r = R.act(lastTwo, r, 'pick:0');
+  check('«لم يُجب أحد»: لا نقاط', lastTwo.audience(r.state).verdict?.team === 0 && r.scores[2] === before);
   r = R.act(lastTwo, r, 'next');
-  r = R.act(lastTwo, r, 'start');
   r = R.act(lastTwo, r, 'timeout', r.timer.id);
-  check('انتهى وقت صاحب السؤال: السرقة «بعد انتهاء الوقت»', r.state.phase === 'steal' && r.state.steal.reason === 'timeout');
+  r = R.act(lastTwo, r, 'timeout', r.timer.id);
+  check('انتهى وقت صاحب السؤال: ينتظر الزر، ولا انتقال', r.state.phase === 'over' && !r.state.steal && r.timer === null);
+  r = R.act(lastTwo, r, 'steal');
+  check('ثم «وقت الخصم»: «بعد انتهاء الوقت»', r.state.phase === 'steal' && r.state.steal.reason === 'timeout');
 
   // لا إجابة على الجمهور في أي حالة.
   let states = 0, leaks = 0;
@@ -117,12 +121,13 @@ const { reporter } = require('./helpers.cjs');
       const aud = JSON.stringify(lastTwo.audience(x.state));
       const cur = x.state.questions[x.state.index];
       states++;
-      // بعد الحكم الأخير تظهر الإجابة النموذجية وحدها (الإصدار 1.1)، ولا بدائل أبداً.
-      const decided = x.state.phase === 'decided';
+      // بعد الكشف تظهر الإجابة النموذجية وحدها (1.11)، ولا بدائل أبداً.
+      const decided = x.state.phase === 'decided' || x.state.phase === 'revealed';
       if (/"alts"/.test(aud) || (!decided && /"answer"/.test(aud)) || (x.state.phase !== 'intro' && (decided ? cur.alts : [cur.answer, ...cur.alts]).some(w => aud.includes(`"${w}"`)))) leaks++;
       if (decided && lastTwo.audience(x.state).answer !== cur.answer) leaks++;
       const act = lastTwo.actions(x.state).map(b => b.id);
-      x = R.act(lastTwo, x, act.includes('next') ? 'next' : act.includes('show') ? 'show' : act.includes('start') ? 'start' : (states % 3 ? 'wrong' : 'correct'));
+      x = act.includes('next') || act.includes('show') ? R.act(lastTwo, x, act[0]) : act.includes('pick') ? R.act(lastTwo, x, `pick:${states % 3}`)
+        : x.timer && states % 2 ? R.act(lastTwo, x, 'timeout', x.timer.id) : R.act(lastTwo, x, act.includes('steal') && states % 3 ? 'steal' : 'reveal');
     }
   }
   check(`الجمهور: لا إجابة في ${states} حالة`, leaks === 0);
@@ -130,7 +135,7 @@ const { reporter } = require('./helpers.cjs');
   // الحرف المعيّن على جولة الكلمة نفسها، بفروقه.
   let l = R.act(letter, R.startRound(letter, { content, first: 1, rng }), 'show');
   const la = letter.audience(l.state);
-  check('الحرف المعيّن باقٍ: 30 ثانية، وحرف بلا تطويل، وسطر قبوله', la.clock === 30 && !la.tatweel && [...la.letter].length === 1 && letter.presenter(l.state).accept === `وتُقبل أي كلمة أخرى تبدأ بـ «${la.letter}» وتنطبق على المطلوب.`);
+  check('الحرف المعيّن باقٍ: 30 ثانية، وحرف بلا تطويل، وسطر قبوله', letter.seconds === 30 && la.lead && !la.tatweel && [...la.letter].length === 1 && letter.presenter(l.state).accept === `وتُقبل أي كلمة أخرى تبدأ بـ «${la.letter}» وتنطبق على المطلوب.`);
   check('حالة محفوظة قبل ش3 (letter بدل box) تُعرض', letter.audience({ ...l.state, questions: l.state.questions.map(({ box, ...x }) => ({ ...x, letter: box })) }).letter === la.letter);
 
   // تتابع المباراة: الجولة 1 «آخر حرفين» ← العجلة (تُتخطى) ← الجولة 2 «الحرف المعيّن» ← النهائية.
@@ -141,7 +146,7 @@ const { reporter } = require('./helpers.cjs');
   check('بدء الجولة 1 لآخر حرفين', m.step === 'play' && m.round.mode === 'last-two' && m.round.n === 1);
   while (!lastTwo.finished(m.round.state)) {
     const act = lastTwo.actions(m.round.state).map(b => b.id);
-    m = P.act(m, MODES, act.includes('next') ? 'next' : act.includes('show') ? 'show' : 'correct');
+    m = P.act(m, MODES, act.includes('next') ? 'next' : act.includes('show') ? 'show' : act.includes('pick') ? `pick:${m.round.state.questions[m.round.state.index].owner}` : 'reveal');
   }
   check('بعد الجولة: الحصيلة 18 لكل فريق (3+6+9)', lastTwo.audience(m.round.state).totals[1] === 18 && lastTwo.audience(m.round.state).totals[2] === 18);
   check('«التالي: شريط البونص»', P.nextText(m, name) === 'التالي: شريط البونص' && P.nextKind(m, MODES) === 'skip');

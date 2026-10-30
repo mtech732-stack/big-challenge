@@ -151,10 +151,10 @@
 
     <!-- باركود الإجابات يمين البطاقة (design/s8.md 2): أبيض مستقيم 520×520 وخلفه صفيحة مائلة 6° -->
     <div class="qrbox" id="qrbox" data-hud="الباركود"><div class="plate"></div><div class="sheet"><canvas aria-label="باركود الإجابات"></canvas></div></div>
-    <!-- مربع الإعلان أسفل اليمين (15.4): الحكم والإجابة بعد الحكم الأخير · الفائز بالقرعة في المواجهة · «التالي» في نهاية الجولة -->
+    <!-- مربع الإعلان أسفل اليمين (15.4): الحكم والإجابة بعد الحكم الأخير · من يبدأ الإجابة في المواجهة · «التالي» في نهاية الجولة -->
     <div class="box" id="box" data-hud="مربع الإعلان" hidden><i></i>
       <p class="chip" id="verdict" hidden><i></i><span id="vtext"></span></p>
-      <p class="chip" id="faceChip" hidden><i></i><span>الفائز بالقرعة</span></p>
+      <p class="chip" id="faceChip" hidden><i></i><span>يبدأ الإجابة</span></p>
       <p class="line" id="reveal" data-fit="سطر الإجابة" hidden>الإجابة: <b id="answer"></b></p>
       <p class="line" id="told" data-fit="سطر ما ذُكر" hidden></p>
       <p class="line" id="say" data-fit="سطر الحكم" hidden></p>
@@ -164,6 +164,7 @@
 
     <!-- أزرار الشاشة المشتركة، بجانب ما تتحكم فيه (design/shared.md 3.2). فارغة في نافذة الجمهور وحدها -->
     <div class="ctl-near" id="near" data-hud="أزرار العدّاد"></div>
+    <div class="ctl-ans" id="ansCtl" data-hud="زر الكشف"></div>
     <div class="ctl-corner a" id="cornerA" data-hud="أزرار الزاوية العليا"></div>
     <div class="ctl-corner b" id="cornerB" data-hud="أزرار الزاوية السفلى"></div>
     <div class="ctl-corner c" id="cornerC" data-hud="أزرار الصف الثالث"></div>
@@ -180,7 +181,7 @@
 <script type="module">
   import './js/offline.js';
   import { createLink } from './js/sync.js';
-  import { plan, chooser, picksDone, METHODS, other, gains, leaderOf } from './js/match.js';
+  import { plan, chooser, picksDone, starter, METHODS, other, gains, leaderOf } from './js/match.js';
   import { rectOf } from './js/stage-check.js';
   import { PLANNED } from './js/modes/index.js';
   import { play as sound, setMuted } from './js/sound.js';
@@ -270,6 +271,16 @@
     const from = 100 * Math.min(1, Math.max(0, 1 - left / total));
     drainAnim = $('p' + team).querySelector('polygon').animate([{ strokeDashoffset: from }, { strokeDashoffset: 100 }], { duration: Math.max(0, left * 1000), fill: 'forwards' });
   };
+  // الإطار الثابت للعدّاد الظاهر بلا عدّ: share ما بقي منه (0 فارغ). والموقوف متقطع حتى طوله الباقي ثم فراغ (s8b.css 1.2).
+  const holdRing = (team, share) => {
+    for (const k of [1, 2]) { const poly = $('p' + k).querySelector('polygon'); poly.style.strokeDashoffset = ''; }
+    canvas.style.removeProperty('--dash');
+    if (!team) return;
+    const L = 100 * share, d = [];
+    for (let x = 0; x + 1.6 <= L; x += 2.8) d.push(1.6, 1.2);
+    $('p' + team).querySelector('polygon').style.strokeDashoffset = L ? 0 : 100;
+    if (L) canvas.style.setProperty('--dash', [...d, 0, 200].join(' '));
+  };
   // مربع الإعلان (15.4): الحكم والإجابة · الفائز بالقرعة · «التالي». ولا يظهر إن لم يكن فيه شيء.
   // told: سطر المزاد بعد الحكم «ذُكر 10 من 12» مكان الإجابة (القائمة كلها في البطاقة، design/auction.md 2).
   // say: سطر الترتيب في المربع «المركز 7» أو «لم تُكشف خانة» (الاسم في خانته، design/ranking.md 7.6).
@@ -283,7 +294,7 @@
       $('verdict').className = `chip${v.team ? ' t' + v.team : ''}`;
       // الفريق الذي أخذ النقاط باسمه (الوثيقة 1.1، 7.1). وخصم الفخ «−2» بما خُصم فعلاً (design/ranking.md 7.7).
       $('vtext').innerHTML = v.label ? `${esc(name(v.who))} · ${esc(v.label)}`
-        : v.team ? `${esc(name(v.team))} · ${num(v.points < 0 ? '−' + -v.points : v.points ? '+' + v.points : '0')}` : 'لا نقاط';
+        : v.team ? `${esc(name(v.team))} · ${num(v.points < 0 ? '−' + -v.points : v.points ? '+' + v.points : '0')}` : esc(v.none ?? 'لا نقاط');
     }
     $('reveal').hidden = !answer; $('answer').textContent = answer ?? '';
     $('told').hidden = !told; $('told').innerHTML = told ? segs(told) : '';
@@ -292,6 +303,8 @@
     // وسطران صريحان («\n») لنهاية القائمة بانقضاء وقتها (الملاحظة 36، design/ranking.css 5): لا « · » معلّقة.
     $('next').hidden = !next; $('next').innerHTML = next ? next.split('\n').map(segs).join('<br>') : '';
     $('box').classList.toggle('two', !!next?.includes('\n'));
+    // بعد كشف الإجابة وقبل الاختيار: الإجابة وحدها في وسط المربع (design/s8b.md 4).
+    $('box').classList.toggle('ans', !!answer && !v && !told && !say && !face && !next);
     $('box').hidden = !(v || answer || told || say || face || next);
     // «التالي» في نهاية الجولة نص أبيض على الطرف بلا مربع، فلا يتجاوز الأبيض سقفه (15.4 و15.12).
     // وحكم المزاد (سطره told) بلا مربع كذلك، فالقائمة القصيرة لا ترفع الأبيض فوق 35 (design/auction.md 1.5).
@@ -410,7 +423,11 @@
     if (m.step === 'pick') {
       showScreen('pick');
       const done = picksDone(m);
-      if (done) {
+      // قبل القرعة (design/s8b.md 3.2): البطاقات بلا نقر ولا مؤشر دور، و«قرعة البداية» وحده.
+      if (!m.winner) {
+        $('pickHead').innerHTML = '';
+        setBadges('اختيار الأنماط');
+      } else if (done) {
         const auto = m.picks.find(p => p.by === 0);
         $('pickHead').innerHTML = auto ? `الجولة <span class="ltr">4</span> للنمط المتبقي: ${esc(modeName(auto.mode))}` : 'اكتمل اختيار الأنماط';
         setBadges('اختيار الأنماط');
@@ -421,6 +438,8 @@
         setBadges('اختيار الأنماط', `الجولة ${k + 1} من ${total}`);
       }
       pickCards(m, modes, done ? 0 : turn);
+      // بعد اكتمال الاختيار: مؤشر الدور للفائز بسطر «يبدأ الإجابة» (design/s8b.md 3.2).
+      if (done) startsLine(m.winner);
       $('tiles').innerHTML = modes.map(mode => {
         const i = m.picks.findIndex(p => p.mode === mode.id), p = m.picks[i];
         const cls = p ? (p.by ? `by${p.by}` : 'auto') : (done ? 'left' : '');
@@ -441,7 +460,7 @@
       let n = 0;
       $('track').innerHTML = plan(m).map(s => s.kind === 'wheel'
         ? `<div class="seg wheel" style="--i:${n++}" data-fit="خانة العجلة"><span>شريط</span><span>البونص</span></div>`
-        : `<div class="seg ${s.by ? 'by' + s.by : ''}" style="--i:${n++}" data-fit="خانة الجولة"><span class="rn">${num('الجولة ' + s.n)}</span><span class="mname">${esc(modeName(s.mode))}</span></div>`).join('');
+        : `<div class="seg ${s.first ? 'by' + s.first : ''}" style="--i:${n++}" data-fit="خانة الجولة"><span class="rn">${num('الجولة ' + s.n)}</span><span class="mname">${esc(modeName(s.mode))}</span></div>`).join('');
       turn = m.winner;
     }
     setTurn(turn);
@@ -463,6 +482,13 @@
     return `<span class="bdg" style="width:${w}px;height:${H}px"><img src="design/logo/modes/${svg}.svg" alt="" style="left:${-m.l * ih}px;top:${-m.t * ih}px;height:${ih}px"${svg === 'ranking' ? ' class="edge"' : ''}></span>`;
   }
   let cardsKey = '';
+  // مؤشر الدور للفائز بسطر «يبدأ الإجابة»: تحت لوحة الأول، وفوق لوحة الثاني (فيُقرأ «يبدأ الإجابة [الاسم]»).
+  function startsLine(team) {
+    $('turnp').hidden = !team;
+    $('turnp').className = 'turnp t' + team;
+    $('turnName').textContent = team ? name(team) : '';
+    $('turnLine').textContent = team ? 'يبدأ الإجابة' : '';
+  }
   function pickCards(m, modes, turn) {
     const k = m.picks.length;
     // مؤشر الدور: لوحة صاحب الدور بلونه في جهته، و«يختار نمط الجولة N» تحتها للأول وفوقها للثاني (4.4). ولا مؤشر بعد اكتمال الاختيار.
@@ -473,7 +499,8 @@
     const list = modes.filter(x => CARDS[x.id]);
     const html = list.map((mode, i) => {
       const c = CARDS[mode.id], at = m.picks.findIndex(p => p.mode === mode.id), p = m.picks[at];
-      const state = p ? `picked tm${p.by}` : (picksDone(m) ? 'left' : 'avail');
+      // والختم بلون من يبدأ الإجابة في الجولة (design/s8b.md 3.3): المختار في 1–3، والباقية للخاسر في القرعة (st).
+      const state = p ? (p.by ? `picked tm${p.by}` : `picked st${starter(m, at + 1)}`) : !m.winner ? 'wait' : (picksDone(m) ? 'left' : 'avail');
       return `<div class="mc ${c.pat} ${state}" data-mode="${esc(mode.id)}" style="left:${96 + (3 - i) * 438}px">`
         + `<div class="face"><div class="in"><div class="ct" data-hud="بطاقة ${esc(mode.name)}" data-free aria-label="${esc(mode.name)}">${cardBadge(c)}<p class="line">${c.line}</p></div></div>`
         + (p ? `<div class="key done"><span>${num('الجولة ' + (at + 1))}</span></div>` : `<div class="key"><span><b class="ltr">${i + 1}</b>اختر</span></div>`) + '</div>'
@@ -641,7 +668,8 @@
       // و«خصم» (الأخذ من الخصم): السطر «[الخصم] · −3» بما أُخذ فعلاً، والصفر بلا إشارة (ملاحظة المعاين 38).
       : a.screen === 'slot' ? (v ? { verdict: v, say: v.from ? `${name(v.from)} · ${v.taken ? '−' + v.taken : '0'}` : v.say, bare: true } : {})
       // والجولة الفاصلة: الحكم بلا مربع «[الاسم] · أصاب» و«الإجابة: …» (design/final.md 2.5).
-      : a.tiebreak ? { verdict: v, answer: a.answer, bare: true }
+      // وبعد الكشف وقبل الاختيار الإجابة وحدها في المربع (design/s8b.md 2).
+      : a.tiebreak ? { verdict: v, answer: a.answer, bare: !!v }
       : { verdict: v, answer: a.answer, told: v && a.tally ? `ذُكر ${a.tally.n} من ${a.tally.of}` : undefined });
     syncTimer(p.timer, a);
     showQR(p.qr);
@@ -650,13 +678,19 @@
     // وبعد الحكم يقف على من أخذ النقاط، أو يعود إلى المنتصف إن لم يأخذ أحد. وفي غير شاشة السؤال في المنتصف.
     // والعدّاد يعمل: إطار الوقت حول لوحة صاحب الدور يتآكل، والثواني فيها، والحزم تخفت (.running وحده).
     const running = !!count && !count.test;
-    setRunning(running);
+    // والعدّاد الظاهر بلا عدّ (design/s8b.md 1.1): الموقوف يثبت رقمه وطول إطاره متقطعاً، ومن انتهى وقته إطاره فارغ ورقمه 0.
+    // والعدّ قبل الوقت (lead) بالأبيض: الرقم والإطار.
+    const hold = !running && a.screen === 'ask' && !!a.hold;
+    setRunning(running || hold);
+    canvas.classList.toggle('lead', (running || hold) && !!a.lead);
+    canvas.classList.toggle('paused', hold && !!a.paused);
     // وفي المزاد في المنتصف أثناء المزايدة (turn 0)، ثم للملتزم من «ابدأ» (design/auction.md 2، 3.0).
     // والترتيب يقرر حدّه بعد الحكم بنفسه (turn): في المنتصف بعد الفخ وإن كان للحكم صاحب (design/ranking.md 2).
     // والعجلة تقرره بنفسها كذلك: «خصم» في المنتصف وإن كان للشارة صاحب (design/wheel.md 2).
     setSide(!asking ? 0 : v && a.screen !== 'list' && a.screen !== 'slot' ? v.team || 0 : a.turn);
-    if (running && count.id !== drained) { drained = count.id; drain(a.turn, (count.endAt - Date.now()) / 1000, p.timer.seconds); }
+    if (running && count.id !== drained) { drained = count.id; drain(a.turn, (count.endAt - Date.now()) / 1000, a.total ?? p.timer.seconds); }
     if (!running && drained) { drained = 0; drain(0); }
+    holdRing(hold ? a.turn : 0, a.paused ? a.clock / a.total : 0);
     renderCtl();
   }
   let drained = 0;
@@ -798,7 +832,7 @@
   }
 
   // ===== أزرار الشاشة المشتركة (design/shared.md 3): المقدّم يقرر ما يظهر (ctl)، وهنا موضعه =====
-  // ctl: { card, near, a, b, c: أزرار (c الصف الثالث في الجولة) · count: خانتا العدد · names: اللوحتان حقلان · pick: الخانات تُنقر · scores · error }
+  // ctl: { card, near, ans («كشف الإجابة» أسفل اليمين، design/s8b.md 1.3), a, b, c: أزرار (c الصف الثالث في الجولة) · count: خانتا العدد · names: اللوحتان حقلان · pick: الخانات تُنقر · scores · error }
   // والزر { cmd, label, kind: '' | 'alt' | 'no', off }. يصل من النافذة التي تحتوي هذه الشاشة وحدها، فلا يظهر في نافذة الجمهور.
   let ctl = null;
   const button = b => `<button class="cbtn${b.kind ? ' ' + b.kind : ''}${b.off ? ' off' : ''}" data-cmd="${esc(b.cmd)}">${b.html ?? num(b.label)}</button>`;
@@ -813,6 +847,7 @@
     $('startGo').innerHTML = hero === 'start' ? (c?.card ?? []).map(button).join('') : '';
     $('pickCtl').innerHTML = hero === 'pick' ? (c?.card ?? []).map(button).join('') : '';
     $('near').innerHTML = (c?.near ?? []).map(button).join('');
+    $('ansCtl').innerHTML = (c?.ans ?? []).map(button).join('');
     $('cornerA').innerHTML = rows(c?.a);
     $('cornerB').innerHTML = rows(c?.b);
     $('cornerC').innerHTML = rows(c?.c);
@@ -890,10 +925,13 @@
     canvas.classList.add('anim');
     const winner = view.match.winner;
     if (name === 'draw' && winner) {
-      render(); showScreen('spin'); busy = true; canvas.classList.add('drawing');
-      // يتنقل المؤشر 12 مرة ويتباطأ، فيقف على الفائز في آخر خطوة. والحدّ يتأرجح معه، وإطار الوقت يتنقل معه (1.3).
+      // في صفحة الاختيار (design/s8b.md 3.2): مؤشر الدور يتنقل بين جهتي الفريقين والبطاقات تنتظر، ثم يقف على الفائز.
+      render(); busy = true; canvas.classList.add('drawing');
+      // يتنقل المؤشر 12 مرة ويتباطأ، فيقف على الفائز في آخر خطوة. والحدّ يتأرجح معه.
       let t = DRAW_STEPS.length % 2 === 0 ? other(winner) : winner, at = 0;
-      DRAW_STEPS.forEach(ms => { at += ms; const who = t; later(at, () => { setTurn(who); setSide(who); }); t = other(t); });
+      const wait = () => { cardsKey = ''; $('mcards').querySelectorAll('.mc.avail').forEach(c => { c.classList.remove('avail'); c.classList.add('wait'); }); };
+      wait();
+      DRAW_STEPS.forEach(ms => { at += ms; const who = t; later(at, () => { startsLine(who); $('turnLine').textContent = ''; wait(); setSide(who); }); t = other(t); });
       later(at + 420, () => { busy = false; canvas.classList.remove('drawing'); render(); bump(winner); });
     }
     // النتيجة النهائية: خانات المسار تدخل واحدة بعد الأخرى ثم رقماها (.anim .fin في css/final.css).
@@ -991,9 +1029,11 @@
   const run = () => {
     const left = Math.max(0, Math.ceil((count.endAt - Date.now()) / 1000));
     show(left);
-    setDanger(left > 0 && left <= 3);
-    if (!count.test) speed(left > 0 && left <= 3 ? 3.5 : 2.2);
-    if (left !== lastLeft && left > 0 && left <= 3) sound('tick');
+    // والنبض وصوت الثواني لوقت الإجابة وحده، لا للعدّ قبل الوقت (design/s8b.md 1.1).
+    const last3 = left > 0 && left <= 3 && !count.lead;
+    setDanger(last3);
+    if (!count.test) speed(last3 ? 3.5 : 2.2);
+    if (left !== lastLeft && last3) sound('tick');
     lastLeft = left;
     if (left > 0) return;
     const done = count;
@@ -1004,7 +1044,7 @@
   const begin = c => { stop(); count = c; run(); if (count) ticker = setInterval(run, 100); };
   function syncTimer(t, a) {
     mmss = !!a?.mmss;
-    if (t && t.id !== count?.id && t.id !== expired) return begin({ id: t.id, endAt: t.at + t.seconds * 1000 });
+    if (t && t.id !== count?.id && t.id !== expired) return begin({ id: t.id, endAt: t.at + t.seconds * 1000, lead: !!t.lead });
     if (!t && count && !count.test) stop();
     if (!count) show(a?.clock ?? 0);
   }

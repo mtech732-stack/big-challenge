@@ -35,8 +35,10 @@ async function finalMatch({ results = ['rrrrrr', 'rrrrrr'], wheel = ['failed', '
     const word = marks => {
       act('show');
       [...marks].forEach((k, i) => {
-        if (k === 'r') act('correct');
-        else { act('wrong'); act(k === 's' ? 'correct' : 'wrong'); }
+        // 1.11: r صاحب السؤال أصاب · s وقت الخصم فأصاب الخصم · x وقت الخصم ولم يُجب أحد.
+        const owner = m.round.state.team, rival = owner === 1 ? 2 : 1;
+        if (k === 'r') { act('reveal'); act(`pick:${owner}`); }
+        else { act('steal'); act('reveal'); act(`pick:${k === 's' ? rival : 0}`); }
         act('next');
       });
     };

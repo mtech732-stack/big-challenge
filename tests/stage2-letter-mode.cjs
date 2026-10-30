@@ -41,61 +41,79 @@ const { reporter } = require('./helpers.cjs');
   let r = start(1);
   check('الافتتاح: الزر «اعرض السؤال 1» وحده', ids(letter.actions(r.state)) === 'show' && letter.audience(r.state).screen === 'intro');
   check('الافتتاح: من يبدأ والقاعدة، ولا سطر تفاصيل (الإصدار 1.1)', letter.audience(r.state).turn === 1 && letter.audience(r.state).rule === 'أجب بكلمة تبدأ بالحرف المعيّن' && letter.audience(r.state).sub === undefined);
+  // الوثيقة 1.11: التمهيد 5 ثوانٍ ثم العدّاد وحده، و«إيقاف مؤقت»، و«وقت الخصم» بزر، ثم «كشف الإجابة» واختيار من أجاب.
+  const reveal = (x, team) => R.act(letter, R.act(letter, x, 'reveal'), `pick:${team}`);
   r = R.act(letter, r, 'show');
   let a = letter.audience(r.state);
-  check('قبل «ابدأ»: العدّاد ثابت 30، ولا عدّاد جارٍ', a.clock === 30 && r.timer === null && a.phase === 'ready');
-  check('قبل «ابدأ»: «ابدأ العدّاد» وزرا الحكم مفعّلان', ids(letter.actions(r.state)) === 'start,correct,wrong');
-  check('زر الحكم يحمل النقاط «صحيحة · +3»', letter.actions(r.state)[1].label === 'صحيحة · +3');
-  check('«السؤال 1 من 6»، ولا مستوى على الجمهور (الإصدار 1.1)', a.levelText === undefined && a.level === undefined && a.n === 1 && a.count === 6);
-  check('«انتهى الوقت» قبل «ابدأ» يُهمل', R.act(letter, r, 'timeout', 1).state === r.state);
-  r = R.act(letter, r, 'start');
-  check('«ابدأ»: عدّاد 30 ثانية برقمه', r.timer?.seconds === 30 && r.events.some(e => e.type === 'timer' && e.seconds === 30 && e.id === r.timer.id));
-  const t1 = r.timer.id;
-  r = R.act(letter, r, 'correct');
+  check('ظهور السؤال: عدّاد التمهيد 5 ثوانٍ يبدأ وحده', a.phase === 'ready' && a.lead && r.timer?.seconds === 5 && r.timer.lead && r.events.some(e => e.type === 'timer' && e.seconds === 5 && e.lead));
+  check('في التمهيد: «إيقاف مؤقت» و«وقت الخصم · 10» و«كشف الإجابة»، ولا «صحيحة/خاطئة» ولا «ابدأ»', ids(letter.actions(r.state)) === 'pause,steal,reveal');
+  check('«السؤال 1 من 6»، ولا مستوى على الجمهور (الإصدار 1.1)', a.levelText === undefined && a.level === undefined && a.n === 1 && a.count === 6 && a.total === 5 && letter.seconds === 30);
+  check('«انتهى الوقت» من عدّاد غير جارٍ يُهمل', R.act(letter, r, 'timeout', r.timer.id + 5).state === r.state);
+  r = R.act(letter, r, 'timeout', r.timer.id);
   a = letter.audience(r.state);
-  check('صحيحة: +3 لصاحب السؤال، والحكم بدل العدّاد', r.scores[1] === 3 && a.verdict?.team === 1 && a.verdict.points === 3 && r.timer === null);
-  check('صحيحة: لحظة «right»، ولحظة «lead» لأنه تقدّم', r.events.some(e => e.name === 'right' && e.team === 1) && r.events.some(e => e.name === 'lead' && e.team === 1));
-  check('حكم في اللحظة الأخيرة ثم «انتهى الوقت» متأخراً: يُهمل', R.act(letter, r, 'timeout', t1).state === r.state);
+  check('انتهاء التمهيد: عدّاد 30 ثانية برقمه، بلا تمهيد', a.phase === 'ask' && !a.lead && r.timer?.seconds === 30 && !r.timer.lead && r.events.some(e => e.type === 'timer' && e.seconds === 30 && e.id === r.timer.id));
+  // إيقاف مؤقت بعد 12 ثانية ثم استئناف بما بقي.
+  const t0 = r.timer.at;
+  const paused = R.act(letter, r, 'pause', undefined, t0 + 12000);
+  check('«إيقاف مؤقت»: يوقف العدّاد ويحفظ ما بقي (18)', paused.timer === null && paused.events.some(e => e.type === 'stop-timer') && paused.state.paused === 18 && letter.audience(paused.state).paused);
+  check('الموقوف: «استئناف» بدل الإيقاف، و«انتهى الوقت» المتأخر يُهمل', ids(letter.actions(paused.state)) === 'resume,steal,reveal' && R.act(letter, paused, 'timeout', r.timer.id).state === paused.state);
+  const resumed = R.act(letter, paused, 'resume', undefined, t0 + 60000);
+  check('«استئناف»: عدّاد جديد بما بقي (18)', resumed.timer?.seconds === 18 && resumed.timer.id !== r.timer.id && resumed.state.paused === null && resumed.state.phase === 'ask');
+  check('التراجع عن الإيقاف يعيد العدّاد', R.undo(paused).timer?.seconds === 30 && R.undo(paused).state.paused === null);
+  const t1 = resumed.timer.id;
+  r = R.act(letter, resumed, 'reveal');
+  a = letter.audience(r.state);
+  check('«كشف الإجابة»: يوقف العدّاد ويُظهر الإجابة النموذجية للجمهور قبل الاختيار', a.phase === 'revealed' && r.timer === null && a.answer === r.state.questions[0].answer && a.verdict === null);
+  check('بعد الكشف: صاحب السؤال ثم خصمه «+3»، ثم «لم يُجب أحد»', letter.actions(r.state).map(b => `${b.id}:${b.team}`).join(',') === 'pick:1,pick:2,pick:0' && letter.actions(r.state)[0].label === '+3' && letter.actions(r.state)[2].label === 'لم يُجب أحد');
+  check('بعد الكشف: «انتهى الوقت» المتأخر يُهمل', R.act(letter, r, 'timeout', t1).state === r.state);
+  r = R.act(letter, r, 'pick:1');
+  a = letter.audience(r.state);
+  check('اختيار صاحب السؤال: +3 له، والحكم', r.scores[1] === 3 && a.verdict?.team === 1 && a.verdict.points === 3 && a.answer);
+  check('لحظة «right»، ولحظة «lead» لأنه تقدّم', r.events.some(e => e.name === 'right' && e.team === 1) && r.events.some(e => e.name === 'lead' && e.team === 1));
   check('بعد الحكم: «السؤال التالي · 2 من 6»', letter.actions(r.state)[0].label === 'السؤال التالي · 2 من 6');
   r = R.act(letter, r, 'next');
   a = letter.audience(r.state);
-  check('السؤال 2 للفريق الثاني، والمؤشر عليه', a.n === 2 && a.owner === 2 && a.turn === 2 && a.phase === 'ready');
+  check('السؤال 2 للفريق الثاني، والمؤشر عليه، وتمهيد جديد', a.n === 2 && a.owner === 2 && a.turn === 2 && a.phase === 'ready' && r.timer?.lead && !a.answer);
 
-  // السرقة: خاطئة قبل «ابدأ» ← الخصم في 10 ثوانٍ فوراً.
-  r = R.act(letter, r, 'wrong');
+  // وقت الخصم بزر في التمهيد (أخطأ الفريق مبكراً): عدّاد 10 ثوانٍ فوراً.
+  r = R.act(letter, r, 'steal');
   a = letter.audience(r.state);
-  check('خاطئة: السرقة للخصم، وعدّادها 10 ثوانٍ يبدأ فوراً', a.steal?.team === 1 && a.steal.reason === 'wrong' && a.turn === 1 && r.timer?.seconds === 10 && a.clock === 10);
-  check('لحظة السرقة بسببها', r.events.some(e => e.name === 'steal' && e.reason === 'wrong' && e.team === 1));
-  check('في السرقة: زرا الحكم وحدهما', ids(letter.actions(r.state)) === 'correct,wrong');
-  const stealTimer = r.timer.id;
-  // التراجع أثناء السرقة: يعود السؤال لصاحبه، ولا عدّاد (لم يكن بدأ).
+  check('«وقت الخصم»: الدور للخصم، وعدّاده 10 ثوانٍ', a.steal?.team === 1 && a.steal.reason === 'wrong' && a.turn === 1 && r.timer?.seconds === 10 && a.clock === 10);
+  check('لحظة الانتقال بسببها', r.events.some(e => e.name === 'steal' && e.reason === 'wrong' && e.team === 1));
+  check('في وقت الخصم: «إيقاف مؤقت» و«كشف الإجابة»، ولا وقت خصم ثانٍ', ids(letter.actions(r.state)) === 'pause,reveal');
   const back = R.undo(r);
-  check('التراجع أثناء السرقة: يعود لصاحبه قبل «ابدأ»، ويتوقف عدّاد السرقة', letter.audience(back.state).phase === 'ready' && back.timer === null && back.events.some(e => e.type === 'stop-timer'));
-  r = R.act(letter, r, 'timeout', stealTimer);
-  a = letter.audience(r.state);
-  check('انتهى وقت السرقة: لا نقاط', a.verdict?.team === 0 && r.scores[1] === 3 && r.scores[2] === 0 && r.events.some(e => e.name === 'none'));
-
-  // انتهاء الوقت ← السرقة، ثم سرقة صحيحة بالنقاط نفسها.
-  r = R.act(letter, R.act(letter, r, 'next'), 'start');
-  check('السؤال 3 (متوسط) للأول: «صحيحة · +6»', letter.audience(r.state).owner === 1 && letter.actions(r.state)[0].label === 'صحيحة · +6');
+  check('التراجع أثناء وقت الخصم: يعود لصاحبه وتمهيده من جديد', letter.audience(back.state).phase === 'ready' && back.timer?.lead && back.timer.seconds === 5);
   r = R.act(letter, r, 'timeout', r.timer.id);
   a = letter.audience(r.state);
-  check('انتهى الوقت: السرقة للثاني بسبب الوقت', a.steal?.team === 2 && a.steal.reason === 'timeout' && r.timer?.seconds === 10);
-  const beforeSteal = r;
-  r = R.act(letter, r, 'correct');
-  check('سرقة صحيحة: +6 للسارق', r.scores[2] === 6 && letter.audience(r.state).verdict.team === 2);
-  check('تبادل الصدارة: الثاني صار متقدماً (2 مقابل 1)، فلحظة «lead» له', r.events.some(e => e.name === 'lead' && e.team === 2));
-  // التراجع عن حكم السرقة: يعود الرصيد، ويعود عدّاد السرقة بوقته كاملاً.
-  const u = R.undo(r);
-  check('التراجع عن حكم السرقة: الرصيد كما كان، وعدّاد 10 ثوانٍ من جديد', u.scores[2] === 0 && u.timer?.seconds === 10 && u.timer.id !== beforeSteal.timer.id && letter.audience(u.state).steal?.team === 2);
-  r = R.act(letter, u, 'correct');
+  check('انتهى وقت الخصم: ينتظر المقدّم، بلا حكم', a.phase === 'over' && r.timer === null && a.verdict === null && ids(letter.actions(r.state)) === 'reveal');
+  r = reveal(r, 0);
+  a = letter.audience(r.state);
+  check('«لم يُجب أحد»: لا نقاط', a.verdict?.team === 0 && r.scores[1] === 3 && r.scores[2] === 0 && r.events.some(e => e.name === 'none'));
 
-  // بقية الجولة: صحيحة كلها، ثم النهاية والحصيلة.
-  for (let i = 0; i < 3; i++) r = R.act(letter, R.act(letter, r, 'next'), 'correct');
+  // انتهاء الوقت لا ينقل الإجابة وحده، ثم وقت الخصم بالزر، وإصابة الخصم بالنقاط نفسها.
+  r = R.act(letter, r, 'next');
+  r = R.act(letter, r, 'timeout', r.timer.id);
+  r = R.act(letter, r, 'timeout', r.timer.id);
+  a = letter.audience(r.state);
+  check('السؤال 3: انتهى الوقت فلا انتقال حتى الزر', a.owner === 1 && a.phase === 'over' && r.timer === null && !a.steal && ids(letter.actions(r.state)) === 'steal,reveal');
+  r = R.act(letter, r, 'steal');
+  check('وقت الخصم بعد انتهاء الوقت: سببه الوقت', letter.audience(r.state).steal?.reason === 'timeout' && r.timer?.seconds === 10);
+  r = R.act(letter, r, 'reveal');
+  check('الكشف في السؤال المتوسط: «+6»', letter.actions(r.state)[0].label === '+6');
+  const beforePick = r;
+  r = R.act(letter, r, 'pick:2');
+  check('إصابة الخصم: +6 له', r.scores[2] === 6 && letter.audience(r.state).verdict.team === 2);
+  check('تبادل الصدارة: الثاني صار متقدماً، فلحظة «lead» له', r.events.some(e => e.name === 'lead' && e.team === 2));
+  const u = R.undo(r);
+  check('التراجع عن الاختيار: الرصيد كما كان، والإجابة مكشوفة، ولا عدّاد', u.scores[2] === 0 && u.state.phase === 'revealed' && u.timer === null && u.state === beforePick.state);
+  r = R.act(letter, u, 'pick:2');
+
+  // بقية الجولة: صاحب السؤال يصيب في كلها، ثم النهاية والحصيلة.
+  for (let i = 0; i < 3; i++) { r = R.act(letter, r, 'next'); r = reveal(r, letter.audience(r.state).owner); }
   check('بعد السادس: «إنهاء الجولة»', letter.actions(r.state)[0].label === 'إنهاء الجولة');
   r = R.act(letter, r, 'next');
   a = letter.audience(r.state);
-  // الأول: 3 (س1) + 9 (س5) = 12 · الثاني: 6 (سرقة س3) + 6 (س4) + 9 (س6) = 21
+  // الأول: 3 (س1) + 9 (س5) = 12 · الثاني: 6 (س3 للخصم) + 6 (س4) + 9 (س6) = 21
   check(`النهاية: الحصيلة 12 و21 (${a.totals[1]} و${a.totals[2]})`, a.screen === 'end' && a.totals[1] === 12 && a.totals[2] === 21 && r.scores[1] === 12 && r.scores[2] === 21);
   check('النهاية: لا أزرار، والجولة منتهية، ولا فعل بعدها', letter.finished(r.state) && !letter.actions(r.state).length && R.act(letter, r, 'next').state === r.state);
   check('التراجع بعد النهاية يعيد السؤال السادس', letter.audience(R.undo(r).state).n === 6);
@@ -106,8 +124,8 @@ const { reporter } = require('./helpers.cjs');
   let leaks = 0, states = 0;
   for (const first of [1, 2]) {
     let x = start(first);
-    // بعد الحكم الأخير تظهر الإجابة النموذجية وحدها (الإصدار 1.1)، ولا بدائل أبداً.
-    const seenState = s => { states++; const a = letter.audience(s); const q = s.questions[s.index]; const decided = s.phase === 'decided';
+    // بعد الكشف تظهر الإجابة النموذجية وحدها (1.11)، ولا بدائل أبداً.
+    const seenState = s => { states++; const a = letter.audience(s); const q = s.questions[s.index]; const decided = s.phase === 'decided' || s.phase === 'revealed';
       const j = JSON.stringify({ ...a, answer: undefined });
       if (q && [q.answer, ...q.alts].some(f => j.includes(`"${f}"`) || j.includes(f) && !q.prompt.includes(f))) leaks++;
       if (q && (decided ? a.answer !== q.answer : a.answer !== undefined)) leaks++; };
@@ -116,7 +134,8 @@ const { reporter } = require('./helpers.cjs');
     while (!letter.finished(x.state)) {
       seenState(x.state);
       const act = letter.actions(x.state).map(b => b.id);
-      x = R.act(letter, x, act.includes('next') ? 'next' : act.includes('start') ? 'start' : (states % 3 ? 'wrong' : 'correct'));
+      x = act.includes('next') ? R.act(letter, x, 'next') : act.includes('pick') ? R.act(letter, x, `pick:${states % 3}`)
+        : x.timer && states % 2 ? R.act(letter, x, 'timeout', x.timer.id) : R.act(letter, x, act.includes('steal') && states % 3 ? 'steal' : 'reveal');
     }
     seenState(x.state);
   }
@@ -132,7 +151,8 @@ const { reporter } = require('./helpers.cjs');
   check('بدء الجولة 1: الخطوة «play»، والجولة 1 للحرف المعيّن', m.step === 'play' && m.round.n === 1 && m.round.mode === 'letter' && m.played === 1);
   check('لا تبدأ جولة أخرى والجولة جارية', P.startNext(m, { modes: MODES, content, rng }) === m && P.skipNext(m, MODES) === m);
   m = P.act(m, MODES, 'show');
-  m = P.act(m, MODES, 'correct');
+  m = P.act(P.act(m, MODES, 'reveal'), MODES, `pick:${m.round.first}`);
+  check('البادئ في الجولة 1: الفائز بالقرعة (1.11)', m.round.first === 1);
   const f = m.round.first, o = f === 1 ? 2 : 1;
   check('الحكم يمر بالمشغّل، والرصيد يتبعه', m.scores[f] === 3 && m.round.scores[f] === 3);
   m = P.setScore(m, o, 5);
@@ -140,7 +160,7 @@ const { reporter } = require('./helpers.cjs');
   check('الزر غير الموجود يُهمل', P.act(m, MODES, 'start').round.state === m.round.state);
   while (!letter.finished(m.round.state)) {
     const act = letter.actions(m.round.state).map(b => b.id);
-    m = P.act(m, MODES, act.includes('next') ? 'next' : 'correct');
+    m = P.act(m, MODES, act.includes('next') ? 'next' : act.includes('pick') ? 'pick:1' : 'reveal');
   }
   check('بعد الجولة 1 في القصيرة: «التالي: شريط البونص»', P.nextText(m, name) === 'التالي: شريط البونص' && P.nextKind(m, MODES) === 'skip');
   m = P.skipNext(m, MODES);

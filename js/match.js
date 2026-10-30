@@ -47,24 +47,26 @@ export const setTeams = (match, a, b) => ({ ...match, teams: { 1: englishDigits(
 export const setPack = (match, pack) => ({ ...match, pack });
 export const setMethod = (match, method) => (METHODS[method] ? { ...match, method } : match);
 
-// «إلى القرعة»: يثبّت الاسمين بعد تنظيف المسافات. لا ينتقل والإعداد ناقص.
+// «اختيار الأنماط»: يثبّت الاسمين بعد تنظيف المسافات، ويفتح صفحة الاختيار، والقرعة فيها (1.11، design/s8b.md 3). لا ينتقل والإعداد ناقص.
+// والخطوة 'draw' باقية في STEPS لمباراة محفوظة قبل 1.11 وحدها، وتُقرأ كخطوة الاختيار (fromDraw).
 export function toDraw(match) {
   if (match.step !== 'setup' || setupErrors(match).length) return match;
-  return { ...match, step: 'draw', teams: { 1: clean(match.teams[1]), 2: clean(match.teams[2]) } };
+  return { ...match, step: 'pick', teams: { 1: clean(match.teams[1]), 2: clean(match.teams[2]) } };
 }
+export const fromDraw = match => (match?.step === 'draw' ? { ...match, step: 'pick' } : match);
 
-// «تعديل الاسمين»: رجوع من القرعة إلى الإعداد لتصحيح اسم (ملاحظة المعاين 3). لا يُمحى شيء، ونتيجة القرعة تبقى،
-// فالعودة إلى القرعة تعرض النتيجة نفسها ولا تُعاد القرعة (design/start.md: لا إعادة لها).
-export const backToSetup = match => (match.step === 'draw' ? { ...match, step: 'setup' } : match);
+// رجوع من صفحة الاختيار إلى الإعداد قبل أي اختيار. لا يُمحى شيء، ونتيجة القرعة تبقى ولا تُعاد (design/start.md: لا إعادة لها).
+export const backToSetup = match => (['draw', 'pick'].includes(match.step) && !match.picks.length ? { ...match, step: 'setup' } : match);
 
-// القرعة تُحسم قبل الحركة وتُحفظ، والحركة عرض لها فقط (design/start.md، القسم 8.6). ولا إعادة لها.
+// «قرعة البداية» في صفحة الاختيار (1.11): تُحسم قبل الحركة وتُحفظ، والحركة عرض لها فقط (design/start.md، القسم 8.6). ولا إعادة لها.
+// والفائز يختار أولاً ويبدأ الإجابة في الجولة الأولى (starter).
 export function draw(match, rng = Math.random) {
-  if (match.step !== 'draw' || match.winner) return match;
+  if (!['draw', 'pick'].includes(match.step) || match.winner) return match;
   return { ...match, winner: rng() < 0.5 ? 1 : 2 };
 }
 
 export function toPick(match) {
-  return match.step === 'draw' && match.winner ? { ...match, step: 'pick' } : match;
+  return match.step === 'draw' ? { ...match, step: 'pick' } : match;
 }
 
 export const rounds = match => METHODS[match.method].rounds;
@@ -78,6 +80,10 @@ export function chooser(match) {
 }
 
 export const picksDone = match => match.picks.length === rounds(match);
+
+// من يبدأ الإجابة في الجولة n (من 1): الفائز بالقرعة في الأولى، ثم يتناوب الفريقان (1.11، 5.2).
+// فيُعرف البادئ قبل أول سؤال، ويُلوَّن به رقم الجولة في صفحة الاختيار. و0 ما لم تُحسم القرعة.
+export const starter = (match, n) => (!match.winner ? 0 : n % 2 === 1 ? match.winner : other(match.winner));
 
 // available: الأنماط المتاحة لهذه الحزمة بترتيبها ([{ id, name }]). النمط لا يتكرر في المباراة.
 export function pick(match, modeId, available) {
@@ -107,7 +113,7 @@ export function plan(match) {
   const { wheelsAfter } = METHODS[match.method];
   const list = [];
   match.picks.forEach((p, i) => {
-    list.push({ kind: 'round', n: i + 1, mode: p.mode, by: p.by });
+    list.push({ kind: 'round', n: i + 1, mode: p.mode, by: p.by, first: starter(match, i + 1) });
     if (wheelsAfter.includes(i + 1)) list.push({ kind: 'wheel', after: i + 1 });
   });
   return list;

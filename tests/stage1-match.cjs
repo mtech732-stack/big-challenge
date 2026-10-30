@@ -39,22 +39,23 @@ const { reporter } = require('./helpers.cjs');
   check('اسم 18 حرفاً مقبول، والطويل مرفوض', !M.setupErrors(m).length && M.setupErrors(M.setTeams(m, 'فريق النخبة الذهبي!', 'ب')).length === 1);
   check('طريقة غير معروفة لا تُقبل', M.setMethod(m, 'long').method === 'full');
   m = M.toDraw(m);
-  check('«إلى القرعة»: الخطوة القرعة، والاسمان بمسافات منظّفة', m.step === 'draw' && m.teams[1] === 'فريق النخبة الذهبي');
+  check('«اختيار الأنماط»: خطوة الاختيار والقرعة فيها (1.11)، والاسمان بمسافات منظّفة', m.step === 'pick' && !m.winner && m.teams[1] === 'فريق النخبة الذهبي');
 
   // ملاحظتا المعاين: الأرقام الهندية، والرجوع إلى الإعداد قبل القرعة.
   check('الأرقام الهندية والفارسية في الاسم تصير إنجليزية', M.setTeams(m, 'فريق ٣', 'فريق ۱۲').teams[1] === 'فريق 3' && M.setTeams(m, 'أ', 'فريق ۱۲').teams[2] === 'فريق 12');
   const backed = M.backToSetup(m);
-  check('رجوع إلى الإعداد قبل القرعة دون محو شيء', backed.step === 'setup' && backed.teams[1] === m.teams[1] && M.toDraw(backed).step === 'draw');
+  check('رجوع إلى الإعداد قبل أي اختيار دون محو شيء', backed.step === 'setup' && backed.teams[1] === m.teams[1] && M.toDraw(backed).step === 'pick');
 
   // القرعة.
-  check('لا اختيار قبل القرعة', M.toPick(m).step === 'draw');
+  check('لا اختيار قبل القرعة', M.chooser(m) === null && M.pick(m, 'letter', modes) === m);
+  check('مباراة محفوظة في خطوة القرعة القديمة تُقرأ في خطوة الاختيار', M.fromDraw({ ...m, step: 'draw' }).step === 'pick' && M.toPick({ ...m, step: 'draw' }).step === 'pick');
   const winners = new Set(Array.from({ length: 40 }, (_, i) => M.draw(m, () => (i % 2 ? 0.7 : 0.2)).winner));
   check('القرعة تُخرج الفريقين', winners.has(1) && winners.has(2));
   m = M.draw(m, () => 0.8);
   check('القرعة محسومة ولا تُعاد', m.winner === 2 && M.draw(m, () => 0.1).winner === 2);
   const fixed = M.toDraw(M.setTeams(M.backToSetup(m), 'فريق النخبة', m.teams[2]));
   check('«تعديل الاسمين» بعد القرعة: إلى الإعداد، ثم تعود القرعة بالنتيجة نفسها ولا تُعاد', M.backToSetup(m).step === 'setup' && M.backToSetup(m).winner === 2
-    && fixed.step === 'draw' && fixed.winner === 2 && fixed.teams[1] === 'فريق النخبة' && M.draw(fixed, () => 0.1).winner === 2);
+    && fixed.step === 'pick' && fixed.winner === 2 && fixed.teams[1] === 'فريق النخبة' && M.draw(fixed, () => 0.1).winner === 2);
   m = M.toPick(m);
 
   // الكاملة: الفائز، ثم الآخر، ثم الفائز، والرابعة تلقائياً.
@@ -73,6 +74,9 @@ const { reporter } = require('./helpers.cjs');
   m = M.toFace(m);
   const plan = M.plan(m).map(s => s.kind === 'wheel' ? 'عجلة' : `${s.n}:${s.mode}:${s.by}`).join(' ');
   check(`مسار الكاملة: عجلتان بعد الثانية وبعد الثالثة (${plan})`, plan === '1:auction:2 2:letter:1 عجلة 3:ranking:2 عجلة 4:last-two:0');
+  // 1.11: الفائز بالقرعة يبدأ الإجابة في الجولة الأولى، ثم التناوب، فيُعرف البادئ قبل أول سؤال.
+  check('البادئ في الجولات: الفائز ثم الآخر بالتناوب (2،1،2،1)', M.plan(m).filter(x => x.kind === 'round').map(x => x.first).join() === '2,1,2,1'
+    && M.starter(m, 1) === 2 && M.starter(m, 4) === 1 && M.starter({ ...m, winner: null }, 1) === 0);
 
   // القصيرة: جولتان وعجلة بينهما.
   let s = M.toPick(M.draw(M.toDraw(M.setMethod(M.setTeams(M.newMatch({ pack: 'general' }), 'أ', 'ب'), 'short')), () => 0.1));

@@ -69,3 +69,5 @@
 .letter.in .tw { animation: in .15s ease-out both; }
 .letter.in .lt { animation: in .2s ease-out .15s both; }
 @media (prefers-reduced-motion: reduce) { .letter span { animation: none !important; } }
+/* بعد كشف الإجابة وقبل الاختيار (1.11، design/s8b.md 4): الإجابة وحدها في وسط المربع، ثم الشارة فوقها بعد الاختيار */
+.box.ans { justify-content: center; }
