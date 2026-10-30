@@ -10,7 +10,10 @@
    - كل نص ظاهر: لا أصغر من 32، ولا أرقام هندية.
    - grid: true (من الإصدار 1.2): يرسم الأعمدة الـ 12، ويعدّ حواف المكوّنات قرب حافتي الشاشة، فكل حافة ليست على
      الهامش (96 أو 1824) ولا على حواف 1.3 (system.md 15.3: منتصف ارتفاع المائل على وجه البطاقة 127 و1793، فيقع
-     امتداده المائل على 109 و1811) خطأ. ويعيد edges: { right, left } بخطوط الحافة في كل جانب.
+     امتداده المائل على 109 و1811، و213 أزرار الزاوية بعد الأيقونة) خطأ. ويعيد edges: { right, left } بخطوط الحافة في كل جانب.
+   - مقاسات مقصودة في design/logo/الدمج.md، مطابقة لـ js/stage-check.js: [data-overhang] رسم يتجاوز صندوقه بظلّه وهامشه
+     (الصندوق امتداد أصفره المرسوم، 2.2)، فلا يُحسب في الامتداد · [data-free] صندوق موضعه من جدول المصمّم لا من الشبكة،
+     فلا يُعدّ في حواف الشبكة · [data-edge] الشعار الكبير يتجاوز الهامش الآمن أعلاه عمداً (1.2 و4.1)، فلا يُعدّ في الهامش ولا في الحواف.
    العناصر المخفية (display:none أو visibility:hidden) خارج الحساب. */
 (function () {
   const SAFE = { x1: 96, y1: 54, x2: 1824, y2: 1026 };
@@ -19,7 +22,7 @@
   function extent(el, scale, origin) {
     let r = null;
     for (const n of [el, ...el.querySelectorAll('*')]) {
-      if (n.closest('.check-layer') || !n.getClientRects().length) continue; // المؤشر المخفي يُحسب دائماً (system.md 6.2)
+      if (n.closest('.check-layer') || n.closest('.ring polygon') || n.hasAttribute('data-overhang') || !n.getClientRects().length) continue; // المؤشر المخفي يُحسب دائماً (system.md 6.2)
       const b = n.getBoundingClientRect(); if (!b.width && !b.height) continue;
       const x1 = (b.left - origin.left) / scale, y1 = (b.top - origin.top) / scale;
       const x2 = (b.right - origin.left) / scale, y2 = (b.bottom - origin.top) / scale;
@@ -53,6 +56,7 @@
     const problems = [], bad = new Set();
     for (const it of items) {
       const { x1, y1, x2, y2 } = it.r;
+      if (it.el.hasAttribute?.('data-edge')) continue;
       if (x1 < SAFE.x1 - .5 || y1 < SAFE.y1 - .5 || x2 > SAFE.x2 + .5 || y2 > SAFE.y2 + .5) { problems.push(`${it.name} خارج الهامش الآمن`); bad.add(it); }
     }
     let minGap = Infinity;
@@ -92,12 +96,12 @@
     // «قرب الحافة» = امتداده يبدأ قبل 256 أو ينتهي بعد 1664. والمكوّنات بينها (تتلو غيرها بفراغ 24) خارج هذا الحساب.
     const edges = { right: new Set(), left: new Set() };
     for (const it of items) {
-      if (it.name === 'الرقم العملاق') continue;
+      if (it.name === 'الرقم العملاق' || it.el.hasAttribute('data-free') || it.el.hasAttribute('data-edge')) continue;
       if (it.r.x2 > 1664) edges.right.add(Math.round(it.r.x2));
       if (it.r.x1 < 256) edges.left.add(Math.round(it.r.x1));
     }
     // حواف 1.3 المقبولة (system.md 15.3) مع الهامش.
-    const OK = { right: [SAFE.x2, 1811, 1793], left: [SAFE.x1, 109, 127] };
+    const OK = { right: [SAFE.x2, 1811, 1793], left: [SAFE.x1, 109, 127, 213] };   // 213: أزرار الزاوية بعد الأيقونة (design/logo/الدمج.md 1.3 ب)
     const offSide = side => [...edges[side]].filter(x => !OK[side].some(e => Math.abs(x - e) <= 1.5));
     const off = offSide('right').concat(offSide('left'));
     if (grid && off.length) problems.push(`حواف خارج الشبكة: ${off.join('، ')}`);
