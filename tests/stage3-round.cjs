@@ -242,7 +242,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, passW
   await unlock(stage);
   audience = await stageFrame(stage);
   await toFace('last-two', 'letter');
-  await cmd(audience, 'single');
+  await cmd(audience, 'begin');
   const frame = audience;
   await frame.waitForSelector('.scr.show[data-s="intro"]', { timeout: 6000 });
   const near = () => frame.$$eval('#near .cbtn, .scr.show .ctl .cbtn', x => x.map(y => y.textContent.replace(/\s+/g, ' ').trim()).join(' | '));

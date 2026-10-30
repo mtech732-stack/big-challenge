@@ -430,7 +430,7 @@
     get: k => { try { return sessionStorage.getItem(k); } catch { return null; } },
     set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} },
   };
-  let link = null, watcher = null, packs = [], wheel = null, match = null, drawing = 0, pin = '', faceError = '';
+  let link = null, watcher = null, packs = [], wheel = null, match = null, drawing = 0, pin = '', faceError = '', optsOpen = false;
   let muted = false;
   try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch {}
   // presenter: هذه النافذة تملك المباراة · stage: سلّمتها لنافذة المقدّم، وبقيت شاشة جمهور.
@@ -568,7 +568,7 @@
   function update(next, anim) {
     next = fitMethod(next);
     if (next === match && !anim) return;
-    if (next.step !== match.step) faceError = '';
+    if (next.step !== match.step) { faceError = ''; optsOpen = false; }
     match = next;
     save();
     if (anim) link?.send('anim', { name: anim, view: view() });
@@ -679,10 +679,11 @@
     render();
   }
 
-  // «ابدأ المباراة» من المواجهة: بنافذتين تُفتح نافذة المقدّم وتبقى هذه شاشة الجمهور، أو بنافذة واحدة بأزرارها.
+  // «ابدأ المباراة» من المواجهة يبدأ بنافذة واحدة بأزرارها (الأصل، 7.1). و«ابدأ بنافذتين» من الخيارات تُفتح به نافذة المقدّم وتبقى هذه شاشة الجمهور.
   // النافذة تُفتح أولاً في النقرة نفسها، ثم تُحفظ الجولة الأولى قبل أن تقرأها (النافذتان في المتصفح نفسه).
   function begin(single) {
     if (held()) return;
+    optsOpen = false;
     const nb = nextButton();
     if (nb.act !== 'startNext') return actions[nb.act]?.();
     if (!single && !openPresenter()) return;
@@ -1124,9 +1125,11 @@
     if (step === 'face') {
       const nb = nextButton();
       c.card = nb.act === 'startNext'
-        ? [{ cmd: 'begin', label: 'ابدأ المباراة' }, { cmd: 'single', label: 'بنافذة واحدة', kind: 'alt' }]
+        ? [{ cmd: 'begin', label: 'ابدأ المباراة' }]
         : [{ cmd: 'next', label: nb.text, off: !!nb.off }];
       c.card.push({ cmd: 'replay', label: 'أعد العرض', kind: 'alt' });
+      // النافذتان خيار جانبي (5.2، 7.1، design/s8.md 1): زر «خيارات» صغير تحت صف الزاوية، وقائمته «ابدأ بنافذتين».
+      if (nb.act === 'startNext') c.opts = { open: optsOpen, menu: [{ cmd: 'two', label: 'ابدأ بنافذتين' }] };
       c.error = faceError;
       c.b = [[fresh], fs];
     }
@@ -1232,8 +1235,9 @@
     if (cmd === 'draw') match.step === 'setup' ? goDraw() : startDraw();
     if (cmd === 'pick') update(M.pick(match, arg, modes()));
     if (cmd === 'back' && !drawing) update(M.backToSetup(match));
-    if (cmd === 'begin') begin(false);
-    if (cmd === 'single') begin(true);
+    if (cmd === 'begin') begin(true);
+    if (cmd === 'two') begin(false);
+    if (cmd === 'opts' && match.step === 'face') { optsOpen = arg === 'close' ? false : !optsOpen; render(); }
     if (cmd === 'act') roundAct(arg);
     if (cmd === 'raise') raise(Number(arg));
     if (cmd === 'next') actions[nextButton().act]?.();

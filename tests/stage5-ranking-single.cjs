@@ -67,7 +67,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     await frame.waitForSelector('[data-cmd="draw"]', { timeout: 6000 });
     await sharedToFace(frame, { names: NAMES, picks: ['ranking', 'letter'] });
     await wait(2700);
-    await tap('single');
+    await tap('begin');
     await frame.waitForSelector('.scr.show[data-s="intro"]', { timeout: 6000 });
 
     // ظهور القائمة: «ابدأ» وحده.

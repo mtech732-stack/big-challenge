@@ -63,9 +63,10 @@ async function sharedToFace(frame, { names, count = 'short', picks }) {
   await frame.waitForSelector('.scr.show[data-s="face"]');
 }
 
-// «ابدأ المباراة»: تُفتح نافذة المقدّم بالرقم نفسه، وتبقى هذه شاشة الجمهور.
+// «ابدأ بنافذتين» من زر الخيارات (design/s8.md 1): تُفتح نافذة المقدّم بالرقم نفسه، وتبقى هذه شاشة الجمهور.
 async function beginTwo(context, frame) {
-  const [host] = await Promise.all([context.waitForEvent('page'), cmd(frame, 'begin')]);
+  await cmd(frame, 'opts');
+  const [host] = await Promise.all([context.waitForEvent('page'), cmd(frame, 'two')]);
   await host.waitForSelector('#app:not([hidden])', { timeout: 10000 });
   return host;
 }

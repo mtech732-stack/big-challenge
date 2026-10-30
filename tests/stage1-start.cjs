@@ -145,7 +145,24 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   const track = await frame.$$eval('#track .seg', s => s.map(x => [...x.children].map(c => c.textContent.trim()).join(' ')).join(' | '));
   check('المواجهة: «الفائز بالقرعة» واسمه في مربع الإعلان (1.3)', await vis('#box') && (await text('#faceChip')) === 'الفائز بالقرعة' && (await text('#faceWin')) === (await saved()).teams[(await saved()).winner]);
   check(`المواجهة: المسار (${track})`, track === 'الجولة 1 آخر حرفين | شريط البونص | الجولة 2 الحرف المعيّن');
-  check('المواجهة: «ابدأ المباراة» و«بنافذة واحدة» و«أعد العرض»', (await frame.$$eval('.scr.show .ctl .cbtn', b => b.map(x => x.textContent).join('|'))) === 'ابدأ المباراة|بنافذة واحدة|أعد العرض');
+  check('المواجهة: «ابدأ المباراة» و«أعد العرض»، ولا «بنافذة واحدة»', (await frame.$$eval('.scr.show .ctl .cbtn', b => b.map(x => x.textContent).join('|'))) === 'ابدأ المباراة|أعد العرض');
+  // النافذتان خيار جانبي (5.2، 7.1، design/s8.md 1): زر «خيارات» على (474، 152)، وقائمته مغلقة حتى يُنقر.
+  const optBox = await frame.$eval('#cornerO .opt', e => { const c = document.getElementById('canvas').getBoundingClientRect(), r = e.getBoundingClientRect(), k = c.width / 1920;
+    return [Math.round((r.left - c.left) / k), Math.round((r.top - c.top) / k), Math.round(r.width / k), e.getAttribute('aria-label'), e.textContent]; });
+  check(`المواجهة: زر الخيارات 64×64 على (474، 152) بلا نص (${optBox})`, optBox.join() === '474,152,64,خيارات,' && !(await vis('#optmenu')));
+  await cmd(frame, 'opts');
+  await wait(200);
+  check('نقرة الخيارات: القائمة على (474، 240) فيها «ابدأ بنافذتين» وحده', await vis('#optmenu') && (await frame.$$eval('#optmenu .cbtn', b => b.map(x => x.textContent).join('|'))) === 'ابدأ بنافذتين'
+    && (await frame.$eval('#optmenu', e => { const c = document.getElementById('canvas').getBoundingClientRect(), r = e.getBoundingClientRect(), k = c.width / 1920; return [Math.round((r.left - c.left) / k), Math.round((r.top - c.top) / k)].join(); })) === '474,240');
+  await stageCheck('المواجهة بقائمة الخيارات');
+  await frame.click('#track');
+  await wait(200);
+  check('نقرة خارج القائمة تغلقها', !(await vis('#optmenu')));
+  await cmd(frame, 'opts');
+  await wait(150);
+  await cmd(frame, 'opts');
+  await wait(150);
+  check('نقرة ثانية على الزر تغلقها', !(await vis('#optmenu')));
   await noWords('المواجهة');
   await stageCheck('المواجهة');
   await page.screenshot({ path: `${shots}/s1-shared-face.png` });
@@ -161,7 +178,8 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
 
   // 6. منع النوافذ المنبثقة: تبقى الشاشة المشتركة، والسبب في البطاقة.
   await page.evaluate(() => { window.open = () => null; });
-  await cmd(frame, 'begin');
+  await cmd(frame, 'opts');
+  await cmd(frame, 'two');
   await wait(300);
   check('النافذة ممنوعة: السبب في البطاقة، والمباراة لم تبدأ', (await text('#faceErr')).startsWith('منع المتصفح نافذة المقدّم') && (await saved()).step === 'face');
   await stageCheck('النافذة ممنوعة');

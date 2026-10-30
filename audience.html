@@ -163,6 +163,9 @@
     <div class="ctl-corner a" id="cornerA" data-hud="أزرار الزاوية العليا"></div>
     <div class="ctl-corner b" id="cornerB" data-hud="أزرار الزاوية السفلى"></div>
     <div class="ctl-corner c" id="cornerC" data-hud="أزرار الصف الثالث"></div>
+    <!-- الخيارات الجانبية في المواجهة (design/s8.md 1): زر صغير بلا نص، وقائمته تحته -->
+    <div class="ctl-corner opts" id="cornerO" data-hud="زر الخيارات"></div>
+    <div class="optmenu" id="optmenu" data-hud="قائمة الخيارات" hidden></div>
 
     <div class="shine" id="shine"></div>
     <div class="danger"></div>
@@ -799,8 +802,12 @@
     $('cornerA').innerHTML = rows(c?.a);
     $('cornerB').innerHTML = rows(c?.b);
     $('cornerC').innerHTML = rows(c?.c);
+    // زر الخيارات (design/s8.md 1): ثلاث نقاط بلا نص، وقائمته «ابدأ بنافذتين» تحته ما دام مفتوحاً.
+    $('cornerO').innerHTML = c?.opts ? `<button class="cbtn alt opt${c.opts.open ? ' open' : ''}" data-cmd="opts" aria-label="خيارات"></button>` : '';
+    $('optmenu').innerHTML = c?.opts?.open ? c.opts.menu.map(button).join('') : '';
+    $('optmenu').hidden = !c?.opts?.open;
     // النافذة الواحدة: صفّا أزرار الزاويتين مكان الشعار (1.3).
-    canvas.classList.toggle('has-a', ['cornerA', 'cornerB', 'cornerC'].some(id => $(id).children.length));
+    canvas.classList.toggle('has-a', ['cornerA', 'cornerB', 'cornerC', 'cornerO'].some(id => $(id).children.length));
     placeBadges();   // الشارة المرسومة تصغر بنافذة واحدة (has-a)، فيتغير موضع ما بعدها
     $('count').innerHTML = c?.count ? '<span class="lbl">عدد الأنماط</span>' + [['short', 2], ['full', 4]].map(([m, k]) =>
       `<button class="ctile${c.count.value === m ? ' sel' : ''}${k === 4 && !c.count.four ? ' off' : ''}" data-cmd="count:${m}"><span class="ltr">${k}</span></button>`).join('') : '';
@@ -836,6 +843,8 @@
       renderCtl();
     });
     document.addEventListener('click', e => {
+      // قائمة الخيارات تُغلق بنقرة خارجها (design/s8.md 1).
+      if (ctl?.opts?.open && !e.target.closest('#optmenu, #cornerO')) send('opts:close');
       const b = e.target.closest('[data-cmd]');
       if (!b || b.classList.contains('off') || !ctl) return;
       send(b.dataset.cmd);

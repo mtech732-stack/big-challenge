@@ -192,7 +192,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
   {
     const { context, stage, audience } = await open();
     await sharedToFace(audience, { names: ['الصقور', 'النجوم'], count: 'short', picks: ['ranking', 'letter'] });
-    await cmd(audience, 'single');
+    await cmd(audience, 'begin');
     await wait(600);
     const go = async c => { await cmd(audience, c); await wait(800); };
     await go('act:show');
@@ -247,7 +247,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
   {
     const { context, stage, audience } = await open({ motion: 'reduce' });
     await sharedToFace(audience, { names: ['الصقور', 'النجوم'], count: 'short', picks: ['ranking', 'letter'] });
-    await cmd(audience, 'single');
+    await cmd(audience, 'begin');
     await wait(600);
     const go = async c => { await cmd(audience, c); await wait(800); };
     await go('act:show');
