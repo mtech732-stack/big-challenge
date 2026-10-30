@@ -27,7 +27,7 @@ try { jsQR = require('jsqr'); } catch {}
   const aText = t => Q.answersText('auction', { topic: t.topic, items: t.items.map(x => ({ name: x.name, alts: x.alts ?? [] })) });
   const rText = l => Q.answersText('ranking', { title: l.title, items: l.items.map((x, i) => ({ rank: i + 1, name: x.name, alts: x.alts ?? [], trap: i >= 10 })) });
   const sample = aText(auctions[0]).split('\n');
-  check(`المزاد: السطر الأول «الموضوع · العدد»، ثم عنصر في كل سطر بصيغه (${sample[0]})`, sample[0] === `${auctions[0].topic} · ${auctions[0].items.length}` && sample.length === auctions[0].items.length + 1);
+  check(`المزاد: السطر الأول الموضوع وحده بلا عدد (المالك)، ثم عنصر في كل سطر بصيغه (${sample[0]})`, sample[0] === auctions[0].topic && sample.length === auctions[0].items.length + 1);
   const rs = rText(rankings[0]).split('\n');
   check(`الترتيب: العنوان، ثم «1 · الاسم» للعشرة و«11 فخ · الاسم» للثلاثة (${rs[1]} … ${rs[11]})`, rs[0] === rankings[0].title && rs.length === 14 && rs[1].startsWith('1 · ' + rankings[0].items[0].name) && rs[11] === `11 فخ · ${rankings[0].items[10].name}`);
   const withAlt = auctions.flatMap(t => t.items).find(x => x.alts?.length);
@@ -36,7 +36,25 @@ try { jsQR = require('jsqr'); } catch {}
   const longest = all.reduce((a, b) => (b.bytes > a.bytes ? b : a));
   const longestRank = all.filter(x => rankings.some(l => l.id === x.id)).reduce((a, b) => (b.bytes > a.bytes ? b : a));
   console.log(`حدّ الطول: أطول نص في البنك ${longest.id} ${longest.bytes} بايت، v${(longest.n - 17) / 4}، ${longest.n} وحدة، الوحدة ${longest.unit} · وأطول ترتيب ${longestRank.id} ${longestRank.bytes} بايت، الوحدة ${longestRank.unit}`);
-  check(`كل قوائم البنك (${all.length}) تُرمَّز، والوحدة لا تقل عن 4، والرمز داخل 520 بحاشية 3 وحدات`, all.length === auctions.length + rankings.length && all.every(x => x.unit >= 4 && (x.n + 6) * x.unit <= 520));
+  // القوائم كاملة دائماً (المالك، 30 أكتوبر 2026): تُقبل الوحدة الأصغر من 4 حين تلزم.
+  const small = all.filter(x => x.unit < 4);
+  check(`كل قوائم البنك (${all.length}) تُرمَّز كاملة، والرمز داخل 520 بحاشية 3 وحدات${small.length ? ` (بوحدة أصغر من 4: ${small.map(x => `${x.id.slice(-3)}:${x.unit}`).join('، ')})` : ''}`,
+    all.length === auctions.length + rankings.length && all.every(x => x.unit >= 1 && (x.n + 6) * x.unit <= 520));
+  // قائمة 193 (أطول قوائم المزاد المفتوح) من أسماء البنك نفسه: الأسماء كلها في الرمز، والصيغ تُحذف كلها إن لم تتسع معها.
+  const pool = [...new Map(auctions.flatMap(t => t.items).map(x => [x.name, { name: x.name, alts: x.alts ?? [] }])).values()];
+  const longList = { topic: 'قائمة طويلة', items: pool.slice(0, 193) };
+  const longText = Q.answersText('auction', longList), longLines = longText.split('\n');
+  const withAlts = [longList.topic, ...longList.items.map(x => x.name + (x.alts.length ? ` (${x.alts.join('، ')})` : ''))].join('\n');
+  check(`قائمة ${longList.items.length}: الأسماء كلها في الرمز (${Buffer.byteLength(longText)} بايت)، والصيغ ${Q.fits(withAlts) ? 'معها لأنها تتسع' : 'محذوفة كلها لأنها لا تتسع'}`,
+    longList.items.length === 193 && longLines.length === 194 && longLines.slice(1).every((l, i) => l.startsWith(longList.items[i].name)) && Q.fits(longText)
+    && (Q.fits(withAlts) ? longText === withAlts : longLines.slice(1).every((l, i) => l === longList.items[i].name)));
+  if (jsQR) {
+    const m = Q.qrMatrix(longText), u = 4, pad = 4 * u, w = m.n * u + pad * 2, d = new Uint8ClampedArray(w * w * 4).fill(255);
+    for (let r = 0; r < m.n; r++) for (let c = 0; c < m.n; c++) if (m.dark(r, c)) for (let y = 0; y < u; y++) for (let x = 0; x < u; x++) {
+      const k = ((pad + r * u + y) * w + pad + c * u + x) * 4; d[k] = d[k + 1] = d[k + 2] = 0; }
+    const got = jsQR(d, w, w);
+    check(`قائمة ${longList.items.length}: الرمز (v${(m.n - 17) / 4}، الوحدة على الشاشة ${m.unit}) يُفكّ كاملاً حرفاً حرفاً بقارئ مستقل`, !!got && new TextDecoder().decode(new Uint8Array(got.binaryData)) === longText);
+  }
 
   // ===== 2. بنافذة واحدة =====
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
