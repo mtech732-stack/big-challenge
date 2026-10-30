@@ -53,7 +53,7 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
     await cmd(frame, 'toPick');
     await wait(200);
   };
-  const tiles = () => frame.$$eval('#tiles .tile', b => b.map(x => x.dataset.mode).join(','));
+  const tiles = () => frame.$$eval('#mcards .mc', b => b.map(x => x.dataset.mode).join(','));
 
   // 1. المباراة كما تُلعب: الأنماط الأربعة مبنية منذ نهاية ش5 (الترتيب)، فـ4 مختارة افتراضياً، و2 تُختار.
   await open(base);
@@ -95,7 +95,7 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
   check('قرعة بـ4 من رابط المعاينة: تعود إلى الإعداد', await frame.isVisible('[data-cmd="draw"]') && await sel('short'));
   await saved('pick', { method: 'short', picks: [{ mode: 'letter', by: 1 }] });
   await reopen();
-  check('اختيار سليم (2، الحرف المعيّن): يبقى كما هو، وخانتان تُنقران (آخر حرفين والمزاد)', (await frame.$$('#tiles .tile[data-cmd]')).length === 2 && !(await frame.isVisible('[data-cmd="draw"]')));
+  check('اختيار سليم (2، الحرف المعيّن): يبقى كما هو، وخانتان تُنقران (آخر حرفين والمزاد)', (await frame.$$('#mcards .mc[data-cmd]')).length === 2 && !(await frame.isVisible('[data-cmd="draw"]')));
   // مواجهة بالأنماط الأربعة (والترتيب للجولة 1): تبقى، والأنماط كلها مبنية منذ ش5 فلا «تخطَّ».
   await saved('face', { picks: [{ mode: 'ranking', by: 1 }, { mode: 'letter', by: 2 }, { mode: 'last-two', by: 1 }, { mode: 'auction', by: 0 }] });
   await reopen();
@@ -126,7 +126,7 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
   await frame.fill('#i2', 'النجوم');
   await cmd(frame, 'draw');
   await wait(300);
-  check('نمط واحد: لا قرعة، والسبب «المباراة تحتاج نمطين على الأقل، والمتاح 1.»', await frame.isVisible('.scr.show[data-s="title"]') && (await text('#err')) === 'المباراة تحتاج نمطين على الأقل، والمتاح 1.');
+  check('نمط واحد: لا قرعة، والسبب «المباراة تحتاج نمطين على الأقل، والمتاح 1.»', await frame.isVisible('[data-hero="start"] .hlogo') && (await text('#err')) === 'المباراة تحتاج نمطين على الأقل، والمتاح 1.');
 
   check(`لا أخطاء في الصفحة${errors.length ? ': ' + errors.slice(0, 3).join(' | ') : ''}`, !errors.length);
   await browser.close();

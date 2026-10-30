@@ -49,7 +49,15 @@
    والحروف مسارات في img/logo.svg، فلا خط جديد. ويحلّ محله في النافذة الواحدة صفّا أزرار الزاويتين (css/shared.css) */
 .logo { left: 127px; top: 58px; width: 323px; height: 328px; }
 .logo img { display: block; width: 100%; height: 100%; }
-.locked .logo, .has-a .logo { display: none; }
+.logo .icon { display: none; }
+.locked .logo { display: none; }
+/* أزرار الزاوية (design/logo/الدمج.md 1.3): قبل الجولة يبقى الشعار وينتقل صف الأزرار إلى 474 (نهاية الشعار 450 + 24).
+   (وشاشتا البداية والاختيار بلا ترويسة، فالأزرار فيهما من 127.) وأثناء الجولة وفي النهاية تبقى الصفوف الثلاثة من 127، والأيقونة 62×64 مكان الشعار أول صف 64، و«تراجع» بعدها على 213. */
+.pre.has-a:not([data-hero]) .ctl-corner { left: 474px; }
+.has-a:not(.pre) .logo { top: 64px; width: 62px; height: 64px; }
+.has-a:not(.pre) .logo .full { display: none; }
+.has-a:not(.pre) .logo .icon { display: block; }
+.has-a:not(.pre) .ctl-corner.a { left: 213px; }
 
 /* 3. لوحة الفريق بلا شكل (15.3): الاسم ثم الرقم الكبير ثم العدّاد (لصاحب الدور)، بفراغ 32، واللوحة تتسع لمحتواها.
    الأول 64–200 مرسى على اليمين، والثاني 880–1016 مرسى على اليسار (صفه معكوس). والاسم أبيض 40 وزن 800 على لون طرفه */
@@ -97,6 +105,12 @@
 .badge > i { transform: skewX(calc(-1 * var(--lean))); }
 .badge.mode { right: 104px; color: var(--ink); }
 .badge.mode > i { background: var(--hl); }
+.badge.mode .art { position: absolute; display: block; max-width: none; }
+/* شارة النمط المرسومة (design/logo/الدمج.md 2.2): لا خلفية صفراء ولا نص، والرسم وحده في صندوقها */
+.badge.mode.drawn { padding: 0; }
+.badge.mode.drawn > i, .badge.mode.drawn > span { display: none; }
+/* وفي النافذة الواحدة أثناء الجولة تصغر بحافتها اليمنى وأسفلها (placeBadges في audience.html) */
+.badge.mode.drawn { transform-origin: right bottom; }
 .badge.level { color: var(--ink); }
 .badge.level > i { background: var(--card); }
 /* 6. البطاقة المستقيمة وصفيحتها المائلة، على الأعمدة 1–12: الوجه 127–1793، والامتداد بالصفيحة والميل 96–1824 */

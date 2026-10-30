@@ -9,15 +9,17 @@
  - lines: { el, max } عنصر لا تتجاوز أسطره الحد.
  - كل نص ظاهر: لا أصغر من 32، ولا أرقام هندية.
  - grid: true (من الإصدار 1.2): كل حافة لمكوّن قرب حافتي الشاشة على الهامش (96 أو 1824)، أو على حواف 1.3 المقصودة (109 و127 و1811).
+ - مقاسات مقصودة في design/logo/الدمج.md: [data-overhang] رسم يتجاوز صندوقه بظلّه وهامشه (الصندوق امتداد أصفره المرسوم، 2.2)، فلا يُحسب
+   في الامتداد · [data-free] صندوق موضعه من جدول المصمّم لا من الشبكة · [data-edge] الشعار الكبير يتجاوز الهامش الآمن أعلاه عمداً (1.2 و4.1).
  العناصر المخفية (display:none أو visibility:hidden) خارج الحساب. */
 const SAFE = { x1: 96, y1: 54, x2: 1824, y2: 1026 };
-const GRID = { left: [SAFE.x1, 109, 127], right: [SAFE.x2, 1811, 1793] };   // كما في design/check.js (PR #78)
+const GRID = { left: [SAFE.x1, 109, 127, 213], right: [SAFE.x2, 1811, 1793] };   // كما في design/check.js (PR #78)، و213 أزرار الزاوية بعد الأيقونة (design/logo/الدمج.md 1.3 ب)
 const visible = n => n.getClientRects().length && getComputedStyle(n).visibility !== 'hidden';
 
 function extent(el, scale, origin) {
   let r = null;
   for (const n of [el, ...el.querySelectorAll('*')]) {
-    if (n.closest('.check-layer') || n.closest('.ring polygon') || !n.getClientRects().length) continue; // المؤشر المخفي يُحسب دائماً (system.md 6.2)
+    if (n.closest('.check-layer') || n.closest('.ring polygon') || n.hasAttribute('data-overhang') || !n.getClientRects().length) continue; // المؤشر المخفي يُحسب دائماً (system.md 6.2)
     // إطار الوقت (1.3) يُرسم على حدود اللوحة نفسها، ويتبعها بعد تغيّر قياسها بإطار رسم واحد، فيُحسب بالـsvg لا بنقاط المضلع.
     const b = n.getBoundingClientRect(); if (!b.width && !b.height) continue;
     const x1 = (b.left - origin.left) / scale, y1 = (b.top - origin.top) / scale;
@@ -52,6 +54,7 @@ export function layoutCheck({ canvas, layer, lines = [], scope = [canvas], grid 
   const problems = [], bad = new Set();
   for (const it of items) {
     const { x1, y1, x2, y2 } = it.r;
+    if (it.el.hasAttribute?.('data-edge')) continue;
     if (x1 < SAFE.x1 - .5 || y1 < SAFE.y1 - .5 || x2 > SAFE.x2 + .5 || y2 > SAFE.y2 + .5) { problems.push(`${it.name} خارج الهامش الآمن`); bad.add(it); }
   }
   let minGap = Infinity;
@@ -90,7 +93,7 @@ export function layoutCheck({ canvas, layer, lines = [], scope = [canvas], grid 
   // الشبكة (system.md 4): «قرب الحافة» = امتداده يبدأ قبل 256 أو ينتهي بعد 1664. والمكوّنات بينها خارج هذا الحساب.
   const edges = { right: new Set(), left: new Set() };
   for (const it of items) {
-    if (it.name === 'الرقم العملاق') continue;
+    if (it.name === 'الرقم العملاق' || it.el.hasAttribute('data-free') || it.el.hasAttribute('data-edge')) continue;
     if (it.r.x2 > 1664) edges.right.add(Math.round(it.r.x2));
     if (it.r.x1 < 256) edges.left.add(Math.round(it.r.x1));
   }

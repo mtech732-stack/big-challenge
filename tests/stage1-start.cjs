@@ -53,13 +53,15 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
     return Math.round(f.width) === 1920 && Math.round(f.height) === 1080;
   }));
   // 1.3 (design/system.md 15.10): الشعار أعلى اليسار، وفي النافذة الواحدة تحل محله أزرار الزاويتين.
-  check('الإعداد: أزرار الزاويتين مكان الشعار، وسطر الإرشاد في البطاقة، وحقلا الاسمين في اللوحتين', !(await vis('.logo')) && await vis('#cornerA .cbtn, #cornerB .cbtn')
-    && (await text('.scr.show .guide')).startsWith('اكتب اسمَي الفريقين') && await vis('#i1') && await vis('#i2')
+  // شاشة البداية (design/logo/الدمج.md 3): الشعار الكبير بالأشعّة مكان البطاقة والترويسة، وأزرار الزاوية من 127.
+  check('الإعداد: شاشة البداية بالشعار الكبير والأشعّة بلا بطاقة، وأزرار الزاوية من 127، وحقلا الاسمين في اللوحتين', !(await vis('.logo')) && !(await vis('.card')) && await vis('.hero .hlogo') && await vis('.hero .rays')
+    && await vis('#cornerA .cbtn, #cornerB .cbtn') && await frame.$eval('#cornerB', e => getComputedStyle(e).left) === '127px' && await vis('#i1') && await vis('#i2')
     && (await frame.getAttribute('#i1', 'placeholder')) === 'اكتب اسم الفريق الأول' && (await frame.getAttribute('#i2', 'placeholder')) === 'اكتب اسم الفريق الثاني');
   // منذ نهاية ش5 الأنماط الأربعة مبنية في الرابط العادي، فـ4 مختارة افتراضياً ومتاحة.
   check('الإعداد: «عدد الأنماط» بخانتين 2 و4، والمتاح أربعة فـ4 مختارة، و2 متاحة', (await text('#count .lbl')) === 'عدد الأنماط'
     && await frame.$eval('[data-cmd="count:full"]', e => e.classList.contains('sel') && !e.classList.contains('off')) && await frame.$eval('[data-cmd="count:short"]', e => !e.classList.contains('off')));
-  check('الإعداد: «ابدأ القرعة» في البطاقة، و«ملء الشاشة» في الزاوية', await vis('.scr.show .ctl [data-cmd="draw"]') && await vis('#cornerB [data-cmd="fullscreen"]'));
+  check('الإعداد: «ابدأ القرعة» تحت الشعار، و«عدد الأنماط» عن يمينه من 1114، و«ملء الشاشة» في الزاوية', await vis('#startGo [data-cmd="draw"]') && await vis('#cornerB [data-cmd="fullscreen"]')
+    && await frame.$eval('#startSide', e => { const c = document.getElementById('canvas').getBoundingClientRect(), k = c.width / 1920; return (e.getBoundingClientRect().left - c.left) / k >= 1114; }));
   check('الإعداد: لا شارات ولا سطر تحت العنوان', !(await vis('#b1')) && !(await vis('#b2')) && !(await vis('.scr.title .sub')));
   await noWords('الإعداد');
   await stageCheck('الإعداد');
@@ -105,8 +107,8 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
 
   // ملاحظة المعاين 3: «تعديل الاسمين» يعود إلى الإعداد بالاسمين، ثم «عُد إلى القرعة» يعرض النتيجة نفسها دون قرعة جديدة.
   await cmd(frame, 'back');
-  await frame.waitForSelector('.scr.show[data-s="title"]');
-  check('«تعديل الاسمين»: الإعداد بالاسمين، وزر «عُد إلى القرعة»', (await frame.inputValue('#i1')) === names[1] && (await text('.scr.show [data-cmd="draw"]')) === 'عُد إلى القرعة');
+  await frame.waitForSelector('[data-hero="start"] .hlogo');
+  check('«تعديل الاسمين»: الإعداد بالاسمين، وزر «عُد إلى القرعة»', (await frame.inputValue('#i1')) === names[1] && (await text('#startGo [data-cmd="draw"]')) === 'عُد إلى القرعة');
   await frame.fill('#i1', 'الصقور الجدد');
   await cmd(frame, 'draw');
   await frame.waitForSelector('.scr.show[data-s="result"]', { timeout: 5000 });
@@ -117,19 +119,23 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   // 3. اختيار الأنماط بالنقر على خاناتها
   await cmd(frame, 'toPick');
   await wait(200);
-  check('الاختيار: الخانات الأربع المبنية تُنقر (المزاد منذ ش4، والترتيب منذ ش5)، و«يختار نمط الجولة 1»', (await frame.$$('#tiles .tile[data-cmd]')).length === 4 && (await text('#pickHead')) === `${names[W]} يختار نمط الجولة 1`);
+  // اختيار النمط د1 (design/logo/الدمج.md 4): بطاقة لكل نمط، ومؤشر الدور لوحة صاحبه في جهته و«يختار نمط الجولة 1».
+  check('الاختيار: البطاقات الأربع المبنية تُنقر (المزاد منذ ش4، والترتيب منذ ش5)، و«يختار نمط الجولة 1»', (await frame.$$('#mcards .mc[data-cmd]')).length === 4
+    && (await text('#turnName')) === names[W] && (await text('#turnLine')) === 'يختار نمط الجولة 1' && await frame.$eval('#turnp', (e, w) => e.classList.contains('t' + w), W)
+    && !(await vis('.team.t1')) && !(await vis('.card')) && await vis('.hero .hlogo'));
   await stageCheck('الاختيار');
   await cmd(frame, 'pick:last-two');
   await wait(200);
-  check('الخانة بلون الفائز ولا تُنقر بعدها، والدور للآخر، و«تراجع» في البطاقة', await frame.$eval('[data-mode="last-two"]', (e, w) => e.classList.contains('by' + w) && !e.dataset.cmd, W)
-    && (await text('#pickHead')).startsWith(names[L]) && await vis('[data-cmd="undoPick"]'));
+  check('البطاقة بلون الفائز وختم «1» و«اختيار [الفائز]»، ولا تُنقر بعدها، والدور للآخر، و«تراجع» و«قرعة البداية» معطّلاً تحت البطاقات', await frame.$eval('.mc[data-mode="last-two"]', (e, w) => e.classList.contains('tm' + w) && e.classList.contains('picked') && !e.dataset.cmd
+      && e.querySelector('.stamp').textContent === '1', W) && (await text('.mc[data-mode="last-two"] .by')) === 'اختيار ' + names[W]
+    && (await text('#turnName')) === names[L] && await vis('#pickCtl [data-cmd="undoPick"]') && await frame.$eval('#pickCtl [data-cmd="toFace"]', e => e.classList.contains('off') && e.textContent === 'قرعة البداية'));
   await cmd(frame, 'undoPick');
   await wait(200);
   check('«تراجع» يرفع الاختيار', !(await saved()).picks.length);
   await cmd(frame, 'pick:last-two');
   await cmd(frame, 'pick:letter');
   await wait(200);
-  check('اكتمل: «اكتمل اختيار الأنماط» و«إلى المواجهة»', (await text('#pickHead')) === 'اكتمل اختيار الأنماط' && await vis('[data-cmd="toFace"]'));
+  check('اكتمل: لا مؤشر دور، و«قرعة البداية» مفعّل', !(await vis('#turnp')) && await frame.$eval('#pickCtl [data-cmd="toFace"]', e => !e.classList.contains('off')));
   await stageCheck('اكتمل الاختيار');
 
   // 4. المواجهة
@@ -200,7 +206,7 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   const closed = host2.waitForEvent('close', { timeout: 6000 }).then(() => true, () => false);
   await host2.click('[data-part="end"] [data-new]');
   check('مباراة جديدة: نافذة المقدّم تُغلق', await closed);
-  await frame.waitForSelector('.scr.show[data-s="title"]', { timeout: 6000 });
+  await frame.waitForSelector('[data-hero="start"] .hlogo', { timeout: 6000 });
   await wait(300);
   check('والشاشة المشتركة تعود إلى الإعداد بحقليها', await vis('#i1') && await vis('[data-cmd="draw"]') && await page.evaluate(() => sessionStorage.getItem('big-challenge.role')) === 'presenter');
 
@@ -209,7 +215,7 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   await unlock(page);
   frame = await stageFrame(page);
   for (const count of ['full', 'short']) {
-    if ((await saved()).step !== 'setup') { page.once('dialog', d => d.accept()); await cmd(frame, 'new'); await frame.waitForSelector('.scr.show[data-s="title"]'); }
+    if ((await saved()).step !== 'setup') { page.once('dialog', d => d.accept()); await cmd(frame, 'new'); await frame.waitForSelector('[data-hero="start"] .hlogo'); }
     await frame.fill('#i1', LONG[0]);
     await frame.fill('#i2', LONG[1]);
     await cmd(frame, 'count:' + count);
@@ -240,7 +246,7 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   // 11. الرقم السري يتغيّر قبل مباراة جديدة: «ابدأ القرعة» يُغلق اللعبة.
   page.once('dialog', d => d.accept());
   await cmd(frame, 'new');
-  await frame.waitForSelector('.scr.show[data-s="title"]');
+  await frame.waitForSelector('[data-hero="start"] .hlogo');
   await frame.fill('#i1', 'أ');
   await frame.fill('#i2', 'ب');
   await usePin(context, testPinRecord('246801'));

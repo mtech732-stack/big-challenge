@@ -209,7 +209,7 @@ const { finalMatch } = require('./final-match.cjs');
     page.once('dialog', d => d.accept());
     await wait(800);
     await cmd(again, 'new');
-    await again.waitForSelector('.scr.show[data-s="title"]', { timeout: 8000 });
+    await again.waitForSelector('[data-hero="start"] .hlogo', { timeout: 8000 });
     check('«مباراة جديدة» من الفائز: الإعداد', true);
     await context.close();
   }

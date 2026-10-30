@@ -30,7 +30,7 @@ const { usePin, unlock } = require('./helpers.cjs');
   await audience.setViewportSize({ width: 1920, height: 1080 });
   await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 4000 });
   check('المقدّم: يصير متصلاً بعد فتح نافذة الجمهور', true);
-  await audience.waitForSelector('.scr.title.show', { timeout: 4000 });
+  await audience.waitForSelector('[data-hero="start"] .hlogo', { timeout: 4000 });
   check('الجمهور: يعرض شاشة الانتظار بعد الاتصال', true);
   check('المقدّم: يرى 0:10 في المرآة', (await presenter.textContent('#mirror')) === '0:10');
 

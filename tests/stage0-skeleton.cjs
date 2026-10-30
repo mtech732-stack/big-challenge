@@ -69,22 +69,23 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   check('لا زوايا مستديرة في نافذة المقدّم', radius);
   await presenter.screenshot({ path: `${shots}/skeleton-presenter.png` });
 
-  // 4. نافذة الجمهور الحقيقية: بانتظار المقدّم لا تُظهر إلا البطاقة، وبعد الاتصال يظهر الهيكل كاملاً.
+  // 4. نافذة الجمهور الحقيقية: بانتظار المقدّم لا تُظهر إلا الشعار الكبير وسطره (design/logo/الدمج.md 1.2)، وبعد الاتصال شاشة البداية.
   await audience.setViewportSize({ width: 1920, height: 1080 });
   // في متصفح آخر لا مقدّم فيه، كي لا يتصل بالمقدّم المفتوح هنا.
   const other = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   const live = await other.newPage();
   await live.goto(base + 'audience.html');
   await wait(300);
-  check('بانتظار المقدّم: الهيكل مخفي والبطاقة وحدها', await live.isHidden('.team.t1') && await live.isHidden('.logo') && await live.isVisible('.card'));
+  check('بانتظار المقدّم: الهيكل مخفي، والشعار الكبير و«بانتظار المقدّم» وحدهما', await live.isHidden('.team.t1') && await live.isHidden('.logo') && await live.isHidden('.card')
+    && await live.isVisible('.hero .hlogo') && (await live.textContent('#heroCap')) === 'بانتظار المقدّم');
   await other.close();
   const [aud] = await Promise.all([context.waitForEvent('page'), presenter.click('#open')]);
   await aud.setViewportSize({ width: 1920, height: 1080 });
   await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 5000 });
-  // من ش1: قبل أول سؤال تظهر اللوحتان والبطاقة وحدها (design/start.md، القسم 2)، والباقي مع العدّاد.
+  // من ش1: قبل أول سؤال تظهر اللوحتان، والباقي مع العدّاد. والإعداد شاشة البداية: الشعار الكبير مكان البطاقة والترويسة (design/logo/الدمج.md 3).
   // الملاحظة 37: «متصل» في المقدّم يسبق أحياناً أول عرض يصل الجمهور، فكانت مهلة 300 ثابتة تفحص قبله على جهاز أبطأ.
   // فننتظر عرض الجمهور نفسه (حتى 5 ثوانٍ) ثم نفحص، ونذكر ما خالف إن خالف.
-  const shown = ['.team.t1', '.team.t2', '.card', '.logo'], hiddenSel = ['.strip.t1', '.strip.t2', '.badge.mode', '.team .cnt', '.team .score', '.giant'];
+  const shown = ['.team.t1', '.team.t2', '.hero .hlogo', '.hero .rays'], hiddenSel = ['.card', '.logo', '.strip.t1', '.strip.t2', '.badge.mode', '.team .cnt', '.team .score', '.giant'];
   const skeleton = () => aud.evaluate(([shown, hiddenSel]) => {
     const vis = s => [...document.querySelectorAll(s)].some(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden');
     return [...shown.filter(s => !vis(s)).map(s => 'لا يظهر ' + s), ...hiddenSel.filter(vis).map(s => 'يظهر ' + s)];

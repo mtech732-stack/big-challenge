@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>التحدي الكبير · نافذة الجمهور</title>
-<link rel="icon" href="data:,">
+<link rel="icon" href="design/logo/icon-48.png">
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/stage.css">
@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="css/wheel.css">
 <link rel="stylesheet" href="css/shared.css">
 <link rel="stylesheet" href="css/final.css">
+<link rel="stylesheet" href="css/hero.css">
 <style>
   /* اللعبة مغلقة أو بانتظار المقدّم: لا يبقى على الشاشة إلا الخلفية والبطاقة. */
   .locked .team, .locked .badge, .locked .box, .locked .ctl-near, .locked .ctl-corner { display: none; }
@@ -35,8 +36,21 @@
     <!-- القصاصات عند إعلان الفائز (ش7، design/final.md 4.2): تحت الشعار واللوحات والبطاقة، ولا تدخل فحص التداخل -->
     <div class="confetti" id="confetti"></div>
 
-    <!-- الشعار أعلى اليسار في كل شاشة (15.7) -->
-    <div class="logo" data-hud="الشعار"><img src="img/logo.svg" width="323" height="328" alt="التحدي الكبير"></div>
+    <!-- شاشات البطل (design/logo/الدمج.md 1.2 و3 و4): الانتظار والبداية واختيار النمط، والشعار فيها كبير بلا ترويسة ولا بطاقة.
+         الهالة والأشعّة خلفه في البداية والاختيار. والحالة في canvas.dataset.hero: wait · start · pick -->
+    <div class="hero" id="hero">
+      <div class="halo"></div><div class="rays"></div>
+      <div class="hlogo" data-hud="الشعار الكبير" data-edge><img src="design/logo/logo.svg" alt="التحدي الكبير"></div>
+      <p class="cap" id="heroCap" data-hud="سطر الانتظار"></p>
+      <div class="start-go ctl" id="startGo" data-hud="زر البدء"></div>
+      <div class="start-side" id="startSide"><p class="err" id="err" data-hud="سطر الخطأ" hidden></p><div class="count" id="count" data-hud="عدد الأنماط"></div></div>
+      <div class="turnp" id="turnp" data-hud="مؤشر الدور" data-free><b><span id="turnName"></span></b><p id="turnLine"></p></div>
+      <div class="mcards" id="mcards"></div>
+      <div class="pick-ctl ctl" id="pickCtl" data-hud="أزرار الاختيار"></div>
+    </div>
+
+    <!-- الشعار المعتمد أعلى اليسار، «الترويسة» (design/logo/الدمج.md 1). وأثناء الجولة بنافذة واحدة الأيقونة مكانه (1.3 ب) -->
+    <div class="logo" data-hud="الشعار" aria-label="التحدي الكبير"><img class="full" src="design/logo/logo.svg" width="323" height="328" alt=""><img class="icon" src="design/logo/icon.svg" width="62" height="64" alt=""></div>
 
     <!-- لوحة الفريق بلا شكل: الاسم ثم الرقم الكبير ثم العدّاد لصاحب الدور، وإطار الوقت حولها (15.3 و15.5) -->
     <section class="team t1" id="p1" data-hud="لوحة الفريق الأول">
@@ -44,7 +58,7 @@
       <div class="row" data-fit="لوحة الفريق الأول"><span class="name" id="n1">الفريق الأول</span><input class="name-in" id="i1" maxlength="18" autocomplete="off" placeholder="اكتب اسم الفريق الأول" aria-label="اسم الفريق الأول"><span class="score" id="s1"></span><span class="cnt" id="c1"></span></div>
     </section>
 
-    <div class="badge mode" data-hud="شارة النمط"><i></i><span id="mode">اختبار العرض</span></div>
+    <div class="badge mode" data-hud="شارة النمط"><i></i><span id="mode">اختبار العرض</span><img class="art" alt="" data-overhang hidden></div>
     <div class="badge plain off" id="b1" data-hud="الشارة الأولى"><i></i><span></span></div>
     <div class="badge plain off" id="b2" data-hud="الشارة الثانية"><i></i><span></span></div>
     <!-- الوقت بصيغته الكاملة للمقدّم والاختبار، والجمهور يرى ثوانيه في لوحة صاحب الدور (#c1 و#c2) -->
@@ -95,7 +109,7 @@
         <!-- الانتظار، وفي الشاشة المشتركة: عدد الأنماط و«ابدأ القرعة» (design/shared.md 4) -->
         <div class="scr title" data-s="title">
           <p class="sub">المباراة تبدأ بعد قليل</p>
-          <div class="crow setup"><p class="guide" id="guide" data-fit="سطر الإرشاد" hidden>اكتب اسمَي الفريقين في لوحتيهما، ثم اختر عدد الأنماط</p><div class="count" id="count"></div><p class="err" id="err" hidden></p><div class="ctl"></div></div>
+          <div class="crow setup"><p class="guide" id="guide" data-fit="سطر الإرشاد" hidden>اكتب اسمَي الفريقين في لوحتيهما، ثم اختر عدد الأنماط</p><div class="ctl"></div></div>
         </div>
         <div class="scr draw" data-s="spin">
           <p class="ask">من يختار نمط الجولة الأولى؟</p>
@@ -196,6 +210,8 @@
   const num = s => esc(s).replace(/([+−]?\d+(?:[:–]\d+)?)/g, '<span class="ltr">$1</span>');
   const setLocked = on => canvas.classList.toggle('locked', on);
   const setDanger = on => canvas.classList.toggle('meta-danger', on);
+  // شاشة البطل: '' (لا شيء) أو wait أو start أو pick، وسطر الانتظار تحت الشعار.
+  const setHero = (kind, cap = '') => { if (kind) canvas.dataset.hero = kind; else delete canvas.dataset.hero; $('heroCap').textContent = cap; };
   const showScreen = name => document.querySelectorAll('.card .scr').forEach(s => s.classList.toggle('show', s.dataset.s === name));
   const setTurn = team => { $('p1').classList.toggle('on', team === 1); $('p2').classList.toggle('on', team === 2); };
   const replay = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
@@ -290,6 +306,26 @@
 
   // صف الشارات من اليمين بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (design/start.html وdesign/letter.html):
   // شارة النمط (في الجولة)، ثم الأولى، ثم الثانية. ولا شارة للحزمة ولا للطريقة ولا للمستوى ولا «سرقة» (design/shared.md 1).
+  // شارات الأنماط الأربع المرسومة مكان الشارة الصفراء (design/logo/الدمج.md 2.2): الصندوق امتداد أصفرها المرسوم [right, top, width, height]،
+  // والصورة داخله بإزاحة سالبة لظلّها وهامشها [left, top, width, height]. وما سواها (الشريط، والجولة الفاصلة، والنهاية) الشارة النصية.
+  const ART = {
+    letter: ['letter', [100, 269, 463, 117], [-4, -7, 490, 136]],
+    'last-two': ['last-two', [96, 253, 529, 125], [-66, -47, 600, 186]],   // right 96 لا 89: لا يتجاوز الهامش الآمن 1824 (للمصمّم)
+    auction: ['auction', [114, 252, 382, 125], [-1, -44, 390, 176]],
+    ranking: ['ranking', [123, 224, 257, 149], [-6, -6, 281, 169]],
+  };
+  function setArt(id) {
+    const el = document.querySelector('.badge.mode'), img = el.querySelector('.art'), art = ART[id];
+    el.classList.toggle('drawn', !!art);
+    el.toggleAttribute('data-free', !!art);
+    img.hidden = !art;
+    if (!art) { el.style.top = el.style.width = el.style.height = el.style.transform = ''; return; }
+    const [file, [right, top, w, h], [x, y, iw, ih]] = art;
+    if (img.dataset.file !== file) { img.dataset.file = file; img.src = `design/logo/modes/${file}.svg`; }
+    Object.assign(el.style, { right: right + 'px', top: top + 'px', width: w + 'px', height: h + 'px' });
+    Object.assign(img.style, { left: x + 'px', top: y + 'px', width: iw + 'px', height: ih + 'px' });
+    el.setAttribute('aria-label', $('mode').textContent);
+  }
   function setBadges(a, b) {
     for (const [el, t] of [[$('b1'), a], [$('b2'), b]]) { el.classList.toggle('off', !t); el.querySelector('span').innerHTML = t ? num(t) : ''; }
     placeBadges();
@@ -301,8 +337,18 @@
     let right = 104;
     for (const el of [document.querySelector('.badge.mode'), $('b1'), $('b2')]) {
       if (!el.getClientRects().length) continue;
-      el.style.right = right + 'px';
-      right += Math.ceil(rect(el).width / k + 24 + lean);
+      // الشارة المرسومة: موضعها من جدولها، وصندوقها امتدادها الفعلي بعد الميل، فلا يُضاف له الميل (design/logo/الدمج.md 2.2).
+      const drawn = el.classList.contains('drawn');
+      // بنافذة واحدة أثناء الجولة تصغر الشارة المرسومة 0.68 (قرار المصمّم)، وأكثر إن لزم كي يبدأ صندوقها من 1508 فأبعد:
+      // فتبقى أزرار العدّاد والحكم (حتى ثلاثة) بعد صف الزاوية الثالث (127–543) بفراغ 24. ومنها آخر حرفين 0.6.
+      if (drawn) {
+        const w = parseFloat(el.style.width), r0 = parseFloat(el.style.right);
+        el.style.transform = canvas.classList.contains('has-a') ? `scale(${Math.min(.68, (1920 - r0 - 1508) / w)})` : '';
+      }
+      if (drawn) right = parseFloat(el.style.right);
+      else el.style.right = right + 'px';
+      // والشارة النصية بعدها تمتد بميلها نصف lean إلى يمينها، فيُضاف لها ذلك النصف كي يبقى الفراغ 24 بعد الميل.
+      right += Math.ceil(rect(el).width / k + 24 + (drawn ? lean / 2 : lean));
     }
     placeNear();
   }
@@ -334,6 +380,9 @@
     setRunning(false);
     let turn = 0;
 
+    // البداية (design/logo/الدمج.md 3): الشعار 620 بالهالة والأشعّة مكان البطاقة، ولوحتا الاسمين في مكانيهما.
+    // واختيار النمط (4): بطاقات د1 ومؤشر الدور. وما سواهما الترويسة.
+    setHero(m.step === 'setup' ? 'start' : m.step === 'pick' ? 'pick' : '');
     if (m.step === 'setup') {
       showScreen('title');
       setBadges();
@@ -356,6 +405,7 @@
         $('pickHead').innerHTML = `${tn(turn)} يختار نمط الجولة <span class="ltr">${k + 1}</span>`;
         setBadges('اختيار الأنماط', `الجولة ${k + 1} من ${total}`);
       }
+      pickCards(m, modes, done ? 0 : turn);
       $('tiles').innerHTML = modes.map(mode => {
         const i = m.picks.findIndex(p => p.mode === mode.id), p = m.picks[i];
         const cls = p ? (p.by ? `by${p.by}` : 'auto') : (done ? 'left' : '');
@@ -385,6 +435,50 @@
     renderCtl();
   }
 
+  // ===== اختيار النمط د1 (design/logo/الدمج.md 4): بطاقة لكل نمط كالزر، تنضغط وتمتلئ بلون من اختارها ويُختم عليها رقم جولتها =====
+  // على الشبكة 1.2 من اليمين بترتيب الأنماط، والشارة في صندوق 318×200 بحدود رسمها الفعلية (INK بوحدة ارتفاع الملف).
+  const CARDS = {
+    letter: { svg: 'letter-stack', line: 'كلمة تبدأ بالحرف', pat: 'p-letter', ink: { l: .0133, t: .01, cw: 1.6225, ch: .94 } },
+    'last-two': { svg: 'last-two-stack', line: 'كلمة تنتهي بالحرفين', pat: 'p-last', ink: { l: .0335, t: .1925, cw: 1.5225, ch: .75 } },
+    auction: { svg: 'auction', line: 'زايِد على عدد الإجابات', pat: 'p-auction', ink: { l: .0022, t: .185, cw: 2.2125, ch: .81 } },
+    ranking: { svg: 'ranking', line: 'اذكر الأبعد في القائمة', pat: 'p-rank', ink: { l: .021, t: .0325, cw: 1.5975, ch: .9325 } },
+  };
+  function cardBadge({ svg, ink: m }) {
+    const H = Math.min(200, 318 / (m.cw / m.ch)), ih = H / m.ch, w = m.cw * ih;
+    return `<span class="bdg" style="width:${w}px;height:${H}px"><img src="design/logo/modes/${svg}.svg" alt="" style="left:${-m.l * ih}px;top:${-m.t * ih}px;height:${ih}px"${svg === 'ranking' ? ' class="edge"' : ''}></span>`;
+  }
+  let cardsKey = '';
+  function pickCards(m, modes, turn) {
+    const k = m.picks.length;
+    // مؤشر الدور: لوحة صاحب الدور بلونه في جهته، و«يختار نمط الجولة N» تحتها للأول وفوقها للثاني (4.4). ولا مؤشر بعد اكتمال الاختيار.
+    $('turnp').hidden = !turn;
+    $('turnp').className = 'turnp t' + turn;
+    $('turnName').textContent = turn ? name(turn) : '';
+    $('turnLine').innerHTML = turn ? num(`يختار نمط الجولة ${k + 1}`) : '';
+    const list = modes.filter(x => CARDS[x.id]);
+    const html = list.map((mode, i) => {
+      const c = CARDS[mode.id], at = m.picks.findIndex(p => p.mode === mode.id), p = m.picks[at];
+      const state = p ? `picked tm${p.by}` : (picksDone(m) ? 'left' : 'avail');
+      return `<div class="mc ${c.pat} ${state}" data-mode="${esc(mode.id)}" style="left:${96 + (3 - i) * 438}px">`
+        + `<div class="face"><div class="in"><div class="ct" data-hud="بطاقة ${esc(mode.name)}" data-free aria-label="${esc(mode.name)}">${cardBadge(c)}<p class="line">${c.line}</p></div></div>`
+        + (p ? `<div class="key done"><span>${num('الجولة ' + (at + 1))}</span></div>` : `<div class="key"><span><b class="ltr">${i + 1}</b>اختر</span></div>`) + '</div>'
+        + (p ? `<i class="stamp ltr">${at + 1}</i><p class="by" data-hud="سطر من اختار" data-free data-name="${p.by ? esc(name(p.by)) : ''}">${p.by ? 'اختيار ' + esc(name(p.by)) : 'النمط المتبقي'}</p>` : '') + '</div>';
+    }).join('');
+    if (html !== cardsKey) { cardsKey = html; $('mcards').innerHTML = html; }
+    // «اختيار {الفريق}» باسم طويل تحت بطاقة طرفية يُزاح إلى داخل الهامش الآمن (96–1824).
+    const c = rect(canvas), s = c.width / 1920 || 1;
+    $('mcards').querySelectorAll('.by').forEach(el => {
+      el.style.transform = ''; el.classList.remove('tight'); if (el.dataset.name) el.textContent = 'اختيار ' + el.dataset.name;
+      const range = document.createRange(); range.selectNodeContents(el);
+      // أعرض من بطاقته بفراغ 24 (414 − 24): بخط 32 بدل 36، فإن بقي أعرض فالاسم وحده (البطاقة بلون فريقه)، فلا يمسّ سطر البطاقة المجاورة.
+      if (range.getBoundingClientRect().width / s > 390) el.classList.add('tight');
+      if (range.getBoundingClientRect().width / s > 390 && el.dataset.name) { el.textContent = el.dataset.name; range.selectNodeContents(el); }
+      const r = range.getBoundingClientRect(), x1 = (r.left - c.left) / s, x2 = (r.right - c.left) / s;
+      const shift = Math.max(0, 96 - x1) - Math.max(0, x2 - 1824);
+      if (shift) el.style.transform = `translateX(calc(-50% + ${shift}px))`;
+    });
+  }
+
   // ===== النهاية (ش7، design/final.md 2): النتيجة النهائية ثم الفائز =====
   // الشارة «انتهت المباراة» ولا ثانية. والنتيجة بالحدّ في المنتصف و«التالي» نصاً بلا مربع، والفائز يكتسح إليه الحدّ ويبقى.
   const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
@@ -393,9 +487,11 @@
     const modeName = id => modes.find(x => x.id === id)?.name ?? PLANNED.find(x => x.id === id)?.name ?? id;
     if (count && !count.test) stop();
     canvas.classList.remove('pre', 'fresh');
+    setHero('');
     $('n1').textContent = name(1); $('n2').textContent = name(2);
     setScore(1, m.scores[1]); setScore(2, m.scores[2]);
     $('mode').textContent = 'انتهت المباراة';
+    setArt();
     setBadges();
     setRunning(false);
     setTurn(0);
@@ -469,10 +565,12 @@
   function renderPlay(p) {
     const a = p.a, sc = p.scores;
     canvas.classList.remove('pre');
+    setHero('');
     canvas.classList.toggle('fresh', !!p.fresh);
     $('n1').textContent = name(1); $('n2').textContent = name(2);
     setScore(1, sc[1]); setScore(2, sc[2]);
     $('mode').textContent = p.modeName;
+    setArt(p.modeId);
 
     if (a.screen === 'intro') {
       showScreen('intro');
@@ -686,13 +784,18 @@
     const c = embed && view ? ctl : null;
     canvas.classList.toggle('editing', !!c?.names);
     // أزرار البطاقة في الشاشة الظاهرة وحدها.
-    document.querySelectorAll('.card .ctl').forEach(el => { el.innerHTML = el.closest('.scr').classList.contains('show') ? (c?.card ?? []).map(button).join('') : ''; });
+    // وفي شاشتي البداية والاختيار لا بطاقة: زر «ابدأ» تحت الشعار، وأزرار الاختيار تحت البطاقات (design/logo/الدمج.md 3 و4.1).
+    const hero = canvas.dataset.hero, inCard = hero !== 'start' && hero !== 'pick';
+    document.querySelectorAll('.card .ctl').forEach(el => { el.innerHTML = inCard && el.closest('.scr').classList.contains('show') ? (c?.card ?? []).map(button).join('') : ''; });
+    $('startGo').innerHTML = hero === 'start' ? (c?.card ?? []).map(button).join('') : '';
+    $('pickCtl').innerHTML = hero === 'pick' ? (c?.card ?? []).map(button).join('') : '';
     $('near').innerHTML = (c?.near ?? []).map(button).join('');
     $('cornerA').innerHTML = rows(c?.a);
     $('cornerB').innerHTML = rows(c?.b);
     $('cornerC').innerHTML = rows(c?.c);
     // النافذة الواحدة: صفّا أزرار الزاويتين مكان الشعار (1.3).
     canvas.classList.toggle('has-a', ['cornerA', 'cornerB', 'cornerC'].some(id => $(id).children.length));
+    placeBadges();   // الشارة المرسومة تصغر بنافذة واحدة (has-a)، فيتغير موضع ما بعدها
     $('count').innerHTML = c?.count ? '<span class="lbl">عدد الأنماط</span>' + [['short', 2], ['full', 4]].map(([m, k]) =>
       `<button class="ctile${c.count.value === m ? ' sel' : ''}${k === 4 && !c.count.four ? ' off' : ''}" data-cmd="count:${m}"><span class="ltr">${k}</span></button>`).join('') : '';
     for (const id of ['err', 'faceErr']) { $(id).hidden = !c?.error; $(id).textContent = c?.error ?? ''; }
@@ -701,6 +804,7 @@
     // المقارنة في الترتيب: كل خانة تُنقر فيدوّر صاحبها.
     $('rnk').classList.toggle('mark', !!c?.marks);
     $('board').querySelectorAll('.sl[data-r]').forEach(el => { if (c?.marks) el.dataset.cmd = 'act:mark:' + el.dataset.r; else delete el.dataset.cmd; });
+    $('mcards').querySelectorAll('.mc').forEach(t => { if (c?.pick && t.classList.contains('avail')) t.dataset.cmd = 'pick:' + t.dataset.mode; else delete t.dataset.cmd; });
     $('tiles').querySelectorAll('.tile').forEach(t => { if (c?.pick && !t.classList.contains('by1') && !t.classList.contains('by2') && !t.classList.contains('auto') && !t.classList.contains('left')) t.dataset.cmd = 'pick:' + t.dataset.mode; else delete t.dataset.cmd; });
     for (const k of [1, 2]) {
       if (c?.scores) $('s' + k).dataset.cmd = 'scores'; else delete $('s' + k).dataset.cmd;
@@ -876,12 +980,12 @@
     if (!count) show(a?.clock ?? 0);
   }
 
-  const waiting = () => { stop(); setLocked(true); canvas.classList.add('pre'); setTurn(0); setSide(0); showScreen('q'); $('letter').textContent = ''; delete $('letter').dataset.key; $('letter').classList.remove('ending'); $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم'; };
+  const waiting = () => { stop(); setLocked(true); setHero('wait', 'بانتظار المقدّم'); canvas.classList.add('pre'); setTurn(0); setSide(0); showScreen('q'); $('letter').textContent = ''; delete $('letter').dataset.key; $('letter').classList.remove('ending'); $('label').textContent = 'نافذة الجمهور · بانتظار المقدّم'; };
   const ready = () => {
     if (count) stop();
     setLocked(false); show(10);
     if (view) render();
-    else { canvas.classList.add('pre'); showScreen('q'); $('label').textContent = 'نافذة الجمهور · متصلة'; }
+    else { canvas.classList.add('pre'); setHero('wait', 'بانتظار المقدّم'); showScreen('q'); $('label').textContent = 'نافذة الجمهور · متصلة'; }
   };
 
   // ?check: صفحة فحص ثابتة، لا تتبع المقدّم وإن كان مفتوحاً.
@@ -901,7 +1005,7 @@
     if (type === 'anim') { if (data.view) view = data.view; if (!count?.test) { setLocked(false); animate(data.name); } }
     if (type === 'start') {
       setLocked(false); ctl = null; renderCtl();
-      canvas.classList.remove('pre', 'fresh'); setTurn(0); setSide(0); showScreen('q'); setBadges(); announce();
+      canvas.classList.remove('pre', 'fresh'); setHero(''); setTurn(0); setSide(0); showScreen('q'); setBadges(); announce();
       $('label').textContent = 'العدّاد يعمل';
       begin({ test: true, endAt: Date.now() + data.seconds * 1000 });
     }
