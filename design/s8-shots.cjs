@@ -132,17 +132,22 @@ const aucText = t => [`${t.topic} · ${t.items.length}`, ...t.items.map(i => i.n
       if (last) await go('act:start:one');
       await go('act:finish'); await go('act:commit'); await go('act:next');
     }
-    await go('next'); // نهاية الجولة ← الشريط
     // ===== 4. الشريط =====
+    // خانتا الوقوف تُحسمان لحظة إعداد الشريط (js/wheel.js)، فيُثبَّت Math.random قبل «التالي» الذي يبدؤه: 0.05 = الخانة 0، تحدٍّ (كما في tests/helpers.cjs fixedSpin)
     await stage.evaluate(() => { window.__rnd = Math.random; Math.random = () => 0.05; });
+    await go('next'); // نهاية الجولة ← الشريط
     await wait(800);
     await overlay(); await long();
     await frame.evaluate(() => S8.band());
     await shot('10-strip-ready');
     await go('act:spin'); await wait(7000);
     await stage.evaluate(() => { Math.random = window.__rnd; });
+    // وقف فعلاً على تحدٍّ: مربع الخانة «تحدٍّ»، واللعبة تعرض «ابدأ التحدي». وإلا لا تُرسم حالة التحدي فوق خانة حظ
+    const landed = await frame.evaluate(() => ({ word: document.querySelector('#letter.slot span')?.textContent.trim(), start: !!document.querySelector('[data-cmd="act:start"]') }));
+    if (landed.word !== 'تحدٍّ' || !landed.start) throw new Error(`الشريط لم يقف على تحدٍّ: ${JSON.stringify(landed)}`);
+    console.log(`  وقف الشريط على تحدٍّ (${landed.word})، و«ابدأ التحدي» ظاهر في اللعبة`);
     await frame.evaluate(() => {
-      S8.band(); const sq = document.querySelector('#letter.slot b'); if (sq) sq.textContent = '+10';
+      S8.band(); document.querySelector('#letter.slot b').textContent = '+10';
       S8.near([['نجح · <span class="ltr">+10</span>'], ['لم ينجح', 'no']]);
       document.getElementById('canvas').classList.remove('running');
       document.querySelectorAll('.team .cnt').forEach(c => c.textContent = '');
