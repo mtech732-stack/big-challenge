@@ -69,17 +69,9 @@ async function sharedToFace(frame, { names, count = 'short', picks }) {
   await frame.waitForSelector('.scr.show[data-s="face"]');
 }
 
-// «ابدأ بنافذتين» من زر الخيارات (design/s8.md 1): تُفتح نافذة المقدّم بالرقم نفسه، وتبقى هذه شاشة الجمهور.
-async function beginTwo(context, frame) {
-  await cmd(frame, 'opts');
-  const [host] = await Promise.all([context.waitForEvent('page'), cmd(frame, 'two')]);
-  await host.waitForSelector('#app:not([hidden])', { timeout: 10000 });
-  return host;
-}
-
 // شريط البونص بين الجولتين (ش6، في الرابطين): يُلعب كاملاً بلا نقاط، فلا يغيّر ما بعده.
 // خانة الوقوف تحدٍّ في الدورتين (Math.random لحظة الإعداد وحدها ثم يعود)، و«لم ينجح» في كلٍّ، ثم «إنهاء الشريط».
-// page: الصفحة التي تدير المباراة (نافذة المقدّم، أو الصفحة الأم بنافذة واحدة). وبعدها نهاية الشريط و«ابدأ الجولة …».
+// page: الصفحة التي تدير المباراة (الصفحة الأم، الوثيقة 1.13). وبعدها نهاية الشريط و«ابدأ الجولة …».
 const wait = ms => new Promise(r => setTimeout(r, ms));
 async function fixedSpin(page, start) {
   await page.evaluate(() => { window.__rnd = Math.random; Math.random = () => 0.05; });
@@ -94,16 +86,6 @@ async function hideQr(frame) {
   await new Promise(r => setTimeout(r, 800));
   return true;
 }
-async function passWheel(presenter) {
-  await fixedSpin(presenter, () => presenter.click('#endNext'));
-  for (const last of [false, true]) {
-    await presenter.click('#wCtl [data-act="spin"]');
-    await presenter.click('#wCtl [data-act="failed"]', { timeout: 12000 });
-    await wait(600);
-    await presenter.click(`#wCtl [data-act="${last ? 'finish' : 'next'}"]`);
-    await wait(800);
-  }
-}
 async function passWheelOne(stage, frame) {
   const go = async c => { await cmd(frame, c); await wait(800); };
   await fixedSpin(stage, () => cmd(frame, 'next'));
@@ -114,4 +96,4 @@ async function passWheelOne(stage, frame) {
   }
 }
 
-module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo, passWheel, passWheelOne, hideQr };
+module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne, hideQr };

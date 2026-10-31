@@ -1,8 +1,8 @@
 // اختبار آلي لبدء المباراة على الشاشة المشتركة (الوثيقة 1.1، design/shared.md): نافذة واحدة يشترك فيها المقدّم والجمهور
 // حتى «ابدأ المباراة»، وكل اختيار بالنقر على عنصره (الاسمان في اللوحتين، وعدد الأنماط 2 أو 4، وخانات الأنماط)،
-// ولا شريط سفلي، ولا تفاصيل قواعد على الشاشة. ثم تُفتح نافذة المقدّم وتبقى هذه شاشة الجمهور، وتعود إليها المباراة الجديدة.
+// ولا شريط سفلي، ولا تفاصيل قواعد على الشاشة. ثم «ابدأ المباراة» في الصفحة نفسها (الوثيقة 1.13: نافذة واحدة وحدها)، والمباراة الجديدة من لوحة «⋯».
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, beginTwo } = require('./helpers.cjs');
+const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/';
@@ -143,23 +143,8 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   check('المواجهة: «يبدأ الإجابة» واسم الفائز بالقرعة في مربع الإعلان (1.11)', await vis('#box') && (await text('#faceChip')) === 'يبدأ الإجابة' && (await text('#faceWin')) === (await saved()).teams[(await saved()).winner]);
   check(`المواجهة: المسار (${track})`, track === 'الجولة 1 آخر حرفين | شريط البونص | الجولة 2 الحرف المعيّن');
   check('المواجهة: «ابدأ المباراة» و«أعد العرض»، ولا «بنافذة واحدة»', (await frame.$$eval('.scr.show .ctl .cbtn', b => b.map(x => x.textContent).join('|'))) === 'ابدأ المباراة|أعد العرض');
-  // النافذتان خيار جانبي (5.2، 7.1، design/s8.md 1): زر «خيارات» على (474، 152)، وقائمته مغلقة حتى يُنقر.
-  const optBox = await frame.$eval('#cornerO .opt', e => { const c = document.getElementById('canvas').getBoundingClientRect(), r = e.getBoundingClientRect(), k = c.width / 1920;
-    return [Math.round((r.left - c.left) / k), Math.round((r.top - c.top) / k), Math.round(r.width / k), e.getAttribute('aria-label'), e.textContent]; });
-  check(`المواجهة: زر الخيارات 64×64 على (474، 152) بلا نص (${optBox})`, optBox.join() === '474,152,64,خيارات,' && !(await vis('#optmenu')));
-  await cmd(frame, 'opts');
-  await wait(200);
-  check('نقرة الخيارات: القائمة على (474، 240) فيها «ابدأ بنافذتين» وحده', await vis('#optmenu') && (await frame.$$eval('#optmenu .cbtn', b => b.map(x => x.textContent).join('|'))) === 'ابدأ بنافذتين'
-    && (await frame.$eval('#optmenu', e => { const c = document.getElementById('canvas').getBoundingClientRect(), r = e.getBoundingClientRect(), k = c.width / 1920; return [Math.round((r.left - c.left) / k), Math.round((r.top - c.top) / k)].join(); })) === '474,240');
-  await stageCheck('المواجهة بقائمة الخيارات');
-  await frame.click('#track');
-  await wait(200);
-  check('نقرة خارج القائمة تغلقها', !(await vis('#optmenu')));
-  await cmd(frame, 'opts');
-  await wait(150);
-  await cmd(frame, 'opts');
-  await wait(150);
-  check('نقرة ثانية على الزر تغلقها', !(await vis('#optmenu')));
+  // لا زر خيارات ولا «ابدأ بنافذتين» (الوثيقة 1.13): المباراة بنافذة واحدة وحدها، ولا شيء مكانه.
+  check('المواجهة: لا زر خيارات ولا «ابدأ بنافذتين»', !(await frame.$('[data-cmd="opts"], [data-cmd="two"], #cornerO, #optmenu')));
   await noWords('المواجهة');
   await stageCheck('المواجهة');
   await page.screenshot({ path: `${shots}/s1-shared-face.png` });
@@ -173,46 +158,31 @@ const { usePin, unlock, reporter, testPinRecord, stageFrame, cmd, sharedToFace, 
   const backFace = await frame.waitForSelector('.scr.show[data-s="face"] [data-cmd="begin"]', { timeout: 6000 }).then(() => true, () => false);
   check('ثم تعود المواجهة كما هي', backFace && await vis('.scr.show[data-s="face"]') && await vis('[data-cmd="begin"]'));
 
-  // 6. منع النوافذ المنبثقة: تبقى الشاشة المشتركة، والسبب في البطاقة.
-  await page.evaluate(() => { window.open = () => null; });
-  await cmd(frame, 'opts');
-  await cmd(frame, 'two');
-  await wait(300);
-  check('النافذة ممنوعة: السبب في البطاقة، والمباراة لم تبدأ', (await text('#faceErr')).startsWith('منع المتصفح نافذة المقدّم') && (await saved()).step === 'face');
-  await stageCheck('النافذة ممنوعة');
+  // 6. «ابدأ المباراة»: الجولة 1 في الصفحة نفسها، ولا نافذة تُفتح ولو منعها المتصفح.
+  await page.evaluate(() => { window.open = () => { window.__opened = true; return null; }; });
+  const pages = context.pages().length;
+  await cmd(frame, 'begin');
+  await frame.waitForSelector('.scr.show[data-s="intro"]', { timeout: 6000 });
+  check('«ابدأ المباراة»: افتتاح الجولة 1 في الصفحة نفسها، ولا نافذة أخرى', !(await page.evaluate(() => window.__opened)) && context.pages().length === pages && (await saved()).step === 'play');
+  await cmd(frame, 'act:show');
+  await frame.waitForSelector('.scr.show[data-s="q"]', { timeout: 5000 });
+  check('ثم السؤال 1 بأزراره', (await text('#b1')) === 'السؤال 1 من 6');
+
+  // 7. إعادة التحميل أثناء الجولة: الرقم، ثم السؤال كما كان بأزراره.
   await page.reload();
+  check('إعادة التحميل في الجولة: يُطلب الرقم', await page.isVisible('#pin'));
   await unlock(page);
   frame = await stageFrame(page);
-
-  // 7. «ابدأ المباراة»: تُفتح نافذة المقدّم بلا رقم، وتبقى هذه شاشة الجمهور بلا أزرار.
-  const host = await beginTwo(context, frame);
-  await frame.waitForSelector('.scr.show[data-s="intro"]', { timeout: 6000 });
-  await wait(300);
-  check('نافذة المقدّم: تُفتح دون طلب الرقم، وفيها افتتاح الجولة 1', !(await host.isVisible('#pin')) && await host.isVisible('#introHead') && (await host.textContent('#introHead')).includes('الجولة 1'));
-  check('الشاشة المشتركة صارت شاشة جمهور: الافتتاح، ولا زر', !(await frame.$('.cbtn')) && await page.evaluate(() => sessionStorage.getItem('big-challenge.role')) === 'stage');
-  await host.click('#showQ');
-  await frame.waitForSelector('.scr.show[data-s="q"]', { timeout: 5000 });
-  check('نافذة المقدّم تقود شاشة الجمهور: السؤال 1', (await text('#b1')) === 'السؤال 1 من 6');
-  await page.reload();
-  frame = await stageFrame(page);
-  await frame.waitForSelector('.scr.show[data-s="q"]', { timeout: 6000 });
-  check('إعادة تحميل شاشة الجمهور: تبقى شاشة جمهور بلا رقم، ومتصلة', !(await page.isVisible('#pin')) && !(await frame.$('.cbtn')));
-
-  // 8. أُغلقت نافذة المقدّم: «تابع بنافذة واحدة». ولا زر يعيدها (الوثيقة 1.13: النافذة الواحدة وحدها).
-  await host.close();
-  await page.waitForSelector('#resume:not([hidden])', { timeout: 5000 });
-  check('أُغلقت نافذة المقدّم: زر «تابع بنافذة واحدة»', (await page.textContent('#resume')).includes('تابع بنافذة واحدة'));
-  await page.click('#resume');
   await frame.waitForSelector('#near .cbtn', { timeout: 6000 });
-  check('المتابعة بنافذة واحدة: أزرار الحكم بجانب العدّاد، والسؤال كما كان، ولا «المقدّم» في لوحة «⋯»', (await saved()).single === true && (await text('#b1')) === 'السؤال 1 من 6'
+  check('ثم السؤال كما كان: أزرار الحكم بجانب العدّاد، ولا «المقدّم» في لوحة «⋯»', (await text('#b1')) === 'السؤال 1 من 6'
     && await vis('#cornerA [data-cmd="more"]') && (await frame.click('[data-cmd="more"]'), await vis('#moreMenu [data-cmd="new"]')) && !(await frame.$('[data-cmd="presenter"]')));
 
-  // 9. مباراة جديدة من لوحة «⋯»: برسالة التأكيد، ثم الإعداد.
+  // 8. مباراة جديدة من لوحة «⋯»: برسالة التأكيد، ثم الإعداد.
   page.once('dialog', d => d.accept());
   await cmd(frame, 'new');
   await frame.waitForSelector('[data-hero="start"] .hlogo', { timeout: 6000 });
   await wait(300);
-  check('والشاشة المشتركة تعود إلى الإعداد بحقليها', await vis('#i1') && await vis('[data-cmd="draw"]') && await page.evaluate(() => sessionStorage.getItem('big-challenge.role')) === 'presenter');
+  check('والشاشة المشتركة تعود إلى الإعداد بحقليها', await vis('#i1') && await vis('[data-cmd="draw"]'));
 
   // 10. أطول اسمين، بالعددين (برابط المعاينة: 4 أنماط)، وفحص التداخل في كل شاشة.
   await page.goto(base + '?preview');

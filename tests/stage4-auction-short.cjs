@@ -1,12 +1,12 @@
-// اختبار آلي لـ«بعد الحكم» في المزاد (design/auction.md 1.5 و7.6، و4.0: ما قيل وحده لا القائمة) بالنافذتين وبالنافذة الواحدة، بالبنك الحقيقي:
+// اختبار آلي لـ«بعد الحكم» في المزاد (design/auction.md 1.5 و7.6، و4.0: ما قيل وحده لا القائمة) بالنافذة الواحدة (الوثيقة 1.13)، بالبنك الحقيقي:
 // الحكم بلا مربع (الشارة بيضاء بنص صاحبها، والسطر على الطرف)، وما قيل قليلاً بشارات كبيرة إن اتسع في صفين،
 // وما قيل كثيراً (40 من أطول قائمة) بالحجم المعتاد و«و N غيرها». وبقاعدة 2.0: «لم يفِ» في القصيرة الأولى (للخصم +2) ووفاء في الثانية.
 // ولا يعتمد على اسم قائمة بعينها: القصيرتان من أقصر أسماء أطول قائمة، بالحد الأدنى للبنك (10 عناصر).
-// وفحص التداخل ونافذة المقدّم في كل حالة، وصور لـ ratio.cjs.
+// وفحص التداخل في كل حالة، وصور لـ ratio.cjs.
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/'; // الرابط العادي: المزاد في MODES منذ اكتمال ش4
@@ -41,13 +41,12 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await stage.reload();
   await unlock(stage);
   let audience = await stageFrame(stage);
-  let presenter = null;
   const text = (page, sel) => page.textContent(sel).then(t => t.replace(/\s+/g, ' ').trim());
   const stored = () => stage.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')));
   const st = async () => (await stored()).round.state;
   const other = t => (t === 1 ? 2 : 1);
 
-  let layoutOk = true, presenterOk = true, leak = false;
+  let layoutOk = true, leak = false;
   const fails = [];
   // شاشة الجمهور: التداخل والشبكة، ولا عنصر لم يُذكر قبل الحكم ولا بعده، ولا طول القائمة ولا نص قواعد.
   const audienceCheck = async label => {
@@ -72,43 +71,27 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
     if (await audience.$('#tsize, .auc .size')) { leak = true; fails.push(`${label}: «في القائمة» على الجمهور`); }
     if (body.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
   };
-  const presenterCheck = async label => {
-    const r = await presenter.evaluate(() => {
-      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize), problems = [];
-      const vis = n => n.getClientRects().length && getComputedStyle(n).visibility !== 'hidden';
-      for (const n of document.getElementById('app').querySelectorAll('*')) {
-        if (!vis(n)) continue;
-        if ([...n.childNodes].some(c => c.nodeType === 3 && c.textContent.trim())) {
-          if (parseFloat(getComputedStyle(n).fontSize) < rem - .01) problems.push(`نص أصغر من 32: «${n.textContent.trim().slice(0, 16)}»`);
-          if (/[٠-٩۰-۹]/.test(n.textContent)) problems.push('أرقام هندية');
-          if (getComputedStyle(n).fontStyle !== 'normal') problems.push('ميل');
-        }
-        if (n.tagName === 'BUTTON' && !n.closest('.ref') && n.getBoundingClientRect().height < 2 * rem - .5) problems.push(`زر أقصر من 64: «${n.textContent.trim()}»`);
-        if (n.scrollWidth > n.clientWidth + 1 && getComputedStyle(n).overflow !== 'visible') problems.push(`يفيض: «${n.textContent.trim().slice(0, 16)}»`);
-      }
-      if (document.documentElement.scrollHeight > innerHeight + 1) problems.push(`أطول من النافذة (${document.documentElement.scrollHeight} من ${innerHeight})`);
-      if (document.documentElement.scrollWidth > innerWidth + 1) problems.push('تمرير أفقي');
-      return { ok: !problems.length, problems: [...new Set(problems)] };
-    });
-    if (!r.ok) { presenterOk = false; fails.push(`المقدّم ${label}: ${r.problems.join('، ')}`); }
-  };
-  const sizes = async label => {
-    for (const [w, h] of [[1366, 768], [1280, 800], [1920, 1080]]) { await presenter.setViewportSize({ width: w, height: h }); await wait(250); await presenterCheck(`${label} ${w}`); }
-    await presenter.setViewportSize({ width: 1366, height: 768 });
-  };
-  const both = async label => { await wait(700); await audienceCheck(label); if (presenter) await sizes(label); };
+  const both = async label => { await wait(700); await audienceCheck(label); };
   const chips = () => audience.$$eval('#items .it', els => els.map(e => ({ name: e.textContent.trim(), t: e.classList.contains('t1') ? 1 : e.classList.contains('t2') ? 2 : 0, left: e.classList.contains('left'), more: e.classList.contains('more') })));
   const tally = async () => `${await text(audience, '#tn')}/${await text(audience, '#tof')}`;
-  // نقرة بالفأرة في موضع العنصر i بعد تمريره إلى النظر (القائمة تُمرَّر داخل لوحتها، 4.0)، لا page.click: ينتظر ثبات الزر فيؤخر النقرة.
-  const at = async i => presenter.$eval(`#aRef button[data-i="${i}"]`, e => { e.scrollIntoView({ block: "nearest" }); const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
-  const tap = async i => { const p = await at(i); await presenter.mouse.click(p.x, p.y); };
-
+  // عنصر بعينه من القائمة (act:item): لا زر له في النافذة الواحدة بعد 1.13، لكن الشاشة تعرض ما ذُكر بأسمائه إن وُجد،
+  // فيُذكر به كي يبقى عرض الشارات الكبيرة والمعتادة مفحوصاً.
+  const tap = i => audience.evaluate(c => parent.postMessage({ bc: 'cmd', cmd: c }, location.origin), 'act:item:' + i);
+  // يُذكر العنصر حتى يُحسب: بعد كل تغيّر تُهمل نقرات الجولة 0.7 ثانية (HOLD_MS)، فإن أبطأ الجهاز أُعيد، ثم تُنتظر المهلة.
+  const say = async i => {
+    for (let k = 0; k < 6; k++) {
+      const s0 = (await stored()).round.state;
+      if (s0.phase !== 'fulfil') return;
+      await tap(i);
+      for (let w = 0; w < 10; w++) { await wait(100); if ((await stored()).round.state.said.length > s0.said.length) { await wait(720); return; } }
+    }
+  };
 
   const round = async () => (await stored()).round;
-  const ctl = () => presenter.$$eval('#aCtl button', els => els.map(e => e.textContent.trim()).join(' | '));
+  const ctl = () => audience.$$eval('.scr.show .ctl .cbtn, #near .cbtn', els => els.map(e => e.textContent.trim()).join(' | '));
   // المزايدة رقماً رقماً حتى n، ثم يتوقف صاحب الدور، فيلتزم من ذكر n.
   // يزايد الفريق t بزرّه حتى n (خصمه بلا رقم)، ثم «ابدأ» يرسي عليه ويبدأ الوفاء (3.0).
-  const bidTo = async (n, t) => { for (let k = 1; k <= n; k++) { await presenter.click(`#aCtl [data-raise="${t}"]`); await wait(150); } await wait(500); await presenter.click('#aCtl [data-act="start"]'); await wait(900); };
+  const bidTo = async (n, t) => { for (let k = 1; k <= n; k++) { await cmd(audience, 'raise:' + t); await wait(120); } await wait(500); await cmd(audience, 'act:start'); await wait(900); };
   // بعد الحكم: المربع بلا خلفية، والشارة بيضاء بنص صاحبها، والسطر ظاهر. والقائمة كبيرة أو معتادة.
   const look = () => audience.evaluate(() => {
     const box = document.getElementById('box'), chip = document.getElementById('verdict'), cs = getComputedStyle(document.documentElement);
@@ -125,19 +108,19 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await audience.waitForSelector('[data-cmd="draw"]', { timeout: 6000 });
   await sharedToFace(audience, { names: LONG, picks: ['auction', 'letter'] });
   await wait(2700);
-  presenter = await beginTwo(context, audience);
-  await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 6000 });
+  await cmd(audience, 'begin');
   await audience.waitForSelector('.scr.show[data-s="intro"]', { timeout: 5000 });
   let s = await st();
   const first = Math.random() < 0.5 ? 1 : 2, win = first;
   check(`المواضيع: قائمتان قصيرتان (${SHORT}) ثم أطول قائمة (${LONGEST})`, s.topics.map(t => t.topic).join('،') === keep.join('،'));
-  await presenter.click('#showQ');
+  await cmd(audience, 'act:show');
   await audience.waitForSelector('.scr.show[data-s="auc"]');
   await wait(800);
+  await hideQr(audience);
   await bidTo(4, other(first));
   check(`القصيرة الأولى: الفريق ${other(first)} ملتزم بـ 4`, (await st()).commit.team === other(first) && (await st()).commit.n === 4);
-  await tap(0); await wait(100); await tap(1); await wait(700);
-  await presenter.click('#aCtl [data-act="stop"]'); await wait(1600);
+  await say(0); await say(1);
+  await cmd(audience, 'act:stop'); await wait(1600);
   let l = await look();
   check(`القصيرة الأولى: لم يفِ، فللفريق ${win} نقطتان (${await ctl()})`, (await st()).phase === 'decided' && (await round()).scores[win] === 2 && (await round()).scores[other(win)] === 0);
   check(`الحكم بلا مربع: الشارة والسطر «ذُكر 2 من 4» ظاهران، وخلفية المربع مخفية (${l.bg})`, l.bare && l.bg === 'none' && l.shown && l.told === 'ذُكر 2 من 4');
@@ -148,20 +131,31 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await shot(`s4-short-1-fail-t${win}`);
 
   // 2. الموضوع 2 «القصيرة الثانية» (10): يرسو على الأول بـ 2 فيفي (2.0: wonshort).
-  await presenter.click('#aCtl [data-act="next"]'); await wait(1200);
+  await cmd(audience, 'act:next'); await wait(1200);
+  await hideQr(audience);
   await bidTo(2, first);
-  await tap(0); await wait(100); await tap(1); await wait(1500);
+  await say(0); await say(1); await wait(800);
   l = await look();
   check(`القصيرة الثانية: وفى الفريق ${win} بـ 2 (رصيده 4)`, (await st()).phase === 'decided' && (await round()).scores[win] === 4);
   check(`القصيرة الثانية: الحكم بلا مربع، وما قيل (2) كبير (${l.h}، ${l.rows} صف)`, l.bare && l.bg === 'none' && l.big && l.h === 88 && l.rows === 1 && l.n === 2);
   await both('القصيرة الثانية · بعد الحكم');
   await shot(`s4-short-2-t${win}`);
 
+  // حكم القصيرة الثانية محفوظاً، يُعاد إليه في 5 (التراجع إليه عبر أربعين عدّة يتجاوز ما بقي من وقت الوفاء، فيُحكم بالوقت).
+  const afterShort2 = await stage.evaluate(() => localStorage.getItem('big-challenge.match'));
+
   // 3. الموضوع 3 «أطول قائمة»: يرسو على الآخر بـ 40 فيفي بأربعين من أسمائها (wonlong)، فما قيل بالحجم المعتاد و«و N غيرها».
-  await presenter.click('#aCtl [data-act="next"]'); await wait(1200);
+  await cmd(audience, 'act:next'); await wait(1200);
+  await hideQr(audience);
   const MANY = Math.min(40, LONGEST);
   await bidTo(MANY, other(first));
-  for (let i = 0; i < MANY; i++) { await tap(i); await wait(80); }
+  // أربعون عنصراً بمهلة 0.7 ثانية بعد كلٍّ تتجاوز وقت الوفاء (45)، فيُمدّ عدّاده الجاري في الحالة المحفوظة إلى 120 ثم تُعاد الصفحة. لا تغيير في اللعبة.
+  await stage.evaluate(() => { const m = JSON.parse(localStorage.getItem('big-challenge.match'));
+    m.round.timer = { ...m.round.timer, seconds: 120 }; m.timerAt = Date.now(); localStorage.setItem('big-challenge.match', JSON.stringify(m)); });
+  await stage.reload(); await unlock(stage);
+  audience = await stageFrame(stage);
+  await wait(1000);
+  for (let i = 0; i < MANY; i++) await say(i);
   await wait(1500);
   l = await look();
   const moreN = await audience.$eval('#items', e => Number(e.querySelector('.more')?.textContent.replace(/\D/g, '') ?? 0));
@@ -171,34 +165,31 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = re
   await shot(`s4-long-t${other(first)}`);
 
   // 4. «إنهاء الجولة» ثم التراجع عنه.
-  await presenter.click('#aCtl [data-act="next"]'); await wait(1200);
-  await presenter.click('#endUndo'); await wait(1000);
+  await cmd(audience, 'act:next'); await wait(1200);
+  await cmd(audience, 'undo'); await wait(1000);
   check('النهاية ثم التراجع: يعود حكم أطول قائمة', (await st()).phase === 'decided' && (await st()).index === 2);
 
-  // 5. النافذة الواحدة: الحكم بلا مربع والقائمة القصيرة كبيرة كذلك.
-  await presenter.close();
-  presenter = null;
-  await wait(600);
-  await stage.click('#resume');
-  await wait(1200);
+  // 5. بعد إعادة تحميل الإطار: الحكم بلا مربع والقائمة القصيرة كبيرة كذلك (بحكمها المحفوظ).
+  await audience.evaluate(() => location.reload());
   audience = await stageFrame(stage);
   await wait(800);
   l = await look();
-  check('النافذة الواحدة · أطول قائمة: بلا مربع وبالحجم المعتاد', l.bare && !l.big && l.more);
+  check('بعد إعادة التحميل · أطول قائمة: بلا مربع وبالحجم المعتاد', l.bare && !l.big && l.more);
   await both('نافذة واحدة · أطول قائمة');
   await shot(`s4-single-long-t${other(first)}`);
-  for (let i = 0; i < 120 && !((await st()).index === 1 && (await st()).phase === 'decided'); i++) { await cmd(audience, 'undo'); await wait(350); }
+  await stage.evaluate(m => localStorage.setItem('big-challenge.match', m), afterShort2);
+  await stage.reload(); await unlock(stage);
+  audience = await stageFrame(stage);
   await wait(800);
   l = await look();
-  check(`النافذة الواحدة · القصيرة الثانية: بلا مربع، وما قيل كبير (${l.h})`, (await st()).index === 1 && l.bare && l.big && l.h === 88 && l.n === 2);
+  check(`حكم القصيرة الثانية بعد إعادة التحميل: بلا مربع، وما قيل كبير (${l.h})`, (await st()).index === 1 && l.bare && l.big && l.h === 88 && l.n === 2);
   await both('نافذة واحدة · القصيرة الثانية');
   await shot(`s4-single-short-2-t${win}`);
   // والسؤال التالي يعود بالمربع: «الموضوع التالي» ثم المزايدة بلا حكم.
   await cmd(audience, 'act:next'); await wait(1200);
   check('بعد «الموضوع التالي»: لا حكم ولا مربع، ولا .big', await audience.$eval('#box', b => b.hidden) && !(await look()).big);
 
-  check(`فحص التداخل والشبكة في كل حالة سليم${layoutOk ? '' : ' · ' + fails.filter(f => !f.startsWith('المقدّم')).join(' | ')}`, layoutOk);
-  check(`نافذة المقدّم على 1366×768 و1280×800 و1920×1080 بلا تمرير ولا فيض ولا نص أصغر من 32${presenterOk ? '' : ' · ' + fails.filter(f => f.startsWith('المقدّم')).join(' | ')}`, presenterOk);
+  check(`فحص التداخل والشبكة في كل حالة سليم${layoutOk ? '' : ' · ' + fails.join(' | ')}`, layoutOk);
   check(`لا أخطاء في الصفحات${errors.length ? ': ' + errors.join(' | ') : ''}`, errors.length === 0);
   await browser.close();
   process.exit(finish() ? 0 : 1);
