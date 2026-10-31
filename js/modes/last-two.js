@@ -13,7 +13,6 @@ export default wordMode({
   key: 'ending',
   tatweel: true,
   sameBox: true,
-  // نصوص الافتتاح وسطر القبول (design/shared.md 5 وdesign/last-two.md 1).
+  // نص الافتتاح (design/shared.md 5 وdesign/last-two.md 1).
   rule: box => `كل إجابات الجولة تنتهي بـ «${box}»`,
-  accept: box => `وتُقبل أي كلمة أخرى تنتهي بـ «${box}» وتنطبق على الوصف.`,
 });

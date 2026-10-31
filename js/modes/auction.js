@@ -40,8 +40,6 @@ function setup({ content, first, seen = [], avoid = [], rng = Math.random }) {
 const current = s => s.topics[s.index];
 // حالة محفوظة من مرحلة «المزايدة» بلا said، كي تكمل مباراة جارية بعد التحديث.
 const saidOf = s => s.said ?? [];
-// من ذكر العنصر i من الموضوع الحالي، أو 0.
-const by = (s, i) => saidOf(s).find(x => x.i === i)?.team ?? 0;
 // رقما الفريقين. وحالة محفوظة من نسخة «رقماً رقماً» (bids بأصحابها): أعلى رقم لكل فريق.
 const numsOf = s => s.nums ?? [1, 2].map(t => Math.max(0, ...(s.bids ?? []).filter(b => b.team === t).map(b => b.n)));
 const size = s => current(s).items.length;
@@ -175,24 +173,11 @@ function audience(s) {
   };
 }
 
-// ما تعرضه نافذة المقدّم: ما يراه الجمهور، ومعه القائمة المرجعية بصيغها، وطولها، وملاحظة الكاتب، ومسار المواضيع.
+// ما لا يصل إلى الجمهور: الموضوع وقائمته بصيغها، نصّ باركود الإجابات (js/qr.js). ولا قائمة في الافتتاح والنهاية.
 function presenter(s) {
   const t = current(s);
-  const hidden = s.phase === 'intro' || s.phase === 'end';
-  return {
-    ...audience(s),
-    // المقدّم يرى الطول دائماً (design/auction.md 5)، ولا يظهر للجمهور. وopen: الموضوع المفتوح (قائمته عون لا حصر).
-    shown: false,
-    open: hidden ? false : !!t?.open,
-    level: hidden ? undefined : t?.level,
-    items: hidden ? [] : t.items.map((x, i) => ({ name: x.name, alts: [...x.alts], by: by(s, i) })),
-    // ما احتُسب دون عنصر من القائمة: ما كُتب بنصه ومن قاله (outs)، وعدد ما احتُسب بالزر (plain في audience).
-    outs: hidden ? [] : saidOf(s).filter(x => x.i === null && x.text).map(x => ({ text: x.text, team: x.team })),
-    size: hidden ? 0 : t.items.length,
-    note: hidden ? '' : t.note,
-    brief: `3 مواضيع. يزايد كل فريق فوق رقم خصمه بما يشاء (زرّه بلونه، كل نقرة +1)، و«ابدأ» يرسي على الأعلى. ولمن رسا عليه ${FULFIL_SECONDS} ثانية ليوفي، فإن لم يفِ أخذ خصمه ${FAIL_POINTS === 2 ? 'نقطتين' : `${FAIL_POINTS} نقاط`}.`,
-    track: s.topics.map((x, i) => ({ owner: 0, result: s.results[i] === null ? null : s.results[i].team, now: !hidden && i === s.index })),
-  };
+  if (s.phase === 'intro' || s.phase === 'end' || !t) return { topic: '', items: [] };
+  return { topic: t.topic, items: t.items.map(x => ({ name: x.name, alts: [...x.alts] })) };
 }
 
 export default {

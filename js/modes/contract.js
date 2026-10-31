@@ -5,8 +5,10 @@ import { MODES as CONTENT_MODES, MODE_NAME_MAX } from '../content-check.js';
 export const REQUIRED = {
   id: 'string', name: 'string', order: 'number', contentKey: 'string',
   setup: 'function', actions: 'function', act: 'function',
-  audience: 'function', presenter: 'function', finished: 'function', used: 'function',
+  audience: 'function', finished: 'function', used: 'function',
 };
+// presenter اختياري (الوثيقة 1.13: لا نافذة مقدّم): ما يحتاجه التحكم ولا يصل إلى الجمهور، كنصّ باركود الإجابات.
+export const OPTIONAL = { presenter: 'function' };
 
 export function checkMode(mod) {
   const errors = [];
@@ -14,6 +16,9 @@ export function checkMode(mod) {
   if (!mod || typeof mod !== 'object') return [`${where}: الوحدة يجب أن تصدّر كائناً`];
   for (const [key, type] of Object.entries(REQUIRED)) {
     if (typeof mod[key] !== type) errors.push(`${where}: «${key}» مطلوب (${type})`);
+  }
+  for (const [key, type] of Object.entries(OPTIONAL)) {
+    if (key in mod && typeof mod[key] !== type) errors.push(`${where}: «${key}» إن وُجد فـ ${type}`);
   }
   if (typeof mod.name === 'string' && [...mod.name].length > MODE_NAME_MAX) {
     errors.push(`${where}: «name» أطول من ${MODE_NAME_MAX} حرفاً (خانة المسار في شاشة المواجهة)`);

@@ -27,9 +27,8 @@ function pickGroup(bank, seen, key, rng) {
 // key: حقل ما في المربع في ملف الأسئلة («letter» أو «ending»). tatweel: يُعرض قبله تطويل «ـ».
 // sameBox: الجولة كلها بما في المربع نفسه («آخر حرفين»)، ويُعلَن في الافتتاح.
 // rule: نص الافتتاح، أو دالة تأخذ ما في المربع وتعيده.
-export function wordMode({ id, name, order, seconds, key, tatweel = false, sameBox = false, rule, accept }) {
+export function wordMode({ id, name, order, seconds, key, tatweel = false, sameBox = false, rule }) {
   const box = q => (tatweel ? 'ـ' : '') + boxOf(q);
-  const BRIEF = `6 أسئلة، لكل فريق 3 بالتناوب. ${seconds} ثانية للسؤال تبدأ وحدها، وإن أخطأ الفريق أو انتهى وقته فوقت الخصم ${STEAL_SECONDS} ثوانٍ.`;
   const ruleOf = s => (typeof rule === 'function' ? rule(s.questions[0] ? box(s.questions[0]) : '') : rule);
 
   // الحالات: intro افتتاح الجولة · ready السؤال ظاهر وعدّاد التمهيد · ask عدّاد صاحب الدور · steal عدّاد الخصم
@@ -122,26 +121,11 @@ export function wordMode({ id, name, order, seconds, key, tatweel = false, sameB
     };
   }
 
-  // ما تعرضه نافذة المقدّم: ما يراه الجمهور، ومعه الإجابة النموذجية وبدائلها ومسار الأسئلة.
-  function presenter(s) {
-    const q = current(s);
-    const hidden = s.phase === 'intro' || s.phase === 'end';
-    return {
-      ...audience(s),
-      level: hidden ? undefined : q?.level,
-      answer: hidden ? undefined : q?.answer,
-      alts: hidden ? [] : q?.alts ?? [],
-      brief: BRIEF,
-      accept: q ? accept(box(q)) : '',
-      track: s.questions.map((x, i) => ({ owner: x.owner, result: s.results[i], now: !hidden && i === s.index })),
-    };
-  }
-
   return {
     id, name, order,
     contentKey: `${id}.json`,
     seconds,
-    setup, actions, act, audience, presenter,
+    setup, actions, act, audience,
     finished: s => s.phase === 'end',
     used: s => s.questions.map(q => q.id),
   };
