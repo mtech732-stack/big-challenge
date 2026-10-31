@@ -1,6 +1,6 @@
-// اختبار آلي لـ«بعد الحكم» في المزاد (design/auction.md 1.5 و7.6، و4.0: ما قيل وحده لا القائمة) بالنافذة الواحدة (الوثيقة 1.13)، بالبنك الحقيقي:
-// الحكم بلا مربع (الشارة بيضاء بنص صاحبها، والسطر على الطرف)، وما قيل قليلاً بشارات كبيرة إن اتسع في صفين،
-// وما قيل كثيراً (40 من أطول قائمة) بالحجم المعتاد و«و N غيرها». وبقاعدة 2.0: «لم يفِ» في القصيرة الأولى (للخصم +2) ووفاء في الثانية.
+// اختبار آلي لـ«بعد الحكم» في المزاد (الوثيقة 1.14، design/s8c.md: الحكم بعد «كشف القائمة»، والقائمة المرجعية كلها على البطاقة) بالنافذة الواحدة (الوثيقة 1.13)، بالبنك الحقيقي:
+// الحكم بلا مربع (الشارة بيضاء بنص صاحبها، والسطر «وفى بـ N» أو «لم يفِ بـ N» على الطرف)، والقائمة القصيرة في صفحة بلا نقاط،
+// وأطول قائمة صفحاتٍ من أربعة أسطر بنقطة لكل صفحة. وبقاعدة 2.0: «لم يفِ» في القصيرة الأولى (للخصم +2) و«وفى» في الثانية.
 // ولا يعتمد على اسم قائمة بعينها: القصيرتان من أقصر أسماء أطول قائمة، بالحد الأدنى للبنك (10 عناصر).
 // وفحص التداخل في كل حالة، وصور لـ ratio.cjs.
 const fs = require('fs');
@@ -57,7 +57,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
     if (!s.topics[s.index]) return;
     const items = s.topics[s.index].items;
     const said = new Set((s.said ?? []).filter(x => x.i !== null).map(x => x.i));
-    const shown = [...said].flatMap(i => [items[i].name, ...(items[i].alts ?? [])]).sort((a, b) => b.length - a.length);
+    // وبعد «كشف القائمة» (الوثيقة 1.14) القائمة كلها على الشاشة، فلا يُبحث فيها عمّا لم يُذكر.
+    const listed = ['revealed', 'decided'].includes(s.phase);
+    const shown = (listed ? items.map((_, i) => i) : [...said]).flatMap(i => [items[i].name, ...(items[i].alts ?? [])]).sort((a, b) => b.length - a.length);
     const body = await audience.evaluate(ns => { let t = document.querySelector('.canvas').innerText;
       for (const b of document.querySelectorAll('.cbtn')) t = t.replace(b.innerText, '');
       t = t.replace(document.getElementById('topic').innerText, '');
@@ -66,7 +68,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
     const unsaid = items.filter((x, i) => !said.has(i)).flatMap(x => [x.name, ...(x.alts ?? [])]);
     // اسم من حرف أو حرفين («ت» أو «7») يقع في أي نص، فلا يُبحث عنه في نص الشاشة: الشارات وحدها تحمل ما ذُكر.
     const named = n => [...n].length > 2 && body.includes(n);
-    if (unsaid.some(named)) { leak = true; fails.push(`${label}: عنصر لم يُذكر على الجمهور (${unsaid.find(named)})`); }
+    if (!listed && unsaid.some(named)) { leak = true; fails.push(`${label}: عنصر لم يُذكر على الجمهور (${unsaid.find(named)})`); }
     // ولا طول للقائمة على الجمهور أبداً (4.0).
     if (await audience.$('#tsize, .auc .size')) { leak = true; fails.push(`${label}: «في القائمة» على الجمهور`); }
     if (body.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
@@ -74,37 +76,38 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   const both = async label => { await wait(700); await audienceCheck(label); };
   const chips = () => audience.$$eval('#items .it', els => els.map(e => ({ name: e.textContent.trim(), t: e.classList.contains('t1') ? 1 : e.classList.contains('t2') ? 2 : 0, left: e.classList.contains('left'), more: e.classList.contains('more') })));
   const tally = async () => `${await text(audience, '#tn')}/${await text(audience, '#tof')}`;
-  // عنصر بعينه من القائمة (act:item): لا زر له في النافذة الواحدة بعد 1.13، لكن الشاشة تعرض ما ذُكر بأسمائه إن وُجد،
-  // فيُذكر به كي يبقى عرض الشارات الكبيرة والمعتادة مفحوصاً.
-  const tap = i => audience.evaluate(c => parent.postMessage({ bc: 'cmd', cmd: c }, location.origin), 'act:item:' + i);
-  // يُذكر العنصر حتى يُحسب: بعد كل تغيّر تُهمل نقرات الجولة 0.7 ثانية (HOLD_MS)، فإن أبطأ الجهاز أُعيد، ثم تُنتظر المهلة.
-  const say = async i => {
+  // «عُدّ · +1» حتى يُحسب: العدّ بلا مهلة (ش8-أ/54)، فإن أبطأ الجهاز أُعيد.
+  const say = async () => {
     for (let k = 0; k < 6; k++) {
       const s0 = (await stored()).round.state;
       if (s0.phase !== 'fulfil') return;
-      await tap(i);
-      for (let w = 0; w < 10; w++) { await wait(100); if ((await stored()).round.state.said.length > s0.said.length) { await wait(720); return; } }
+      await cmd(audience, 'act:count');
+      for (let w = 0; w < 10; w++) { await wait(100); if ((await stored()).round.state.said.length > s0.said.length) return; }
     }
   };
+  // «كشف القائمة» ثم الحكم («ok» وفى أو «fail» لم يفِ)، وبينهما مهلة 0.7 ثانية بعد تغيّر المرحلة.
+  const judge = async verdict => { await wait(300); await cmd(audience, 'act:reveal'); await wait(1000); await cmd(audience, 'act:' + verdict); await wait(1400); };
 
   const round = async () => (await stored()).round;
   const ctl = () => audience.$$eval('.scr.show .ctl .cbtn, #near .cbtn', els => els.map(e => e.textContent.trim()).join(' | '));
   // المزايدة رقماً رقماً حتى n، ثم يتوقف صاحب الدور، فيلتزم من ذكر n.
   // يزايد الفريق t بزرّه حتى n (خصمه بلا رقم)، ثم «ابدأ» يرسي عليه ويبدأ الوفاء (3.0).
   const bidTo = async (n, t) => { for (let k = 1; k <= n; k++) { await cmd(audience, 'raise:' + t); await wait(120); } await wait(500); await cmd(audience, 'act:start'); await wait(900); };
-  // بعد الحكم: المربع بلا خلفية، والشارة بيضاء بنص صاحبها، والسطر ظاهر. والقائمة كبيرة أو معتادة.
+  // بعد الحكم: المربع بلا خلفية، والشارة بيضاء بنص صاحبها، والسطر ظاهر. والقائمة المكشوفة بصفحاتها ونقاطها (الوثيقة 1.14).
   const look = () => audience.evaluate(() => {
     const box = document.getElementById('box'), chip = document.getElementById('verdict'), cs = getComputedStyle(document.documentElement);
     const its = [...document.querySelectorAll('#items .it')];
     return { bare: box.classList.contains('bare'), bg: getComputedStyle(box.querySelector(':scope > i')).display, chipBg: getComputedStyle(chip.querySelector(':scope > i')).backgroundColor,
-      chipInk: getComputedStyle(chip).color, team1: cs.getPropertyValue('--team-1').trim(), told: document.getElementById('told').innerText.trim(), shown: !box.hidden && !chip.hidden,
-      big: document.getElementById('auc').classList.contains('big'), h: its.length ? Math.round(its[0].getBoundingClientRect().height) : 0,
-      rows: new Set(its.map(e => Math.round(e.getBoundingClientRect().top))).size, n: its.length, more: its.some(e => e.classList.contains('more')) };
+      chipInk: getComputedStyle(chip).color, team1: cs.getPropertyValue('--team-1').trim(), say: document.getElementById('say').innerText.trim(), told: !document.getElementById('told').hidden,
+      shown: !box.hidden && !chip.hidden, chips: its.length,
+      listed: [...document.querySelectorAll('#cxList .cx-it')].length, pages: document.querySelectorAll('#cxList .cx-pg').length,
+      dots: document.getElementById('cxDots').hidden ? 0 : document.querySelectorAll('#cxDots i').length,
+      fits: [...document.querySelectorAll('#cxList .cx-pg')].every(p => { const h = p.hidden; p.hidden = false; const ok = [...p.children].every(e => e.offsetTop + e.offsetHeight <= 193); p.hidden = h; return ok; }) };
   });
   const color = c => audience.evaluate(c => { const d = document.createElement('i'); d.style.color = c; document.body.append(d); const v = getComputedStyle(d).color; d.remove(); return v; }, c);
   const shot = async name => { await wait(400); await stage.screenshot({ path: `${shots}/${name}.png` }); };
 
-  // 1. الموضوع 1 «القصيرة الأولى» (10): يرسو على الآخر بـ 4، فيذكر 2 ثم يتوقف، فللأول نقطتان (2.0: failshort).
+  // 1. الموضوع 1 «القصيرة الأولى» (10): يرسو على الآخر بـ 4، فيذكر 2 ثم الكشف و«لم يفِ»، فللأول نقطتان (2.0: failshort).
   await audience.waitForSelector('[data-cmd="draw"]', { timeout: 6000 });
   await sharedToFace(audience, { names: LONG, picks: ['auction', 'letter'] });
   await wait(2700);
@@ -119,53 +122,53 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await hideQr(audience);
   await bidTo(4, other(first));
   check(`القصيرة الأولى: الفريق ${other(first)} ملتزم بـ 4`, (await st()).commit.team === other(first) && (await st()).commit.n === 4);
-  await say(0); await say(1);
-  await cmd(audience, 'act:stop'); await wait(1600);
+  await say(); await say();
+  await judge('fail');
   let l = await look();
   check(`القصيرة الأولى: لم يفِ، فللفريق ${win} نقطتان (${await ctl()})`, (await st()).phase === 'decided' && (await round()).scores[win] === 2 && (await round()).scores[other(win)] === 0);
-  check(`الحكم بلا مربع: الشارة والسطر «ذُكر 2 من 4» ظاهران، وخلفية المربع مخفية (${l.bg})`, l.bare && l.bg === 'none' && l.shown && l.told === 'ذُكر 2 من 4');
+  check(`الحكم بلا مربع: الشارة والسطر «لم يفِ بـ 4» ظاهران، ولا «ذُكر»، وخلفية المربع مخفية (${l.bg})`, l.bare && l.bg === 'none' && l.shown && l.say === 'لم يفِ بـ 4' && !l.told);
   check(`الشارة بيضاء (${l.chipBg})`, l.chipBg === await color('var(--card)'));
   check(`نص الشارة بلون صاحبها: ${win === 1 ? 'الأول بلونه' : 'الثاني بالحبر'} (${l.chipInk})`, win === 1 ? l.chipInk === await color('var(--team-1)') : l.chipInk === await color('var(--ink)'));
-  check(`ما قيل (2) وحده بشارات كبيرة 88 في صف، لا القائمة (${l.h}، ${l.rows} صف، ${l.n})`, l.big && l.h === 88 && l.rows === 1 && l.n === 2 && !l.more);
+  check(`القائمة القصيرة (${SHORT}) كلها في صفحة واحدة بلا نقاط، ولا شارات أسماء (${l.listed}، ${l.pages} صفحة، ${l.dots} نقاط)`, l.listed === SHORT && l.pages === 1 && l.dots === 0 && l.chips === 0 && l.fits);
   await both('القصيرة الأولى · لم يفِ');
   await shot(`s4-short-1-fail-t${win}`);
 
-  // 2. الموضوع 2 «القصيرة الثانية» (10): يرسو على الأول بـ 2 فيفي (2.0: wonshort).
+  // 2. الموضوع 2 «القصيرة الثانية» (10): يرسو على الأول بـ 2، ثم الكشف و«وفى» (2.0: wonshort).
   await cmd(audience, 'act:next'); await wait(1200);
   await hideQr(audience);
   await bidTo(2, first);
-  await say(0); await say(1); await wait(800);
+  await say(); await say();
+  await judge('ok');
   l = await look();
   check(`القصيرة الثانية: وفى الفريق ${win} بـ 2 (رصيده 4)`, (await st()).phase === 'decided' && (await round()).scores[win] === 4);
-  check(`القصيرة الثانية: الحكم بلا مربع، وما قيل (2) كبير (${l.h}، ${l.rows} صف)`, l.bare && l.bg === 'none' && l.big && l.h === 88 && l.rows === 1 && l.n === 2);
+  check(`القصيرة الثانية: الحكم بلا مربع و«وفى بـ 2»، والقائمة في صفحة واحدة (${l.listed})`, l.bare && l.bg === 'none' && l.say === 'وفى بـ 2' && l.listed === SHORT && l.pages === 1 && l.dots === 0);
   await both('القصيرة الثانية · بعد الحكم');
   await shot(`s4-short-2-t${win}`);
 
-  // حكم القصيرة الثانية محفوظاً، يُعاد إليه في 5 (التراجع إليه عبر أربعين عدّة يتجاوز ما بقي من وقت الوفاء، فيُحكم بالوقت).
+  // حكم القصيرة الثانية محفوظاً، يُعاد إليه في 5.
   const afterShort2 = await stage.evaluate(() => localStorage.getItem('big-challenge.match'));
 
-  // 3. الموضوع 3 «أطول قائمة»: يرسو على الآخر بـ 40 فيفي بأربعين من أسمائها (wonlong)، فما قيل بالحجم المعتاد و«و N غيرها».
+  // 3. الموضوع 3 «أطول قائمة»: يرسو على الآخر بـ 40، فيُعدّ أربعين ثم الكشف و«وفى» (wonlong)، والقائمة صفحاتٍ بنقاطها.
   await cmd(audience, 'act:next'); await wait(1200);
   await hideQr(audience);
   const MANY = Math.min(40, LONGEST);
   await bidTo(MANY, other(first));
-  // أربعون نقرة بمهلة 0.7 ثانية بعد كلٍّ تقارب وقت الوفاء (45) وحدها، وتحت الحمل تتجاوزه فيُحكم بالوقت لا بالوفاء.
-  // والمفحوص هنا عرض ما قيل بعد الحكم لا النقرات: فيُكتب ما قبل الأخير (39) في الحالة المحفوظة ثم تُعاد الصفحة،
-  // ويُذكر الأخير بالنقر فيحكم الوفاء من طريقه المعتاد. لا تغيير في اللعبة.
+  // والمفحوص هنا عرض القائمة المكشوفة لا النقرات: فيُكتب ما قبل الأخير (39) في الحالة المحفوظة ثم تُعاد الصفحة،
+  // ويُعدّ الأخير بالنقر. لا تغيير في اللعبة.
   await stage.evaluate(([n, team]) => { const m = JSON.parse(localStorage.getItem('big-challenge.match'));
     m.round.state.said = Array.from({ length: n }, (_, i) => ({ i, team })); localStorage.setItem('big-challenge.match', JSON.stringify(m)); }, [MANY - 1, other(first)]);
   await stage.reload(); await unlock(stage);
   audience = await stageFrame(stage);
   await audience.waitForSelector('#tn', { timeout: 6000 });
   await wait(1000);
-  await say(MANY - 1);
-  await wait(1500);
+  await say();
+  check(`أطول قائمة: «${MANY} من ${MANY}» ولا حكم قبل الكشف`, (await tally()) === `${MANY}/${MANY}` && (await st()).phase === 'fulfil');
+  await judge('ok');
   const v = (await st()).results[2];
-  check(`أطول قائمة: حُكم بالوفاء (${MANY} للفريق ${other(first)})، لا بانتهاء الوقت`, v?.team === other(first) && v.points === MANY);
+  check(`أطول قائمة: «وفى» (${MANY} للفريق ${other(first)})`, v?.team === other(first) && v.points === MANY);
   l = await look();
-  const moreN = await audience.$eval('#items', e => Number(e.querySelector('.more')?.textContent.replace(/\D/g, '') ?? 0));
-  check(`أطول قائمة: وفى بـ ${MANY}، والحكم بلا مربع، وما قيل بالحجم المعتاد 44 (${l.n - 1}) و«و ${moreN} غيرها» عن باقيه (${l.h}، ${l.rows} صفوف)`, (await st()).phase === 'decided'
-    && l.bare && l.bg === 'none' && !l.big && l.h === 44 && l.more && l.rows <= 4 && l.n - 1 + moreN === MANY);
+  check(`أطول قائمة (${LONGEST}): الحكم بلا مربع و«وفى بـ ${MANY}»، والقائمة كلها ${l.pages} صفحات من 4 أسطر، ونقطة لكل صفحة`, (await st()).phase === 'decided'
+    && l.bare && l.bg === 'none' && l.say === `وفى بـ ${MANY}` && l.listed === LONGEST && l.pages > 1 && l.dots === l.pages && l.fits && l.chips === 0);
   await both('أطول قائمة · بعد الحكم');
   await shot(`s4-long-t${other(first)}`);
 
@@ -179,7 +182,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   audience = await stageFrame(stage);
   await wait(800);
   l = await look();
-  check('بعد إعادة التحميل · أطول قائمة: بلا مربع وبالحجم المعتاد', l.bare && !l.big && l.more);
+  check('بعد إعادة التحميل · أطول قائمة: بلا مربع، والقائمة بصفحاتها ونقاطها', l.bare && l.listed === LONGEST && l.dots === l.pages && l.pages > 1);
   await both('نافذة واحدة · أطول قائمة');
   await shot(`s4-single-long-t${other(first)}`);
   await stage.evaluate(m => localStorage.setItem('big-challenge.match', m), afterShort2);
@@ -187,12 +190,12 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   audience = await stageFrame(stage);
   await wait(800);
   l = await look();
-  check(`حكم القصيرة الثانية بعد إعادة التحميل: بلا مربع، وما قيل كبير (${l.h})`, (await st()).index === 1 && l.bare && l.big && l.h === 88 && l.n === 2);
+  check(`حكم القصيرة الثانية بعد إعادة التحميل: بلا مربع، والقائمة في صفحة (${l.listed})`, (await st()).index === 1 && l.bare && l.listed === SHORT && l.dots === 0);
   await both('نافذة واحدة · القصيرة الثانية');
   await shot(`s4-single-short-2-t${win}`);
   // والسؤال التالي يعود بالمربع: «الموضوع التالي» ثم المزايدة بلا حكم.
   await cmd(audience, 'act:next'); await wait(1200);
-  check('بعد «الموضوع التالي»: لا حكم ولا مربع، ولا .big', await audience.$eval('#box', b => b.hidden) && !(await look()).big);
+  check('بعد «الموضوع التالي»: لا حكم ولا مربع، ولا القائمة', await audience.$eval('#box', b => b.hidden) && !(await look()).listed && !(await audience.isVisible('#cxList')));
 
   check(`فحص التداخل والشبكة في كل حالة سليم${layoutOk ? '' : ' · ' + fails.join(' | ')}`, layoutOk);
   check(`لا أخطاء في الصفحات${errors.length ? ': ' + errors.join(' | ') : ''}`, errors.length === 0);
