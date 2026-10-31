@@ -1,6 +1,6 @@
 // اختبار آلي لمرحلة «الوفاء والعدّ» في المزاد (ش4، design/auction.md) بالنافذة الواحدة (الوثيقة 1.13)، في الرابط العادي:
 // الملتزم قبل «ابدأ» وبعده، والعدّ بـ«صحيح · +1» (بلون الملتزم، وعدّات متتابعة تُحسب كلها، وعشر ضغطات في أقل من ثانية عشر عدّات والزر لا يتعطّل، ش8-أ/54)،
-// والعدّاد يبقى يعدّ، والتراجع، والحكم التلقائي عند بلوغ العدد (النقاط، و«ذُكر N من N»، ولا القائمة)، والتراجع عن الحكم بما بقي من الوقت،
+// والعدّاد يبقى يعدّ، والتراجع (سريعاً بلا مهلة داخل الوفاء، ش8-أ/55)، والحكم التلقائي عند بلوغ العدد (النقاط، و«ذُكر N من N»، ولا القائمة)، والتراجع عن الحكم بما بقي من الوقت،
 // وإعادة التحميل، و«توقّف» (و«لم يفِ» في stage4-auction-fail.cjs)، وعرض ما ذُكر بأسمائه بعد الحكم، ولا عنصر لم يُذكر على الجمهور، وفحص التداخل.
 const fs = require('fs');
 const path = require('path');
@@ -137,6 +137,23 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   const undo = () => cmd(audience, 'undo');
   await undo(); await wait(900);
   check('التراجع: «28 من 30»، والعدّاد يبقى', (await tally()) === `28/${N}` && (await stored()).round.timer?.id === timer);
+  // 6ب. تراجع سريع (ش8-أ/55، تقرير المعاين #338): ثلاث ضغطات «تراجع» متتالية تُرجع ثلاث عدّات،
+  // و«صحيح · +1» بعد 100 ms من «تراجع» تُحسب (لا مهلة بعد التراجع داخل الوفاء).
+  {
+    const at = async sel => { const b = await (await audience.$(sel)).boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2]; };
+    const [ux, uy] = await at('[data-cmd="undo"]');
+    for (let k = 0; k < 3; k++) { await stage.mouse.click(ux, uy); await wait(120); }
+    await wait(400);
+    check('ثلاث ضغطات «تراجع» سريعة: ترجع ثلاث عدّات (25 من 30)، والعدّاد يبقى', (await tally()) === `25/${N}` && (await st()).said.length === 25
+      && (await stored()).round.timer?.id === timer);
+    const [cx, cy] = await at('#near [data-cmd="act:count"]');
+    await stage.mouse.click(ux, uy); await wait(100); await stage.mouse.click(cx, cy);
+    await wait(400);
+    check('«صحيح · +1» بعد 100 ms من «تراجع»: تُحسب (25 من 30، لا 24)', (await tally()) === `25/${N}`);
+    for (let k = 0; k < 3; k++) { await stage.mouse.click(cx, cy); await wait(120); }
+    await wait(400);
+    check('ثم ثلاث عدّات تعيده إلى «28 من 30»', (await tally()) === `28/${N}`);
+  }
   // إعادة تحميل الشاشة أثناء العدّ.
   await stage.reload();
   await unlock(stage);
@@ -182,8 +199,13 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await wait(150); await stage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await wait(1200);
   check('«صحيح · +1» مرتين بفاصل 0.15 ثانية: عدّتان، فبلغ العدد (30 من 30) وحُكم، ولا اسم جديد على الشاشة', (await st()).phase === 'decided' && (await st()).said.length === N && (await chips()).length === shown);
-  await undo(); await wait(900);
-  check('التراجع عن الحكم: «29 من 30» والوفاء', (await tally()) === `29/${N}` && (await st()).phase === 'fulfil');
+  // تراجع يعبر حدّ مرحلة (من الحكم إلى الوفاء، ش8-أ/55): المهلة باقية، فنقرة «تراجع» مضاعفة بفاصل 0.1 ثانية تُلغي الحكم وحده، لا عدّة معه.
+  {
+    const ub = await (await audience.$('[data-cmd="undo"]')).boundingBox(), [ux, uy] = [ub.x + ub.width / 2, ub.y + ub.height / 2];
+    await stage.mouse.click(ux, uy); await wait(100); await stage.mouse.click(ux, uy);
+  }
+  await wait(900);
+  check('التراجع عن الحكم بنقرة مضاعفة: «29 من 30» والوفاء (الثانية في المهلة فلا تُرجع عدّة)', (await tally()) === `29/${N}` && (await st()).phase === 'fulfil');
   await both('نافذة واحدة · الوفاء');
   await stage.screenshot({ path: `${shots}/s4-single-fulfil.png` });
   await cmd(audience, 'act:stop'); await wait(900);

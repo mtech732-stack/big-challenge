@@ -539,7 +539,9 @@
     },
     toFinal: () => { if (held()) return; const next = P.toFinal(match, units()); if (next !== match) { hold(); update(next, 'fin'); } },
     announce: () => { if (held()) return; const next = P.announce(match); if (next !== match) { hold(); update(next, 'win'); } },
-    undo: () => { if (held()) return; if (match.step === 'final') { hold(); update(P.undoFinal(match)); } else roundUpdate(P.undo(match, units())); },
+    // تراجع أثناء الوفاء في المزاد (ش8-أ/55): يُرجع عدّة ولا يأتي زر آخر مكانه، فلا يبدأ مهلة تعطّل «تراجع» التالي ولا «صحيحة».
+    // والتراجع الذي يعبر حدّ مرحلة (يُرجع حكماً أو نهاية موضوع) تتغير مرحلته، فيُمهل ما بعده كما كان (roundUpdate).
+    undo: () => { if (held()) return; if (match.step === 'final') { hold(); update(P.undoFinal(match)); } else roundUpdate(P.undo(match, units()), roundMode()?.id === 'auction' && match.round.state.phase === 'fulfil'); },
     scores: () => { $('scores').hidden = !$('scores').hidden; },
   };
 

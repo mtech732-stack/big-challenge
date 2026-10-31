@@ -20,6 +20,8 @@
   .cx-it { height: 48px; display: flex; align-items: center; gap: 12px; font-size: 32px; font-weight: 700; color: var(--text); white-space: nowrap; }
   .cx-it::before { content: ""; width: 12px; height: 12px; transform: skewX(calc(-1 * var(--lean))); background: var(--cx-team); }
   .cx-measure { visibility: hidden; }
+  /* ش8-أ/57: «كشف القائمة» ثانوي بإطار أبيض بلا تعبئة، كـ .ctl-near .cbtn.alt */
+  .ctl-ans .cbtn.alt { background: transparent; color: var(--on-stage); box-shadow: inset 0 0 0 3px var(--card); }
   .anim .cx-pg:not([hidden]) { animation: in .2s ease-out both; }
   `;
   document.head.append(css);
@@ -73,7 +75,7 @@
   window.CX = {
     fulfil() {
       setNear(btn('عُدّ · +1'));
-      setAns(btn('كشف القائمة'));
+      setAns(btn('كشف القائمة', 'alt'));
     },
     // items: أسماء القائمة المرجعية بترتيبها · team: الملتزم · n: ما التزم به · page: الصفحة المعروضة (من 1)
     reveal({ items, team, n, page = 1 }) {
