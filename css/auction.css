@@ -69,3 +69,20 @@
 .box.bare .chip > i { background: var(--card); }
 .box.bare .chip { color: var(--ink); }
 .box.bare .chip.t1 { color: var(--team-1); }
+
+/* 7. القائمة المكشوفة (الوثيقة 1.14، design/s8c.md 1.1 القسم 2، من design/s8c.js كما هي): رأس 56 (الموضوع 48)، ثم القائمة 4 أسطر × 48 بخط 32،
+   ثم نقاط الصفحات 12 تحتها. تُقلب يدوياً (المالك 31 أكتوبر 2026، 09:54). 24 + 56 + 8 + 192 + 24 + 12 + 36 = 352 ارتفاع البطاقة */
+.scr.auc.list { justify-content: flex-start; gap: 8px; padding-block: 24px 36px; box-sizing: border-box; }
+.scr.auc.list .bids, .scr.auc.list .items, .scr.auc.list .tally, .scr.auc.list #aucCtl { display: none; }
+.scr.auc.list .ahead { min-height: 56px; gap: 32px; }
+.scr.auc.list .topic { font-size: 48px; line-height: 56px; }
+.cx-dots { flex: none; display: flex; justify-content: center; gap: 16px; height: 12px; margin-top: 16px; }
+.cx-dots i { width: 12px; height: 12px; transform: skewX(calc(-1 * var(--lean))); background: var(--text); opacity: .25; cursor: pointer; }
+.cx-dots i.on { width: 32px; background: var(--cx-team); opacity: 1; }
+.cx-list { position: relative; flex: none; height: 192px; overflow: clip; cursor: pointer; }
+.cx-list[hidden], .cx-dots[hidden] { display: none; }
+.cx-pg { position: absolute; inset: 0; display: flex; flex-wrap: wrap; align-content: flex-start; column-gap: 40px; }
+.cx-pg[hidden] { display: none; }
+.cx-it { height: 48px; display: flex; align-items: center; gap: 12px; font-size: 32px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.cx-it::before { content: ""; width: 12px; height: 12px; transform: skewX(calc(-1 * var(--lean))); background: var(--cx-team); }
+.anim .cx-pg.in { animation: in .2s ease-out both; }
