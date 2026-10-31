@@ -70,8 +70,8 @@ const { reporter } = require('./helpers.cjs');
   check('لحظة «صحيحة»، والحدّ عند من أصاب، ولا اسم غير المكشوف، ولا أزرار', round.events.some(e => e.type === 'moment' && e.name === 'right' && e.team === 2) && a.turn === 2
     && leaks(a).length === 1 && ranking.actions(s).length === 0);
   const pr = ranking.presenter(s);
-  check('المقدّم: القائمة كلها (13) بصيغها، والمكشوف بمن كشفه، والفخاخ مُعلَّمة، والتالي دور الأول', pr.items.length === 13 && pr.items[6].by === 2 && pr.items[10].trap && !pr.items[9].trap
-    && pr.items[1].alts.length === 1 && pr.upNext === 1 && pr.level === 'easy');
+  check('نص الباركود: العنوان والقائمة كلها (13) بصيغها، والفخاخ مُعلَّمة', pr.title === s.lists[0].title && pr.items.length === 13 && pr.items[10].trap && !pr.items[9].trap
+    && pr.items[1].alts.length === 1 && s.lists[0].level === 'easy');
   check('«turn» قبل 1.2 ثانية يُهمل', at('turn', T + 100).state.phase === 'hit' && HIT_MS === 1200);
   at('turn', T + HIT_MS);
   check('بعد اللحظة: دور الأول، وعدّاده 15 ثانية، ولا حكم', s.phase === 'ask' && s.team === 1 && round.timer?.seconds === ANSWER_SECONDS && a.verdict === null && a.turn === 1);
@@ -118,8 +118,8 @@ const { reporter } = require('./helpers.cjs');
   // القائمة الثانية (الصعبة): تظهر مباشرة، ويبدأها الفريق الآخر.
   go('next');
   check('القائمة الثانية: تظهر مباشرة بعنوانها، و«القائمة 2 من 2»، والدور للآخر (بدأ الثاني الأولى)', s.phase === 'read' && s.index === 1 && a.n === 2 && a.title === s.lists[1].title
-    && s.team === 1 && a.turn === 1 && ranking.presenter(s).level === 'hard' && a.slots.every(x => !x.name && !x.team) && !round.timer && a.listClock && !a.listEnds);
-  check('القائمة الثانية: مسار القائمتين بلون من بدأ كلاً منهما', ranking.presenter(s).track.map(x => x.owner).join() === '2,1');
+    && s.team === 1 && a.turn === 1 && s.lists[1].level === 'hard' && a.slots.every(x => !x.name && !x.team) && !round.timer && a.listClock && !a.listEnds);
+  check('القائمة الثانية: بدأ كلاً منهما فريق (الثاني ثم الأول)', s.starts.join() === '2,1');
   const s1 = round.scores[1];
   go('start'); go('item:10');
   check('القائمة الثانية تُلعب كالأولى: +10 للأول', round.scores[1] === s1 + 10 && s.got[1].length === 1 && a.found === 1);
@@ -179,8 +179,8 @@ const { reporter } = require('./helpers.cjs');
     run('item:12');
     v = r.state.verdict;
     check('فخ 12 ورصيده 20: −12، فصار 8', r.scores[2] === 8 && v.points === -12 && v.team === 2);
-    const p = ranking.presenter(r.state);
-    check('المقدّم: الفخ بمن وقع فيه', p.items[10].by === 1 && p.items[11].by === 2 && p.items[12].by === 0);
+    const sl = ranking.audience(r.state).slots;
+    check('الفخ بلون من وقع فيه', sl[10].team === 1 && sl[11].team === 2 && !sl[12].team);
     run('turn');
     check('الفخ لا يُنقر ثانية (المكرر خطأ)', run('item:12').state.phase === 'ask');
     run('item:13');

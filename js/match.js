@@ -18,9 +18,8 @@ export const englishDigits = text => String(text ?? '')
   .replace(/[٠-٩]/g, d => d.charCodeAt(0) - 0x0660)
   .replace(/[۰-۹]/g, d => d.charCodeAt(0) - 0x06F0);
 
-// single: المباراة تُلعب بنافذة واحدة (الشاشة المشتركة بأزرارها). وقبل «ابدأ المباراة» الشاشة مشتركة دائماً.
 export function newMatch({ pack = null, method = 'full' } = {}) {
-  return { v: 1, step: 'setup', teams: { 1: '', 2: '' }, pack, method, winner: null, picks: [], scores: { 1: 0, 2: 0 }, history: [], single: false };
+  return { v: 1, step: 'setup', teams: { 1: '', 2: '' }, pack, method, winner: null, picks: [], scores: { 1: 0, 2: 0 }, history: [] };
 }
 
 // أخطاء الإعداد بنصوص الواجهة (design/start.md، القسم 4.3). تعيد [{ field, text }].

@@ -159,22 +159,12 @@ function audience(st) {
   };
 }
 
-// ما تعرضه نافذة المقدّم: ما يراه الجمهور، ومعه القائمة كاملة (13) بصيغها، وكل عنصر بمن كشفه، ومسار القائمتين.
+// ما لا يصل إلى الجمهور: العنوان والقائمة كاملة (13) بصيغها وفخاخها، نصّ باركود الإجابات (js/qr.js).
 function presenter(st) {
   const s = norm(st);
   const t = current(s);
-  const hidden = s.phase === 'intro' || s.phase === 'end';
-  const a = audience(s);
-  const by = new Map((a.slots ?? []).filter(x => x.team).map(x => [x.rank, x.team]));
-  return {
-    ...a,
-    level: hidden ? undefined : t?.level,
-    // بعد الإصابة: من دوره بعد اللحظة (الخصم).
-    upNext: s.phase === 'hit' ? other(s.team) : 0,
-    items: hidden ? [] : t.items.map((x, i) => ({ rank: i + 1, name: x.name, alts: [...x.alts], trap: i >= SLOTS, by: by.get(i + 1) ?? 0 })),
-    brief: `قائمتان، لكل منهما دقيقتان ونصف. إجابة لكل فريق بالتتابع، ${ANSWER_SECONDS} ثانية لكل إجابة. انقر رقم ما قاله الفريق فتنكشف خانته بنقاط رقمها وينتقل الدور، والفخاخ تخصم رقمها (−11 و−12 و−13). و«خطأ» لما ليس في القائمة أو المكرر، ثم اختر لون الدور التالي.`,
-    track: s.lists.map((x, i) => ({ owner: s.starts[i] ?? 0, result: null, now: !hidden && i === s.index })),
-  };
+  if (s.phase === 'intro' || s.phase === 'end' || !t) return { title: '', items: [] };
+  return { title: t.title, items: t.items.map((x, i) => ({ rank: i + 1, name: x.name, alts: [...x.alts], trap: i >= SLOTS })) };
 }
 
 export default {

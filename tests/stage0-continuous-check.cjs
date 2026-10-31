@@ -1,6 +1,6 @@
 // اختبار آلي للتحقق المستمر من الرقم السري. يقدّم ساعة المتصفح بدل الانتظار الفعلي.
 const { chromium } = require('playwright');
-const { TEST_PIN, testPinRecord, unlock, reporter } = require('./helpers.cjs');
+const { TEST_PIN, testPinRecord, unlock, reporter, stageFrame } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/';
@@ -27,11 +27,12 @@ const { TEST_PIN, testPinRecord, unlock, reporter } = require('./helpers.cjs');
   });
   await context.clock.install();
 
+  // الشاشة المشتركة وحدها (الوثيقة 1.13): شاشة الجمهور إطار في الصفحة نفسها.
   const presenter = await context.newPage();
-  await presenter.goto(base + '?test');
+  await presenter.goto(base);
   await unlock(presenter);
-  const [audience] = await Promise.all([context.waitForEvent('page'), presenter.click('#open')]);
-  await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 5000 });
+  await stageFrame(presenter);
+  const framed = () => presenter.$('#frame iframe').then(Boolean);
 
   const isOpen = async () => await presenter.isVisible('#app') && await presenter.isHidden('#gate');
   const forward = async time => { await context.clock.fastForward(time); await wait(1500); };
@@ -50,10 +51,9 @@ const { TEST_PIN, testPinRecord, unlock, reporter } = require('./helpers.cjs');
   check('أُعيد حفظ الرقم نفسه بملح جديد: تبقى مفتوحة', await isOpen());
 
   served = { kind: 'offline' };
-  await presenter.click('#start');
   await forward('03:10');
   check('انقطع الإنترنت عند التحقق: تبقى مفتوحة', await isOpen());
-  check('انقطع الإنترنت: التزامن مستمر', (await presenter.getAttribute('#status', 'data-on')) === 'true');
+  check('انقطع الإنترنت: شاشة الجمهور باقية', await framed());
 
   served = { kind: 'error' };
   await forward('03:10');
@@ -65,14 +65,11 @@ const { TEST_PIN, testPinRecord, unlock, reporter } = require('./helpers.cjs');
 
   // تغيّر الرقم فعلاً: تُغلق فوراً في النافذتين.
   served = { kind: 'record', record: testPinRecord('975310') };
-  await presenter.click('#start');
   await forward('03:10');
   check('تغيّر الرقم: تُغلق نافذة المقدّم وتظهر شاشة الرقم', !(await isOpen()) && await presenter.isVisible('#pin'));
   check('تغيّر الرقم: رسالة «تغيّر الرقم السري»', (await presenter.textContent('#pin-error')).includes('تغيّر الرقم السري'));
-  check('تغيّر الرقم: لا يبقى عدّاد على شاشة الجمهور',
-    await audience.isHidden('#timer') && (await audience.textContent('#label')).includes('بانتظار المقدّم'));
+  check('تغيّر الرقم: لا يبقى من شاشة الجمهور شيء', !(await framed()));
   await presenter.screenshot({ path: `${shots}/continuous-locked.png` });
-  await audience.screenshot({ path: `${shots}/continuous-audience-locked.png` });
 
   await presenter.fill('#pin', TEST_PIN);
   await presenter.click('#enter');
@@ -81,7 +78,8 @@ const { TEST_PIN, testPinRecord, unlock, reporter } = require('./helpers.cjs');
 
   await unlock(presenter, '975310');
   await wait(1500);
-  check('الرقم الجديد يعيد فتحها دون إعادة تحميل', await isOpen() && (await presenter.getAttribute('#status', 'data-on')) === 'true');
+  const audience = await stageFrame(presenter);
+  check('الرقم الجديد يعيد فتحها دون إعادة تحميل', await isOpen() && await framed());
   check('شاشة الجمهور تعود بعد الفتح (شاشة البداية بالشعار الكبير)', await audience.isVisible('.team.t1') && await audience.isVisible('.hero .hlogo'));
 
   // التحقق عند بدء كل مباراة جديدة: فوري دون انتظار المدة.
@@ -94,7 +92,7 @@ const { TEST_PIN, testPinRecord, unlock, reporter } = require('./helpers.cjs');
   served = { kind: 'offline' };
   check('التحقق عند بدء مباراة بلا إنترنت: لا يُغلق', (await presenter.evaluate(() => window.verifyPinNow())) === 'offline' && await isOpen());
 
-  check('لا أخطاء في الصفحتين', errors.length === 0);
+  check('لا أخطاء في الصفحة', errors.length === 0);
   await browser.close();
   process.exit(finish(errors) ? 0 : 1);
 })().catch(e => { console.error(e); process.exit(1); });

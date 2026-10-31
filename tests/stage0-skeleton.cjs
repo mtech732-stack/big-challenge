@@ -1,7 +1,7 @@
-// اختبار آلي لتطبيق هيكل التصميم على النافذتين: فحص التداخل (كما في design/main.html)،
-// وأطول محتوى، والخط المرفق دون إنترنت، وأصغر نص في نافذة المقدّم، وحواف الخطر.
+// اختبار آلي لتطبيق هيكل التصميم على شاشة الجمهور والصفحة: فحص التداخل (كما في design/main.html)،
+// وأطول محتوى، والخط المرفق دون إنترنت، وأصغر نص في شاشة الرقم، وحواف الخطر.
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/';
@@ -53,38 +53,36 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
   check('خط Noto Kufi المرفق محمّل', fontOk);
   check('لا طلبات إلى مواقع خارجية', external.length === 0);
 
-  // 3. نافذة المقدّم: أصغر نص 32 على أساس عرض 1920، في شاشة الرقم وبعد الدخول.
+  // 3. الصفحة قبل الدخول (شاشة الرقم): أصغر نص 32 على أساس عرض 1920، ولا زوايا مستديرة.
+  // وبعد الدخول لا نافذة مقدّم (الوثيقة 1.13): الصفحة كلها شاشة الجمهور بأزرارها، وفحصها في الأقسام بعده.
   const presenter = await context.newPage();
   await presenter.setViewportSize({ width: 1920, height: 1080 });
   const smallest = () => presenter.evaluate(() => Math.min(...[...document.querySelectorAll('body *')]
     .filter(n => n.getClientRects().length && [...n.childNodes].some(c => c.nodeType === 3 && c.textContent.trim()))
     .map(n => parseFloat(getComputedStyle(n).fontSize))));
-  await presenter.goto(base + '?test');
+  await presenter.goto(base);
   await presenter.evaluate(() => document.fonts.ready);
-  check(`المقدّم · شاشة الرقم: أصغر نص ${await smallest()}`, (await smallest()) >= 32);
+  check(`شاشة الرقم: أصغر نص ${await smallest()}`, (await smallest()) >= 32);
+  const radius = await presenter.$$eval('button, #pin', els => els.every(e => getComputedStyle(e).borderRadius === '0px'));
+  check('لا زوايا مستديرة في شاشة الرقم', radius);
   await presenter.screenshot({ path: `${shots}/skeleton-gate.png` });
-  await unlock(presenter);
-  check(`المقدّم بعد الدخول: أصغر نص ${await smallest()}`, (await smallest()) >= 32);
-  const radius = await presenter.$$eval('button, #pin, .panel', els => els.every(e => getComputedStyle(e).borderRadius === '0px'));
-  check('لا زوايا مستديرة في نافذة المقدّم', radius);
-  await presenter.screenshot({ path: `${shots}/skeleton-presenter.png` });
 
-  // 4. نافذة الجمهور الحقيقية: بانتظار المقدّم لا تُظهر إلا الشعار الكبير وسطره (design/logo/الدمج.md 1.2)، وبعد الاتصال شاشة البداية.
+  // 4. شاشة الجمهور خارج الصفحة (رابط audience.html وحده): لا صفحة تضمّها، فتبقى بانتظار المقدّم
+  // بالشعار الكبير وسطره وحدهما (design/logo/الدمج.md 1.2). وفي الصفحة بعد الرقم شاشة البداية.
   await audience.setViewportSize({ width: 1920, height: 1080 });
-  // في متصفح آخر لا مقدّم فيه، كي لا يتصل بالمقدّم المفتوح هنا.
-  const other = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
-  const live = await other.newPage();
+  const live = await context.newPage();
+  await live.setViewportSize({ width: 1920, height: 1080 });
   await live.goto(base + 'audience.html');
   await wait(300);
   check('بانتظار المقدّم: الهيكل مخفي، والشعار الكبير و«بانتظار المقدّم» وحدهما', await live.isHidden('.team.t1') && await live.isHidden('.logo') && await live.isHidden('.card')
     && await live.isVisible('.hero .hlogo') && (await live.textContent('#heroCap')) === 'بانتظار المقدّم');
-  await other.close();
-  const [aud] = await Promise.all([context.waitForEvent('page'), presenter.click('#open')]);
-  await aud.setViewportSize({ width: 1920, height: 1080 });
-  await presenter.waitForFunction(() => document.getElementById('status').dataset.on === 'true', null, { timeout: 5000 });
+  await live.close();
+  await presenter.evaluate(() => localStorage.clear());
+  await presenter.reload();
+  await unlock(presenter);
+  const aud = await stageFrame(presenter);
   // من ش1: قبل أول سؤال تظهر اللوحتان، والباقي مع العدّاد. والإعداد شاشة البداية: الشعار الكبير مكان البطاقة والترويسة (design/logo/الدمج.md 3).
-  // الملاحظة 37: «متصل» في المقدّم يسبق أحياناً أول عرض يصل الجمهور، فكانت مهلة 300 ثابتة تفحص قبله على جهاز أبطأ.
-  // فننتظر عرض الجمهور نفسه (حتى 5 ثوانٍ) ثم نفحص، ونذكر ما خالف إن خالف.
+  // الملاحظة 37: ننتظر عرض الجمهور نفسه (حتى 5 ثوانٍ) ثم نفحص، ونذكر ما خالف إن خالف.
   const shown = ['.team.t1', '.team.t2', '.hero .hlogo', '.hero .rays'], hiddenSel = ['.card', '.logo', '.strip.t1', '.strip.t2', '.badge.mode', '.team .cnt', '.team .score', '.giant'];
   const skeleton = () => aud.evaluate(([shown, hiddenSel]) => {
     const vis = s => [...document.querySelectorAll(s)].some(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden');
@@ -95,27 +93,32 @@ const { usePin, unlock, reporter } = require('./helpers.cjs');
     return shown.every(vis) && !hiddenSel.some(vis);
   }, [shown, hiddenSel], { timeout: 5000 }).catch(() => {});
   const wrong = await skeleton();
-  check(`بعد الاتصال: اللوحتان والشعار ظاهرة، ولا شريط ولا عدّاد ولا رقم قبل أول سؤال${wrong.length ? ` (${wrong.join('، ')})` : ''}`, !wrong.length);
-  await aud.screenshot({ path: `${shots}/skeleton-audience-live.png` });
+  check(`بعد الدخول: اللوحتان والشعار ظاهرة، ولا شريط ولا عدّاد ولا رقم قبل أول سؤال${wrong.length ? ` (${wrong.join('، ')})` : ''}`, !wrong.length);
+  await presenter.screenshot({ path: `${shots}/skeleton-audience-live.png` });
 
-  // 5. حواف الخطر في آخر 3 ثوانٍ فقط، وتختفي عند 0:00.
-  await presenter.click('#start');
+  // 5. حواف الخطر في آخر 3 ثوانٍ فقط، وتختفي عند 0:00: بعدّاد «وقت الخصم» (10 ثوانٍ) في «الحرف المعيّن»،
+  // بدل عدّاد التجربة في صفحة ?test المحذوفة.
+  await sharedToFace(aud, { names: ['الصقور', 'النجوم'], picks: ['letter', 'last-two'] });
+  await wait(2700);
+  await cmd(aud, 'begin');
+  await aud.waitForSelector('.scr.show[data-s="intro"]', { timeout: 6000 });
+  await cmd(aud, 'act:show');
+  await wait(900);
+  await cmd(aud, 'act:steal');
   await wait(300);
-  // 1.3: لا مربع عدّاد مستقل، فعدّاد التجربة (لا دور فيه) يُعرض في البطاقة.
-  check('مع العدّاد: اللوحتان والشارة ظاهرة، والوقت في البطاقة، ولا شريط فارق',
-    !(await aud.isVisible('.strip')) && (await Promise.all(['.team.t1', '.team.t2', '.badge.mode'].map(s => aud.isVisible(s)))).every(Boolean)
-    && /^العدّاد يعمل · 0:(10|09)$/.test(await aud.textContent('#label')));
+  check('مع العدّاد: اللوحتان والشارة ظاهرة، ولا شريط فارق',
+    !(await aud.isVisible('.strip')) && (await Promise.all(['.team.t1', '.team.t2', '.badge.mode'].map(s => aud.isVisible(s)))).every(Boolean));
   await wait(4200);
   const early = await aud.textContent('#timer');
   check(`قبل آخر 3 ثوانٍ (${early}): لا حواف`, ['0:06', '0:05'].includes(early) && !(await aud.evaluate(() => document.getElementById('canvas').classList.contains('meta-danger'))));
   await wait(3000);
   const at = await aud.textContent('#timer');
   check(`آخر 3 ثوانٍ (${at}): حواف حمراء`, ['0:03', '0:02'].includes(at) && await aud.evaluate(() => document.getElementById('canvas').classList.contains('meta-danger')));
-  await aud.screenshot({ path: `${shots}/skeleton-danger.png` });
+  await presenter.screenshot({ path: `${shots}/skeleton-danger.png` });
   await aud.waitForFunction(() => document.getElementById('timer').textContent === '0:00', null, { timeout: 6000 });
-  await wait(200);
-  check('عند 0:00: تختفي الحواف و«انتهى الوقت»', !(await aud.evaluate(() => document.getElementById('canvas').classList.contains('meta-danger')))
-    && (await aud.textContent('#label')) === 'انتهى الوقت');
+  await wait(400);
+  check('عند 0:00: تختفي الحواف، وينتظر المقدّم', !(await aud.evaluate(() => document.getElementById('canvas').classList.contains('meta-danger')))
+    && (await presenter.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).round.state.phase)) === 'over');
   check('العدّاد بصيغة 0:00 وأرقام إنجليزية', /^\d:\d\d$/.test(await aud.textContent('#timer')));
 
   check('لا أخطاء في الصفحات', errors.length === 0);

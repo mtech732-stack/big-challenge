@@ -141,7 +141,6 @@ const { reporter } = require('./helpers.cjs');
     seenState(x.state);
   }
   check(`الجمهور: لا إجابة في ${states} حالة`, leaks === 0 && !JSON.stringify(letter.audience(start(1).state)).includes('answer'));
-  check('المقدّم يرى الإجابة وبدائلها وسطر القبول', (() => { const x = R.act(letter, start(1), 'show'); const p = letter.presenter(x.state); return p.answer && Array.isArray(p.alts) && p.accept.includes(`«${p.letter}»`); })());
 
   // تتابع المباراة: المواجهة ← الجولة ← ما بعدها.
   let m = { ...M.newMatch({ pack: 'general', method: 'short' }), step: 'face', teams: { 1: 'الصقور', 2: 'النجوم' }, winner: 1,
