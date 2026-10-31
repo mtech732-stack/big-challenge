@@ -11,6 +11,7 @@
   .cbtn.ico { width: 64px; padding: 0; display: grid; place-items: center; }
   .cbtn.ico svg { width: 36px; height: 36px; fill: none; stroke: currentColor; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
   .bx-tip { position: absolute; z-index: 3; height: 64px; padding: 0 24px; display: flex; align-items: center; background: var(--card); color: var(--ink); font-size: 32px; font-weight: 700; white-space: nowrap; }
+  .bx-pan .bx-tip { background: var(--stage-3); color: var(--on-stage); } /* داخل اللوحة لوح داكن (ملاحظة التدقيق ش8-أ/56) */
   .bx-pan { position: absolute; z-index: 3; display: grid; grid-auto-flow: column; grid-auto-columns: 64px; gap: 16px; padding: 24px; min-width: 376px; box-sizing: border-box; background: transparent; box-shadow: inset 0 0 0 3px var(--card); }
   .bx-pan .cbtn { display: grid; place-items: center; width: 64px; height: 64px; padding: 0; background: transparent; color: var(--on-stage); box-shadow: inset 0 0 0 3px var(--card); white-space: nowrap; }
   .bx-pan .cbtn svg { width: 36px; height: 36px; flex: none; fill: none; stroke: currentColor; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
