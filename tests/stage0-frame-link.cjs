@@ -76,9 +76,11 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
   // التمدد مع المقاسات: اللوحة 1920×1080 تملأ النافذة دون قص.
   for (const [w, h] of [[1366, 768], [3840, 2160], [1920, 1080]]) {
     await page.setViewportSize({ width: w, height: h });
-    await wait(200);
-    const box = await page.locator('#frame').boundingBox();
-    check(`التمدد على ${w}×${h}`, Math.abs(box.width - w) < 2 && box.height <= h + 1);
+    // تحت الحمل قد يتأخر التمدد بعد تغيير المقاس، فيُنتظر حتى ثانيتين.
+    const fits = b => Math.abs(b.width - w) < 2 && b.height <= h + 1;
+    let box;
+    for (let t = 0; t < 10; t++) { await wait(200); box = await page.locator('#frame').boundingBox(); if (fits(box)) break; }
+    check(`التمدد على ${w}×${h}`, fits(box));
   }
   await page.screenshot({ path: `${shots}/frame-link.png` });
   check('لا أرقام هندية', !/[٠-٩۰-۹]/.test(await frame.textContent('body')));
