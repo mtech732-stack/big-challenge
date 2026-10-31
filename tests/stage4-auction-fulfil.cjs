@@ -271,6 +271,20 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await both('بعد الحكم · حالة محفوظة بأسماء');
   await stage.screenshot({ path: `${shots}/s4-reveal.png` });
 
+  // 10. ش8-أ/58 (المدقّق #349): الكشف ثم «وفى» ثم «الموضوع التالي» (الباركود يظهر وحده في المزايدة فتضيق البطاقة) ثم «تراجع»:
+  // تبقى القائمة بصفحاتها كما كانت، لا صفحات من سطر واحد قيست والبطاقة ضيقة.
+  {
+    const pagesBefore = await audience.$$eval('#cxList .cx-pg', els => els.length);
+    await cmd(audience, 'act:next'); await wait(1500);
+    const qrOn = await audience.$eval('#canvas', c => c.classList.contains('qr'));
+    await cmd(audience, 'undo'); await wait(1500);
+    const rows = await audience.$eval('#cxList', box => [...box.querySelectorAll('.cx-pg')].map(p => { const h = p.hidden; p.hidden = false;
+      const n = new Set([...p.children].map(e => e.offsetTop)).size; p.hidden = h; return n; }));
+    check(`الكشف · «وفى» · «الموضوع التالي»${qrOn ? ' (والباركود ظاهر)' : ''} · «تراجع»: القائمة ${rows.length} صفحات كما كانت (${pagesBefore})، وكلها 4 أسطر إلا الأخيرة (${rows.join(',')})`,
+      (await st()).phase === 'decided' && rows.length === pagesBefore && rows.slice(0, -1).every(n => n === 4));
+    await both('ش8-أ/58 · بعد التراجع عن الموضوع التالي');
+  }
+
   check(`فحص التداخل والشبكة في كل حالة سليم${layoutOk ? '' : ' · ' + fails.join(' | ')}`, layoutOk);
   check(`لا عنصر قبل الكشف ولا طول القائمة ولا نص قواعد على شاشة الجمهور${leak ? ' · ' + fails.filter(f => f.includes('الجمهور')).join(' | ') : ''}`, !leak);
   check(`لا أخطاء في الصفحات${errors.length ? ': ' + errors.join(' | ') : ''}`, errors.length === 0);
