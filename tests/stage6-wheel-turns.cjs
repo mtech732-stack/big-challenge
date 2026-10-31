@@ -34,7 +34,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     r = R.act(wheel, r, 'next', undefined, t0 + 20000);
     let a = wheel.audience(r.state);
     check('الدورة 2: يديرها الفريق الآخر، والخانات العشر قبل الدوران، والحدّ له', r.state.n === 2 && r.state.phase === 'ready' && a.screen === 'wheel' && a.n === 2 && a.count === 2 && a.by === 1 && a.turn === 1 && !a.spin);
-    check('والمسار: الدورة الأولى بنتيجتها، والثانية الجارية', JSON.stringify(wheel.presenter(r.state).track) === JSON.stringify([{ owner: 2, result: 2, now: false }, { owner: 1, result: null, now: true }]));
+    check('والحالة: الدورة الأولى للثاني بنتيجتها، والثانية للأول جارية', r.state.spinners.join() === '2,1' && r.state.results[0]?.team === 2 && !r.state.results[1] && r.state.n === 2);
     check('«التالي» مرة ثانية يُهمل', R.act(wheel, r, 'next', undefined, t0 + 20100).state === r.state);
     const back = R.undo(r, t0 + 21000);
     check('التراجع من الدورة 2 قبل دورانها: نتيجة الدورة الأولى كما هي', back.state.n === 1 && back.state.phase === 'done' && back.scores[2] === 11);

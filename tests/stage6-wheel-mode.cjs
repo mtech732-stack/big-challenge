@@ -23,7 +23,7 @@ const { reporter } = require('./helpers.cjs');
 
   // ملف العجلة كما كتبه الكاتب سليم عند الفاحص، والوحدة بشكل العقد.
   check('content/wheel.json سليم عند الفاحص (لا خطأ ولا تنبيه فيه)', (() => { const r = checkContent({ index: { packs: [] }, packs: [], wheel: data }); return ![...r.errors, ...r.warnings].some(e => e.startsWith('wheel.json')); })());
-  check('الوحدة بشكل العقد: setup وactions وact وaudience وpresenter وfinished وused', ['setup', 'actions', 'act', 'audience', 'presenter', 'finished', 'used'].every(k => typeof wheel[k] === 'function') && wheel.contentKey === 'wheel.json');
+  check('الوحدة بشكل العقد: setup وactions وact وaudience وfinished وused (ولا presenter بعد 1.13)', ['setup', 'actions', 'act', 'audience', 'finished', 'used'].every(k => typeof wheel[k] === 'function') && !('presenter' in wheel) && wheel.contentKey === 'wheel.json');
   check('العجلة ليست نمطاً: لا تدخل قائمة الأنماط (MODES)', !MODES.some(m => m.id === 'wheel'));
 
   // الخانات العشر.
@@ -48,8 +48,8 @@ const { reporter } = require('./helpers.cjs');
   check('قبل الدوران: شاشة العجلة، والحدّ لمن يديرها، ولا دوران', a.screen === 'wheel' && a.phase === 'ready' && a.by === 2 && a.turn === 2 && a.spin === null && a.n === 1 && a.count === 2);
   const texts = [...data.challenges.map(c => c.text), ...data.luck.map(l => l.label)];
   check('لا نص لأي خانة على الجمهور قبل الوقوف (الكلمة والرقم وحدهما)', !texts.some(t => JSON.stringify(a).includes(t)));
-  // والرصيد 0 و0 (لم يُمرَّر): تعادل، فسبب البدء للمقدّم «خسر القرعة».
-  check('المقدّم يرى النصوص كاملة، وسبب البدء', wheel.presenter(s).items.every((x, i) => x.text === s.slots[i].text) && wheel.presenter(s).why === 'draw');
+  // والرصيد 0 و0 (لم يُمرَّر): تعادل، فسبب البدء «خسر القرعة».
+  check('نصوص الخانات العشر كاملة في الحالة، وسبب البدء', s.slots.length === 10 && s.slots.every(x => x.text) && s.why === 'draw');
   check('زر واحد: «أطلق الشريط»', JSON.stringify(wheel.actions(s)) === JSON.stringify([{ id: 'spin', label: 'أطلق الشريط' }]));
 
   // الدوران.

@@ -17,6 +17,8 @@ const { finalMatch } = require('./final-match.cjs');
   const root = path.join(__dirname, '..');
   const { check, finish } = reporter();
   const wait = ms => new Promise(r => setTimeout(r, ms));
+  // فائز المحاولة بعد حكم الثاني: من أصاب وأخطأ خصمه، أو 0.
+  const winnerOf = st => (st.k === 1 && st.phase === 'decided' && st.hits[0] !== st.hits[1] ? (st.hits[0] ? st.first : 3 - st.first) : 0);
   const T = await import(path.join(root, 'js/tiebreak.js'));
   const unit = T.default;
   const R = await import(path.join(root, 'js/round.js'));
@@ -68,13 +70,13 @@ const { finalMatch } = require('./final-match.cjs');
     a = unit.audience(m.round.state);
     check('السؤال الثاني: للآخر، بسؤال جديد', a.turn === 1 && a.question === m.round.state.questions[1].prompt && a.n === 2);
     miss();
-    check('أخطآ معاً: «سؤالان جديدان · المحاولة 2»، ولا إعلان', unit.presenter(m.round.state).outcome === 'miss' && unit.actions(m.round.state).map(x => x.label).join() === 'سؤالان جديدان · المحاولة 2'
+    check('أخطآ معاً: «سؤالان جديدان · المحاولة 2»، ولا إعلان', m.round.state.hits.join() === 'false,false' && unit.actions(m.round.state).map(x => x.label).join() === 'سؤالان جديدان · المحاولة 2'
       && P.act(m, modes, 'announce').round.state === m.round.state);
     go('again');
     a = unit.audience(m.round.state);
     check('المحاولة 2: يبدؤها الفريق نفسه بسؤال ثالث', a.attempt === 2 && a.turn === 2 && a.question === m.round.state.questions[2].prompt && a.n === 1);
     hit(); go('next'); hit();
-    check('أصابا معاً: محاولة 3', unit.presenter(m.round.state).outcome === 'hit' && unit.actions(m.round.state)[0].id === 'again');
+    check('أصابا معاً: محاولة 3', m.round.state.hits.join() === 'true,true' && unit.actions(m.round.state)[0].id === 'again');
     go('again'); hit();
     a = unit.audience(m.round.state);
     check('أصاب: «[الاسم] · أصاب · +3» والحدّ له ونقاطه', a.verdict.label === 'أصاب · +3' && a.verdict.team === 2 && a.verdict.who === 2 && a.verdict.points === 3 && m.scores[2] === 6 && m.scores[1] === 3);
@@ -82,7 +84,7 @@ const { finalMatch } = require('./final-match.cjs');
     go('reveal');
     const beforeWrong = m;
     go('pick:0');
-    check('أصاب الأول وأخطأ الثاني: فاز الأول بالمحاولة، و«أعلن الفائز»', unit.presenter(m.round.state).outcome === 2 && unit.actions(m.round.state)[0].label === 'إلى النتيجة النهائية');
+    check('أصاب الأول وأخطأ الثاني: فاز الأول بالمحاولة، و«أعلن الفائز»', winnerOf(m.round.state) === 2 && unit.actions(m.round.state)[0].label === 'إلى النتيجة النهائية');
     check('التراجع عن آخر حكم: السؤال قبل الحكم', P.undo(m, modes).round.state.phase === beforeWrong.round.state.phase);
     go('announce');
     check('«إلى النتيجة النهائية»: الخطوة final بالنتيجة (tb) وفيها نقاط الجولة الفاصلة', m.step === 'final' && m.final.phase === 'fin' && m.final.tb && m.scores[1] === 3 && m.scores[2] === 6);
@@ -93,7 +95,7 @@ const { finalMatch } = require('./final-match.cjs');
     check('«أعلن الفائز»: الفائز من الجولة الفاصلة (tb)', won.final.phase === 'win' && won.final.winner === 2 && won.final.tb);
     check('التراجع من الفائز: النتيجة النهائية بخانة الجولة الفاصلة', P.undoFinal(won).final.phase === 'fin' && P.undoFinal(won).final.tb && !P.undoFinal(won).final.winner);
     const back = P.undoFinal(m);
-    check('التراجع من النتيجة: آخر حكم في الجولة الفاصلة، والرصيد قبله', back.step === 'play' && back.round.state.phase === 'decided' && unit.presenter(back.round.state).outcome === 2 && back.scores[2] === 6 && back.scores[1] === 3);
+    check('التراجع من النتيجة: آخر حكم في الجولة الفاصلة، والرصيد قبله', back.step === 'play' && back.round.state.phase === 'decided' && winnerOf(back.round.state) === 2 && back.scores[2] === 6 && back.scores[1] === 3);
     check('الأسئلة التي ظهرت (used): ستة، بلا تكرار', unit.used(m.round.state).length === 6 && new Set(unit.used(m.round.state)).size === 6);
     check('والتراجع إلى النتيجة قبل الجولة الفاصلة يرفع خانتها', M.gains(P.undo(P.toTiebreak(fin, { modes, content }), modes)).length === 3);
     // الأسئلة التي ظهرت على الجهاز تُترك ما بقي غيرها.

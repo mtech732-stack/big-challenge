@@ -11,7 +11,6 @@ export default wordMode({
   order: 1,
   seconds: SECONDS,
   key: 'letter',
-  // نصوص الافتتاح وسطر القبول (design/letter.md 2.4 و4.4).
+  // نص الافتتاح (design/letter.md 2.4).
   rule: 'أجب بكلمة تبدأ بالحرف المعيّن',
-  accept: box => `وتُقبل أي كلمة أخرى تبدأ بـ «${box}» وتنطبق على المطلوب.`,
 });
