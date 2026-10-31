@@ -79,7 +79,6 @@
             <div class="ctl" id="aucCtl"></div>
           </div>
           <div class="bids" id="bids"></div>
-          <div class="items" id="items"></div>
           <!-- بعد «كشف القائمة» (الوثيقة 1.14، design/s8c.md 2): القائمة المرجعية صفحاتٍ تُقلب بالنقر، ونقاط تحتها بعدد الصفحات -->
           <div class="cx-list" id="cxList" hidden></div>
           <div class="cx-dots" id="cxDots" hidden></div>
@@ -770,24 +769,15 @@
     const t = a.tally;
     $('tally').hidden = !t;
     if (t) { $('tn').textContent = t.n; $('tof').textContent = t.of; $('tally').className = `tally t${t.team}`; }
-    // ما ذُكر بلون من ذكره، والأحدث يظهر بحركته. وبعد الحكم يبقى ما قيل وحده، لا القائمة (design/auction.md 4.0).
-    // وما احتُسب دون اسم («صحيحة · +1») لا شارة له، ويدخل بعد الحكم «و N غيرها» (4.1). وفي النافذة الواحدة لا أسماء، فتبقى البطاقة على الموضوع.
+    // ولا أسماء لما ذُكر على التلفاز (الوثيقة 1.14، المالك 31 أكتوبر 2026): العدّ وحده، ثم القائمة المكشوفة.
     const reveal = !!a.reveal;
     $('auc').classList.toggle('reveal', reveal);
-    const it = (x, cls) => `<span class="it ${cls}"><i></i><span>${esc(x.name)}</span></span>`;
-    const said = a.said ?? [];
     const counted = t?.n ?? 0, fresh = !reveal && counted > shownSaid;
-    const named = fresh && said.length > shownNamed;
-    shownSaid = counted; shownNamed = said.length;
-    $('items').innerHTML = said.map((x, i) => it(x, `t${x.team}${named && i === said.length - 1 ? ' new' : ''}`)).join('');
-    // بعد الحكم: القائمة القصيرة بشارات المزايدة الكبيرة إن اتسعت كلها في صفين، وإلا فبالحجم المعتاد (design/auction.md 7.6)
-    $('auc').classList.toggle('big', reveal);
-    if (reveal && !fitsAll($('items'))) $('auc').classList.remove('big');
-    fitItems($('items'), reveal, reveal ? a.plain ?? 0 : 0);
+    shownSaid = counted;
     if (fresh) replay($('tally'), 'bump');
     renderList(a);
   }
-  let shownSaid = 0, shownNamed = 0;
+  let shownSaid = 0;
   // القائمة المكشوفة (design/s8c.md 1.1 القسم 2، والمالك 31 أكتوبر 2026: «اقلبها يدوياً، نقاط أسفل القائمة توضح التعدد»):
   // تُقسَم صفحاتٍ بالقياس (عنصر يتجاوز أسفل الأسطر الأربعة يبدأ صفحة)، ولا تقليب وحده: نقرة على القائمة أو على نقطة.
   // والصفحة الظاهرة تبقى مع كل رسم جديد للبطاقة نفسها (الحكم بعد الكشف)، وتعود إلى الأولى في موضوع آخر.
@@ -864,23 +854,6 @@
     if (!v) return {};
     return { verdict: v, say: !v.team ? 'لم تُكشف خانة' : v.rank > 10 ? `فخّ المركز ${v.rank}` : `المركز ${v.rank}`, bare: !v.team };
   }
-  // ما ذُكر: أثناء العدّ يبقى الأحدث (يسقط الأقدم). وبعد الحكم يبقى أوله، وفي آخره «و N غيرها» مع ما احتُسب دون اسم
-  // (design/auction.md 4.0 و4.1، fitItems في design/auction.html).
-  const fitsAll = box => !box.lastElementChild || rect(box.lastElementChild).bottom <= rect(box).bottom + 1;
-  // plain (4.1): ما احتُسب بالزر دون اسم، فيدخل «و N غيرها» من أوله. وإن لم يكن لشيء اسم فالبطاقة على الموضوع وحده.
-  function fitItems(box, reveal, plain = 0) {
-    const all = [...box.children];
-    if (!all.length) return;
-    const fits = () => !box.lastElementChild || rect(box.lastElementChild).bottom <= rect(box).bottom + 1;
-    if (fits() && !plain) return;
-    if (!reveal) { while (!fits() && box.firstElementChild) box.firstElementChild.remove(); return; }
-    const more = document.createElement('span'); more.className = 'it more'; box.append(more);
-    let hidden = plain;
-    const say = () => { more.innerHTML = `<span>و <span class="ltr">${hidden}</span> غيرها</span>`; };
-    say();
-    while (!fits() && all.length) { all.pop().remove(); hidden++; say(); }
-  }
-
   // ===== أزرار الشاشة المشتركة (design/shared.md 3): المقدّم يقرر ما يظهر (ctl)، وهنا موضعه =====
   // ctl: { card, near, ans («كشف الإجابة» أسفل اليمين، design/s8b.md 1.3), a, b, c: أزرار (c الصف الثالث في الجولة) · count: خانتا العدد · names: اللوحتان حقلان · pick: الخانات تُنقر · scores · error }
   // والزر { cmd, label, kind: '' | 'alt' | 'no', off }. يصل من النافذة التي تحتوي هذه الشاشة وحدها، فلا يظهر في نافذة الجمهور.
