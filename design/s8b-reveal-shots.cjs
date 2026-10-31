@@ -28,7 +28,7 @@ const CASES = JSON.parse(process.env.CASES);
     await f.waitForSelector('[data-cmd="act:reveal"]', { state: 'attached', timeout: 8000 });
     await f.evaluate(() => document.querySelector('[data-cmd="act:reveal"]').click()); await wait(1500);
     if (css) await f.addStyleTag({ content: css });
-    await f.evaluate((sc) => { for (const [i, v] of sc) document.getElementById('s' + i).textContent = v; }, JSON.parse(process.env.SC || '[[1,"88"],[2,"88"]]'));
+    await f.evaluate((sc) => { for (const [i, v] of sc) { const s = document.getElementById('s' + i); s.textContent = v; s.classList.toggle('three', v.length >= 3); } }, JSON.parse(process.env.SC || '[[1,"88"],[2,"88"]]'));
     if (process.env.DUMP) { console.log(await f.evaluate(() => document.querySelector('.card .scr.show')?.outerHTML.slice(0, 1500))); }
     await f.addScriptTag({ path: R + '/design/check.js' });
     for (const [tag, ans, q] of CASES) {
