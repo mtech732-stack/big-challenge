@@ -80,6 +80,9 @@
           </div>
           <div class="bids" id="bids"></div>
           <div class="items" id="items"></div>
+          <!-- بعد «كشف القائمة» (الوثيقة 1.14، design/s8c.md 2): القائمة المرجعية صفحاتٍ تُقلب بالنقر، ونقاط تحتها بعدد الصفحات -->
+          <div class="cx-list" id="cxList" hidden></div>
+          <div class="cx-dots" id="cxDots" hidden></div>
         </div>
         <!-- الترتيب (ش5، design/ranking.md 2): العنوان، ثم اللوحة: 1–10 والفخاخ. لا اسم قبل أن يُكشف -->
         <div class="scr rnk" data-s="rnk" id="rnk">
@@ -315,14 +318,17 @@
   function placeBox() {
     const box = $('box'), p2 = $('p2');
     if (box.hidden) return;
-    const w = Math.min(659, 1794 - (p2.offsetLeft + p2.offsetWidth + 17 + 24 + 17));
-    box.style.left = (1794 - w) + 'px'; box.style.width = w + 'px';
+    let w = Math.min(659, 1794 - (p2.offsetLeft + p2.offsetWidth + 17 + 24 + 17));
+    const at = w => { box.style.left = (1794 - w) + 'px'; box.style.width = w + 'px'; };
+    at(w);
     box.classList.remove('wrap');
     const line = [...box.querySelectorAll('.line')].find(l => !l.hidden);
     // عرض النص نفسه (Range مقسوماً على المقياس) لا scrollWidth: مع المقاطع (.nb) في سطر من اليمين لا يُحسب ما فاض يساراً (الملاحظة 39)
-    let wide = false;
-    if (line) { const r = document.createRange(); r.selectNodeContents(line); wide = r.getBoundingClientRect().width / (canvas.getBoundingClientRect().width / 1920) > box.clientWidth - 96; }
-    box.classList.toggle('wrap', !box.classList.contains('two') && wide);
+    let tw = 0;
+    if (line) { const r = document.createRange(); r.selectNodeContents(line); tw = r.getBoundingClientRect().width / (canvas.getBoundingClientRect().width / 1920); }
+    // الإجابة القصيرة بعد الكشف (ش8-أ/56، design/s8b.md 7.3): على الأعمدة 9–12 (1281–1794، بعرض 513) إن اتسع لها سطرها، فينقص الأبيض.
+    if (box.classList.contains('ans') && line && tw <= 513 - 96 && w > 513) at(w = 513);
+    box.classList.toggle('wrap', !box.classList.contains('two') && tw > box.clientWidth - 96);
   }
 
   // صف الشارات من اليمين بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (design/start.html وdesign/letter.html):
@@ -669,7 +675,9 @@
       // والجولة الفاصلة: الحكم بلا مربع «[الاسم] · أصاب» و«الإجابة: …» (design/final.md 2.5).
       // وبعد الكشف وقبل الاختيار الإجابة وحدها في المربع (design/s8b.md 2).
       : a.tiebreak ? { verdict: v, answer: a.answer, bare: !!v }
-      : { verdict: v, answer: a.answer, told: v && a.tally ? `ذُكر ${a.tally.n} من ${a.tally.of}` : undefined });
+      // والمزاد (1.14، design/s8c.md 1): الحكم بلا مربع «[الاسم] · +12» و«وفى بـ 12» أو «لم يفِ بـ 12»، ولا «ذُكر».
+      : a.screen === 'topic' ? (v ? { verdict: v, say: `${(v.kept ?? v.team === a.commit?.team) ? 'وفى' : 'لم يفِ'} بـ ${a.commit?.n ?? ''}`, bare: true } : {})
+      : { verdict: v, answer: a.answer });
     syncTimer(p.timer, a);
     showQR(p.qr);
     setTurn(a.turn);
@@ -777,8 +785,51 @@
     if (reveal && !fitsAll($('items'))) $('auc').classList.remove('big');
     fitItems($('items'), reveal, reveal ? a.plain ?? 0 : 0);
     if (fresh) replay($('tally'), 'bump');
+    renderList(a);
   }
   let shownSaid = 0, shownNamed = 0;
+  // القائمة المكشوفة (design/s8c.md 1.1 القسم 2، والمالك 31 أكتوبر 2026: «اقلبها يدوياً، نقاط أسفل القائمة توضح التعدد»):
+  // تُقسَم صفحاتٍ بالقياس (عنصر يتجاوز أسفل الأسطر الأربعة يبدأ صفحة)، ولا تقليب وحده: نقرة على القائمة أو على نقطة.
+  // والصفحة الظاهرة تبقى مع كل رسم جديد للبطاقة نفسها (الحكم بعد الكشف)، وتعود إلى الأولى في موضوع آخر.
+  // والقسمة بقياس القائمة نفسها: إن تغيّر مقاسها (البطاقة تضيق مع الباركود، أو القسم لم يظهر بعد) أُعيدت القسمة بمقاسها الجديد،
+  // فلا تبقى صفحات من سطر واحد قيست والبطاقة ضيقة (ش8-أ/58: الكشف ثم «وفى» ثم «الموضوع التالي» ثم «تراجع»).
+  let listKey = '', listPage = 0, listPages = 1, listView = null;
+  new ResizeObserver(() => { if (listView) renderList(listView); }).observe($('cxList'));
+  function renderList(a) {
+    const box = $('cxList'), dots = $('cxDots'), list = a.list ?? null;
+    $('auc').classList.toggle('list', !!list);
+    box.hidden = !list;
+    listView = list ? a : null;
+    if (!list) { listKey = ''; box.innerHTML = ''; dots.hidden = true; dots.innerHTML = ''; return; }
+    $('auc').style.setProperty('--cx-team', `var(--team-${a.commit?.team === 2 ? '2-ink' : '1'})`);
+    const key = `${a.n}|${a.topic}|${list.length}|${box.clientWidth}x${box.clientHeight}`;
+    if (key !== listKey) {
+      if (!listKey || listKey.split('|')[0] !== String(a.n) || listKey.split('|')[1] !== a.topic) listPage = 0;
+      listKey = key;
+      box.innerHTML = '';
+      const pages = [];
+      let pg = null;
+      const fresh = () => { pg = document.createElement('div'); pg.className = 'cx-pg'; box.append(pg); pages.push(pg); };
+      fresh();
+      for (const nm of list) {
+        const it = document.createElement('span'); it.className = 'cx-it'; it.textContent = nm; pg.append(it);
+        if (it.offsetTop + it.offsetHeight > box.clientHeight + 1 && pg.children.length > 1) { it.remove(); fresh(); pg.append(it); }
+      }
+      listPages = pages.length;
+      dots.innerHTML = listPages > 1 ? pages.map((_, k) => `<i data-page="${k}"></i>`).join('') : '';
+    }
+    listPage = Math.min(listPage, listPages - 1);
+    showPage(false);
+  }
+  function showPage(anim) {
+    [...$('cxList').children].forEach((p, k) => { p.hidden = k !== listPage; if (anim && k === listPage && !still()) replay(p, 'in'); });
+    const dots = $('cxDots');
+    dots.hidden = listPages < 2;
+    [...dots.children].forEach((d, k) => d.classList.toggle('on', k === listPage));
+    dots.setAttribute('aria-label', `الصفحة ${listPage + 1} من ${listPages}`);
+  }
+  // نقرة على القائمة: التالية، ومن الأخيرة إلى الأولى. ونقرة على نقطة: صفحتها (design/s8c.md 1.1).
+  const flipPage = to => { if (listPages < 2) return; const next = to ?? (listPage + 1) % listPages; if (next === listPage) return; listPage = next; showPage(true); };
 
   // ===== الترتيب (design/ranking.md 2): العنوان وإشارته، واللوحة: 13 خانة بالترتيب، وgrid-auto-flow يضعها في أعمدتها =====
   // الخانة المنتظرة رتبتها وحدها · المكشوفة بلون من ذكرها واسمها · الفخاخ ظاهرة الأرقام بلا اسم، والمكشوف منها رقمه خصمه «−13» (design/s8.md 3.1)
@@ -915,6 +966,9 @@
       // لوحة «⋯» تُفتح وتُغلق هنا، وتُغلق باختيار زر فيها أو بنقرة خارجها (design/s8b.md 7.1).
       if (b?.dataset.cmd === 'more') { moreOpen = !moreOpen; renderCtl(); return; }
       if (moreOpen && (!e.target.closest('#moreMenu') || b)) { moreOpen = false; renderCtl(); }
+      // نقرة على القائمة المكشوفة تقلب صفحتها، في هذه الشاشة وحدها (design/s8c.md 2).
+      if (!b && e.target.closest('#cxList')) { flipPage(); return; }
+      if (!b && e.target.closest('#cxDots i')) { flipPage(Number(e.target.closest('#cxDots i').dataset.page)); return; }
       if (!b || b.classList.contains('off') || !ctl) return;
       send(b.dataset.cmd);
     });

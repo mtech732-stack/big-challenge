@@ -1,7 +1,8 @@
 // اختبار آلي لمرحلة «الوفاء والعدّ» في المزاد (ش4، design/auction.md) بالنافذة الواحدة (الوثيقة 1.13)، في الرابط العادي:
-// الملتزم قبل «ابدأ» وبعده، والعدّ بـ«صحيح · +1» (بلون الملتزم، وعدّات متتابعة تُحسب كلها، وعشر ضغطات في أقل من ثانية عشر عدّات والزر لا يتعطّل، ش8-أ/54)،
-// والعدّاد يبقى يعدّ، والتراجع، والحكم التلقائي عند بلوغ العدد (النقاط، و«ذُكر N من N»، ولا القائمة)، والتراجع عن الحكم بما بقي من الوقت،
-// وإعادة التحميل، و«توقّف» (و«لم يفِ» في stage4-auction-fail.cjs)، وعرض ما ذُكر بأسمائه بعد الحكم، ولا عنصر لم يُذكر على الجمهور، وفحص التداخل.
+// الملتزم قبل «ابدأ» وبعده، والعدّ بـ«عُدّ · +1» (بلون الملتزم، وعدّات متتابعة تُحسب كلها، وعشر ضغطات في أقل من ثانية عشر عدّات والزر لا يتعطّل، ش8-أ/54)،
+// والعدّاد يبقى يعدّ، والتراجع (سريعاً بلا مهلة داخل الوفاء، ش8-أ/55)، وبلوغ العدد لا يحكم (الوثيقة 1.14)، ثم «كشف القائمة» (يقف الوقت،
+// والقائمة صفحاتٍ بنقاطها تُقلب يدوياً، design/s8c.md 1.1)، ثم «وفى» (النقاط، و«وفى بـ N» بلا مربع)، والتراجع عن الحكم ثم عن الكشف بما بقي من الوقت،
+// وإعادة التحميل، و«لم يفِ» (وتفصيله في stage4-auction-fail.cjs)، ولا أسماء ما ذُكر على الجمهور، ولا عنصر قبل الكشف، وفحص التداخل.
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
@@ -57,7 +58,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
     const s = await st();
     // وبعد الحكم كذلك: لا القائمة ولا ما لم يُذكر منها (design/auction.md 4.0).
     const said = new Set((s.said ?? []).filter(x => x.i !== null).map(x => x.i));
-    const shown = [...said].flatMap(i => [items[i].name, ...(items[i].alts ?? [])]).sort((a, b) => b.length - a.length);
+    // وبعد «كشف القائمة» (الوثيقة 1.14) القائمة كلها على الشاشة، فلا يُبحث فيها عمّا لم يُذكر.
+    const listed = ['revealed', 'decided'].includes(s.phase);
+    const shown = (listed ? items.map((_, i) => i) : [...said]).flatMap(i => [items[i].name, ...(items[i].alts ?? [])]).sort((a, b) => b.length - a.length);
     const body = await audience.evaluate(ns => { let t = document.querySelector('.canvas').innerText;
       for (const b of document.querySelectorAll('.cbtn')) t = t.replace(b.innerText, '');
       t = t.replace(document.getElementById('topic').innerText, '');
@@ -67,7 +70,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
     const unsaid = items.filter((x, i) => !said.has(i)).flatMap(x => [x.name, ...(x.alts ?? [])]);
     // اسم من حرف أو حرفين («ت» أو «7») يقع في أي نص، فلا يُبحث عنه في نص الشاشة: الشارات وحدها تحمل ما ذُكر.
     const named = n => [...n].length > 2 && body.includes(n);
-    if (unsaid.some(named)) { leak = true; fails.push(`${label}: عنصر لم يُذكر على الجمهور (${unsaid.find(named)})`); }
+    if (!listed && unsaid.some(named)) { leak = true; fails.push(`${label}: عنصر لم يُذكر على الجمهور (${unsaid.find(named)})`); }
     // ولا طول للقائمة على الجمهور أبداً (4.0).
     if (await audience.$('#tsize, .auc .size')) { leak = true; fails.push(`${label}: «في القائمة» على الجمهور`); }
     if (body.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
@@ -77,7 +80,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   const tally = async () => `${await text(audience, '#tn')}/${await text(audience, '#tof')}`;
 
   // 1. إلى الوفاء: يزايد فريق (عشوائي) بزرّه حتى 30، ثم «ابدأ» يرسي عليه ويبدأ العدّاد فوراً (3.0؛ القائمة 54، فالعدد مخفي).
-  // والعدّ بـ«صحيح · +1» في البطاقة (الوثيقة 1.13: القائمة للمقدّم في الباركود).
+  // والعدّ بـ«عُدّ · +1» في البطاقة (الوثيقة 1.13: القائمة للمقدّم في الباركود).
   await audience.waitForSelector('[data-cmd="draw"]', { timeout: 6000 });
   await sharedToFace(audience, { names: LONG, picks: ['auction', 'letter'] });
   await wait(2700);
@@ -137,6 +140,23 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   const undo = () => cmd(audience, 'undo');
   await undo(); await wait(900);
   check('التراجع: «28 من 30»، والعدّاد يبقى', (await tally()) === `28/${N}` && (await stored()).round.timer?.id === timer);
+  // 6ب. تراجع سريع (ش8-أ/55، تقرير المعاين #338): ثلاث ضغطات «تراجع» متتالية تُرجع ثلاث عدّات،
+  // و«عُدّ · +1» بعد 100 ms من «تراجع» تُحسب (لا مهلة بعد التراجع داخل الوفاء).
+  {
+    const at = async sel => { const b = await (await audience.$(sel)).boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2]; };
+    const [ux, uy] = await at('[data-cmd="undo"]');
+    for (let k = 0; k < 3; k++) { await stage.mouse.click(ux, uy); await wait(120); }
+    await wait(400);
+    check('ثلاث ضغطات «تراجع» سريعة: ترجع ثلاث عدّات (25 من 30)، والعدّاد يبقى', (await tally()) === `25/${N}` && (await st()).said.length === 25
+      && (await stored()).round.timer?.id === timer);
+    const [cx, cy] = await at('#near [data-cmd="act:count"]');
+    await stage.mouse.click(ux, uy); await wait(100); await stage.mouse.click(cx, cy);
+    await wait(400);
+    check('«عُدّ · +1» بعد 100 ms من «تراجع»: تُحسب (25 من 30، لا 24)', (await tally()) === `25/${N}`);
+    for (let k = 0; k < 3; k++) { await stage.mouse.click(cx, cy); await wait(120); }
+    await wait(400);
+    check('ثم ثلاث عدّات تعيده إلى «28 من 30»', (await tally()) === `28/${N}`);
+  }
   // إعادة تحميل الشاشة أثناء العدّ.
   await stage.reload();
   await unlock(stage);
@@ -145,29 +165,64 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await hideQr(audience);
   check('إعادة تحميل الشاشة: العدّ والعدّاد كما هما', (await tally()) === `28/${N}` && await audience.$eval('#canvas', c => c.classList.contains('running')));
 
-  // 7. بلغ العدد: يُحكم تلقائياً.
+  // 7. بلغ العدد: لا حكم (1.14، «عُدّ · +1» عدّاد مساعد)، والعدّاد يعدّ. ثم «كشف القائمة» يوقفه ويُظهر القائمة صفحاتٍ بنقاطها، ثم «وفى».
   const before = (await stored()).scores[opener];
   await cmd(audience, 'act:count'); await wait(400); await cmd(audience, 'act:count');
-  await wait(1200);
+  await wait(1000);
+  s = await st();
+  check(`30 من 30: لا حكم، والعدّاد يبقى يعدّ (عدّاد مساعد، 1.14)`, s.phase === 'fulfil' && (await tally()) === `${N}/${N}` && (await stored()).scores[opener] === before
+    && await audience.$eval('#canvas', c => c.classList.contains('running')));
+  const nearT = () => audience.$$eval('#near .cbtn', els => els.map(e => e.textContent.trim() + (e.classList.contains('t1') ? '(1)' : e.classList.contains('t2') ? '(2)' : '')).join(' | '));
+  const ansT = () => audience.$$eval('#ansCtl .cbtn', els => els.map(e => e.textContent.trim()).join(' | '));
+  check(`السرد: «عُدّ · +1» في صف الشارات و«كشف القائمة» ثانوياً بإطار أسفل اليمين (ش8-أ/57) (${await nearT()} · ${await ansT()})`, (await nearT()) === 'عُدّ · +1' && (await ansT()) === 'كشف القائمة'
+    && await audience.$eval('#ansCtl .cbtn', b => b.classList.contains('alt') && getComputedStyle(b).backgroundColor === 'rgba(0, 0, 0, 0)'));
+  await cmd(audience, 'act:reveal'); await wait(1000);
+  s = await st();
+  const dots = () => audience.$$eval('#cxDots i', els => els.map(e => e.classList.contains('on') ? 'X' : 'o').join(''));
+  const page = () => audience.$$eval('#cxList .cx-pg', els => els.findIndex(e => !e.hidden));
+  const listed = () => audience.$$eval('#cxList .cx-it', els => els.map(e => e.textContent.trim()));
+  check('الكشف: يقف العدّاد ولا حكم، ويغيب العدّ، ولا باركود', s.phase === 'revealed' && !(await audience.$eval('#canvas', c => c.classList.contains('running') || c.classList.contains('qr')))
+    && !(await audience.isVisible('#tally')) && (await stored()).scores[opener] === before);
+  const all = await listed(), pages = (await dots()).length;
+  check(`الكشف: القائمة كلها بترتيبها (${all.length}) صفحاتٍ من 4 أسطر، ونقطة لكل صفحة (${await dots()})، والأولى ظاهرة`, all.join('|') === items.map(x => x.name).join('|') && pages >= 2
+    && (await dots()) === 'X' + 'o'.repeat(pages - 1) && (await page()) === 0 && (await audience.$$eval('#cxList .cx-pg', els => els.length)) === pages);
+  check('الصفحة الظاهرة في أسطرها الأربعة (192)', await audience.$eval('#cxList', box => [...box.querySelector('.cx-pg:not([hidden])').children].every(e => e.offsetTop + e.offsetHeight <= 192 + 1)));
+  check(`بعد الكشف: «وفى · +${N}» بلون الملتزم و«لم يفِ · +2» بلون الخصم، ولا «كشف القائمة» (${await nearT()})`, (await nearT()) === `وفى · +${N}(${opener}) | لم يفِ · +2(${other(opener)})` && !(await ansT()));
+  await both('بعد الكشف');
+  await stage.screenshot({ path: `${shots}/s4-list.png` });
+  // التقليب يدوي (المالك 31 أكتوبر 2026): لا يتغير وحده، ونقرة على القائمة التالية، ونقرة على نقطة صفحتها.
+  await wait(1500);
+  check('لا تقليب وحده', (await page()) === 0);
+  await audience.click('#cxList'); await wait(400);
+  check(`نقرة على القائمة: الصفحة الثانية (${await dots()})`, (await page()) === 1 && (await dots())[1] === 'X');
+  await audience.click(`#cxDots i[data-page="${pages - 1}"]`); await wait(400);
+  check('نقرة على النقطة الأخيرة: صفحتها', (await page()) === pages - 1);
+  await audience.click('#cxList'); await wait(400);
+  check('ومن الأخيرة إلى الأولى', (await page()) === 0);
+  await audience.click('#cxList'); await wait(400);
+  await cmd(audience, 'act:ok'); await wait(1200);
   s = await st();
   const scores = (await stored()).scores;
-  check(`30 من 30: يُحكم تلقائياً، +${N} للملتزم`, s.phase === 'decided' && scores[opener] === before + N && scores[other(opener)] === 0);
-  check(`الجمهور: «${LONG[opener - 1]} · +${N}» و«ذُكر 30 من 30»`, (await text(audience, '#vtext')) === `${LONG[opener - 1]} · +${N}` && (await text(audience, '#told')) === `ذُكر ${N} من ${N}`);
+  check(`«وفى»: +${N} للملتزم`, s.phase === 'decided' && scores[opener] === before + N && scores[other(opener)] === 0);
+  check(`الجمهور: «${LONG[opener - 1]} · +${N}» و«وفى بـ ${N}» بلا مربع، ولا «ذُكر»`, (await text(audience, '#vtext')) === `${LONG[opener - 1]} · +${N}` && (await text(audience, '#say')) === `وفى بـ ${N}`
+    && !(await audience.isVisible('#told')) && await audience.$eval('#box', b => b.classList.contains('bare')));
   check('الجمهور: الحدّ عند الملتزم، والعدّاد وقف، والعدّ الكبير غاب', await audience.$eval('#canvas', (c, t) => c.classList.contains('turn-' + t) && !c.classList.contains('running'), opener) && !(await audience.isVisible('#tally')));
-  check('بعد الحكم: لا شارات (لا أسماء ولا القائمة)، و«الموضوع التالي» وحده في البطاقة', (await chips()).length === 0
-    && (await audience.$$eval('.scr.show .ctl .cbtn', els => els.map(e => e.textContent.trim()).join(' | '))) === 'الموضوع التالي');
+  check('بعد الحكم: القائمة باقية على الصفحة الظاهرة (الثانية)، ولا شارات أسماء', (await page()) === 1 && (await chips()).length === 0);
+  check(`بعد الحكم: «الموضوع التالي» وحده في صف الشارات (${await nearT()})`, (await nearT()) === 'الموضوع التالي' && !(await audience.$$('.scr.show .ctl .cbtn')).length);
   await both('بعد الحكم');
   await stage.screenshot({ path: `${shots}/s4-won.png` });
 
-  // 8. التراجع عن الحكم يعيد الوفاء بما بقي، ثم «صحيح · +1» مرتين متقاربتين عدّتان (ش8-أ/54)، و«توقّف». يُتراجع عن عدّتين (28 من 30).
+  // 8. التراجع عن الحكم يعيد الكشف، وعن الكشف يعيد الوفاء بما بقي. ثم «عُدّ · +1» مرتين متقاربتين عدّتان (ش8-أ/54)، والكشف و«لم يفِ».
   const leftAt = async () => Number(await audience.$eval(`#c${opener}`, e => e.textContent));
   await undo(); await wait(900);
-  const back = await leftAt();
-  check(`التراجع عن الحكم: يعود الوفاء بما بقي من الوقت (${back} ثانية، لا 45)`, (await st()).phase === 'fulfil' && back > 0 && back < 44
-    && await audience.$eval('#canvas', c => c.classList.contains('running')));
+  check('التراجع عن «وفى»: يعود الكشف بزرّي الحكم، والنقاط تعود', (await st()).phase === 'revealed' && (await stored()).scores[opener] === before && (await nearT()).startsWith('وفى'));
   await undo(); await wait(900);
-  // ما بقي من الوقت بعد التراجع قليل (نحو 8 ثوانٍ)، وخطوات النافذة الواحدة أطول منه، فينتهي فيُحكم آلياً.
-  // فيُعاد عدّاد الوفاء الجاري كاملاً (60) من الآن، في الحالة المحفوظة، ثم تُعاد الشاشة. لا تغيير في اللعبة.
+  const back = await leftAt();
+  check(`التراجع عن الكشف: يعود الوفاء بما بقي من الوقت (${back} ثانية، لا 45)، والعدّ كما كان`, (await st()).phase === 'fulfil' && back > 0 && back < 44
+    && await audience.$eval('#canvas', c => c.classList.contains('running')) && (await tally()) === `${N}/${N}`);
+  await undo(); await wait(400); await undo(); await wait(900);
+  // ما بقي من الوقت بعد التراجع قليل، وخطوات النافذة الواحدة أطول منه. فيُعاد عدّاد الوفاء الجاري كاملاً (60) من الآن،
+  // في الحالة المحفوظة، ثم تُعاد الشاشة. لا تغيير في اللعبة.
   await stage.evaluate(() => { const m = JSON.parse(localStorage.getItem('big-challenge.match'));
     m.round.timer = { ...m.round.timer, seconds: 60 }; m.timerAt = Date.now(); localStorage.setItem('big-challenge.match', JSON.stringify(m)); });
   await stage.reload();
@@ -175,45 +230,63 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   audience = await stageFrame(stage);
   await wait(800);
   const near = () => audience.$$eval('#near .cbtn', els => els.map(e => e.textContent.trim() + (e.classList.contains('off') ? '(معطّل)' : '')).join(' | '));
-  check(`النافذة الواحدة والعدّاد يعدّ: «صحيح · +1» · «توقّف» (${await near()})`, (await near()) === 'صحيح · +1 | توقّف');
+  check(`النافذة الواحدة والعدّاد يعدّ (28 من 30): «عُدّ · +1» و«كشف القائمة» (${await near()})`, (await near()) === 'عُدّ · +1' && (await ansT()) === 'كشف القائمة' && (await tally()) === `${N - 2}/${N}`);
   const nb = (await audience.$$('#near .cbtn'))[0], box = await nb.boundingBox();
-  const shown = (await chips()).length;
   await stage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await wait(150); await stage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await wait(1200);
-  check('«صحيح · +1» مرتين بفاصل 0.15 ثانية: عدّتان، فبلغ العدد (30 من 30) وحُكم، ولا اسم جديد على الشاشة', (await st()).phase === 'decided' && (await st()).said.length === N && (await chips()).length === shown);
-  await undo(); await wait(900);
-  check('التراجع عن الحكم: «29 من 30» والوفاء', (await tally()) === `29/${N}` && (await st()).phase === 'fulfil');
+  check('«عُدّ · +1» مرتين بفاصل 0.15 ثانية: عدّتان (30 من 30)، ولا حكم ولا اسم على الشاشة', (await st()).phase === 'fulfil' && (await st()).said.length === N && (await chips()).length === 0);
+  await cmd(audience, 'act:reveal'); await wait(1000);
+  // تراجع يعبر حدّ مرحلة (من الكشف إلى الوفاء، ش8-أ/55): المهلة باقية، فنقرة «تراجع» مضاعفة بفاصل 0.1 ثانية تُلغي الكشف وحده، لا عدّة معه.
+  {
+    const ub = await (await audience.$('[data-cmd="undo"]')).boundingBox(), [ux, uy] = [ub.x + ub.width / 2, ub.y + ub.height / 2];
+    await stage.mouse.click(ux, uy); await wait(100); await stage.mouse.click(ux, uy);
+  }
+  await wait(900);
+  check('التراجع عن الكشف بنقرة مضاعفة: «30 من 30» والوفاء (الثانية في المهلة فلا تُرجع عدّة)', (await tally()) === `${N}/${N}` && (await st()).phase === 'fulfil');
   await both('نافذة واحدة · الوفاء');
   await stage.screenshot({ path: `${shots}/s4-single-fulfil.png` });
-  await cmd(audience, 'act:stop'); await wait(900);
+  await cmd(audience, 'act:reveal'); await wait(1000);
+  await cmd(audience, 'act:fail'); await wait(900);
   s = await st();
-  check(`«توقّف»: لم يفِ، فللخصم نقطتان، و«الموضوع التالي» في البطاقة (stage4-auction-fail)`, s.phase === 'decided' && s.results[0].team === other(opener) && s.results[0].points === 2 && !(await near()));
+  check(`الكشف ثم «لم يفِ»: فللخصم نقطتان، و«الموضوع التالي» في صف الشارات (stage4-auction-fail)`, s.phase === 'decided' && s.results[0].team === other(opener) && s.results[0].points === 2
+    && (await near()) === 'الموضوع التالي' && (await text(audience, '#say')) === `لم يفِ بـ ${N}`);
   await both('نافذة واحدة · لم يفِ');
   await cmd(audience, 'undo'); await wait(900);
-  await cmd(audience, 'act:count'); await wait(1200);
+  await cmd(audience, 'act:ok'); await wait(1200);
   s = await st();
-  check('النافذة الواحدة: بلغ العدد بـ «صحيح · +1»، فيُحكم، وتبقى البطاقة على ما قيل، لا القائمة (4.0)', s.phase === 'decided' && (await text(audience, '#told')) === `ذُكر ${N} من ${N}` && !(await chips()).some(x => x.left));
+  check('النافذة الواحدة: التراجع ثم «وفى»، فيُحكم للملتزم، وتبقى القائمة لا «ذُكر» (1.14)', s.phase === 'decided' && s.results[0].team === opener && (await text(audience, '#say')) === `وفى بـ ${N}`
+    && !(await audience.isVisible('#told')) && await audience.isVisible('#cxList'));
   await both('نافذة واحدة · بعد الحكم');
   await stage.screenshot({ path: `${shots}/s4-single-won.png` });
 
-  // 9. بعد الحكم وما ذُكر 15 بأسمائه (حالة محفوظة: يبقى العرض سليماً إن حملت أسماء) (design/auction.md 4.0): يبقى ما ذُكر وحده بلون الملتزم، لا القائمة، وما لا يتسع في «و N غيرها».
+  // 9. حالة محفوظة بأسماء ما ذُكر (من نسخة قبل 1.13): لا تظهر الأسماء على التلفاز بعد 1.14، والقائمة المكشوفة كما هي.
   await stage.evaluate(() => { const m = JSON.parse(localStorage.getItem('big-challenge.match')); const s = m.round.state;
     s.said = s.said.slice(0, 15).map((x, i) => ({ i, team: x.team })); localStorage.setItem('big-challenge.match', JSON.stringify(m)); });
   await stage.reload();
   await unlock(stage).catch(() => {});
   audience = await stageFrame(stage);
   await wait(1200);
-  const c = await chips();
-  const named = c.filter(x => !x.more), more = c.find(x => x.more);
-  check(`15 مما ذُكر بعد الحكم: ${named.length} بلون الملتزم${more ? ` و«${more.name}»` : ''}، ولا ما لم يُذكر`,
-    named.every(x => x.t === opener && !x.left) && named.length + (more ? Number(more.name.replace(/\D/g, '')) : 0) === 15 && named.length >= 10
-    && !named.some(x => !items.some(i => i.name === x.name)));
-  await both('بعد الحكم · 15 ذُكر');
+  check('حالة محفوظة بأسماء 15 مما ذُكر: لا شارات أسماء، والقائمة المكشوفة كلها', (await chips()).length === 0 && (await listed()).length === items.length);
+  await both('بعد الحكم · حالة محفوظة بأسماء');
   await stage.screenshot({ path: `${shots}/s4-reveal.png` });
 
+  // 10. ش8-أ/58 (المدقّق #349): الكشف ثم «وفى» ثم «الموضوع التالي» (الباركود يظهر وحده في المزايدة فتضيق البطاقة) ثم «تراجع»:
+  // تبقى القائمة بصفحاتها كما كانت، لا صفحات من سطر واحد قيست والبطاقة ضيقة.
+  {
+    const pagesBefore = await audience.$$eval('#cxList .cx-pg', els => els.length);
+    await cmd(audience, 'act:next'); await wait(1500);
+    const qrOn = await audience.$eval('#canvas', c => c.classList.contains('qr'));
+    await cmd(audience, 'undo'); await wait(1500);
+    const rows = await audience.$eval('#cxList', box => [...box.querySelectorAll('.cx-pg')].map(p => { const h = p.hidden; p.hidden = false;
+      const n = new Set([...p.children].map(e => e.offsetTop)).size; p.hidden = h; return n; }));
+    check(`الكشف · «وفى» · «الموضوع التالي»${qrOn ? ' (والباركود ظاهر)' : ''} · «تراجع»: القائمة ${rows.length} صفحات كما كانت (${pagesBefore})، وكلها 4 أسطر إلا الأخيرة (${rows.join(',')})`,
+      (await st()).phase === 'decided' && rows.length === pagesBefore && rows.slice(0, -1).every(n => n === 4));
+    await both('ش8-أ/58 · بعد التراجع عن الموضوع التالي');
+  }
+
   check(`فحص التداخل والشبكة في كل حالة سليم${layoutOk ? '' : ' · ' + fails.join(' | ')}`, layoutOk);
-  check(`لا عنصر لم يُذكر ولا طول القائمة ولا نص قواعد على شاشة الجمهور قبل الحكم${leak ? ' · ' + fails.filter(f => f.includes('الجمهور')).join(' | ') : ''}`, !leak);
+  check(`لا عنصر قبل الكشف ولا طول القائمة ولا نص قواعد على شاشة الجمهور${leak ? ' · ' + fails.filter(f => f.includes('الجمهور')).join(' | ') : ''}`, !leak);
   check(`لا أخطاء في الصفحات${errors.length ? ': ' + errors.join(' | ') : ''}`, errors.length === 0);
   await browser.close();
   process.exit(finish() ? 0 : 1);

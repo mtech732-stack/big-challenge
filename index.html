@@ -83,6 +83,7 @@
   import TIEBREAK from './js/tiebreak.js';
   import { answersText, fits } from './js/qr.js';
   import { HIT_MS as RANK_HIT_MS } from './js/modes/ranking.js';
+  import { FAIL_POINTS as AUCTION_FAIL } from './js/modes/auction.js';
   import { matchModes, pickableModes, MODES as BUILT, DRAFTS } from './js/modes/index.js';
   import * as M from './js/match.js';
   import * as P from './js/play.js';
@@ -209,7 +210,8 @@
     const key = `${match.round.n}:${(st.topics ?? st.lists)[st.index]?.id}`;
     // وإن زاد النص عمّا يسعه الرمز (قائمة كبيرة جداً) فلا باركود لهذا السؤال، ويمضي كأنه أُخفي (design/auction.md 7.10 قيد القرار).
     if (!qrFits(key, () => answersText(mode.id, mode.presenter(st)))) return null;
-    return { key, mode, st, auto, open: !['decided', 'listend', 'mark'].includes(st.phase) };
+    // وفي المزاد يُخفى عند «كشف القائمة»، فالقائمة صارت على الشاشة (design/s8c.md 1).
+    return { key, mode, st, auto, open: !['revealed', 'decided', 'listend', 'mark'].includes(st.phase) };
   }
   const qrFit = new Map();
   function qrFits(key, text) {
@@ -471,10 +473,15 @@
           return { cmd: 'raise:' + t, label: n ? String(n) : 'زايد', kind: 'bidt t' + t, off: !r }; };
         c.near = [tb(1), { cmd: 'act:start', label: 'ابدأ', off: !acts.some(a => a.id === 'start') || wait }, tb(2)];
       }
-      // الوفاء (design/auction.md 4): «ابدأ» · «صحيح · +1» قبل العدّاد، و«صحيح · +1» · «توقّف» والعدّاد يعدّ. يُعدّ دون أسماء (القائمة سرّ).
-      // وبعد الحكم «الموضوع التالي» في البطاقة لا في صف الشارات (design/auction.md 4، 1.1).
-      if (screen === 'topic' && st.phase === 'decided') c.card = act('next');
-      if (screen === 'topic' && !b) c.near = st.phase === 'ready' ? [...act('start', 'ابدأ'), ...act('count')] : [...act('count'), ...act('stop', 'توقّف', 'no')];
+      // الوفاء (الوثيقة 1.14، design/s8c.md 1): «عُدّ · +1» في صف الشارات، و«كشف القائمة» أسفل اليمين مكان «كشف الإجابة»، ثانوياً بإطار (ش8-أ/57).
+      // وبعد الكشف «وفى · +N» بلون الملتزم و«لم يفِ · +2» بلون الخصم («وفى» يميناً). وبعد الحكم «الموضوع التالي» في صف الشارات.
+      if (screen === 'topic' && !b) {
+        const ph = st.phase, t = st.team, n = st.commit?.n;
+        if (ph === 'ready' || ph === 'fulfil') { c.near = [...(ph === 'ready' ? act('start', 'ابدأ') : []), ...act('count')]; c.ans = act('reveal', null, 'alt'); }
+        if (ph === 'revealed') c.near = [{ cmd: 'act:ok', label: `وفى · +${n}`, kind: 'who t' + t, off: wait }, { cmd: 'act:fail', label: `لم يفِ · +${AUCTION_FAIL}`, kind: 'who t' + (t === 1 ? 2 : 1), off: wait }];
+        if (ph === 'complete') c.near = act('stop', 'توقّف', 'no');
+        if (ph === 'decided') c.near = act('next');
+      }
       // الحرف المعيّن وآخر حرفين والجولة الفاصلة (1.11، design/s8b.md 1.2 و2): في صف الشارات زرّا الوقت «إيقاف مؤقت» (أو «استئناف» أساسياً)
       // و«وقت الخصم»، و«كشف الإجابة» أسفل اليمين مكان مربع الإعلان. وبعد الكشف في صف الشارات زرّا الفريقين بلونيهما بالنقاط
       // («أصاب» في الجولة الفاصلة) ثم «لم يُجب أحد». وبعد الاختيار «السؤال التالي»، وفي الجولة الفاصلة «التالي · [الآخر]» أو الحسم.
@@ -539,7 +546,9 @@
     },
     toFinal: () => { if (held()) return; const next = P.toFinal(match, units()); if (next !== match) { hold(); update(next, 'fin'); } },
     announce: () => { if (held()) return; const next = P.announce(match); if (next !== match) { hold(); update(next, 'win'); } },
-    undo: () => { if (held()) return; if (match.step === 'final') { hold(); update(P.undoFinal(match)); } else roundUpdate(P.undo(match, units())); },
+    // تراجع أثناء الوفاء في المزاد (ش8-أ/55): يُرجع عدّة ولا يأتي زر آخر مكانه، فلا يبدأ مهلة تعطّل «تراجع» التالي ولا «صحيحة».
+    // والتراجع الذي يعبر حدّ مرحلة (يُرجع حكماً أو نهاية موضوع) تتغير مرحلته، فيُمهل ما بعده كما كان (roundUpdate).
+    undo: () => { if (held()) return; if (match.step === 'final') { hold(); update(P.undoFinal(match)); } else roundUpdate(P.undo(match, units()), roundMode()?.id === 'auction' && match.round.state.phase === 'fulfil'); },
     scores: () => { $('scores').hidden = !$('scores').hidden; },
   };
 
@@ -557,9 +566,9 @@
     if (cmd === 'pick' && !drawing) update(M.pick(match, arg, modes()));
     if (cmd === 'back' && !drawing) update(M.backToSetup(match));
     if (cmd === 'begin') begin();
-    // عدّ المزاد (ش8-أ/54، المالك في لعب حقيقي): «صحيح · +1» لا يأتي بعده زر آخر مكانه، فكل ضغطة تُحسب فوراً بلا مهلة 0.7 ثانية،
-    // كزرّي المزايدة. والعدّة التي تبلغ العدد تُنهي الموضوع فتتغير الحالة، فيُمهل ما بعدها كما كان (roundUpdate).
-    if (cmd === 'act') roundAct(arg, roundMode()?.id === 'auction' && /^(count|item:|out:)/.test(arg));
+    // عدّ المزاد (ش8-أ/54، المالك في لعب حقيقي): «عُدّ · +1» لا يأتي بعده زر آخر مكانه، فكل ضغطة تُحسب فوراً بلا مهلة 0.7 ثانية،
+    // كزرّي المزايدة. ولا يحكم العدّ بعد الوثيقة 1.14، فالحكم بعد «كشف القائمة».
+    if (cmd === 'act') roundAct(arg, roundMode()?.id === 'auction' && arg === 'count');
     if (cmd === 'raise') raise(Number(arg));
     if (cmd === 'next') actions[nextButton().act]?.();
     if (cmd === 'mute') toggleMute();

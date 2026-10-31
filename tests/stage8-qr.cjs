@@ -149,6 +149,15 @@ try { jsQR = require('jsqr'); } catch {}
     // المزايدة ثم الوفاء: لا باركود.
     await cmd(f2, 'raise:1'); await wait(300); await cmd(f2, 'act:start'); await wait(600);
     check('الوفاء: لا باركود', !(await qrOf(f2)).shown && (await saved(stage)).round.state.phase === 'fulfil');
+    // ويعود بطلب أثناء الوفاء، ثم يُخفى وحده عند «كشف القائمة»، فالقائمة صارت على الشاشة (الوثيقة 1.14، design/s8c.md 1).
+    await cmd(f2, 'qr:show'); await wait(600);
+    check('الوفاء: «الباركود» يعيده بطلب', (await qrOf(f2)).shown);
+    await cmd(f2, 'qr:hide'); await wait(900);
+    await cmd(f2, 'qr:show'); await wait(900);
+    // والباركود ظاهراً يُخفي أزرار الوفاء (design/s8.md 2.1)، فيُرسل «كشف القائمة» أمراً كما يرسله زرّه، ليُفحص الإخفاء وحده.
+    await f2.evaluate(() => parent.postMessage({ bc: 'cmd', cmd: 'act:reveal' }, location.origin)); await wait(900);
+    check('«كشف القائمة»: يُخفى الباركود وحده، ولا «الباركود» في لوحة «⋯» بعده', (await saved(stage)).round.state.phase === 'revealed' && !(await qrOf(f2)).shown
+      && !(await f2.$$('[data-cmd="qr:show"], [data-cmd="qr:hide"]')).length);
     await context.close();
   }
 
