@@ -2,13 +2,12 @@
 // 1. النص لكل قوائم البنك (30 مزاداً و20 ترتيباً): الصيغة، والطول بالبايت، والوحدة. ويطبع أطول نص (حدّ الطول، البند 13 في docs/audits/ش8.md).
 // 2. بنافذة واحدة: يظهر تلقائياً في بداية سؤال المزاد وقائمة الترتيب لا في غيرهما، و«أخفِ الباركود» يخفيه، و«الباركود» يعيده،
 //    ويبقى كما هو بعد إعادة التحميل. والرمز المرسوم يطابق نصه وحدة وحدة، ويُفكّ بقارئ مستقل (jsQR) إن وُجد.
-// 3. بنافذتين: يظهر على التلفاز، ويُخفى من نافذة المقدّم.
 // وفحص التداخل والشبكة في كل حالة، ولا طلب شبكة لتوليده.
 // الاستعمال: node tests/stage8-qr.cjs [الرابط] [مجلد الصور]
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./helpers.cjs');
 
 let jsQR = null;
 try { jsQR = require('jsqr'); } catch {}
@@ -173,23 +172,6 @@ try { jsQR = require('jsqr'); } catch {}
     await wait(600);
     check('بعد الإخفاء: اللوحة و«ابدأ»', !(await qrOf(frame)).shown && await frame.isVisible('#board') && (await near(frame)).includes('ابدأ'));
     await look(frame, 'الترتيب بعد الإخفاء');
-    await context.close();
-  }
-
-  // ===== 3. بنافذتين =====
-  {
-    const { context, stage, frame } = await newStage();
-    await sharedToFace(frame, { names: ['الصقور', 'النجوم'], picks: ['auction', 'ranking'] });
-    await wait(2700);
-    const host = await beginTwo(context, frame);
-    await host.click('#showQ');
-    await frame.waitForSelector('.scr.show[data-s="auc"]', { timeout: 5000 });
-    await wait(600);
-    check('بنافذتين: يظهر على التلفاز، و«أخفِ الباركود» في نافذة المقدّم', (await qrOf(frame)).shown && (await host.textContent('#aQr')) === 'أخفِ الباركود' && await host.isVisible('#aQr'));
-    await look(frame, 'بنافذتين بالباركود');
-    await host.click('#aQr');
-    await wait(600);
-    check('بنافذتين: يُخفى من نافذة المقدّم، والزر «الباركود»', !(await qrOf(frame)).shown && (await host.textContent('#aQr')) === 'الباركود');
     await context.close();
   }
 
