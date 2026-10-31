@@ -100,4 +100,28 @@ async function passWheelOne(stage, frame) {
   }
 }
 
-module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne, hideQr };
+// ش8-أ/61: ما يظهر على شاشة المزاد من أسماء لا يجوز ظهورها (الوثيقة 1.14: ما قيل لا يظهر على التلفاز).
+// يبحث في نص الشاشة كلها (innerText للبطاقة والإطار)، بعد حذف نص الأزرار والموضوع وأسماء الفريقين:
+// · قبل «كشف القائمة»: لا اسم من القائمة ولا صيغة منها.
+// · وفي كل حال: لا نص «out:» محفوظ في said (ما لم يكن هو نفسه اسماً في القائمة المكشوفة).
+// واسم من حرف أو حرفين يقع في أي نص، فلا يُبحث عنه. يعيد ما ظهر.
+async function auctionNamesShown(frame, state, teams = []) {
+  const t = state.topics[state.index];
+  if (!t) return [];
+  const listed = ['revealed', 'decided'].includes(state.phase);
+  const listNames = t.items.flatMap(x => [x.name, ...(x.alts ?? [])]);
+  const texts = (state.said ?? []).map(x => x.text).filter(Boolean).filter(x => !(listed && listNames.includes(x)));
+  const look = [...(listed ? [] : listNames), ...texts].filter(n => [...n].length > 2);
+  const body = await frame.evaluate(cut => {
+    let b = document.querySelector('.canvas').innerText;
+    // ونص فارغ (زر بأيقونة) لا يُحذف: split('') يفرّق النص حرفاً حرفاً فلا يوجد فيه اسم.
+    const drop = n => { n = n.trim(); if (n) b = b.split(n).join(' '); };
+    for (const e of document.querySelectorAll('.cbtn')) drop(e.innerText);
+    drop(document.getElementById('topic').innerText);
+    for (const n of cut) drop(n);
+    return b;
+  }, teams);
+  return [...new Set(look.filter(n => body.includes(n)))];
+}
+
+module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne, hideQr, auctionNamesShown };

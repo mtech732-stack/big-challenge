@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auctionNamesShown } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/'; // الرابط العادي: المزاد في MODES منذ اكتمال ش4
@@ -74,7 +74,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
     if (body.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
   };
   const both = async label => { await wait(700); await audienceCheck(label); };
-  const chips = () => audience.$$eval('#auc .it', els => els.map(e => ({ name: e.textContent.trim(), t: e.classList.contains('t1') ? 1 : e.classList.contains('t2') ? 2 : 0, left: e.classList.contains('left'), more: e.classList.contains('more') })));
+  // ش8-أ/61: الأسماء التي لا يجوز ظهورها، بنص الشاشة كلها (helpers.cjs auctionNamesShown).
+  const names = async () => auctionNamesShown(audience, await st(), LONG);
   const tally = async () => `${await text(audience, '#tn')}/${await text(audience, '#tof')}`;
   // «عُدّ · +1» حتى يُحسب: العدّ بلا مهلة (ش8-أ/54)، فإن أبطأ الجهاز أُعيد.
   const say = async () => {
@@ -96,10 +97,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   // بعد الحكم: المربع بلا خلفية، والشارة بيضاء بنص صاحبها، والسطر ظاهر. والقائمة المكشوفة بصفحاتها ونقاطها (الوثيقة 1.14).
   const look = () => audience.evaluate(() => {
     const box = document.getElementById('box'), chip = document.getElementById('verdict'), cs = getComputedStyle(document.documentElement);
-    const its = [...document.querySelectorAll('#auc .it')];
     return { bare: box.classList.contains('bare'), bg: getComputedStyle(box.querySelector(':scope > i')).display, chipBg: getComputedStyle(chip.querySelector(':scope > i')).backgroundColor,
       chipInk: getComputedStyle(chip).color, team1: cs.getPropertyValue('--team-1').trim(), say: document.getElementById('say').innerText.trim(), told: !document.getElementById('told').hidden,
-      shown: !box.hidden && !chip.hidden, chips: its.length,
+      shown: !box.hidden && !chip.hidden,
       listed: [...document.querySelectorAll('#cxList .cx-it')].length, pages: document.querySelectorAll('#cxList .cx-pg').length,
       dots: document.getElementById('cxDots').hidden ? 0 : document.querySelectorAll('#cxDots i').length,
       fits: [...document.querySelectorAll('#cxList .cx-pg')].every(p => { const h = p.hidden; p.hidden = false; const ok = [...p.children].every(e => e.offsetTop + e.offsetHeight <= 193); p.hidden = h; return ok; }) };
@@ -129,7 +129,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   check(`الحكم بلا مربع: الشارة والسطر «لم يفِ بـ 4» ظاهران، ولا «ذُكر»، وخلفية المربع مخفية (${l.bg})`, l.bare && l.bg === 'none' && l.shown && l.say === 'لم يفِ بـ 4' && !l.told);
   check(`الشارة بيضاء (${l.chipBg})`, l.chipBg === await color('var(--card)'));
   check(`نص الشارة بلون صاحبها: ${win === 1 ? 'الأول بلونه' : 'الثاني بالحبر'} (${l.chipInk})`, win === 1 ? l.chipInk === await color('var(--team-1)') : l.chipInk === await color('var(--ink)'));
-  check(`القائمة القصيرة (${SHORT}) كلها في صفحة واحدة بلا نقاط، ولا شارات أسماء (${l.listed}، ${l.pages} صفحة، ${l.dots} نقاط)`, l.listed === SHORT && l.pages === 1 && l.dots === 0 && l.chips === 0 && l.fits);
+  check(`القائمة القصيرة (${SHORT}) كلها في صفحة واحدة بلا نقاط، ولا اسم على الشاشة (${l.listed}، ${l.pages} صفحة، ${l.dots} نقاط)`, l.listed === SHORT && l.pages === 1 && l.dots === 0 && !(await names()).length && l.fits);
   await both('القصيرة الأولى · لم يفِ');
   await shot(`s4-short-1-fail-t${win}`);
 
@@ -162,13 +162,13 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await audience.waitForSelector('#tn', { timeout: 6000 });
   await wait(1000);
   await say();
-  check(`أطول قائمة: «${MANY} من ${MANY}» ولا حكم قبل الكشف`, (await tally()) === `${MANY}/${MANY}` && (await st()).phase === 'fulfil');
+  check(`أطول قائمة: «${MANY} من ${MANY}» ولا حكم قبل الكشف، ولا اسم على الشاشة من ${MANY - 1} محفوظة بمواضعها`, (await tally()) === `${MANY}/${MANY}` && (await st()).phase === 'fulfil' && !(await names()).length);
   await judge('ok');
   const v = (await st()).results[2];
   check(`أطول قائمة: «وفى» (${MANY} للفريق ${other(first)})`, v?.team === other(first) && v.points === MANY);
   l = await look();
   check(`أطول قائمة (${LONGEST}): الحكم بلا مربع و«وفى بـ ${MANY}»، والقائمة كلها ${l.pages} صفحات من 4 أسطر، ونقطة لكل صفحة`, (await st()).phase === 'decided'
-    && l.bare && l.bg === 'none' && l.say === `وفى بـ ${MANY}` && l.listed === LONGEST && l.pages > 1 && l.dots === l.pages && l.fits && l.chips === 0);
+    && l.bare && l.bg === 'none' && l.say === `وفى بـ ${MANY}` && l.listed === LONGEST && l.pages > 1 && l.dots === l.pages && l.fits && !(await names()).length);
   await both('أطول قائمة · بعد الحكم');
   await shot(`s4-long-t${other(first)}`);
 
