@@ -39,7 +39,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     const failed = R.act(wheel, round, 'failed', undefined, t0 + ms + 30000);
     a = wheel.audience(failed.state);
     check('«لم ينجح»: لا نقاط ولا خصم، والشارة «لا نقاط» والسطر «لم ينجح التحدي»، والحدّ في المنتصف', failed.scores[1] === 0 && failed.scores[2] === 0 && a.verdict?.team === 0 && a.verdict.say === 'لم ينجح التحدي' && a.turn === 0
-      && wheel.presenter(failed.state).track[0].result === 0);
+      && failed.state.results[0].team === 0);
     check('حال «run» محفوظة قبل ش8 تُحكم كالوقوف', wheel.actions({ ...round.state, phase: 'run' }).map(x => x.id).join() === 'won,failed' && wheel.audience({ ...round.state, phase: 'run' }).phase === 'slot');
     // الدورة الثانية للفريق الآخر (الخانة نفسها، تحدٍّ يجوز تكراره): «لم ينجح»، ثم «إنهاء الشريط».
     let end = R.act(wheel, won, 'next', undefined, t0 + 60000);
@@ -133,7 +133,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     check(`${tag}«نجح»: +10 لمن أدارها، و«[الاسم] · +10» و«نجح التحدي» بلا مربع، والحدّ عنده`, wonM.round.scores[spinner] === 10 && await text(audience, '#vtext') === `${who} · +10`
       && await text(audience, '#say') === 'نجح التحدي' && await audience.evaluate(() => document.getElementById('box').classList.contains('bare')) && await cls(audience, 'turn-' + spinner)
       && await text(audience, '#s' + spinner) === '10');
-    check(`${tag}«نجح»: «التالي · الدورة 2»، والمسار في الحالة يكتبه`, await near() === 'التالي · الدورة 2' && wheel.presenter(wonM.round.state).track[0].result === spinner);
+    check(`${tag}«نجح»: «التالي · الدورة 2»، والمسار في الحالة يكتبه`, await near() === 'التالي · الدورة 2' && wonM.round.state.results[0].team === spinner);
     await audienceCheck(audience, `${tag}نجح`);
     if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-won.png') });
     await go('undo');

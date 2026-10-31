@@ -149,14 +149,19 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await hideQr(audience);
   const MANY = Math.min(40, LONGEST);
   await bidTo(MANY, other(first));
-  // أربعون عنصراً بمهلة 0.7 ثانية بعد كلٍّ تتجاوز وقت الوفاء (45)، فيُمدّ عدّاده الجاري في الحالة المحفوظة إلى 120 ثم تُعاد الصفحة. لا تغيير في اللعبة.
-  await stage.evaluate(() => { const m = JSON.parse(localStorage.getItem('big-challenge.match'));
-    m.round.timer = { ...m.round.timer, seconds: 120 }; m.timerAt = Date.now(); localStorage.setItem('big-challenge.match', JSON.stringify(m)); });
+  // أربعون نقرة بمهلة 0.7 ثانية بعد كلٍّ تقارب وقت الوفاء (45) وحدها، وتحت الحمل تتجاوزه فيُحكم بالوقت لا بالوفاء.
+  // والمفحوص هنا عرض ما قيل بعد الحكم لا النقرات: فيُكتب ما قبل الأخير (39) في الحالة المحفوظة ثم تُعاد الصفحة،
+  // ويُذكر الأخير بالنقر فيحكم الوفاء من طريقه المعتاد. لا تغيير في اللعبة.
+  await stage.evaluate(([n, team]) => { const m = JSON.parse(localStorage.getItem('big-challenge.match'));
+    m.round.state.said = Array.from({ length: n }, (_, i) => ({ i, team })); localStorage.setItem('big-challenge.match', JSON.stringify(m)); }, [MANY - 1, other(first)]);
   await stage.reload(); await unlock(stage);
   audience = await stageFrame(stage);
+  await audience.waitForSelector('#tn', { timeout: 6000 });
   await wait(1000);
-  for (let i = 0; i < MANY; i++) await say(i);
+  await say(MANY - 1);
   await wait(1500);
+  const v = (await st()).results[2];
+  check(`أطول قائمة: حُكم بالوفاء (${MANY} للفريق ${other(first)})، لا بانتهاء الوقت`, v?.team === other(first) && v.points === MANY);
   l = await look();
   const moreN = await audience.$eval('#items', e => Number(e.querySelector('.more')?.textContent.replace(/\D/g, '') ?? 0));
   check(`أطول قائمة: وفى بـ ${MANY}، والحكم بلا مربع، وما قيل بالحجم المعتاد 44 (${l.n - 1}) و«و ${moreN} غيرها» عن باقيه (${l.h}، ${l.rows} صفوف)`, (await st()).phase === 'decided'

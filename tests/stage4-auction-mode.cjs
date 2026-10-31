@@ -97,7 +97,7 @@ const { reporter } = require('./helpers.cjs');
   let rh = R.act(auction, start(1), 'show');
   rh = { ...rh, state: { ...rh.state, index: 2 } };
   check('فوق 20: زرّا الفريقين، ولا عدد للجمهور', ids(auction.actions(rh.state)) === 'raise,raise' && auction.audience(rh.state).size === undefined && !JSON.stringify(auction.audience(rh.state)).includes(String(L)));
-  check(`المقدّم يرى الطول دائماً (${L})، ولا يظهر للجمهور`, auction.presenter(rh.state).size === L && auction.presenter(rh.state).shown === false && auction.presenter(r.state).shown === false);
+  check(`نص الباركود يحمل القائمة كلها (${L})، ولا يظهر طولها للجمهور`, auction.presenter(rh.state).items.length === L && auction.audience(rh.state).size === undefined);
   for (let k = 0; k < L - 1; k++) rh = R.act(auction, rh, 'raise:1');
   check(`فوق 20 بعد ${L - 1}: الأول ما زال يزايد، والثاني إلى ${L}`, raiseOf(rh.state, 1)?.next === L && raiseOf(rh.state, 2)?.next === L);
   rh = R.act(auction, rh, 'raise:2');
@@ -119,8 +119,9 @@ const { reporter } = require('./helpers.cjs');
   }
   check(`لا قائمة ولا عنصر لم يُذكر ولا مستوى على الجمهور، والطول في المزايدة وحدها (${leaks.join(',') || 'سليم'})`, leaks.length === 0);
   const pr = auction.presenter(states[3].state);
-  check('المقدّم: القائمة المرجعية بصيغها، وطولها، والمستوى', pr.items.length === states[3].state.topics[0].items.length && pr.size === pr.items.length && pr.level === 'easy');
-  check('مسار المواضيع للمقدّم: ثلاثة بلا مفتتح، والأول الآن', pr.track.map(x => x.owner).join(',') === '0,0,0' && pr.track[0].now && pr.track.every(x => x.result === null));
+  check('نص الباركود: الموضوع والقائمة بصيغها، والمستوى في الحالة', pr.topic === states[3].state.topics[0].topic && pr.items.length === states[3].state.topics[0].items.length && pr.items.every(x => Array.isArray(x.alts)) && states[3].state.topics[0].level === 'easy');
+  check('المواضيع الثلاثة بلا نتيجة، والأول الآن', states[3].state.results.length === 3 && states[3].state.results.every(x => x === null) && states[3].state.index === 0);
+  check('الافتتاح والنهاية: لا قائمة في نص الباركود', auction.presenter(states[0].state).items.length === 0);
 
   // تتابع المباراة: المزاد يبدأ جولته في الرابط العادي.
   const match = { ...M.newMatch({ pack: 'general', method: 'short' }), teams: { 1: 'أ', 2: 'ب' }, step: 'face', winner: 1,
@@ -153,7 +154,7 @@ const { reporter } = require('./helpers.cjs');
   check('لحظة «said» للعنصر، ولا نقاط قبل الوفاء', f.events.some(e => e.type === 'moment' && e.name === 'said') && f.scores[1] === 0);
   check('العنصر نفسه مرة ثانية يُهمل (لا مكرر)', R.act(auction, f, 'item:2').state === f.state);
   check('موضع خارج القائمة أو بلا رقم يُهمل', ['item:-1', `item:${ft.items.length}`, 'item:x', 'item:', 'item'].every(x => R.act(auction, f, x).state === f.state));
-  check('المقدّم: العنصر ممتلئ بلون من ذكره', auction.presenter(f.state).items[2].by === 1 && auction.presenter(f.state).items.filter(x => x.by).length === 1);
+  check('العنصر في الحالة بموضعه ولون من ذكره', f.state.said.length === 1 && f.state.said[0].i === 2 && f.state.said[0].team === 1);
   check('القائمة لا تظهر على الجمهور قبل الحكم', a.list === undefined && !a.reveal && a.verdict === null);
   f = R.act(auction, f, 'count');
   a = auction.audience(f.state);
@@ -167,7 +168,7 @@ const { reporter } = require('./helpers.cjs');
   check('بعد الحكم: ما قيل وحده بأسمائه (2) وما عُدّ بالزر (1)، ولا القائمة (design/auction.md 4.0)', a.reveal && a.list === undefined && a.said.map(x => x.name).join() === [ft.items[2].name, ft.items[0].name].join() && a.plain === 1
     && !JSON.stringify(a).includes(ft.items[1].name));
   check('بعد الحكم: الحدّ عند من أخذ النقاط، ولا أزرار عدّ', a.turn === 1 && !auction.actions(f.state).some(x => x.id === 'item' || x.id === 'count'));
-  check('مسار المواضيع: الموضوع الأول للأول', auction.presenter(f.state).track[0].result === 1);
+  check('نتيجة الموضوع الأول للأول', f.state.results[0].team === 1);
 
   // التراجع عن الحكم يعيد الوفاء بما بقي من الوقت لا بوقته كاملاً.
   const T = 1_000_000;
@@ -194,7 +195,7 @@ const { reporter } = require('./helpers.cjs');
   const gt = R.act(auction, g, 'timeout', g.timer.id, T + 45000);
   check('انتهى وقت الملتزم: +2 للخصم كـ «توقّف»، بلا «خاطئة»', gt.state.phase === 'decided' && gt.scores[1] === 2 && gt.events.some(e => e.name === 'fail' && e.reason === 'timeout'));
   check('«انتهى الوقت» من عدّاد قديم يُهمل', R.act(auction, g, 'timeout', g.timer.id + 1).state === g.state);
-  check('مسار المواضيع: الموضوع للخصم', auction.presenter(gs.state).track[0].result === 1);
+  check('نتيجة الموضوع للخصم', gs.state.results[0].team === 1);
   const gu = R.undo(gs, T + 25000);
   check('التراجع عن «لم يفِ» بعد 20 ثانية: الوفاء للملتزم بـ 25 ثانية، والنقطتان تعودان', gu.state.phase === 'fulfil' && auction.audience(gu.state).turn === 2 && Math.round(gu.timer.seconds) === 25 && gu.scores[1] === 0);
   // حالات محفوظة من نسخ سابقة: «إكمال الخصم» يحسمه «توقّف»، والالتزام قبل «ابدأ» يكمل كما كان.
@@ -224,7 +225,7 @@ const { reporter } = require('./helpers.cjs');
   q = R.act(auction, R.act(auction, R.act(auction, q, 'raise:1'), 'raise:2'), 'start');
   q = R.act(auction, R.act(auction, q, 'item:5'), 'item:9');
   check('الموضوع 3: رسا على الثاني بـ 2 فوفى (+2)، و«إنهاء الجولة»', q.state.phase === 'decided' && q.scores[2] === 2 && auction.actions(q.state)[0].label === 'إنهاء الجولة');
-  check('مسار المواضيع: الأول · الأول · الثاني', auction.presenter(q.state).track.map(x => x.result).join(',') === '1,1,2');
+  check('نتائج المواضيع: الأول · الأول · الثاني', q.state.results.map(x => x.team).join(',') === '1,1,2');
   q = R.act(auction, q, 'next');
   a = auction.audience(q.state);
   check('نهاية الجولة: الحصيلة الأول 3 والثاني 2، وانتهت', a.screen === 'end' && a.totals[1] === 3 && a.totals[2] === 2 && auction.finished(q.state) && !auction.actions(q.state).length);
@@ -239,7 +240,7 @@ const { reporter } = require('./helpers.cjs');
     o = R.act(auction, o, 'show');
     const len = o.state.topics[0].items.length;
     for (let k = 0; k < len + 3; k++) o = R.act(auction, o, k % 2 ? 'raise:2' : 'raise:1');
-    check(`المفتوح: المزايدة فوق طول القائمة (${len}) بلا إغلاق`, Math.max(...o.state.nums) === len + 3 && auction.actions(o.state).some(x => x.id === 'raise') && auction.presenter(o.state).open);
+    check(`المفتوح: المزايدة فوق طول القائمة (${len}) بلا إغلاق`, Math.max(...o.state.nums) === len + 3 && auction.actions(o.state).some(x => x.id === 'raise') && o.state.topics[0].open);
     let capped = R.startRound(auction, { content: oc, first: 1, rng });
     capped = R.act(auction, capped, 'show');
     for (let k = 0; k < OPEN_MAX + 5; k++) capped = R.act(auction, capped, 'raise:1');
@@ -259,9 +260,9 @@ const { reporter } = require('./helpers.cjs');
     let c = commitAt(5);
     const team = c.state.commit.team;
     c = R.act(auction, c, 'out:ليفان');
-    let a = auction.audience(c.state), p = auction.presenter(c.state);
-    check('«out:ليفان»: +1 للعدّ، واسمه فيما ذُكر بلون الملتزم، وعند المقدّم في outs', a.tally.n === 1 && a.said[0].name === 'ليفان' && a.said[0].team === team && a.plain === 0
-      && p.outs.length === 1 && p.outs[0].text === 'ليفان' && p.items.every(x => !x.by));
+    let a = auction.audience(c.state);
+    check('«out:ليفان»: +1 للعدّ، واسمه فيما ذُكر بلون الملتزم، وفي الحالة بنصه دون موضع', a.tally.n === 1 && a.said[0].name === 'ليفان' && a.said[0].team === team && a.plain === 0
+      && c.state.said.length === 1 && c.state.said[0].text === 'ليفان' && c.state.said[0].i === null);
     check('النص نفسه بهمزة أو «ال» أو مسافات زائدة يُهمل (norm)', ['out:الليفان', 'out:  ليفان ', 'out:لِيفان'].every(x => R.act(auction, c, x).state === c.state));
     check('بلا نص يُهمل («صحيحة · +1» هو count)', ['out:', 'out', 'out:   '].every(x => R.act(auction, c, x).state === c.state));
     c = R.act(auction, c, 'out:إم: جي');

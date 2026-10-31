@@ -80,9 +80,13 @@ async function fixedSpin(page, start) {
   await page.evaluate(() => { Math.random = window.__rnd; });
 }
 // باركود الإجابات يظهر وحده عند بدء سؤال المزاد والترتيب (الوثيقة 1.7)، فيُخفى بزره في النافذة الواحدة إن كان ظاهراً.
+// وأزرار السؤال الجديد تصل إلى الإطار بعد حالته، وتحت الحمل قد تتأخر ثوانيَ: فيُنتظر زر الباركود حتى 5 ثوانٍ لا يُفحص مرة واحدة،
+// وإلا بقي الباركود فوق أزرار المزايدة. ثم يُنتظر حتى يغيب الزر.
 async function hideQr(frame) {
-  if (!(await frame.$('[data-cmd="qr:hide"]'))) return false;
+  const sel = '[data-cmd="qr:hide"]';
+  if (!(await frame.waitForSelector(sel, { timeout: 5000 }).then(() => true, () => false))) return false;
   await cmd(frame, 'qr:hide');
+  await frame.waitForSelector(sel, { state: 'detached', timeout: 8000 });
   await new Promise(r => setTimeout(r, 800));
   return true;
 }

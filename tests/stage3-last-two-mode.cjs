@@ -71,15 +71,12 @@ const { reporter } = require('./helpers.cjs');
   let r = start(1);
   let a = lastTwo.audience(r.state);
   check('الافتتاح: «كل إجابات الجولة تنتهي بـ «…»» بنهاية الجولة، ولا سطر تفاصيل', a.rule === `كل إجابات الجولة تنتهي بـ «ـ${r.state.questions[0].box}»` && a.sub === undefined);
-  check('الافتتاح عند المقدّم: سطر القاعدة بـ 30 ثانية', lastTwo.presenter(r.state).brief.includes('30 ثانية للسؤال'));
   r = R.act(lastTwo, r, 'show');
   a = lastTwo.audience(r.state);
   const q = r.state.questions[0];
   check('السؤال: الحرفان مع علامة التطويل، والوصف، ولا مستوى على الجمهور', a.letter === q.box && a.tatweel === true && a.question === q.prompt && a.levelText === undefined && a.level === undefined);
   check('ظهور السؤال: وقته 30، وعدّاد التمهيد 5 ثوانٍ يبدأ وحده (1.11)', lastTwo.seconds === 30 && a.clock === 5 && a.lead && r.timer?.seconds === 5 && r.timer.lead);
   check('الأفعال: «إيقاف مؤقت» و«وقت الخصم» و«كشف الإجابة»', ids(lastTwo.actions(r.state)) === 'pause,steal,reveal');
-  const pr = lastTwo.presenter(r.state);
-  check('المقدّم: الإجابة النموذجية، وسطر القبول بالحرفين والوصف', pr.answer === q.answer && pr.accept === `وتُقبل أي كلمة أخرى تنتهي بـ «ـ${q.box}» وتنطبق على الوصف.`);
   check('الجمهور: لا إجابة قبل الكشف', a.answer === undefined);
   r = R.act(lastTwo, r, 'timeout', r.timer.id);
   check('بعد التمهيد: عدّاد 30 ثانية', r.timer?.seconds === 30 && !r.timer.lead && r.events.some(e => e.type === 'timer' && e.seconds === 30));
@@ -135,7 +132,7 @@ const { reporter } = require('./helpers.cjs');
   // الحرف المعيّن على جولة الكلمة نفسها، بفروقه.
   let l = R.act(letter, R.startRound(letter, { content, first: 1, rng }), 'show');
   const la = letter.audience(l.state);
-  check('الحرف المعيّن باقٍ: 30 ثانية، وحرف بلا تطويل، وسطر قبوله', letter.seconds === 30 && la.lead && !la.tatweel && [...la.letter].length === 1 && letter.presenter(l.state).accept === `وتُقبل أي كلمة أخرى تبدأ بـ «${la.letter}» وتنطبق على المطلوب.`);
+  check('الحرف المعيّن باقٍ: 30 ثانية، وحرف بلا تطويل', letter.seconds === 30 && la.lead && !la.tatweel && [...la.letter].length === 1);
   check('حالة محفوظة قبل ش3 (letter بدل box) تُعرض', letter.audience({ ...l.state, questions: l.state.questions.map(({ box, ...x }) => ({ ...x, letter: box })) }).letter === la.letter);
 
   // تتابع المباراة: الجولة 1 «آخر حرفين» ← العجلة (تُتخطى) ← الجولة 2 «الحرف المعيّن» ← النهائية.

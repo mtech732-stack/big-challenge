@@ -58,7 +58,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     r = landOn('gift', { 1: 4, 2: 9 });
     const m = P.undo({ step: 'play', round: r, scores: r.scores }, [wheel]);
     check('التراجع بعد خانة الحظ: قبل الدوران، والرصيد كما كان', m.round.state.phase === 'ready' && m.round.scores[2] === 9 && m.round.state.results[0] === null);
-    check('والمسار يكتب من أدارها في خانة الحظ', wheel.presenter(r.state).track[0].result === 2);
+    check('والمسار يكتب من أدارها في خانة الحظ', r.state.results[0].team === 2);
   }
 
   // ===== 2. بالمتصفح =====

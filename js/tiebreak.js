@@ -14,8 +14,6 @@ export const TIE_POINTS = 3;
 const other = team => (team === 1 ? 2 : 1);
 const RULE = 'من أصاب وأخطأ خصمه فاز';
 const SUB = `سؤال لكل فريق بالتناوب · ${SECONDS} ثانية للسؤال`;
-const BRIEF = [`سؤال صعب من «الحرف المعيّن» لكل فريق بالتناوب، ${SECONDS} ثانية`, 'لا تنتقل الإجابة إلى الخصم',
-  'من أصاب وأخطأ خصمه في المحاولة نفسها فاز', 'وإن أصابا معاً أو أخطآ معاً: سؤالان جديدان'];
 
 // announce: تنتهي الجولة الفاصلة بفائزها، فتعرض المباراة النتيجة النهائية وفيها نقاطها، ثم «أعلن الفائز» (js/play.js).
 // الحالات: intro المقدمة · ready التمهيد · ask العدّاد · over انتهى الوقت · revealed كُشفت الإجابة · decided بعد الحكم · end أُعلن الفائز.
@@ -75,18 +73,9 @@ function audience(s) {
   };
 }
 
-// نافذة المقدّم: ومعها الإجابة النموذجية وبدائلها، وخانتا المحاولة (تمتلئ إن أصاب، وتُطفأ إن لم يُصب)، والحسم.
+// ما لا يصل إلى الجمهور: من يبدأ المحاولة التالية، لزر «التالي · [الفريق]».
 function presenter(s) {
-  const a = audience(s), q = s.phase === 'intro' || s.phase === 'end' ? null : current(s);
-  return {
-    ...a,
-    answer: q?.answer, alts: q?.alts ?? [], brief: BRIEF, why: 'خسر القرعة يبدأ',
-    accept: q ? `وتُقبل أي كلمة أخرى تبدأ بـ «${q.box}» وتنطبق على المطلوب.` : '',
-    track: s.phase === 'intro' ? [] : [0, 1].slice(0, s.k + 1).map(i => ({ owner: i === 0 ? s.first : other(s.first), result: s.hits[i] === null ? null : s.hits[i] ? (i === 0 ? s.first : other(s.first)) : 0, now: i === s.k && s.phase !== 'decided' })),
-    // بعد حكم الثاني: الفائز، أو 'hit' أصابا معاً، أو 'miss' أخطآ معاً.
-    outcome: s.k === 1 && s.phase === 'decided' ? (decided(s) || (s.hits[0] ? 'hit' : 'miss')) : null,
-    upNext: other(s.first),
-  };
+  return { upNext: other(s.first) };
 }
 
 export default {
