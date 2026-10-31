@@ -4,6 +4,8 @@
 .cbtn { height: 72px; padding: 0 32px; border: 0; border-radius: 0; font: inherit; font-size: 32px; font-weight: 700; line-height: 1;
   white-space: nowrap; cursor: pointer; flex: none; }
 .cbtn.off { opacity: .45; cursor: default; pointer-events: none; }
+/* والأيقونة المعطّلة لحظةً (بعد كل نقرة 0.7 ثانية) يبقى اسمها تحت الفأرة؛ والنقرة عليها تُهمل في الشاشة نفسها. */
+.cbtn.ico.off { pointer-events: auto; }
 .ctl { display: flex; align-items: center; gap: 24px; }
 .ctl:empty { display: none; }
 
