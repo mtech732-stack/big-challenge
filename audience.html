@@ -171,6 +171,7 @@
     <!-- الخيارات الجانبية في المواجهة (design/s8.md 1): زر صغير بلا نص، وقائمته تحته -->
     <div class="ctl-corner opts" id="cornerO" data-hud="زر الخيارات"></div>
     <div class="optmenu" id="optmenu" data-hud="قائمة الخيارات" hidden></div>
+    <div class="ctl-more" id="moreMenu" data-hud="لوحة المزيد" hidden></div>
 
     <div class="shine" id="shine"></div>
     <div class="danger"></div>
@@ -834,11 +835,26 @@
   // ===== أزرار الشاشة المشتركة (design/shared.md 3): المقدّم يقرر ما يظهر (ctl)، وهنا موضعه =====
   // ctl: { card, near, ans («كشف الإجابة» أسفل اليمين، design/s8b.md 1.3), a, b, c: أزرار (c الصف الثالث في الجولة) · count: خانتا العدد · names: اللوحتان حقلان · pick: الخانات تُنقر · scores · error }
   // والزر { cmd, label, kind: '' | 'alt' | 'no', off }. يصل من النافذة التي تحتوي هذه الشاشة وحدها، فلا يظهر في نافذة الجمهور.
-  let ctl = null;
-  const button = b => `<button class="cbtn${b.kind ? ' ' + b.kind : ''}${b.off ? ' off' : ''}" data-cmd="${esc(b.cmd)}">${b.html ?? num(b.label)}</button>`;
+  let ctl = null, moreOpen = false;
+  // الأيقونات (design/s8b.md 7.1، design/s8b-corner.js): 36 في مربع 64، والاسم يظهر عند المرور (data-tip) ولقارئ الشاشة. و«⋯» نقاط .opt المبنية.
+  const ICON = {
+    'تراجع': '<path d="M14 10 6 18l8 8"/><path d="M6 18h16a8 8 0 0 1 0 16h-6"/>',
+    'الصوت': '<path d="M5 14h6l8-7v22l-8-7H5z"/><path d="M25 12a9 9 0 0 1 0 12"/><path d="M29 8a14 14 0 0 1 0 20"/>',
+    'مكتوم': '<path d="M5 14h6l8-7v22l-8-7H5z"/><path d="m24 13 8 10M32 13l-8 10"/>',
+    'المقدّم': '<rect x="4" y="7" width="18" height="14"/><rect x="14" y="15" width="18" height="14" fill="var(--ico-bg,transparent)"/>',
+    'ملء الشاشة': '<path d="M5 13V5h8M23 5h8v8M31 23v8h-8M13 31H5v-8"/>',
+    'الباركود': '<rect x="5" y="5" width="10" height="10"/><rect x="21" y="5" width="10" height="10"/><rect x="5" y="21" width="10" height="10"/><path d="M21 21h4v4h-4zM29 29h2M25 29v2M29 21v4"/>',
+    'الرصيد': '<path d="M8 30V18M18 30V8M28 30V14"/>',
+    'مباراة جديدة': '<path d="M18 7v22M7 18h22"/>',
+  };
+  const iconic = b => b.icon || b.cmd === 'more';
+  const button = b => `<button class="cbtn${b.kind ? ' ' + b.kind : ''}${iconic(b) ? ' ico' : ''}${b.cmd === 'more' && moreOpen ? ' open' : ''}${b.off ? ' off' : ''}" data-cmd="${esc(b.cmd)}"`
+    + (iconic(b) ? ` aria-label="${esc(b.label)}" data-tip="${esc(b.label)}">${b.icon ? `<svg viewBox="0 0 36 36" aria-hidden="true">${ICON[b.label] ?? ''}</svg>` : ''}` : `>${b.html ?? num(b.label)}`) + '</button>';
   const rows = list => (list ?? []).map(r => `<div class="ctl">${r.map(button).join('')}</div>`).join('');
   function renderCtl() {
     const c = embed && view ? ctl : null;
+    if (!c?.more) moreOpen = false;
+    $('ctlTip')?.remove();
     canvas.classList.toggle('editing', !!c?.names);
     // أزرار البطاقة في الشاشة الظاهرة وحدها.
     // وفي شاشتي البداية والاختيار لا بطاقة: زر «ابدأ» تحت الشعار، وأزرار الاختيار تحت البطاقات (design/logo/الدمج.md 3 و4.1).
@@ -855,6 +871,11 @@
     $('cornerO').innerHTML = c?.opts ? `<button class="cbtn alt opt${c.opts.open ? ' open' : ''}" data-cmd="opts" aria-label="خيارات"></button>` : '';
     $('optmenu').innerHTML = c?.opts?.open ? c.opts.menu.map(button).join('') : '';
     $('optmenu').hidden = !c?.opts?.open;
+    // لوحة «⋯» (design/s8b.md 7.1): حالتها في هذه الشاشة وحدها. سطر الأيقونات، ثم فاصل، ثم «مباراة جديدة» وحدها.
+    const fresh = (c?.more ?? []).filter(b => b.cmd === 'new'), rest = (c?.more ?? []).filter(b => b.cmd !== 'new');
+    $('moreMenu').innerHTML = moreOpen ? `<div class="ctl">${rest.map(button).join('')}</div>` + (fresh.length ? `<hr><div class="ctl">${fresh.map(button).join('')}</div>` : '') : '';
+    $('moreMenu').hidden = !moreOpen;
+    canvas.classList.toggle('more-open', moreOpen);
     // النافذة الواحدة: صفّا أزرار الزاويتين مكان الشعار (1.3).
     canvas.classList.toggle('has-a', ['cornerA', 'cornerB', 'cornerC', 'cornerO'].some(id => $(id).children.length));
     placeBadges();   // الشارة المرسومة تصغر بنافذة واحدة (has-a)، فيتغير موضع ما بعدها
@@ -895,8 +916,28 @@
       // قائمة الخيارات تُغلق بنقرة خارجها (design/s8.md 1).
       if (ctl?.opts?.open && !e.target.closest('#optmenu, #cornerO')) send('opts:close');
       const b = e.target.closest('[data-cmd]');
+      // لوحة «⋯» تُفتح وتُغلق هنا، وتُغلق باختيار زر فيها أو بنقرة خارجها (design/s8b.md 7.1).
+      if (b?.dataset.cmd === 'more') { moreOpen = !moreOpen; renderCtl(); return; }
+      if (moreOpen && (!e.target.closest('#moreMenu') || b)) { moreOpen = false; renderCtl(); }
       if (!b || b.classList.contains('off') || !ctl) return;
       send(b.dataset.cmd);
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && moreOpen) { moreOpen = false; renderCtl(); } });
+    // الاسم عند المرور (design/s8b.md 7.1–7.2): في الزاوية عنصر مستقل تحت الأيقونة بـ 24 (data-hud)، وفي لوحة «⋯» ابنٌ لها
+    // بجانب الأيقونة بـ 16 داخل سطرها، بلا data-hud، فيقيسه check.js مع اللوحة.
+    document.addEventListener('mouseover', e => {
+      const b = e.target.closest('.cbtn.ico[data-tip]'), old = $('ctlTip');
+      if (old && old.dataset.for === b?.dataset.cmd) return;
+      old?.remove();
+      const pan = b?.closest('#moreMenu');
+      if (!b || (moreOpen && !pan)) return;
+      const tip = document.createElement('div'); tip.id = 'ctlTip'; tip.className = 'ctl-tip'; tip.dataset.for = b.dataset.cmd; tip.textContent = b.dataset.tip;
+      if (pan) { pan.append(tip); tip.style.top = b.offsetTop + 'px'; tip.style.left = Math.max(0, b.offsetLeft - 16 - tip.offsetWidth) + 'px'; }
+      else {
+        const c = rect(canvas), k = c.width / 1920 || 1, r = rect(b);
+        tip.dataset.hud = 'اسم الزر'; canvas.append(tip);
+        tip.style.left = (r.left - c.left) / k + 'px'; tip.style.top = (r.bottom - c.top) / k + 24 + 'px';
+      }
     });
     // الاسمان يُكتبان في اللوحتين. Enter في الأول ينقل إلى الثاني، وفي الثاني = «ابدأ القرعة».
     for (const k of [1, 2]) {

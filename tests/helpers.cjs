@@ -49,7 +49,12 @@ async function stageFrame(page) {
   }, null, { timeout: 10000, polling: 100 });
   return frame;
 }
-const cmd = (frame, c) => frame.click(`[data-cmd="${c}"]`, { timeout: 8000 });
+// أزرار الزاوية في الجولة والنهاية داخل لوحة «⋯» (design/s8b.md 7): إن لم يكن الزر ظاهراً وكان «⋯» مغلقاً فُتح أولاً.
+async function cmd(frame, c) {
+  const sel = `[data-cmd="${c}"]`;
+  if (!(await frame.$(sel)) && await frame.$('[data-cmd="more"]:not(.open)')) await frame.click('[data-cmd="more"]');
+  return frame.click(sel, { timeout: 8000 });
+}
 
 // من الإعداد إلى المواجهة بالنقر على الشاشة المشتركة. picks: الأنماط بترتيب اختيارها.
 async function sharedToFace(frame, { names, count = 'short', picks }) {
