@@ -849,6 +849,9 @@
   const button = b => `<button class="cbtn${b.kind ? ' ' + b.kind : ''}${iconic(b) ? ' ico' : ''}${b.cmd === 'more' && moreOpen ? ' open' : ''}${b.off ? ' off' : ''}" data-cmd="${esc(b.cmd)}"`
     + (iconic(b) ? ` aria-label="${esc(b.label)}" data-tip="${esc(b.label)}">${b.icon ? `<svg viewBox="0 0 36 36" aria-hidden="true">${ICON[b.label] ?? ''}</svg>` : ''}` : `>${b.html ?? num(b.label)}`) + '</button>';
   const rows = list => (list ?? []).map(r => `<div class="ctl">${r.map(button).join('')}</div>`).join('');
+  // الأزرار لا تُستبدل إن لم يتغير ما فيها: ضغطة تقع بين نزول الإصبع ورفعه على زر استُبدل لا تصل (ش8-أ/54، عدّ المزاد السريع).
+  const drawn = new WeakMap();
+  const put = (el, html) => { if (drawn.get(el) !== html) { drawn.set(el, html); el.innerHTML = html; } };
   function renderCtl() {
     const c = embed && view ? ctl : null;
     if (!c?.more) moreOpen = false;
@@ -857,14 +860,14 @@
     // أزرار البطاقة في الشاشة الظاهرة وحدها.
     // وفي شاشتي البداية والاختيار لا بطاقة: زر «ابدأ» تحت الشعار، وأزرار الاختيار تحت البطاقات (design/logo/الدمج.md 3 و4.1).
     const hero = canvas.dataset.hero, inCard = hero !== 'start' && hero !== 'pick';
-    document.querySelectorAll('.card .ctl').forEach(el => { el.innerHTML = inCard && el.closest('.scr').classList.contains('show') ? (c?.card ?? []).map(button).join('') : ''; });
+    document.querySelectorAll('.card .ctl').forEach(el => put(el, inCard && el.closest('.scr').classList.contains('show') ? (c?.card ?? []).map(button).join('') : ''));
     $('startGo').innerHTML = hero === 'start' ? (c?.card ?? []).map(button).join('') : '';
     $('pickCtl').innerHTML = hero === 'pick' ? (c?.card ?? []).map(button).join('') : '';
-    $('near').innerHTML = (c?.near ?? []).map(button).join('');
-    $('ansCtl').innerHTML = (c?.ans ?? []).map(button).join('');
-    $('cornerA').innerHTML = rows(c?.a);
-    $('cornerB').innerHTML = rows(c?.b);
-    $('cornerC').innerHTML = rows(c?.c);
+    put($('near'), (c?.near ?? []).map(button).join(''));
+    put($('ansCtl'), (c?.ans ?? []).map(button).join(''));
+    put($('cornerA'), rows(c?.a));
+    put($('cornerB'), rows(c?.b));
+    put($('cornerC'), rows(c?.c));
     // لوحة «⋯» (design/s8b.md 7.1): حالتها في هذه الشاشة وحدها. سطر الأيقونات، ثم فاصل، ثم «مباراة جديدة» وحدها.
     const fresh = (c?.more ?? []).filter(b => b.cmd === 'new'), rest = (c?.more ?? []).filter(b => b.cmd !== 'new');
     $('moreMenu').innerHTML = moreOpen ? `<div class="ctl">${rest.map(button).join('')}</div>` + (fresh.length ? `<hr><div class="ctl">${fresh.map(button).join('')}</div>` : '') : '';
