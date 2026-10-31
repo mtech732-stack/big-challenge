@@ -5,14 +5,16 @@
   const canvas = $('canvas');
   const css = document.createElement('style');
   css.textContent = `
-  /* القائمة المكشوفة في البطاقة: رأس 56 (الموضوع 48 والصفحة)، ثم القائمة 5 أسطر × 48 بخط 32، وتُقلَّب صفحاتها.
-     24 + 56 + 8 + 240 + 24 = 352 ارتفاع البطاقة */
-  .scr.auc.list { justify-content: flex-start; gap: 8px; padding-block: 24px; box-sizing: border-box; }
+  /* القائمة المكشوفة في البطاقة: رأس 56 (الموضوع 48)، ثم القائمة 4 أسطر × 48 بخط 32، ثم نقاط الصفحات 12 تحتها.
+     تُقلب يدوياً (المالك 31 أكتوبر 2026، 09:54). 24 + 56 + 8 + 192 + 24 + 12 + 36 = 352 ارتفاع البطاقة */
+  .scr.auc.list { justify-content: flex-start; gap: 8px; padding-block: 24px 36px; box-sizing: border-box; }
   .scr.auc.list .bids, .scr.auc.list .items, .scr.auc.list .tally, .scr.auc.list #aucCtl { display: none; }
   .scr.auc.list .ahead { min-height: 56px; gap: 32px; }
   .scr.auc.list .topic { font-size: 48px; line-height: 56px; }
-  .cx-page { flex: none; margin-inline-start: auto; font-size: 32px; font-weight: 700; line-height: 1; color: var(--text); direction: rtl; white-space: nowrap; }
-  .cx-list { position: relative; height: 240px; overflow: clip; }
+  .cx-dots { flex: none; display: flex; justify-content: center; gap: 16px; height: 12px; margin-top: 16px; }
+  .cx-dots i { width: 12px; height: 12px; transform: skewX(calc(-1 * var(--lean))); background: var(--text); opacity: .25; cursor: pointer; }
+  .cx-dots i.on { width: 32px; background: var(--cx-team); opacity: 1; }
+  .cx-list { position: relative; flex: none; height: 192px; overflow: clip; cursor: pointer; }
   .cx-pg { position: absolute; inset: 0; display: flex; flex-wrap: wrap; align-content: flex-start; column-gap: 40px; }
   .cx-pg[hidden] { display: none; }
   .cx-it { height: 48px; display: flex; align-items: center; gap: 12px; font-size: 32px; font-weight: 700; color: var(--text); white-space: nowrap; }
@@ -45,7 +47,7 @@
   function pages(items, team) {
     const s = scr();
     s.querySelector('.cx-list')?.remove();
-    s.querySelector('.cx-page')?.remove();
+    s.querySelector('.cx-dots')?.remove();
     s.classList.add('list');
     const list = document.createElement('div'); list.className = 'cx-list';
     list.style.setProperty('--cx-team', team === 1 ? 'var(--team-1)' : 'var(--team-2-ink)');
@@ -60,8 +62,10 @@
     for (const p of out) { p.classList.remove('cx-measure'); p.hidden = true; }
     out[0].hidden = false;
     if (out.length > 1) {
-      const n = document.createElement('span'); n.className = 'cx-page';
-      s.querySelector('.ahead').append(n);
+      const d = document.createElement('div'); d.className = 'cx-dots';
+      d.style.setProperty('--cx-team', team === 1 ? 'var(--team-1)' : 'var(--team-2-ink)');
+      d.innerHTML = out.map(() => '<i></i>').join('');
+      s.append(d);
     }
     return out;
   }
@@ -76,7 +80,7 @@
       stopClock();
       const pgs = pages(items, team);
       pgs.forEach((p, k) => { p.hidden = k !== page - 1; });
-      const ind = scr().querySelector('.cx-page'); if (ind) ind.textContent = `${page} من ${pgs.length}`;
+      scr().querySelectorAll('.cx-dots i').forEach((d, k) => d.classList.toggle('on', k === page - 1));
       setNear(btn(`وفى · +${n}`, `who t${team}`) + btn('لم يفِ · +2', `who t${other(team)}`));
       setAns('');
       return pgs.length;
