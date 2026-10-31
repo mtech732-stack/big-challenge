@@ -557,7 +557,9 @@
     if (cmd === 'pick' && !drawing) update(M.pick(match, arg, modes()));
     if (cmd === 'back' && !drawing) update(M.backToSetup(match));
     if (cmd === 'begin') begin();
-    if (cmd === 'act') roundAct(arg);
+    // عدّ المزاد (ش8-أ/54، المالك في لعب حقيقي): «صحيح · +1» لا يأتي بعده زر آخر مكانه، فكل ضغطة تُحسب فوراً بلا مهلة 0.7 ثانية،
+    // كزرّي المزايدة. والعدّة التي تبلغ العدد تُنهي الموضوع فتتغير الحالة، فيُمهل ما بعدها كما كان (roundUpdate).
+    if (cmd === 'act') roundAct(arg, roundMode()?.id === 'auction' && /^(count|item:|out:)/.test(arg));
     if (cmd === 'raise') raise(Number(arg));
     if (cmd === 'next') actions[nextButton().act]?.();
     if (cmd === 'mute') toggleMute();
