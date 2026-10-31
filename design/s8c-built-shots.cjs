@@ -1,5 +1,5 @@
 // تحكيم المزاد (الوثيقة 1.14، design/s8c.md 1.1، وش8-أ/57) مصوّراً من اللعبة المبنية لا من طبقة s8c.js، بأطول اسمين، لـ check.js وratio.cjs.
-// الاستعمال (والخادم على localhost:8000): [SC='[88,76]'] node design/s8c-built-shots.cjs [مجلد] [الرابط]، ثم: node design/ratio.cjs [مجلد]/1920/*.png
+// الاستعمال (والخادم على localhost:8000): [SC='[188,176]'] node design/s8c-built-shots.cjs [مجلد] [الرابط]، ثم: node design/ratio.cjs [مجلد]/1920/*.png
 // الحالات: السرد · انقضى الوقت ولم يُكشف · الكشف (193 الصفحة الأولى والأخيرة، و114 الثانية، وأقصر قائمة) · وفى · لم يفِ، والملتزم الأول ثم الثاني.
 const fs = require('fs'), path = require('path');
 const { chromium } = require('playwright');
@@ -8,7 +8,10 @@ const H = require(R + '/tests/helpers.cjs');
 const out = process.argv[2], base = process.argv[3] || 'http://localhost:8000/', big = path.join(out, '1920'); fs.mkdirSync(big, { recursive: true });
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const LONG = ['فريق النخبة الذهبي', 'نجوم المستقبل معاً'];
-const SC = JSON.parse(process.env.SC || '[88,76]');
+// الرصيد افتراضاً رقمان من ثلاث خانات، أسوأ الأبيض (ملاحظة المدقّق #349). وSC='[88,76]' للمقارنة.
+const SC = JSON.parse(process.env.SC || '[188,176]');
+// الالتزام كما قاس المدقّق (#349): 48، و N= لغيره.
+const COMMIT = Number(process.env.N || 48);
 const SIZES = [[1920, 1080], [1366, 768], [1280, 800], [3840, 2160]];
 const BANK = JSON.parse(fs.readFileSync(R + '/content/packs/general/auction.json', 'utf8')).topics;
 const topic = id => BANK.find(t => t.id === id);
@@ -42,15 +45,16 @@ async function shot(page, frame, name) {
     await H.cmd(f, 'begin'); await f.waitForSelector('.scr.show[data-s="intro"]', { timeout: 6000 });
     await H.cmd(f, 'act:show'); await wait(1500);
     await H.hideQr(f); await wait(500);
-    for (let n = 1; n <= 12; n++) { await H.cmd(f, 'raise:' + team); await wait(120); }
+    for (let n = 1; n <= COMMIT; n++) { await H.cmd(f, 'raise:' + team); await wait(100); }
     await H.cmd(f, 'act:start'); await wait(1200);
     for (let n = 0; n < 5; n++) { await H.cmd(f, 'act:count'); await wait(150); }
-    // الموضوع والرصيد في الحالة المحفوظة، ثم تُعاد الصفحة. timer: 'over' يجعل الوقت منقضياً.
+    // الموضوع والرصيد في الحالة المحفوظة، ثم تُعاد الصفحة. والوقت كما يقع في اللعب: 45 ثانية تبدأ الآن (لا وقت مطوّل)،
+    // و timer: 'over' يجعله منقضياً.
     const load = async (id, timer) => {
       await st.evaluate(([t, sc, timer]) => { const m = JSON.parse(localStorage.getItem('big-challenge.match')); const s = m.round.state;
         s.topics[0] = { ...s.topics[0], id: t.id, topic: t.topic, items: t.items.map(x => ({ name: x.name, alts: x.alts ?? [] })) };
         m.scores = m.round.scores = { 1: sc[0], 2: sc[1] };
-        if (timer === 'over') { m.round.timer.seconds = 45; m.timerAt = Date.now() - 60000; } else if (m.round.timer) { m.round.timer.seconds = 600; m.timerAt = Date.now(); }
+        if (timer === 'over') { m.round.timer.seconds = 45; m.timerAt = Date.now() - 60000; } else if (m.round.timer) { m.round.timer.seconds = 45; m.timerAt = Date.now(); }
         localStorage.setItem('big-challenge.match', JSON.stringify(m)); }, [topic(id) ?? shortest, SC, timer]);
       await st.reload(); await H.unlock(st).catch(() => {});
       f = await H.stageFrame(st); await wait(1500);

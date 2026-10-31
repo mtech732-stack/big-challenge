@@ -791,14 +791,18 @@
   // القائمة المكشوفة (design/s8c.md 1.1 القسم 2، والمالك 31 أكتوبر 2026: «اقلبها يدوياً، نقاط أسفل القائمة توضح التعدد»):
   // تُقسَم صفحاتٍ بالقياس (عنصر يتجاوز أسفل الأسطر الأربعة يبدأ صفحة)، ولا تقليب وحده: نقرة على القائمة أو على نقطة.
   // والصفحة الظاهرة تبقى مع كل رسم جديد للبطاقة نفسها (الحكم بعد الكشف)، وتعود إلى الأولى في موضوع آخر.
-  let listKey = '', listPage = 0, listPages = 1;
+  // والقسمة بقياس القائمة نفسها: إن تغيّر مقاسها (البطاقة تضيق مع الباركود، أو القسم لم يظهر بعد) أُعيدت القسمة بمقاسها الجديد،
+  // فلا تبقى صفحات من سطر واحد قيست والبطاقة ضيقة (ش8-أ/58: الكشف ثم «وفى» ثم «الموضوع التالي» ثم «تراجع»).
+  let listKey = '', listPage = 0, listPages = 1, listView = null;
+  new ResizeObserver(() => { if (listView) renderList(listView); }).observe($('cxList'));
   function renderList(a) {
     const box = $('cxList'), dots = $('cxDots'), list = a.list ?? null;
     $('auc').classList.toggle('list', !!list);
     box.hidden = !list;
+    listView = list ? a : null;
     if (!list) { listKey = ''; box.innerHTML = ''; dots.hidden = true; dots.innerHTML = ''; return; }
     $('auc').style.setProperty('--cx-team', `var(--team-${a.commit?.team === 2 ? '2-ink' : '1'})`);
-    const key = `${a.n}|${a.topic}|${list.length}`;
+    const key = `${a.n}|${a.topic}|${list.length}|${box.clientWidth}x${box.clientHeight}`;
     if (key !== listKey) {
       if (!listKey || listKey.split('|')[0] !== String(a.n) || listKey.split('|')[1] !== a.topic) listPage = 0;
       listKey = key;

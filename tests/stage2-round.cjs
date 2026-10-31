@@ -65,11 +65,18 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne } 
       && Math.round(r.chip.t) === 828 && Math.round(r.chip.b) === 872 && !r.check.length && r.back.l === normal.l && r.back.w === normal.w && r.back.wrap === normal.wrap;
     return { ok, txt: `المربع ${r.left}–${r.right}، فراغ ${r.gap}، سطران ${r.lines}، الشارة ${Math.round(r.chip.t)}–${Math.round(r.chip.b)}${r.check.length ? '، ' + r.check.join('، ') : ''}`, normal };
   };
+  // الكلمات الممنوعة في نص الشاشة كله دون نص الإجابة المكشوفة (ش8-أ/59): فـ«صعب» جزء من «مصعب بن عمير» وليست مستوى.
+  // والإجابة نفسها يفحصها سطرها أدناه («الإجابة: …» بعد الكشف وحده).
+  const forbiddenOn = page => page.evaluate(words => {
+    let t = document.body.innerText;
+    const a = document.getElementById('answer');
+    if (a?.textContent) t = t.split(a.textContent).join(' ');
+    return words.filter(w => t.includes(w));
+  }, FORBIDDEN);
   const audienceCheck = async (page, label) => {
     const r = await page.evaluate(() => window.__stageCheck());
     if (!r.ok) { layoutOk = false; fails.push(`${label}: ${r.problems.join('، ')}`); }
-    const shown = await page.evaluate(() => document.body.innerText);
-    const f = FORBIDDEN.filter(w => shown.includes(w));
+    const f = await forbiddenOn(page);
     if (f.length) words.push(`${label}: ${f.join('، ')}`);
     // إجابة السؤال المعروض وبدائلها، في نص الشاشة كله دون السؤال نفسه واسمَي الفريقين
     // (فـ«ذهب» جزء من «فريق النخبة الذهبي» وليست تسريباً). وبعد الحكم الأخير تظهر الإجابة النموذجية وحدها في سطرها.
@@ -161,6 +168,16 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne } 
   check('«كشف الإجابة»: الإجابة وحدها في المربع، ولا عدّاد، والحقل محايد', (await text(audience, '#reveal')) === `الإجابة: ${q1[0].answer}` && !(await visible(audience, '#verdict'))
     && await audience.$eval('#box', b => b.classList.contains('ans')) && (await none(audience, '.team .cnt'))
     && await audience.$eval('#canvas', c => !c.classList.contains('turn-1') && !c.classList.contains('turn-2')));
+  // ش8-أ/59: إجابة فيها «صعب» («مصعب بن عمير») لا تُعدّ مستوى على الشاشة، و«صعب» خارج الإجابة يُعدّ كما كان.
+  {
+    const keep = await audience.evaluate(() => [document.getElementById('answer').textContent, document.getElementById('b1').innerHTML]);
+    await audience.evaluate(() => { document.getElementById('answer').textContent = 'مصعب بن عمير'; });
+    const inAnswer = await forbiddenOn(audience);
+    await audience.evaluate(() => { document.getElementById('b1').querySelector('span').textContent = 'صعب'; });
+    const outside = await forbiddenOn(audience);
+    await audience.evaluate(k => { document.getElementById('answer').textContent = k[0]; document.getElementById('b1').innerHTML = k[1]; }, keep);
+    check(`الإجابة «مصعب بن عمير» لا تُعدّ مستوى (${inAnswer.join('، ') || 'لا شيء'})، و«صعب» في شارة يُعدّ (${outside.join('، ')})`, !inAnswer.length && outside.includes('صعب'));
+  }
   check('بعد الكشف: «+3» بلون الأول و«+3» بلون الثاني ثم «لم يُجب أحد»', (await near()) === '+3 | +3 | لم يُجب أحد' && !(await ans())
     && await audience.$eval('#near [data-cmd="act:pick:1"]', e => e.classList.contains('who') && e.classList.contains('t1')));
   await both('كُشفت الإجابة');
