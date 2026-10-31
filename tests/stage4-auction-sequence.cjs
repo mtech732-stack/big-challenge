@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auctionNamesShown } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/'; // الرابط العادي: المزاد في MODES منذ اكتمال ش4
@@ -67,7 +67,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
     if (body.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
   };
   const both = async label => { await wait(700); await audienceCheck(label); };
-  const chips = () => audience.$$eval('#auc .it', els => els.map(e => ({ name: e.textContent.trim(), t: e.classList.contains('t1') ? 1 : e.classList.contains('t2') ? 2 : 0, left: e.classList.contains('left'), more: e.classList.contains('more') })));
+  // ش8-أ/61: الأسماء التي لا يجوز ظهورها، بنص الشاشة كلها (helpers.cjs auctionNamesShown).
+  const names = async () => auctionNamesShown(audience, await st(), LONG);
   const tally = async () => `${await text(audience, '#tn')}/${await text(audience, '#tof')}`;
   const round = async () => (await stored()).round;
   const card = () => audience.$$eval('.scr.show .ctl .cbtn', els => els.map(e => e.textContent.trim()).join(' | '));
@@ -112,7 +113,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   check('الموضوع 2: «الموضوع 2 من 3» على الشاشة، ونصّه، والمزايدة فوراً', s.index === 1 && s.phase === 'bid' && (await text(audience, '#b1')) === 'الموضوع 2 من 3'
     && (await text(audience, '#topic')) === s.topics[1].topic);
   check(`الموضوع 2: الحدّ في المنتصف، ولا أرقام ولا عدّ ولا قائمة`, s.team === 0 && s.nums.join(',') === '0,0' && await centered()
-    && !(await audience.isVisible('#tally')) && !(await chips()).length && !(await audience.$$('#bids .bid')).length && !(await audience.isVisible('#verdict')));
+    && !(await audience.isVisible('#tally')) && !(await names()).length && !(await audience.$$('#bids .bid')).length && !(await audience.isVisible('#verdict')));
   check(`«زايد» · «ابدأ» معطّل · «زايد» (${await near()})`, (await near()) === 'زايد | ابدأ(معطّل) | زايد');
   await both('الموضوع 2 · الافتتاح');
   await stage.screenshot({ path: `${shots}/s4-topic2.png` });
