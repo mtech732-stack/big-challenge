@@ -1,5 +1,5 @@
 // اختبار آلي لمرحلة «الوفاء والعدّ» في المزاد (ش4، design/auction.md) بالنافذة الواحدة (الوثيقة 1.13)، في الرابط العادي:
-// الملتزم قبل «ابدأ» وبعده، والعدّ بـ«صحيح · +1» (بلون الملتزم، وعدّات متتابعة تُحسب كلها، ونقرتان متقاربتان عدّة واحدة)،
+// الملتزم قبل «ابدأ» وبعده، والعدّ بـ«صحيح · +1» (بلون الملتزم، وعدّات متتابعة تُحسب كلها، وعشر ضغطات في أقل من ثانية عشر عدّات والزر لا يتعطّل، ش8-أ/54)،
 // والعدّاد يبقى يعدّ، والتراجع، والحكم التلقائي عند بلوغ العدد (النقاط، و«ذُكر N من N»، ولا القائمة)، والتراجع عن الحكم بما بقي من الوقت،
 // وإعادة التحميل، و«توقّف» (و«لم يفِ» في stage4-auction-fail.cjs)، وعرض ما ذُكر بأسمائه بعد الحكم، ولا عنصر لم يُذكر على الجمهور، وفحص التداخل.
 const fs = require('fs');
@@ -112,8 +112,23 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await both('الوفاء · خمسة');
   await stage.screenshot({ path: `${shots}/s4-fulfil.png` });
 
+  // 4ب. سرعة السرد (ش8-أ/54، المالك في لعب حقيقي): عشر ضغطات متتالية في أقل من ثانية تُحسب كلها، والزر لا يتعطّل بينها.
+  {
+    const btn = await audience.$('#near [data-cmd="act:count"]'), bb = await btn.boundingBox();
+    const offs = [];
+    const t0 = Date.now();
+    for (let k = 0; k < 10; k++) {
+      await stage.mouse.click(bb.x + bb.width / 2, bb.y + bb.height / 2);
+      offs.push(await audience.$eval('#near [data-cmd="act:count"]', e => e.classList.contains('off')).catch(() => true));
+    }
+    const took = Date.now() - t0;
+    await wait(400);
+    check(`عشر ضغطات في ${took} ms (أقل من ثانية): العدّ 15 من 30، لا ضغطة سقطت ولا حُسبت مرتين`, took < 1000 && (await tally()) === `15/${N}` && (await st()).said.length === 15);
+    check(`والزر لم يتعطّل بعد أي ضغطة (${offs.filter(Boolean).length} معطّلة من 10)`, offs.every(x => !x));
+  }
+
   // 5. حتى 29 من 30.
-  for (let k = 5; k < N - 1; k++) { await cmd(audience, 'act:count'); await wait(260); }
+  for (let k = 15; k < N - 1; k++) { await cmd(audience, 'act:count'); await wait(260); }
   await wait(700);
   check('29 من 30', (await tally()) === `29/${N}` && (await st()).phase === 'fulfil');
   await both('الوفاء · 29');
@@ -144,7 +159,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await both('بعد الحكم');
   await stage.screenshot({ path: `${shots}/s4-won.png` });
 
-  // 8. التراجع عن الحكم يعيد الوفاء بما بقي، ثم «صحيح · +1» مرتين متقاربتين عدّة واحدة، و«توقّف». يُتراجع عن عدّتين (28 من 30).
+  // 8. التراجع عن الحكم يعيد الوفاء بما بقي، ثم «صحيح · +1» مرتين متقاربتين عدّتان (ش8-أ/54)، و«توقّف». يُتراجع عن عدّتين (28 من 30).
   const leftAt = async () => Number(await audience.$eval(`#c${opener}`, e => e.textContent));
   await undo(); await wait(900);
   const back = await leftAt();
@@ -165,8 +180,10 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   const shown = (await chips()).length;
   await stage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await wait(150); await stage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-  await wait(900);
-  check('«صحيح · +1» مرتين بفاصل 0.15 ثانية: عنصر واحد (29 من 30)، ولا اسم جديد على الشاشة', (await tally()) === `29/${N}` && (await chips()).length === shown);
+  await wait(1200);
+  check('«صحيح · +1» مرتين بفاصل 0.15 ثانية: عدّتان، فبلغ العدد (30 من 30) وحُكم، ولا اسم جديد على الشاشة', (await st()).phase === 'decided' && (await st()).said.length === N && (await chips()).length === shown);
+  await undo(); await wait(900);
+  check('التراجع عن الحكم: «29 من 30» والوفاء', (await tally()) === `29/${N}` && (await st()).phase === 'fulfil');
   await both('نافذة واحدة · الوفاء');
   await stage.screenshot({ path: `${shots}/s4-single-fulfil.png` });
   await cmd(audience, 'act:stop'); await wait(900);
