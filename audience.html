@@ -315,14 +315,17 @@
   function placeBox() {
     const box = $('box'), p2 = $('p2');
     if (box.hidden) return;
-    const w = Math.min(659, 1794 - (p2.offsetLeft + p2.offsetWidth + 17 + 24 + 17));
-    box.style.left = (1794 - w) + 'px'; box.style.width = w + 'px';
+    let w = Math.min(659, 1794 - (p2.offsetLeft + p2.offsetWidth + 17 + 24 + 17));
+    const at = w => { box.style.left = (1794 - w) + 'px'; box.style.width = w + 'px'; };
+    at(w);
     box.classList.remove('wrap');
     const line = [...box.querySelectorAll('.line')].find(l => !l.hidden);
     // عرض النص نفسه (Range مقسوماً على المقياس) لا scrollWidth: مع المقاطع (.nb) في سطر من اليمين لا يُحسب ما فاض يساراً (الملاحظة 39)
-    let wide = false;
-    if (line) { const r = document.createRange(); r.selectNodeContents(line); wide = r.getBoundingClientRect().width / (canvas.getBoundingClientRect().width / 1920) > box.clientWidth - 96; }
-    box.classList.toggle('wrap', !box.classList.contains('two') && wide);
+    let tw = 0;
+    if (line) { const r = document.createRange(); r.selectNodeContents(line); tw = r.getBoundingClientRect().width / (canvas.getBoundingClientRect().width / 1920); }
+    // الإجابة القصيرة بعد الكشف (ش8-أ/56، design/s8b.md 7.3): على الأعمدة 9–12 (1281–1794، بعرض 513) إن اتسع لها سطرها، فينقص الأبيض.
+    if (box.classList.contains('ans') && line && tw <= 513 - 96 && w > 513) at(w = 513);
+    box.classList.toggle('wrap', !box.classList.contains('two') && tw > box.clientWidth - 96);
   }
 
   // صف الشارات من اليمين بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (design/start.html وdesign/letter.html):

@@ -107,3 +107,5 @@
 /* الاسم عند المرور (#ctlTip): لوح أبيض 64 بحبر السؤال وخط 32، تحت الأيقونة بـ 24 في الزاوية، وبجانبها بـ 16 داخل لوحة «⋯» */
 .ctl-tip { position: absolute; z-index: 4; height: 64px; padding: 0 24px; display: flex; align-items: center; background: var(--card); color: var(--ink);
   font-size: 32px; font-weight: 700; white-space: nowrap; pointer-events: none; }
+/* داخل لوحة «⋯» لوح داكن بنص أبيض (ش8-أ/56، design/s8b.md 7.3): لا يزيد الأبيض لحظة الفتح. وفي الزاوية أبيض كما هو */
+.ctl-more .ctl-tip { background: var(--stage-3); color: var(--on-stage); }
