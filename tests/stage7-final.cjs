@@ -1,9 +1,9 @@
 // اختبار آلي لمرحلة «النتيجة وإعلان الفائز» (ش7، الوثيقة 5.8 و8، design/final.md):
 // وحدةً (دون متصفح): رصيد نهاية كل عنصر في match.ends، ومسار المباراة بما كسبه كل فريق (والتعديل اليدوي بين عنصرين في التالي،
 // والمجموع = الرصيد)، والانتقال إلى النتيجة بعد آخر عنصر وحده، و«أعلن الفائز» للمتقدّم ولا إعلان عند التعادل، والتراجع.
-// ثم بالمتصفح بنافذتين: نهاية الجولة الأخيرة ← «إلى النتيجة النهائية» ← المسار والشارة و«التالي: إعلان الفائز» ← «أعلن الفائز»:
-// الحدّ يكتسح ويبقى، والاسم بلونه، والقصاصات تسقط ثم تُزال، ونبض الرقم. وفحص التداخل والشبكة في كل شاشة، ونافذة المقدّم بلا تمرير.
-// ثم التعادل («التالي: الجولة الفاصلة» وزرها)، ثم النافذة الواحدة بأطول اسمين، وإعادة التحميل.
+// ثم بالمتصفح بالنافذة الواحدة (الوثيقة 1.13): نهاية الجولة الأخيرة ← «إلى النتيجة النهائية» ← المسار والشارة و«التالي: إعلان الفائز» ← «أعلن الفائز»:
+// الحدّ يكتسح ويبقى، والاسم بلونه، والقصاصات تسقط ثم تُزال، ونبض الرقم. وفحص التداخل والشبكة في كل شاشة.
+// ثم التعادل («التالي: الجولة الفاصلة» وزرها)، ثم أطول اسمين، وإعادة التحميل.
 // الاستعمال: node tests/stage7-final.cjs [الرابط] [مجلد الصور]
 const path = require('path');
 const { chromium } = require('playwright');
@@ -58,11 +58,6 @@ const { finalMatch } = require('./final-match.cjs');
     check(`${name}: لا تداخل والشبكة سليمة (أدنى فراغ ${Math.round(r.minGap)})`, r.ok);
     if (!r.ok) console.log(r.problems.join('\n'));
   };
-  const noScroll = async (page, name) => {
-    const r = await page.evaluate(() => ({ h: document.documentElement.scrollHeight <= innerHeight + 1, w: document.documentElement.scrollWidth <= innerWidth + 1 }));
-    check(`نافذة المقدّم (${name}): بلا تمرير`, r.h && r.w);
-  };
-
   async function open(match, { size = { width: 1366, height: 768 } } = {}) {
     const context = await browser.newContext({ viewport: size, serviceWorkers: 'block' });
     await usePin(context);
@@ -77,22 +72,16 @@ const { finalMatch } = require('./final-match.cjs');
     await unlock(page);
     return { context, page };
   }
-  // شاشة جمهور 1920×1080 تتبع المباراة (نافذة جمهور كما يفتحها المقدّم).
-  async function audience(context) {
-    const a = await context.newPage();
-    await a.setViewportSize({ width: 1920, height: 1080 });
-    await a.goto(base + 'audience.html');
-    await a.waitForFunction(() => !document.getElementById('canvas').classList.contains('locked') && document.querySelector('.scr.show')?.dataset.s !== 'q', null, { timeout: 10000 });
-    return a;
-  }
+  const card = frame => frame.$$eval('.scr.show .ctl .cbtn', els => els.map(e => e.textContent.trim()).join(' | '));
 
-  // ===== 2.1 بنافذتين =====
+  // ===== 2.1 بالنافذة الواحدة (الوثيقة 1.13) =====
   {
-    const { context, page } = await open(won.match);
-    const aud = await audience(context);
-    check('نهاية الجولة الأخيرة: «إلى النتيجة النهائية» مفعّل', clean(await page.textContent('#endNext')) === 'إلى النتيجة النهائية' && !(await page.isDisabled('#endNext')));
+    const { context, page } = await open(won.match, { size: { width: 1920, height: 1080 } });
+    let aud = await stageFrame(page);
+    await aud.waitForSelector('.scr.show[data-s="end"]');
+    check('نهاية الجولة الأخيرة: «إلى النتيجة النهائية» مفعّل في البطاقة', (await card(aud)) === 'إلى النتيجة النهائية' && !(await aud.$eval('.scr.show .ctl .cbtn', b => b.classList.contains('off'))));
     check('والجمهور: «التالي: النتيجة النهائية»', clean(await aud.textContent('#next')) === 'التالي: النتيجة النهائية');
-    await page.click('#endNext');
+    await cmd(aud, 'next');
     await aud.waitForSelector('.scr.show[data-s="fin"]');
     await wait(1400);
     const segs = await aud.$$eval('#finTrack .seg', els => els.map(e => ({ wheel: e.classList.contains('wheel'), name: e.querySelector('.mname').textContent, g1: e.querySelector('.g1').textContent, g2: e.querySelector('.g2').textContent })));
@@ -105,15 +94,11 @@ const { finalMatch } = require('./final-match.cjs');
       && !(await cls(aud, 'turn-1')) && !(await cls(aud, 'turn-2')));
     check('لا «يتقدم» ولا «بفارق» ولا «سرقة»', !/يتقدم|يتأخر|فارق|سرقة/.test(await aud.textContent('#canvas')));
     await layout(aud, 'النتيجة النهائية');
-    await aud.screenshot({ path: path.join(shots, 's7-fin.png') });
-    check('نافذة المقدّم: «النتيجة النهائية» والمسار بصفوفه والمجموع، و«الفائز: …» و«أعلن الفائز»',
-      clean(await page.textContent('#roundChip')) === 'النتيجة النهائية' && (await page.$$('#fMid .path p')).length === 3 * 5
-      && clean(await page.textContent('#fWho')) === 'الفائز: ' + won.match.teams[M.leaderOf(won.match.scores)] && clean(await page.textContent('#fCtl')) === 'أعلن الفائز');
-    check('وصفوف المسار: «الجولة 1 · الحرف المعيّن» و«شريط البونص 1» و«الجولة 2 · آخر حرفين»', /الجولة 1 · الحرف المعيّن.*شريط البونص 1.*الجولة 2 · آخر حرفين/.test(clean(await page.textContent('#fMid'))));
-    await noScroll(page, 'النتيجة');
+    await page.screenshot({ path: path.join(shots, 's7-fin.png') });
+    check('البطاقة: «أعلن الفائز»', (await card(aud)) === 'أعلن الفائز');
 
     await wait(800);
-    await page.click('#fCtl [data-act="announce"]');
+    await cmd(aud, 'announce');
     await aud.waitForSelector('.scr.show[data-s="win"]');
     const w = M.leaderOf(won.match.scores);
     await wait(1100);
@@ -127,55 +112,54 @@ const { finalMatch } = require('./final-match.cjs');
     await wait(6200);
     check('القصاصات تُزال بعد نحو 6 ثوانٍ، والحدّ باقٍ على الفائز', (await aud.$$('#confetti span')).length === 0 && await cls(aud, 'turn-' + w));
     await layout(aud, 'الفائز');
-    await aud.screenshot({ path: path.join(shots, 's7-win.png') });
-    check('نافذة المقدّم: «انتهت المباراة» والاسم والرصيدان، و«مباراة جديدة»', clean(await page.textContent('#roundChip')) === 'انتهت المباراة'
-      && clean(await page.textContent('#fMid')).includes(won.match.teams[w]) && clean(await page.textContent('#fCtl')) === 'مباراة جديدة'
-      && clean(await page.textContent('#fWho')) === `${won.match.teams[1]} ${won.match.scores[1]} · ${won.match.teams[2]} ${won.match.scores[2]}`);
-    await noScroll(page, 'الفائز');
+    await page.screenshot({ path: path.join(shots, 's7-win.png') });
+    check('البطاقة: «مباراة جديدة»', (await card(aud)) === 'مباراة جديدة');
 
     // إعادة تحميل شاشة الجمهور: الفائز كما هو، والحدّ عليه، ولا قصاصات تتكرر.
-    await aud.reload();
+    await aud.evaluate(() => location.reload());
+    aud = await stageFrame(page);
     await aud.waitForSelector('.scr.show[data-s="win"]', { timeout: 10000 });
     await wait(1200);
     check('إعادة تحميل الجمهور: الفائز والحدّ كما هما، ولا قصاصات', await cls(aud, 'turn-' + w) && (await aud.$$('#confetti span')).length === 0);
     // التراجع: إلى النتيجة، ثم إلى نهاية الجولة الأخيرة.
-    await page.click('#fUndo');
+    await cmd(aud, 'undo');
     await aud.waitForSelector('.scr.show[data-s="fin"]');
     check('التراجع من الفائز: النتيجة النهائية، والحدّ في المنتصف', !(await cls(aud, 'turn-1')) && !(await cls(aud, 'turn-2')));
     // تعديل الرصيد في النتيجة: الرقم الكبير وخانة الجولة الأخيرة يتبعانه.
-    await page.click('#openScores');
+    await cmd(aud, 'scores');
+    await page.waitForSelector('#scores:not([hidden])');
     await page.click('#scores [data-team="2"][data-d="1"]');
     await page.click('#closeScores');
     await wait(400);
     check('تعديل الرصيد في النتيجة: الرقم وخانة الجولة الأخيرة يتبعانه', clean(await aud.textContent('#s2')) === String(won.match.scores[2] + 1)
       && clean(await aud.textContent('#finTrack .seg:last-child .g2')) === sign(g[2].g[2] + 1));
     await wait(800);
-    await page.click('#fUndo');
+    await cmd(aud, 'undo');
     await aud.waitForSelector('.scr.show[data-s="end"]');
-    check('التراجع من النتيجة: نهاية الجولة الأخيرة و«إلى النتيجة النهائية»', clean(await page.textContent('#endNext')) === 'إلى النتيجة النهائية');
+    await wait(800);
+    check('التراجع من النتيجة: نهاية الجولة الأخيرة و«إلى النتيجة النهائية»', (await card(aud)) === 'إلى النتيجة النهائية');
     await context.close();
   }
 
   // ===== 2.2 التعادل =====
   {
-    const { context, page } = await open(tie.match);
-    const aud = await audience(context);
-    await page.click('#endNext');
+    const { context, page } = await open(tie.match, { size: { width: 1920, height: 1080 } });
+    const aud = await stageFrame(page);
+    await aud.waitForSelector('.scr.show[data-s="end"]');
+    await cmd(aud, 'next');
     await aud.waitForSelector('.scr.show[data-s="fin"]');
     await wait(1400);
     check('التعادل: «التالي: الجولة الفاصلة» والرقمان متساويان', clean(await aud.textContent('#next')) === 'التالي: الجولة الفاصلة' && clean(await aud.textContent('#s1')) === clean(await aud.textContent('#s2')));
-    check('نافذة المقدّم: «تعادل» و«الجولة الفاصلة» (مرحلة «كسر التعادل»، stage7-tiebreak)', clean(await page.textContent('#fWho')) === 'تعادل'
-      && clean(await page.textContent('#fCtl')) === 'الجولة الفاصلة' && !(await page.isDisabled('#fCtl button')));
+    check('البطاقة: «الجولة الفاصلة» مفعّلاً (مرحلة «كسر التعادل»، stage7-tiebreak)', (await card(aud)) === 'الجولة الفاصلة' && !(await aud.$eval('.scr.show .ctl .cbtn', b => b.classList.contains('off'))));
     await layout(aud, 'النتيجة: تعادل');
-    await aud.screenshot({ path: path.join(shots, 's7-fintie.png') });
-    await noScroll(page, 'التعادل');
+    await page.screenshot({ path: path.join(shots, 's7-fintie.png') });
     await context.close();
   }
 
   // ===== 2.3 النافذة الواحدة بأطول اسمين =====
   {
     const longWon = await finalMatch({ results: ['rrrrrr', 'srrrrr'], wheel: ['won', 'won'], names: ['فريق النخبة الذهبي', 'نجوم المستقبل معاً'], winner: 2 });
-    const { context, page } = await open({ ...longWon.match, single: true }, { size: { width: 1920, height: 1080 } });
+    const { context, page } = await open(longWon.match, { size: { width: 1920, height: 1080 } });
     const frame = await stageFrame(page);
     await cmd(frame, 'next');
     await frame.waitForSelector('.scr.show[data-s="fin"]');
