@@ -71,7 +71,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
     if (body.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
   };
   const both = async label => { await wait(700); await audienceCheck(label); };
-  const chips = () => audience.$$eval('#items .it', els => els.map(e => ({ name: e.textContent.trim(), t: e.classList.contains('t1') ? 1 : e.classList.contains('t2') ? 2 : 0, left: e.classList.contains('left'), more: e.classList.contains('more') })));
+  const chips = () => audience.$$eval('#auc .it', els => els.map(e => ({ name: e.textContent.trim(), t: e.classList.contains('t1') ? 1 : e.classList.contains('t2') ? 2 : 0, left: e.classList.contains('left'), more: e.classList.contains('more') })));
   const tally = async () => `${await text(audience, '#tn')}/${await text(audience, '#tof')}`;
 
   // 1. إلى الوفاء: يزايد فريق (عشوائي) حتى 7 بزرّه، ثم «ابدأ» يرسي عليه ويبدأ العدّاد، ثم «عُدّ · +1» يعدّ بلا أسماء

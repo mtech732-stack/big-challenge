@@ -74,7 +74,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
     if (body.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
   };
   const both = async label => { await wait(700); await audienceCheck(label); };
-  const chips = () => audience.$$eval('#items .it', els => els.map(e => ({ name: e.textContent.trim(), t: e.classList.contains('t1') ? 1 : e.classList.contains('t2') ? 2 : 0, left: e.classList.contains('left'), more: e.classList.contains('more') })));
+  const chips = () => audience.$$eval('#auc .it', els => els.map(e => ({ name: e.textContent.trim(), t: e.classList.contains('t1') ? 1 : e.classList.contains('t2') ? 2 : 0, left: e.classList.contains('left'), more: e.classList.contains('more') })));
   const tally = async () => `${await text(audience, '#tn')}/${await text(audience, '#tof')}`;
   // «عُدّ · +1» حتى يُحسب: العدّ بلا مهلة (ش8-أ/54)، فإن أبطأ الجهاز أُعيد.
   const say = async () => {
@@ -96,7 +96,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   // بعد الحكم: المربع بلا خلفية، والشارة بيضاء بنص صاحبها، والسطر ظاهر. والقائمة المكشوفة بصفحاتها ونقاطها (الوثيقة 1.14).
   const look = () => audience.evaluate(() => {
     const box = document.getElementById('box'), chip = document.getElementById('verdict'), cs = getComputedStyle(document.documentElement);
-    const its = [...document.querySelectorAll('#items .it')];
+    const its = [...document.querySelectorAll('#auc .it')];
     return { bare: box.classList.contains('bare'), bg: getComputedStyle(box.querySelector(':scope > i')).display, chipBg: getComputedStyle(chip.querySelector(':scope > i')).backgroundColor,
       chipInk: getComputedStyle(chip).color, team1: cs.getPropertyValue('--team-1').trim(), say: document.getElementById('say').innerText.trim(), told: !document.getElementById('told').hidden,
       shown: !box.hidden && !chip.hidden, chips: its.length,
