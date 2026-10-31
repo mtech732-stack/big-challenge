@@ -25,6 +25,8 @@
 .ctl-ans { position: absolute; top: 912px; right: calc(1920px - 1794px); z-index: 2; display: flex; }
 .ctl-ans:empty { display: none; }
 .ctl-ans .cbtn { background: var(--card); color: var(--ink); }
+/* «كشف القائمة» في المزاد ثانوي (ش8-أ/57): إطار أبيض بلا تعبئة كـ .ctl-near .cbtn.alt، و«عُدّ · +1» هو الأساسي، فلا يبلغ الأبيض 35.6 في السرد */
+.ctl-ans .cbtn.alt { background: transparent; color: var(--on-stage); box-shadow: inset 0 0 0 3px var(--card); }
 /* «استئناف» أساسي ما دام متوقفاً، و«إيقاف مؤقت» ثانوي */
 .ctl-near .cbtn.pause.on { background: var(--card); color: var(--ink); box-shadow: none; }
 /* بعد الكشف: زرّا الفريقين بلونيهما والنقاط عليهما، كزرّي المزايدة، ثم «لم يُجب أحد» */
