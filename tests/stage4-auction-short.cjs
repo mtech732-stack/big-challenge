@@ -132,6 +132,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await both('القصيرة الثانية · بعد الحكم');
   await shot(`s4-short-2-t${win}`);
 
+  // حكم القصيرة الثانية محفوظاً، يُعاد إليه في 5 (التراجع إليه عبر أربعين عدّة يتجاوز ما بقي من وقت الوفاء، فيُحكم بالوقت).
+  const afterShort2 = await stage.evaluate(() => localStorage.getItem('big-challenge.match'));
+
   // 3. الموضوع 3 «أطول قائمة»: يرسو على الآخر بـ 40 فيفي بأربعين من أسمائها (wonlong)، فما قيل بالحجم المعتاد و«و N غيرها».
   await cmd(audience, 'act:next'); await wait(1200);
   await hideQr(audience);
@@ -152,7 +155,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await cmd(audience, 'undo'); await wait(1000);
   check('النهاية ثم التراجع: يعود حكم أطول قائمة', (await st()).phase === 'decided' && (await st()).index === 2);
 
-  // 5. بعد إعادة تحميل الإطار: الحكم بلا مربع والقائمة القصيرة كبيرة كذلك، والتراجع إليها بزر الإطار.
+  // 5. بعد إعادة تحميل الإطار: الحكم بلا مربع والقائمة القصيرة كبيرة كذلك (بحكمها المحفوظ).
   await audience.evaluate(() => location.reload());
   audience = await stageFrame(stage);
   await wait(800);
@@ -160,10 +163,12 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   check('بعد إعادة التحميل · أطول قائمة: بلا مربع وبالحجم المعتاد', l.bare && !l.big && l.more);
   await both('نافذة واحدة · أطول قائمة');
   await shot(`s4-single-long-t${other(first)}`);
-  for (let i = 0; i < 120 && !((await st()).index === 1 && (await st()).phase === 'decided'); i++) { await cmd(audience, 'undo'); await wait(350); }
+  await stage.evaluate(m => localStorage.setItem('big-challenge.match', m), afterShort2);
+  await stage.reload(); await unlock(stage);
+  audience = await stageFrame(stage);
   await wait(800);
   l = await look();
-  check(`بالتراجع · القصيرة الثانية: بلا مربع، وما قيل كبير (${l.h})`, (await st()).index === 1 && l.bare && l.big && l.h === 88 && l.n === 2);
+  check(`حكم القصيرة الثانية بعد إعادة التحميل: بلا مربع، وما قيل كبير (${l.h})`, (await st()).index === 1 && l.bare && l.big && l.h === 88 && l.n === 2);
   await both('نافذة واحدة · القصيرة الثانية');
   await shot(`s4-single-short-2-t${win}`);
   // والسؤال التالي يعود بالمربع: «الموضوع التالي» ثم المزايدة بلا حكم.
