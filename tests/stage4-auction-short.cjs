@@ -77,6 +77,15 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   // عنصر بعينه من القائمة (act:item): لا زر له في النافذة الواحدة بعد 1.13، لكن الشاشة تعرض ما ذُكر بأسمائه إن وُجد،
   // فيُذكر به كي يبقى عرض الشارات الكبيرة والمعتادة مفحوصاً.
   const tap = i => audience.evaluate(c => parent.postMessage({ bc: 'cmd', cmd: c }, location.origin), 'act:item:' + i);
+  // يُذكر العنصر حتى يُحسب: بعد كل تغيّر تُهمل نقرات الجولة 0.7 ثانية (HOLD_MS)، فإن أبطأ الجهاز أُعيد، ثم تُنتظر المهلة.
+  const say = async i => {
+    for (let k = 0; k < 6; k++) {
+      const s0 = (await stored()).round.state;
+      if (s0.phase !== 'fulfil') return;
+      await tap(i);
+      for (let w = 0; w < 10; w++) { await wait(100); if ((await stored()).round.state.said.length > s0.said.length) { await wait(720); return; } }
+    }
+  };
 
   const round = async () => (await stored()).round;
   const ctl = () => audience.$$eval('.scr.show .ctl .cbtn, #near .cbtn', els => els.map(e => e.textContent.trim()).join(' | '));
@@ -110,7 +119,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await hideQr(audience);
   await bidTo(4, other(first));
   check(`القصيرة الأولى: الفريق ${other(first)} ملتزم بـ 4`, (await st()).commit.team === other(first) && (await st()).commit.n === 4);
-  await tap(0); await wait(800); await tap(1); await wait(700);
+  await say(0); await say(1);
   await cmd(audience, 'act:stop'); await wait(1600);
   let l = await look();
   check(`القصيرة الأولى: لم يفِ، فللفريق ${win} نقطتان (${await ctl()})`, (await st()).phase === 'decided' && (await round()).scores[win] === 2 && (await round()).scores[other(win)] === 0);
@@ -125,7 +134,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await cmd(audience, 'act:next'); await wait(1200);
   await hideQr(audience);
   await bidTo(2, first);
-  await tap(0); await wait(800); await tap(1); await wait(1500);
+  await say(0); await say(1); await wait(800);
   l = await look();
   check(`القصيرة الثانية: وفى الفريق ${win} بـ 2 (رصيده 4)`, (await st()).phase === 'decided' && (await round()).scores[win] === 4);
   check(`القصيرة الثانية: الحكم بلا مربع، وما قيل (2) كبير (${l.h}، ${l.rows} صف)`, l.bare && l.bg === 'none' && l.big && l.h === 88 && l.rows === 1 && l.n === 2);
@@ -140,8 +149,13 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await hideQr(audience);
   const MANY = Math.min(40, LONGEST);
   await bidTo(MANY, other(first));
-  // بعد كل تغيّر تُهمل نقرات الجولة 0.7 ثانية (HOLD_MS)، فبين العناصر أكثر منها.
-  for (let i = 0; i < MANY; i++) { await tap(i); await wait(760); }
+  // أربعون عنصراً بمهلة 0.7 ثانية بعد كلٍّ تتجاوز وقت الوفاء (45)، فيُمدّ عدّاده الجاري في الحالة المحفوظة إلى 120 ثم تُعاد الصفحة. لا تغيير في اللعبة.
+  await stage.evaluate(() => { const m = JSON.parse(localStorage.getItem('big-challenge.match'));
+    m.round.timer = { ...m.round.timer, seconds: 120 }; m.timerAt = Date.now(); localStorage.setItem('big-challenge.match', JSON.stringify(m)); });
+  await stage.reload(); await unlock(stage);
+  audience = await stageFrame(stage);
+  await wait(1000);
+  for (let i = 0; i < MANY; i++) await say(i);
   await wait(1500);
   l = await look();
   const moreN = await audience.$eval('#items', e => Number(e.querySelector('.more')?.textContent.replace(/\D/g, '') ?? 0));
