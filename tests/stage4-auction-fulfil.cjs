@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auctionNamesShown } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/'; // الرابط العادي: المزاد في MODES منذ اكتمال ش4
@@ -56,27 +56,27 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
     const r = await audience.evaluate(() => window.__stageCheck());
     if (!r.ok) { layoutOk = false; fails.push(`${label}: ${r.problems.join('، ')}`); }
     const s = await st();
-    // وبعد الحكم كذلك: لا القائمة ولا ما لم يُذكر منها (design/auction.md 4.0).
-    const said = new Set((s.said ?? []).filter(x => x.i !== null).map(x => x.i));
-    // وبعد «كشف القائمة» (الوثيقة 1.14) القائمة كلها على الشاشة، فلا يُبحث فيها عمّا لم يُذكر.
+    // ما ذُكر لا يظهر باسمه أبداً (1.14)، ولو حُفظ بموضعه في said من نسخة سابقة (ش8-أ/61).
+    // وبعد «كشف القائمة» القائمة كلها على الشاشة، فلا يُبحث فيها.
     const listed = ['revealed', 'decided'].includes(s.phase);
-    const shown = (listed ? items.map((_, i) => i) : [...said]).flatMap(i => [items[i].name, ...(items[i].alts ?? [])]).sort((a, b) => b.length - a.length);
+    const shown = (listed ? items.map((_, i) => i) : []).flatMap(i => [items[i].name, ...(items[i].alts ?? [])]).sort((a, b) => b.length - a.length);
     const body = await audience.evaluate(ns => { let t = document.querySelector('.canvas').innerText;
       for (const b of document.querySelectorAll('.cbtn')) t = t.replace(b.innerText, '');
       t = t.replace(document.getElementById('topic').innerText, '');
       for (const c of ['c1', 'c2']) t = t.replace(document.getElementById(c)?.innerText ?? '', ''); // ثواني العدّاد ليست طول القائمة
       for (const n of ns) t = t.split(n).join(''); return t; }, [...LONG, ...shown]);
     if (/سرقة|سهل|متوسط|صعب|انسحب|في القائمة|عنصر/.test(body)) { leak = true; fails.push(`${label}: نص ممنوع على الجمهور`); }
-    const unsaid = items.filter((x, i) => !said.has(i)).flatMap(x => [x.name, ...(x.alts ?? [])]);
+    const unsaid = items.flatMap(x => [x.name, ...(x.alts ?? [])]);
     // اسم من حرف أو حرفين («ت» أو «7») يقع في أي نص، فلا يُبحث عنه في نص الشاشة: الشارات وحدها تحمل ما ذُكر.
     const named = n => [...n].length > 2 && body.includes(n);
-    if (!listed && unsaid.some(named)) { leak = true; fails.push(`${label}: عنصر لم يُذكر على الجمهور (${unsaid.find(named)})`); }
+    if (!listed && unsaid.some(named)) { leak = true; fails.push(`${label}: عنصر من القائمة على الجمهور (${unsaid.find(named)})`); }
     // ولا طول للقائمة على الجمهور أبداً (4.0).
     if (await audience.$('#tsize, .auc .size')) { leak = true; fails.push(`${label}: «في القائمة» على الجمهور`); }
     if (body.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
   };
   const both = async label => { await wait(700); await audienceCheck(label); };
-  const chips = () => audience.$$eval('#auc .it', els => els.map(e => ({ name: e.textContent.trim(), t: e.classList.contains('t1') ? 1 : e.classList.contains('t2') ? 2 : 0, left: e.classList.contains('left'), more: e.classList.contains('more') })));
+  // ش8-أ/61: الأسماء التي لا يجوز ظهورها، بنص الشاشة كلها (helpers.cjs auctionNamesShown).
+  const names = async () => auctionNamesShown(audience, await st(), LONG);
   const tally = async () => `${await text(audience, '#tn')}/${await text(audience, '#tof')}`;
 
   // 1. إلى الوفاء: يزايد فريق (عشوائي) بزرّه حتى 30، ثم «ابدأ» يرسي عليه ويبدأ العدّاد فوراً (3.0؛ القائمة 54، فالعدد مخفي).
@@ -104,7 +104,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   const timer = (await stored()).round.timer.id;
   await cmd(audience, 'act:count'); await wait(600);
   check(`أول عدّة: «1 من ${N}» بلون الملتزم، ولا شارة اسم`, (await tally()) === `1/${N}` && await audience.$eval('#tally', (e, t) => e.classList.contains('t' + t), opener)
-    && (await chips()).length === 0);
+    && (await names()).length === 0);
   await both('الوفاء · أول عدّة');
 
   // 4. عدّات متتابعة (0.4 ثانية بينها) تُحسب كلها، والعدّاد نفسه يعدّ.
@@ -207,7 +207,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   check(`الجمهور: «${LONG[opener - 1]} · +${N}» و«وفى بـ ${N}» بلا مربع، ولا «ذُكر»`, (await text(audience, '#vtext')) === `${LONG[opener - 1]} · +${N}` && (await text(audience, '#say')) === `وفى بـ ${N}`
     && !(await audience.isVisible('#told')) && await audience.$eval('#box', b => b.classList.contains('bare')));
   check('الجمهور: الحدّ عند الملتزم، والعدّاد وقف، والعدّ الكبير غاب', await audience.$eval('#canvas', (c, t) => c.classList.contains('turn-' + t) && !c.classList.contains('running'), opener) && !(await audience.isVisible('#tally')));
-  check('بعد الحكم: القائمة باقية على الصفحة الظاهرة (الثانية)، ولا شارات أسماء', (await page()) === 1 && (await chips()).length === 0);
+  check('بعد الحكم: القائمة باقية على الصفحة الظاهرة (الثانية)، ولا اسم على الشاشة', (await page()) === 1 && (await names()).length === 0);
   check(`بعد الحكم: «الموضوع التالي» وحده في صف الشارات (${await nearT()})`, (await nearT()) === 'الموضوع التالي' && !(await audience.$$('.scr.show .ctl .cbtn')).length);
   await both('بعد الحكم');
   await stage.screenshot({ path: `${shots}/s4-won.png` });
@@ -235,7 +235,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await stage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await wait(150); await stage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await wait(1200);
-  check('«عُدّ · +1» مرتين بفاصل 0.15 ثانية: عدّتان (30 من 30)، ولا حكم ولا اسم على الشاشة', (await st()).phase === 'fulfil' && (await st()).said.length === N && (await chips()).length === 0);
+  check('«عُدّ · +1» مرتين بفاصل 0.15 ثانية: عدّتان (30 من 30)، ولا حكم ولا اسم على الشاشة', (await st()).phase === 'fulfil' && (await st()).said.length === N && (await names()).length === 0);
   await cmd(audience, 'act:reveal'); await wait(1000);
   // تراجع يعبر حدّ مرحلة (من الكشف إلى الوفاء، ش8-أ/55): المهلة باقية، فنقرة «تراجع» مضاعفة بفاصل 0.1 ثانية تُلغي الكشف وحده، لا عدّة معه.
   {
@@ -261,13 +261,27 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await stage.screenshot({ path: `${shots}/s4-single-won.png` });
 
   // 9. حالة محفوظة بأسماء ما ذُكر (من نسخة قبل 1.13): لا تظهر الأسماء على التلفاز بعد 1.14، والقائمة المكشوفة كما هي.
-  await stage.evaluate(() => { const m = JSON.parse(localStorage.getItem('big-challenge.match')); const s = m.round.state;
-    s.said = s.said.slice(0, 15).map((x, i) => ({ i, team: x.team })); localStorage.setItem('big-challenge.match', JSON.stringify(m)); });
-  await stage.reload();
-  await unlock(stage).catch(() => {});
-  audience = await stageFrame(stage);
-  await wait(1200);
-  check('حالة محفوظة بأسماء 15 مما ذُكر: لا شارات أسماء، والقائمة المكشوفة كلها', (await chips()).length === 0 && (await listed()).length === items.length);
+  // ش8-أ/61: 15 بموضعها في القائمة، ونص «out:» من خارجها. قبل الكشف (السرد بعد انقضاء الوقت) ثم بعد الحكم.
+  const OUT = 'نص من خارج القائمة محفوظ';
+  const decidedMatch = await stage.evaluate(() => localStorage.getItem('big-challenge.match'));
+  const reopen = async () => { await stage.reload(); await unlock(stage).catch(() => {}); audience = await stageFrame(stage); await wait(1200); };
+  await stage.evaluate(out => { const m = JSON.parse(localStorage.getItem('big-challenge.match')); const s = m.round.state;
+    s.phase = 'fulfil'; s.over = true; s.team = s.commit.team; s.results[s.index] = null;
+    s.said = [...s.said.slice(0, 15).map((x, i) => ({ i, team: x.team })), { i: null, team: s.team, text: out }];
+    m.round.timer = null; localStorage.setItem('big-challenge.match', JSON.stringify(m)); }, OUT);
+  await reopen();
+  {
+    const shownNow = await names();
+    check(`حالة محفوظة قبل الكشف، said بـ 15 اسماً ونص «out:»: لا اسم ولا نص على الشاشة، والعدّ 16 (${shownNow.join('، ') || 'لا شيء'})`,
+      (await st()).phase === 'fulfil' && !shownNow.length && (await text(audience, '#tn')) === '16' && !(await audience.isVisible('#cxList')));
+    await both('السرد · حالة محفوظة بأسماء ونص');
+  }
+  await stage.evaluate(([m, out]) => { const x = JSON.parse(m); const s = x.round.state;
+    s.said = [...s.said.slice(0, 15).map((y, i) => ({ i, team: y.team })), { i: null, team: s.team, text: out }];
+    localStorage.setItem('big-challenge.match', JSON.stringify(x)); }, [decidedMatch, OUT]);
+  await reopen();
+  check('حالة محفوظة بعد الحكم، said بـ 15 اسماً ونص «out:»: لا نص «out:» على الشاشة، والقائمة المكشوفة كلها', (await names()).length === 0 && (await listed()).length === items.length
+    && !(await audience.evaluate(o => document.querySelector('.canvas').innerText.includes(o), OUT)));
   await both('بعد الحكم · حالة محفوظة بأسماء');
   await stage.screenshot({ path: `${shots}/s4-reveal.png` });
 
