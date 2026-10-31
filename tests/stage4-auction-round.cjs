@@ -148,7 +148,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   check('الجمهور: «0 من 11» بلون الثاني، ولا أرقام', (await text(audience, '#tn')) === '0' && (await text(audience, '#tof')) === '11' && await audience.$eval('#tally', e => e.classList.contains('t2'))
     && (await bids(audience)).length === 0);
   check('الجمهور: الحدّ يكتسح إلى الثاني، والعدّاد يعمل', await turnOn(2) && await audience.$eval('#canvas', c => c.classList.contains('running')));
-  check(`«صحيح · +1» · «توقّف» (${await near()})`, (await near()) === 'صحيح · +1 | توقّف');
+  const ansB = () => audience.$$eval('#ansCtl .cbtn', els => els.map(e => e.textContent.trim()).join(' | '));
+  check(`«عُدّ · +1» في صف الشارات، و«كشف القائمة» أسفل اليمين (الوثيقة 1.14) (${await near()} · ${await ansB()})`, (await near()) === 'عُدّ · +1' && (await ansB()) === 'كشف القائمة');
   await both('بعد ابدأ');
   await stage.screenshot({ path: `${shots}/s4-start.png` });
 
@@ -204,8 +205,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await both('نافذة واحدة · المزايدة');
   await stage.screenshot({ path: `${shots}/s4-single-bid.png` });
   await cmd(audience, 'act:start'); await wait(900);
-  check(`«ابدأ» في النافذة الواحدة: «0 من 4» للثاني والعدّاد يعمل، و«صحيح · +1» · «توقّف» (${await near()})`, (await text(audience, '#tn')) === '0' && (await text(audience, '#tof')) === '4'
-    && (await st()).commit.team === 2 && await turnOn(2) && (await near()) === 'صحيح · +1 | توقّف');
+  check(`«ابدأ» في النافذة الواحدة: «0 من 4» للثاني والعدّاد يعمل، و«عُدّ · +1» · «كشف القائمة» (${await near()} · ${await ansB()})`, (await text(audience, '#tn')) === '0' && (await text(audience, '#tof')) === '4'
+    && (await st()).commit.team === 2 && await turnOn(2) && (await near()) === 'عُدّ · +1' && (await ansB()) === 'كشف القائمة');
   await both('نافذة واحدة · الوفاء');
   await stage.screenshot({ path: `${shots}/s4-single-start.png` });
 
