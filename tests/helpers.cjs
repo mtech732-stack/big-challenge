@@ -124,4 +124,18 @@ async function auctionNamesShown(frame, state, teams = []) {
   return [...new Set(look.filter(n => body.includes(n)))];
 }
 
-module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne, hideQr, auctionNamesShown };
+// ش8-أ/63: المزاد بلا مستوى، فالمواضيع الثلاثة من بنك واحد بترتيب عشوائي. والاختبار الذي يلعبها بترتيب بعينه
+// يرتّبها في الحالة المحفوظة بالافتتاح (قبل أن يظهر شيء منها)، ثم يعيد التحميل كما تُستأنف المباراة. يعيد الإطار الجديد.
+async function arrangeTopics(stage, ids) {
+  await stage.evaluate(ids => {
+    const m = JSON.parse(localStorage.getItem('big-challenge.match')), s = m.round.state;
+    if (s.phase !== 'intro') throw new Error('arrangeTopics: الافتتاح وحده');
+    s.topics = [...ids.map(id => s.topics.find(t => t.id === id)).filter(Boolean), ...s.topics.filter(t => !ids.includes(t.id))];
+    localStorage.setItem('big-challenge.match', JSON.stringify(m));
+  }, ids);
+  await stage.reload();
+  await unlock(stage).catch(() => {});
+  return stageFrame(stage);
+}
+
+module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne, hideQr, auctionNamesShown, arrangeTopics };

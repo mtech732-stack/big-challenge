@@ -34,8 +34,10 @@ const length = text => [...String(text)].length;
 export const TARGETS = {
   letter: { easy: 20, medium: 20, hard: 20, tiebreak: 20 },
   'last-two': { easy: 20, medium: 20, hard: 20 },
-  auction: { easy: 10, medium: 10, hard: 10 },
-  ranking: { easy: 10, hard: 10 },
+  // والمزاد كذلك (المالك 3 نوفمبر 2026، ش8-أ/63): بنك واحد، وثلاثة مواضيع في الجولة منه.
+  auction: { topics: 30 },
+  // الترتيب بمستوى واحد (الوثيقة 1.15): بنك واحد، وقائمتان في الجولة منه.
+  ranking: { lists: 20 },
   wheel: { challenges: 7, luck: 3 },
 };
 
@@ -131,8 +133,9 @@ export function checkContent({ index, packs, wheel }) {
     if (HINDI_DIGITS.test(obj[key])) err(where, `الحقل «${key}» فيه أرقام هندية (٠١٢)، والمطلوب أرقام إنجليزية`);
     return true;
   };
+  // levels null: نمط بلا مستوى (الترتيب، 1.15)، فـ level في ملف قديم يُقبل ويُهمل.
   const checkCommon = (where, item, levels) => {
-    if (!levels.includes(item.level)) err(where, `المستوى «${item.level}» غير صحيح، المسموح: ${levels.join(' · ')}`);
+    if (levels && !levels.includes(item.level)) err(where, `المستوى «${item.level}» غير صحيح، المسموح: ${levels.join(' · ')}`);
     if (!DOMAINS.includes(item.domain)) err(where, `المجال «${item.domain}» غير صحيح، المسموح: ${DOMAINS.join(' · ')}`);
     if (item.page !== undefined && !(Number.isInteger(item.page) && item.page > 0)) err(where, '«page» رقم صفحة صحيح موجب');
   };
@@ -259,7 +262,7 @@ export function checkContent({ index, packs, wheel }) {
 
         if (mode === 'auction') {
           allowOnly(where, item, ['id', 'level', 'topic', 'open', 'items', 'sources', 'domain', 'page', 'note']);
-          checkCommon(where, item, LEVELS);
+          checkCommon(where, item, null);
           checkNote(where, item);
           if (item.open !== undefined && item.open !== true) err(where, '«open» إما true وإما يُحذف');
           // معيار القبول في «note»: ما يُقبل من خارج القائمة وما لا يُقبل. لازم في المفتوح، ومطلوب في غيره.
@@ -281,12 +284,12 @@ export function checkContent({ index, packs, wheel }) {
             }
             item.items.forEach((it, k) => { if (typeof it?.name === 'string' && length(it.name) > ITEM_MAX) warn(`${where} · العنصر ${k + 1}`, `«${it.name}» ${length(it.name)} حرفاً، والحد ${ITEM_MAX} (شارة العنصر)`); });
           }
-          tally(mode, item.level);
+          tally(mode, 'topics');
         }
 
         if (mode === 'ranking') {
           allowOnly(where, item, ['id', 'level', 'title', 'asOf', 'items', 'sources', 'domain', 'page', 'note']);
-          checkCommon(where, item, ['easy', 'hard']);
+          checkCommon(where, item, null);
           checkNote(where, item);
           needText(where, item, 'title');
           if (typeof item.title === 'string') {
@@ -304,7 +307,7 @@ export function checkContent({ index, packs, wheel }) {
             item.items.forEach((it, k) => { if (typeof it?.name === 'string' && length(it.name) > ITEM_MAX) warn(`${where} · العنصر ${k + 1}`, `«${it.name}» ${length(it.name)} حرفاً، والحد ${ITEM_MAX} (خانة اللوحة)`); });
           }
           checkSources(where, item.sources, 2);
-          tally(mode, item.level);
+          tally(mode, 'lists');
         }
       });
       // تقاطع الترتيب والمزاد: تنبيه بالزوج، واللعبة لا تجمعهما في مباراة واحدة (js/play.js).
