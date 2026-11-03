@@ -1,5 +1,5 @@
 // النمط الرابع: «الترتيب» (القسم 5.6 من الوثيقة، وتصميمه design/ranking.md). وحدة تلتزم «عقد الوحدة».
-// قائمتان في الجولة: الأولى سهلة، والثانية صعبة. كل قائمة 13 خانة ظاهرة الأرقام مخفية المحتوى: 1 إلى 10 مرتبة، و11 و12 و13 فخاخ.
+// قائمتان في الجولة من بنك واحد بمستوى واحد، لا تتكرر إحداهما (الوثيقة 1.15، المالك 3 نوفمبر 2026). كل قائمة 13 خانة ظاهرة الأرقام مخفية المحتوى: 1 إلى 10 مرتبة، و11 و12 و13 فخاخ.
 // إجابة لكل فريق بالتتابع، 15 ثانية لكل إجابة. والتحكيم مباشر (الوثيقة 5.6، 1.7، design/s8.md 3): ينقر المقدّم رقم الخانة التي قالها الفريق،
 // فتنكشف بلونه ويأخذ نقاطها رقمها، ثم الدور للخصم. والفخ يُخصم رقمه (−11 و−12 و−13)، ولا ينزل الرصيد تحت الصفر.
 // و«خطأ» (ليس في القائمة أو مكرر): صفر، ويختار المقدّم لون الدور التالي. وانتهاء وقت الإجابة ينقل الدور إلى الخصم بعدّاده.
@@ -16,7 +16,8 @@ export const LIST_SECONDS = 150;
 export const SLOTS = 10;
 // خصم الفخ رقمه بالسالب (5.6 و12، 1.5).
 export const PENALTY = { 11: 11, 12: 12, 13: 13 };
-const LEVELS = ['easy', 'hard'];
+// القوائم في الجولة. ولا مستوى في الترتيب (1.15): حقل level في ملف قديم يُقبل ويُهمل.
+const LISTS = 2;
 const other = team => (team === 1 ? 2 : 1);
 
 // الحالات: intro افتتاح الجولة · read ظهور القائمة قبل «ابدأ» · ask عدّاد صاحب الدور (يُنقر رقم الخانة، أو «خطأ»)
@@ -31,12 +32,13 @@ const other = team => (team === 1 ? 2 : 1);
 function setup({ content, first, seen = [], avoid = [], rng = Math.random }) {
   const bank = content?.lists ?? [];
   const picked = [];
-  for (const l of LEVELS) {
-    const near = bank.filter(x => picked.some(p => sharedItems(p, x) >= CLASH_MIN)).map(x => x.id);
-    const t = freshFirst(besides(bank.filter(x => x.level === l), [...avoid, ...near]), seen, 1, rng)[0];
+  for (let k = 0; k < LISTS; k++) {
+    const rest = bank.filter(x => !picked.some(p => p.id === x.id));
+    const near = rest.filter(x => picked.some(p => sharedItems(p, x) >= CLASH_MIN)).map(x => x.id);
+    const t = freshFirst(besides(rest, [...avoid, ...near]), seen, 1, rng)[0];
     if (t) picked.push(t);
   }
-  const lists = picked.map(t => ({ id: t.id, level: t.level, title: t.title, items: t.items.map(x => ({ name: x.name, alts: x.alts ?? [] })) }));
+  const lists = picked.map(t => ({ id: t.id, title: t.title, items: t.items.map(x => ({ name: x.name, alts: x.alts ?? [] })) }));
   return { first, lists, index: 0, phase: 'intro', team: first, got: lists.map(() => []), verdict: null, at: null, listEnds: null, timeup: false, starts: [first, other(first)] };
 }
 
