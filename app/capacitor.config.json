@@ -1,0 +1,9 @@
+{
+  "appId": "com.mtech732.bigchallenge",
+  "appName": "التحدي الكبير",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0E2C86"
+  }
+}
