@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auctionNamesShown } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auctionNamesShown, arrangeTopics } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/'; // الرابط العادي: المزاد في MODES منذ اكتمال ش4
@@ -22,9 +22,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auction
   const longest = real.topics.reduce((a, t) => (t.items.length > a.items.length ? t : a));
   const MIN = 10;
   const shortNames = [...longest.items].sort((a, b) => [...a.name].length - [...b.name].length).slice(0, 2 * MIN);
-  const shortTopic = (k, level) => ({ ...longest, id: `short-${k}`, level, topic: `قائمة قصيرة ${k}`, items: shortNames.slice((k - 1) * MIN, k * MIN) });
+  const shortTopic = k => ({ ...longest, id: `short-${k}`, topic: `قائمة قصيرة ${k}`, items: shortNames.slice((k - 1) * MIN, k * MIN) });
   const keep = ['قائمة قصيرة 1', 'قائمة قصيرة 2', longest.topic];
-  const bank = { ...real, topics: [shortTopic(1, 'easy'), shortTopic(2, 'medium'), { ...longest, level: 'hard' }] };
+  const bank = { ...real, topics: [shortTopic(1), shortTopic(2), longest] };
   const SHORT = MIN, LONGEST = longest.items.length;
 
   const context = await browser.newContext({ viewport: { width: 1366, height: 768 }, serviceWorkers: 'block' });
@@ -113,7 +113,12 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auction
   await wait(2700);
   await cmd(audience, 'begin');
   await audience.waitForSelector('.scr.show[data-s="intro"]', { timeout: 5000 });
+  // ولا مستوى (ش8-أ/63): الثلاثة من البنك بترتيب عشوائي، فتُرتّب في الافتتاح قبل أن يظهر منها شيء.
   let s = await st();
+  check('المواضيع الثلاثة من البنك، مختلفة', s.topics.length === 3 && [...s.topics.map(t => t.topic)].sort().join('،') === [...keep].sort().join('،'));
+  audience = await arrangeTopics(stage, bank.topics.map(t => t.id));
+  await audience.waitForSelector('.scr.show[data-s="intro"]', { timeout: 5000 });
+  s = await st();
   const first = Math.random() < 0.5 ? 1 : 2, win = first;
   check(`المواضيع: قائمتان قصيرتان (${SHORT}) ثم أطول قائمة (${LONGEST})`, s.topics.map(t => t.topic).join('،') === keep.join('،'));
   await cmd(audience, 'act:show');

@@ -1,5 +1,5 @@
 // اختبار آلي لوحدة «الترتيب» (js/modes/ranking.js) بالتحكيم المباشر (الوثيقة 5.6، 1.7، design/s8.md 3)، دون متصفح:
-// قائمتان سهلة ثم صعبة، والعدّاد 15 ثانية، ونقر رقم الخانة يكشفها بنقاط رقمها ثم لحظة 1.2 ثانية والدور للخصم، والفخ يُخصم رقمه دون الصفر،
+// قائمتان من بنك واحد بلا مستوى (الوثيقة 1.15)، والعدّاد 15 ثانية، ونقر رقم الخانة يكشفها بنقاط رقمها ثم لحظة 1.2 ثانية والدور للخصم، والفخ يُخصم رقمه دون الصفر،
 // و«خطأ» ثم لون الدور التالي، وانتهاء الوقت ينقل الدور، ونهاية القائمة بالعشرة أو «أنهِ القائمة» أو انقضاء دقيقتين ونصف.
 // ولا اسم ولا مستوى على الجمهور قبل نهاية القائمة، والفخاخ ظاهرة الأرقام. وحدود الفاحص الثلاثة.
 const fs = require('fs');
@@ -16,7 +16,7 @@ const { reporter } = require('./helpers.cjs');
   const R = await import(path.join(root, 'js/round.js'));
   const { check, finish } = reporter();
   const bank = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/ranking.json'), 'utf8'));
-  // قائمتان سهلتان وقائمتان صعبتان، لذاكرة الأسئلة.
+  // أربع قوائم في بنك واحد، لذاكرة الأسئلة.
   const twice = { ...bank, lists: [...bank.lists, ...bank.lists.map(l => ({ ...l, id: l.id + '-b' }))] };
   const content = { 'ranking.json': twice };
   let seed = 7;
@@ -32,10 +32,30 @@ const { reporter } = require('./helpers.cjs');
   check('في الرابط العادي ورابط المعاينة: الترتيب مبنيّ في موضعه الرابع، ولا معاينة بعد اليوم', pv[3]?.id === 'ranking' && !pv[3].preview && normal[3]?.id === 'ranking' && !normal.some(m => m.preview));
 
   // الإعداد
-  let round = R.startRound(ranking, { content, first: 2, rng });
+  // ولا مستوى (1.15): القائمتان من بنك واحد. والثانية في ذاكرة الأسئلة فتأتي ثانية، كي يُعرف ما يُلعب أولاً.
+  let round = R.startRound(ranking, { content: { 'ranking.json': bank }, first: 2, seen: [bank.lists[1].id], rng });
   let s = round.state;
-  check('قائمتان: سهلة ثم صعبة، كلٌّ 13 عنصراً بصيغها', s.lists.length === 2 && s.lists[0].level === 'easy' && s.lists[1].level === 'hard'
-    && s.lists.every(l => l.items.length === 13) && s.lists[0].items[1].alts.length === 1);
+  check('قائمتان من بنك واحد بلا مستوى: الأولى ثم الثانية، كلٌّ 13 عنصراً بصيغها', s.lists.length === 2 && s.lists.map(l => l.id).join() === bank.lists.map(l => l.id).join()
+    && s.lists.every(l => !('level' in l)) && s.lists.every(l => l.items.length === 13) && s.lists[0].items[1].alts.length === 1);
+  check('بنك واحد: القائمتان مختلفتان دائماً، ومن أي موضع في البنك (500 مرة بأربع قوائم)', (() => {
+    const at = new Set();
+    const ok = [...Array(500)].every(() => { const [x, y] = ranking.used(ranking.setup({ content: twice, first: 1, rng })); at.add(x); at.add(y); return x && y && x !== y; });
+    return ok && at.size === 4; })());
+  // مباراة محفوظة قبل 1.15 (قائمتاها بحقل level): تُستأنف وتُلعب، والحقل لا يُقرأ.
+  check('حالة محفوظة قديمة بـ level في قائمتيها: تُستأنف، فتظهر القائمة وتُكشف خانة', (() => {
+    let r = R.startRound(ranking, { content: { 'ranking.json': bank }, first: 1, seen: [bank.lists[1].id], rng });
+    r = { ...r, state: { ...r.state, lists: r.state.lists.map((l, k) => ({ ...l, level: k ? 'hard' : 'easy' })) } };
+    r = R.act(ranking, R.act(ranking, R.act(ranking, r, 'show'), 'start'), 'item:3');
+    return r.state.phase === 'hit' && r.scores[1] === 3 && ranking.audience(r.state).slots[2].name === bank.lists[0].items[2].name && !('level' in ranking.audience(r.state)); })());
+  check('بنك من قائمة واحدة: قائمة واحدة لا تتكرر', ranking.setup({ content: { lists: [bank.lists[0]] }, first: 1, rng }).lists.length === 1);
+  // ملف قديم بحقل level (easy وhard): يُقبل ويُهمل، فتُختار قائمتان مختلفتان من أيٍّ منهما.
+  // والقائمة ونسختها (-b) تتقاطعان فلا تجتمعان، فالمستوى للأوليين easy وللنسختين hard، كي يمكن أن تجتمع قائمتان من مستوى واحد.
+  const leveled = { ...twice, lists: twice.lists.map((l, k) => ({ ...l, level: k < 2 ? 'easy' : 'hard' })) };
+  check('ملف قديم بـ level: يُهمل، فقد تأتي قائمتان من المستوى نفسه، ولا level في الحالة', (() => {
+    let same = false;
+    const ok = [...Array(300)].every(() => { const st = ranking.setup({ content: leveled, first: 1, rng }); const [x, y] = st.lists.map(l => leveled.lists.find(z => z.id === l.id).level);
+      if (x === y) same = true; return st.lists.length === 2 && st.lists[0].id !== st.lists[1].id && st.lists.every(l => !('level' in l)); });
+    return ok && same; })());
   check('ذاكرة الأسئلة: لا تتكرر قائمة حتى يُستنفد البنك', (() => {
     const used = ranking.used(s);
     const again = ranking.setup({ content: twice, first: 1, seen: used, rng });
@@ -71,7 +91,7 @@ const { reporter } = require('./helpers.cjs');
     && leaks(a).length === 1 && ranking.actions(s).length === 0);
   const pr = ranking.presenter(s);
   check('نص الباركود: العنوان والقائمة كلها (13) بصيغها، والفخاخ مُعلَّمة', pr.title === s.lists[0].title && pr.items.length === 13 && pr.items[10].trap && !pr.items[9].trap
-    && pr.items[1].alts.length === 1 && s.lists[0].level === 'easy');
+    && pr.items[1].alts.length === 1);
   check('«turn» قبل 1.2 ثانية يُهمل', at('turn', T + 100).state.phase === 'hit' && HIT_MS === 1200);
   at('turn', T + HIT_MS);
   check('بعد اللحظة: دور الأول، وعدّاده 15 ثانية، ولا حكم', s.phase === 'ask' && s.team === 1 && round.timer?.seconds === ANSWER_SECONDS && a.verdict === null && a.turn === 1);
@@ -115,10 +135,10 @@ const { reporter } = require('./helpers.cjs');
   check('النقاط بقدر الرتب: 55 للعشرة', sum === 55);
   check('نهاية القائمة: القائمة كلها بأسمائها والفخاخ، و«كُشف 10 من 10»، والحدّ في المنتصف', a.slots.every(x => x.name) && a.found === 10 && a.of === 10 && a.turn === 0 && !a.verdict);
   check('نهاية القائمة الأولى: «القائمة 2»', ranking.actions(s).map(x => x.label).join() === 'القائمة 2');
-  // القائمة الثانية (الصعبة): تظهر مباشرة، ويبدأها الفريق الآخر.
+  // القائمة الثانية: تظهر مباشرة، ويبدأها الفريق الآخر.
   go('next');
   check('القائمة الثانية: تظهر مباشرة بعنوانها، و«القائمة 2 من 2»، والدور للآخر (بدأ الثاني الأولى)', s.phase === 'read' && s.index === 1 && a.n === 2 && a.title === s.lists[1].title
-    && s.team === 1 && a.turn === 1 && s.lists[1].level === 'hard' && a.slots.every(x => !x.name && !x.team) && !round.timer && a.listClock && !a.listEnds);
+    && s.team === 1 && a.turn === 1 && s.lists[1].id === bank.lists[1].id && a.slots.every(x => !x.name && !x.team) && !round.timer && a.listClock && !a.listEnds);
   check('القائمة الثانية: بدأ كلاً منهما فريق (الثاني ثم الأول)', s.starts.join() === '2,1');
   const s1 = round.scores[1];
   go('start'); go('item:10');
@@ -258,15 +278,16 @@ const { reporter } = require('./helpers.cjs');
     !ranking.used(ranking.setup({ content: realFiles['ranking.json'], first: 1, avoid: avoidR, rng })).some(id => avoidR.includes(id))));
   check('المزاد بعد الترتيب: لا يُختار الموضوع المتقاطع أبداً (200 مرة)', [...Array(200)].every(() =>
     !auctionMode.used(auctionMode.setup({ content: realFiles['auction.json'], first: 1, avoid: avoidA, rng })).some(id => avoidA.includes(id))));
-  check('إن لم يبقَ في المستوى غير المتروك اختير منه، فلا تقف الجولة', (() => {
+  check('إن لم يبقَ غير المتروك اختير منه، فلا تقف الجولة ولا تتكرر قائمة', (() => {
     const one = { mode: 'ranking', lists: [bank.lists[0], bank.lists[1]] };
-    return ranking.setup({ content: one, first: 1, avoid: [bank.lists[0].id], rng }).lists.length === 2;
+    const st = ranking.setup({ content: one, first: 1, avoid: [bank.lists[0].id], rng }); return st.lists.length === 2 && st.lists[0].id !== st.lists[1].id;
   })());
   const clashing = new Set(rankingPairs.map(c => key(c.ranking, c.with)));
   check(`القائمتان في الجولة لا تشتركان في 7 فأكثر (500 مرة بالبنك الحقيقي، ${clashing.size} زوجاً)`, [...Array(500)].every(() => {
     const [a, b] = ranking.used(ranking.setup({ content: realFiles['ranking.json'], first: 1, rng }));
     return !clashing.has(key(a, b)) && !clashing.has(key(b, a)); }));
-  const pairEasy = rankingPairs.map(c => [c.ranking, c.with].find(id => lists.find(l => l.id === id).level === 'easy')).find(Boolean);
+  // بلا مستوى (1.15): أي قائمة من زوج متقاطع.
+  const pairEasy = rankingPairs[0]?.ranking;
   check(`وتُختار القائمة المتقاطعة حين لا تتقاطع مع الأخرى (${short(pairEasy ?? '')} تظهر)`, !!pairEasy && [...Array(300)].some(() => ranking.used(ranking.setup({ content: realFiles['ranking.json'], first: 1, rng })).includes(pairEasy)));
 
   // (2) سؤال حرف معيّن أو آخر حرفين تساوي إجابته (أو صيغتها) عنصراً من قائمة (تدقيق ش5 «رابعاً»): بالتسوية نفسها.
@@ -290,10 +311,11 @@ const { reporter } = require('./helpers.cjs');
   // في المباراة: المزاد أولاً بموضوعه المتقاطع، ثم الترتيب لا يختار قائمته.
   const M = await import(path.join(root, 'js/match.js'));
   const matchOf = () => ({ ...M.newMatch({ pack: 'general', method: 'short' }), step: 'face', picks: [{ mode: 'auction', by: 1 }, { mode: 'ranking', by: 2 }], winner: 1 });
-  // الموضوع: أول موضوع متقاطع مع قائمة في البنك نفسه (لا اسم ثابت)، وحده في مستواه فيُختار حتماً.
+  // الموضوع: أول موضوع متقاطع مع قائمة في البنك نفسه (لا اسم ثابت)، ومعه موضوعان فقط فيُختار حتماً.
   const clash = auctionPairs[0], topic = byId(clash.with);
   const crossed = auctionPairs.filter(c => c.with === topic.id).map(c => c.ranking);
-  const onlyOne = { ...realFiles['auction.json'], topics: realFiles['auction.json'].topics.filter(t => t.level !== topic.level || t.id === topic.id) };
+  // ولا مستوى في المزاد (ش8-أ/63): بنك من ثلاثة مواضيع هو أحدها، فيُختار حتماً.
+  const onlyOne = { ...realFiles['auction.json'], topics: [topic, ...realFiles['auction.json'].topics.filter(t => t.id !== topic.id).slice(0, 2)] };
   const fixedFiles = { ...realFiles, 'auction.json': onlyOne };
   let m = P.startNext(matchOf(), { modes: [auctionMode, ranking], content: fixedFiles, rng });
   check(`المباراة تحفظ ما اختير فيها (used، «${short(topic.id)}»)`, m.used.includes(topic.id) && m.used.length === 3);

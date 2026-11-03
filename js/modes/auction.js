@@ -1,5 +1,5 @@
 // النمط الثالث: «المزاد» (القسم 5.5 من الوثيقة، وتصميمه design/auction.md). وحدة تلتزم «عقد الوحدة».
-// 3 مواضيع في الجولة: سهل ثم متوسط ثم صعب.
+// 3 مواضيع في الجولة من بنك واحد بلا مستوى (المالك 3 نوفمبر 2026، ش8-أ/63).
 // المزايدة حرة فوق رقم الخصم (قاعدة المالك، 5.5 وdesign/auction.md 3.0): لكل فريق رقم يبدأ 0، ونقرة زره «raise:1» ترفعه
 // إلى max(رقمه + 1، رقم خصمه + 1)، فأول نقرة رقم الخصم + 1 وكل نقرة بعدها +1، ولا تساوي. ولا يتجاوز رقمٌ طول القائمة.
 // و«ابدأ» يرسي المزاد على الأعلى ويبدأ عدّاد الوفاء فوراً. وطول القائمة لا يظهر للجمهور أبداً.
@@ -18,7 +18,8 @@ export const OPEN_MAX = 99;
 // بها يرشّح المقدّم القائمة، ولا يتكرر نص واحد من خارجها.
 export const norm = s => String(s).normalize('NFKD').replace(/[ً-ٰٟـ]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي')
   .replace(/ؤ/g, 'و').replace(/ئ/g, 'ي').replace(/(^|\s)ال/g, '$1').replace(/\s+/g, ' ').trim();
-const LEVELS = ['easy', 'medium', 'hard'];
+// المواضيع في الجولة (5.5).
+const TOPICS = 3;
 const other = team => (team === 1 ? 2 : 1);
 
 // الحالات: intro افتتاح الجولة · bid المزايدة · fulfil عدّاد الملتزم (over: انقضى وقته ولم يُكشف) · revealed كُشفت القائمة
@@ -32,9 +33,9 @@ const other = team => (team === 1 ? 2 : 1);
 // avoid: مواضيع تتقاطع مع قائمة ترتيب اختيرت في المباراة (تدقيق ش5 «ثالثاً»).
 function setup({ content, first, seen = [], avoid = [], rng = Math.random }) {
   const bank = content?.topics ?? [];
-  const topics = LEVELS.map((l, i) => {
-    const t = freshFirst(besides(bank.filter(x => x.level === l), avoid), seen, 1, rng)[0];
-    return t && { id: t.id, level: t.level, topic: t.topic, open: !!t.open, items: t.items.map(x => ({ name: x.name, alts: x.alts ?? [] })), note: t.note ?? '' };
+  // ثلاثة مواضيع مختلفة من بنك واحد بلا مستوى (المالك 3 نوفمبر 2026، ش8-أ/63). وحقل level في ملف قديم يُقبل ويُهمل.
+  const topics = freshFirst(besides(bank, avoid, TOPICS), seen, TOPICS, rng).map(t => {
+    return t && { id: t.id, topic: t.topic, open: !!t.open, items: t.items.map(x => ({ name: x.name, alts: x.alts ?? [] })), note: t.note ?? '' };
   }).filter(Boolean);
   return { first, topics, index: 0, phase: 'intro', team: 0, nums: [0, 0], commit: null, said: [], results: topics.map(() => null) };
 }
