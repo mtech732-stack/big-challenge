@@ -1,2 +1,5 @@
 # صور الاختبارات إن حُفظت في الجذر
 /*.png
+
+# أدوات الاختبارات (tests/package.json)
+/tests/node_modules/
