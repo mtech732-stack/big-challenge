@@ -21,8 +21,10 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
   for (const LONGRUN of [false, true]) {
     const tag = LONGRUN ? 'الأطول · ' : '';
     const NAMES = LONGRUN ? ['فريق النخبة الذهبي', 'نجوم المستقبل معاً'] : ['الصقور', 'النجوم'];
-    const first = LONGRUN ? { ...STRESS, level: 'easy' } : EPL;
-    const bank = { mode: 'ranking', lists: [first, { ...(LONGRUN ? EPL : STRESS), level: 'hard' }] };
+    // القائمة الأولى هي ما يُلعب في هذه المرحلة: الدوري، أو أطول المحتوى. ولا مستوى في الترتيب (1.15): القائمتان من بنك واحد،
+    // والثانية في ذاكرة الأسئلة (big-challenge.seen) فتُختار الأولى أولاً، ثم الثانية لأنها الباقية وحدها.
+    const first = LONGRUN ? STRESS : EPL, second = LONGRUN ? EPL : STRESS;
+    const bank = { mode: 'ranking', lists: [first, second] };
     const items = first.items;
     const allNames = [...new Set(bank.lists.flatMap(l => l.items.flatMap(i => [i.name, ...(i.alts ?? [])])))];
 
@@ -35,7 +37,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     });
     const stage = await context.newPage();
     await stage.goto(base);
-    await stage.evaluate(() => localStorage.clear());
+    await stage.evaluate(id => { localStorage.clear(); localStorage.setItem('big-challenge.seen', JSON.stringify([id])); }, second.id);
     await stage.reload();
     await unlock(stage);
     const frame = await stageFrame(stage);
@@ -70,6 +72,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     await wait(2700);
     await tap('begin');
     await frame.waitForSelector('.scr.show[data-s="intro"]', { timeout: 6000 });
+    check(tag + 'بنك واحد بلا مستوى (1.15): القائمتان مختلفتان، والثانية في الذاكرة فتأتي ثانية', (await st()).lists.map(l => l.id).join() === `${first.id},${second.id}` && (await st()).lists.every(l => !('level' in l)));
 
     // ظهور القائمة: الباركود أولاً (design/s8.md 2)، ثم «ابدأ» وحده، والفخاخ 11–13 ظاهرة الأرقام بلا اسم.
     await tap('act:show');

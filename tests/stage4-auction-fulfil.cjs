@@ -17,11 +17,12 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auction
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const LONG = ['فريق النخبة الذهبي', 'نجوم المستقبل معاً'];
 
-  // بنك تجريبي بأطول محتوى (design/auction.md 3): الموضوع السهل 32 حرفاً بقائمة أفريقيا (54)، والباقي من البنك.
+  // بنك تجريبي بأطول محتوى (design/auction.md 3): الموضوع الأول 32 حرفاً بقائمة أفريقيا (54)، والباقي من البنك.
   const real = JSON.parse(fs.readFileSync(path.join(__dirname, '../content/packs/general/auction.json'), 'utf8'));
   const africa = real.topics.find(t => t.items.length > 30);
   const TOPIC = 'أشياء تجدها في حقيبة طالب مدرسة';
-  const bank = { mode: 'auction', topics: [{ ...africa, id: 'test-auction-long', level: 'easy', topic: TOPIC }, ...real.topics.filter(t => t.level !== 'easy')] };
+  const bank = { mode: 'auction', topics: [{ ...africa, id: 'test-auction-long', topic: TOPIC }].concat(real.topics) };
+  // ولا مستوى (ش8-أ/63): الموضوع التجريبي أول ما يُلعب لأن غيره في ذاكرة الأسئلة (big-challenge.seen)، فهو وحده لم يظهر.
   const items = bank.topics[0].items;
   const N = 30;
 
@@ -40,7 +41,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auction
   const stage = await context.newPage();
   await stage.setViewportSize({ width: 1920, height: 1080 });
   await stage.goto(base);
-  await stage.evaluate(() => localStorage.clear());
+  await stage.evaluate(ids => { localStorage.clear(); localStorage.setItem('big-challenge.seen', JSON.stringify(ids)); }, real.topics.map(t => t.id));
   await stage.reload();
   await unlock(stage);
   let audience = await stageFrame(stage);
