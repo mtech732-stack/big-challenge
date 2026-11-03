@@ -1037,9 +1037,19 @@
           "title": "La Liga 2025-26 final table — lastseason.co.uk",
           "url": "http://lastseason.co.uk/la-liga/2025-26/",
           "accessed": "2026-11-03"
+        },
+        {
+          "title": "Athletic Club (12th, 45 pts) — Scores and Stats (ESPN data)",
+          "url": "https://www.scoresandstats.com/teams/soccer/la-liga/athletic-club/",
+          "accessed": "2026-11-03"
+        },
+        {
+          "title": "LaLiga 25/26 clasificación — Eurosport (Sevilla 13º, Alavés 14º, Elche 15º)",
+          "url": "https://www.eurosport.es/futbol/la-liga/2025-2026/clasificacion-actualizada-hoy-lider-champions-europa-league-conference-descenso-puntos-diferencias-madrid-barcelona_sto23228231/story.shtml",
+          "accessed": "2026-11-03"
         }
       ],
-      "note": "النقاط: برشلونة 94 · ريال مدريد 86 · فياريال 72 · أتلتيكو 69 · بيتيس 60 · سيلتا 54 · خيتافي 51 · رايو 50 · فالنسيا 49 · سوسيداد 46 وإسبانيول 46 (بالمواجهات المباشرة) · أتلتيك بلباو 45 · إشبيلية 43، ثم ألافيس 43 وإلتشي 43 (14 و15). وأول 11 في المصدرين، والمركزان 12 و13 في الثاني وحده، فيراجعهما المدقّق. و«مدريد» وحدها خطأ لأنها لا تعيّن نادياً."
+      "note": "النقاط: برشلونة 94 · ريال مدريد 86 · فياريال 72 · أتلتيكو 69 · بيتيس 60 · سيلتا 54 · خيتافي 51 · رايو 50 · فالنسيا 49 · سوسيداد 46 وإسبانيول 46 (بالمواجهات المباشرة) · أتلتيك بلباو 45 · إشبيلية 43، ثم ألافيس 43 وإلتشي 43 (14 و15). وأتلتيك 12 بنقاطه 45 في lastseason وScores and Stats، وإشبيلية 13 ثم ألافيس وإلتشي في lastseason ويوروسبورت. و«مدريد» وحدها خطأ لأنها لا تعيّن نادياً."
     },
     {
       "id": "general-ranking-022",
@@ -1326,8 +1336,8 @@
           "accessed": "2026-11-03"
         },
         {
-          "title": "Template:2025–26 Ligue 1 table — Wikipedia",
-          "url": "https://en.wikipedia.org/wiki/Template:2025%E2%80%9326_Ligue_1_table",
+          "title": "Ligue 1 2025-2026 standings — TNT Sports",
+          "url": "https://www.tntsports.co.uk/football/ligue-1/2025-2026/standings.shtml",
           "accessed": "2026-11-03"
         }
       ],
@@ -1336,12 +1346,12 @@
     {
       "id": "general-ranking-025",
       "domain": "sports",
-      "title": "دوري روشن السعودي 2024–2025 · الترتيب النهائي",
-      "asOf": "2025-05",
+      "title": "دوري روشن السعودي 2025–2026 · الترتيب النهائي",
+      "asOf": "2026-05",
       "items": [
         {
           "rank": 1,
-          "name": "الاتحاد"
+          "name": "النصر"
         },
         {
           "rank": 2,
@@ -1349,7 +1359,7 @@
         },
         {
           "rank": 3,
-          "name": "النصر"
+          "name": "الأهلي"
         },
         {
           "rank": 4,
@@ -1357,11 +1367,11 @@
         },
         {
           "rank": 5,
-          "name": "الأهلي"
+          "name": "الاتحاد"
         },
         {
           "rank": 6,
-          "name": "الشباب"
+          "name": "التعاون"
         },
         {
           "rank": 7,
@@ -1369,19 +1379,19 @@
         },
         {
           "rank": 8,
-          "name": "التعاون"
+          "name": "نيوم"
         },
         {
           "rank": 9,
-          "name": "الخلود"
+          "name": "الحزم"
         },
         {
           "rank": 10,
-          "name": "الفتح"
+          "name": "الفيحاء"
         },
         {
           "rank": 11,
-          "name": "الرياض"
+          "name": "الفتح"
         },
         {
           "rank": 12,
@@ -1389,22 +1399,32 @@
         },
         {
           "rank": 13,
-          "name": "الفيحاء"
+          "name": "الشباب"
         }
       ],
       "sources": [
         {
-          "title": "Saudi Arabia 2024/25 — RSSSF",
-          "url": "https://www.rsssf.org/tabless/saud2025.html",
+          "title": "Template:2025–26 Saudi Pro League table — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Template:2025%E2%80%9326_Saudi_Pro_League_table",
           "accessed": "2026-11-03"
         },
         {
-          "title": "Saudi Pro League Table 2024/25 — Betfred Insights",
-          "url": "https://insights.betfred.com/football/competitions/saudi-arabia/saudi-pro-league/table/2024-2025/",
+          "title": "جدول ترتيب دوري روشن السعودي 2025-2026 — Goal",
+          "url": "https://www.goal.com/ar-sa/%D8%A3%D8%AE%D8%A8%D8%A7%D8%B1/%D8%AC%D8%AF%D9%88%D9%84-%D8%AA%D8%B1%D8%AA%D9%8A%D8%A8-%D8%AF%D9%88%D8%B1%D9%8A-%D8%B1%D9%88%D8%B4%D9%86-%D8%A7%D9%84%D8%B3%D8%B9%D9%88%D8%AF%D9%8A-2025-2026/blt5a13c6c4143f7b94",
+          "accessed": "2026-11-03"
+        },
+        {
+          "title": "Al Khaleej 0-1 Al Fateh, 29 Dec 2025 — ESPN",
+          "url": "https://global.espn.com/football/match/_/gameId/756005/al-fateh-al-khaleej",
+          "accessed": "2026-11-03"
+        },
+        {
+          "title": "Al Fateh 1-0 Al Khaleej, 24 Apr 2026 — Sports Mole",
+          "url": "https://www.sportsmole.co.uk/football/saudi-pro-league/al-fateh-vs-al-khaleej_game_246397.html",
           "accessed": "2026-11-03"
         }
       ],
-      "note": "النقاط: الاتحاد 83 · الهلال 75 · النصر 70 · القادسية 68 · الأهلي 67 · الشباب 60 · الاتفاق 50 · التعاون 45 · الخلود 40 · الفتح 39 · الرياض 38 · الخليج 37 · الفيحاء 36، ثم ضمك 35 (14). ولا تعادل في النقاط. واخترت موسم 2024–2025 لأن موسم 2025–2026 فيه تعادل الفتح والخليج على 37 في المركزين 11 و12 والمصادر تعكسهما."
+      "note": "النقاط: النصر 86 · الهلال 84 · الأهلي 81 · القادسية 77 · الاتحاد 55 · التعاون 53 · الاتفاق 50 · نيوم 45 · الحزم 42 · الفيحاء 38 · الفتح 37 والخليج 37 · الشباب 35، ثم الخلود 33 (14). وتعادل الفتح والخليج يحسمه نظام الرابطة بالمواجهات المباشرة قبل فارق الأهداف، والفتح فاز في المباراتين 1–0، فهو الحادي عشر. وبعض الجداول (BeSoccer وFootballDatabase وGoal) تقدّم الخليج بفارق الأهداف، وهو خطأ في الحسم."
     },
     {
       "id": "general-ranking-027",
@@ -1473,13 +1493,13 @@
       ],
       "sources": [
         {
-          "title": "FIFA men's world ranking after the 2026 World Cup — Visual Capitalist",
-          "url": "https://www.visualcapitalist.com/",
+          "title": "Spain top men's world rankings after second World Cup — FIFA",
+          "url": "https://inside.fifa.com/fifa-rankings/world-ranking/men/news/spain-top-mens-world-rankings-after-second-world-cup",
           "accessed": "2026-11-03"
         },
         {
-          "title": "FIFA rankings update July 2026 — MLS",
-          "url": "https://www.mlssoccer.com/",
+          "title": "FIFA World Rankings: Every team post-2026 World Cup — MLS",
+          "url": "https://www.mlssoccer.com/news/fifa-world-rankings-every-team-post-2026-world-cup",
           "accessed": "2026-11-03"
         }
       ],
@@ -1549,22 +1569,32 @@
       ],
       "sources": [
         {
-          "title": "World Population Prospects 2024 — UN DESA",
-          "url": "https://population.un.org/wpp/",
+          "title": "Population of Jordan (UN WPP 2024) — StatisticsTimes",
+          "url": "https://statisticstimes.com/demographics/country/jordan-population.php",
           "accessed": "2026-11-03"
         },
         {
-          "title": "Population Pyramids of the World 2025 (UN WPP)",
-          "url": "https://www.populationpyramid.net/",
+          "title": "Iraq population (UN WPP 2024) — StatisticsTimes",
+          "url": "https://www.statisticstimes.com/demographics/country/iraq-population.php",
+          "accessed": "2026-11-03"
+        },
+        {
+          "title": "Algeria Population (UN WPP 2024) — Worldometer",
+          "url": "https://www.worldometers.info/world-population/algeria-population/",
+          "accessed": "2026-11-03"
+        },
+        {
+          "title": "United Arab Emirates Population Pyramid 2025 (UN WPP 2024)",
+          "url": "https://www.populationpyramid.net/united-arab-emirates/2025/",
           "accessed": "2026-11-03"
         }
       ],
-      "note": "بالمليون تقريباً: مصر 118 · السودان 52 · الجزائر 47.4 · العراق 47.0 · اليمن 41.8 · المغرب 38.4 · السعودية 34.6 · سوريا 25.6 · الصومال 19.7 · تونس 12.3 · الأردن 11.5 · الإمارات 11.3 · ليبيا 7.4، ثم لبنان (14). والجزائر والعراق متقاربتان، وكذلك الأردن والإمارات، والمعتمد تقدير الأمم المتحدة وحده لا الإحصاءات الوطنية. ويراجع المدقّق الأرقام بمصدر ثانٍ."
+      "note": "بالمليون تقريباً: مصر 118 · السودان 52 · الجزائر 47.4 · العراق 47.0 · اليمن 41.8 · المغرب 38.4 · السعودية 34.6 · سوريا 25.6 · الصومال 19.7 · تونس 12.3 · الأردن 11.5 · الإمارات 11.3 · ليبيا 7.4، ثم لبنان (14). والجزائر والعراق متقاربتان، وكذلك الأردن والإمارات، والمعتمد تقدير الأمم المتحدة 2024 لمنتصف 2025 وحده لا الإحصاءات الوطنية: الجزائر 47,435,312 والعراق 47,020,774، والأردن 11,520,684 والإمارات 11,346,000."
     },
     {
       "id": "general-ranking-030",
       "domain": "sports",
-      "title": "دوري أبطال أوروبا · أكثر الأندية فوزاً حتى 2026",
+      "title": "أكثر أندية دوري الأبطال ألقاباً · حتى 2026، والأسبق عند التساوي",
       "asOf": "2026-05",
       "items": [
         {
