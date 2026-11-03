@@ -17,11 +17,13 @@ const { reporter } = require('./helpers.cjs');
   const read = f => JSON.parse(fs.readFileSync(path.join(root, 'content/packs/general', f), 'utf8'));
   const bank = read('auction.json');
   const content = { 'letter.json': read('letter.json'), 'last-two.json': read('last-two.json'), 'auction.json': bank };
-  // بنك ثابت لما بعد الإعداد، لا يعتمد على اسم قائمة بعينها: من أطول قائمة في البنك (فوق 20) قائمتان قصيرتان 12 (سهل) و10 (متوسط)،
-  // ثم أطول قائمة كما هي (صعب). كلها مغلقة (بلا open) ليُختبر سقف القائمة، والمفتوح في قسمه.
+  // بنك ثابت لما بعد الإعداد، لا يعتمد على اسم قائمة بعينها: من أطول قائمة في البنك (فوق 20) قائمتان قصيرتان 12 و10،
+  // ثم أطول قائمة كما هي. كلها مغلقة (بلا open) ليُختبر سقف القائمة، والمفتوح في قسمه. ولا مستوى (ش8-أ/63):
+  // المواضيع الثلاثة بترتيب عشوائي، فيرتّبها الاختبار في الحالة بالافتتاح (inOrder) ليعرف ما يُلعب أولاً.
   const longest = bank.topics.reduce((x, t) => (t.items.length > x.items.length ? t : x));
-  const cut = (n, level, k) => ({ ...longest, open: undefined, id: `fixed-${k}`, level, topic: `قائمة ${n}`, items: longest.items.slice(0, n) });
-  const small = { ...bank, topics: [cut(12, 'easy', 1), cut(10, 'medium', 2), { ...longest, open: undefined, level: 'hard' }] };
+  const cut = (n, k) => ({ ...longest, open: undefined, id: `fixed-${k}`, topic: `قائمة ${n}`, items: longest.items.slice(0, n) });
+  const small = { ...bank, topics: [cut(12, 1), cut(10, 2), { ...longest, open: undefined }] };
+  const inOrder = r => ({ ...r, state: { ...r.state, topics: small.topics.map(t => r.state.topics.find(x => x.id === t.id)).filter(Boolean) } });
   const L = longest.items.length;
   const fixed = { ...content, 'auction.json': small };
   let seed = 11;
@@ -37,17 +39,35 @@ const { reporter } = require('./helpers.cjs');
   check('في الرابط العادي: مبنيّ في موضعه الثالث (والترتيب بعده مبنيّ منذ ش5)', ids(draft).startsWith('letter,last-two,auction') && !draft[2].preview && !draft.some(m => m.preview));
   check('حزمة تستثنيه لا يظهر فيها', !matchModes({ modes: [...MODES, ...DRAFTS], pack: { excludeModes: ['auction'] }, files: content }).some(m => m.id === 'auction'));
 
-  // الإعداد: 3 مواضيع، سهل ثم متوسط ثم صعب، ولا مفتتح (3.0).
+  // الإعداد: 3 مواضيع مختلفة من بنك واحد بلا مستوى (ش8-أ/63)، ولا مفتتح (3.0).
   const s0 = auction.setup({ content: bank, first: 2, seen: [], rng });
-  check('3 مواضيع: سهل ثم متوسط ثم صعب', s0.topics.map(t => t.level).join(',') === 'easy,medium,hard');
+  check('3 مواضيع مختلفة من البنك، بلا level في الحالة', s0.topics.length === 3 && new Set(s0.topics.map(t => t.id)).size === 3 && s0.topics.every(t => !('level' in t)));
+  check('بنك واحد: ثلاثة مختلفة دائماً، ومن أي موضع في البنك (500 مرة)', (() => {
+    const at = new Set();
+    const ok = [...Array(500)].every(() => { const u = auction.used(auction.setup({ content: bank, first: 1, rng })); u.forEach(x => at.add(x)); return u.length === 3 && new Set(u).size === 3; });
+    return ok && at.size === bank.topics.length; })());
+  // ملف قديم بحقل level (سهل ومتوسط وصعب): يُقبل ويُهمل، فقد يأتي موضوعان من المستوى نفسه.
+  const leveled = { ...bank, topics: bank.topics.map((t, k) => ({ ...t, level: ['easy', 'medium', 'hard'][k % 3] })) };
+  check('ملف قديم بـ level: يُهمل، فقد يأتي موضوعان من المستوى نفسه، ولا level في الحالة', (() => {
+    let same = false;
+    const ok = [...Array(300)].every(() => { const st = auction.setup({ content: leveled, first: 1, rng }); const lv = st.topics.map(t => leveled.topics.find(x => x.id === t.id).level);
+      if (new Set(lv).size < 3) same = true; return st.topics.length === 3 && st.topics.every(t => !('level' in t)); });
+    return ok && same; })());
+  // مباراة محفوظة قبل 1.16 (مواضيعها بحقل level): تُستأنف وتُلعب، والحقل لا يُقرأ ولا يصل إلى الجمهور.
+  check('حالة محفوظة قديمة بـ level في مواضيعها: تُستأنف، فيُزايَد ويُكشف ويُحكم', (() => {
+    let r = R.startRound(auction, { content: { 'auction.json': bank }, first: 1, rng });
+    r = { ...r, state: { ...r.state, topics: r.state.topics.map((t, k) => ({ ...t, level: ['easy', 'medium', 'hard'][k] })) } };
+    r = R.act(auction, r, 'show'); r = R.act(auction, R.act(auction, r, 'raise:1'), 'start'); r = R.act(auction, R.act(auction, r, 'reveal'), 'ok');
+    return r.state.phase === 'decided' && r.scores[1] === 1 && !JSON.stringify(auction.audience(r.state)).includes('"level"'); })());
+  check('بنك من موضوعين: موضوعان لا يتكرران', (() => { const st = auction.setup({ content: { topics: bank.topics.slice(0, 2) }, first: 1, rng }); return st.topics.length === 2 && st.topics[0].id !== st.topics[1].id; })());
   check('لا مفتتح ولا رقم: الحدّ في المنتصف، والرقمان 0', s0.team === 0 && s0.nums.join(',') === '0,0' && s0.topics.every(t => !('opener' in t)));
   check('كل موضوع بقائمته المرجعية كاملة من الملف', s0.topics.every(t => t.items.length === bank.topics.find(b => b.id === t.id).items.length));
-  const seenEasy = bank.topics.filter(t => t.level === 'easy').map(t => t.id).slice(0, -1);
-  check('ذاكرة الأسئلة: الموضوع السهل مما لم يظهر', !seenEasy.includes(auction.setup({ content: bank, first: 1, seen: seenEasy, rng }).topics[0].id));
+  const seenMost = bank.topics.map(t => t.id).slice(0, -3);
+  check('ذاكرة الأسئلة: الثلاثة مما لم يظهر ما بقي منه ثلاثة', auction.used(auction.setup({ content: bank, first: 1, seen: seenMost, rng })).every(id => !seenMost.includes(id)));
   check('used: المواضيع الثلاثة', auction.used(s0).length === 3);
 
   // الافتتاح.
-  const start = first => R.startRound(auction, { content: fixed, scores: { 1: 0, 2: 0 }, first, rng });
+  const start = first => inOrder(R.startRound(auction, { content: fixed, scores: { 1: 0, 2: 0 }, first, rng }));
   let r = start(1);
   let a = auction.audience(r.state);
   check('الافتتاح: «زايدوا على ما تقدرون على ذكره، ثم أوفوا» و«ثلاثة مواضيع»، والحدّ في المنتصف', a.screen === 'intro' && a.rule === 'زايدوا على ما تقدرون على ذكره، ثم أوفوا' && a.starter === 'ثلاثة مواضيع' && a.turn === 0);
@@ -119,7 +139,7 @@ const { reporter } = require('./helpers.cjs');
   }
   check(`لا قائمة ولا عنصر ولا مستوى على الجمهور قبل الكشف، والطول في المزايدة وحدها (${leaks.join(',') || 'سليم'})`, leaks.length === 0);
   const pr = auction.presenter(states[3].state);
-  check('نص الباركود: الموضوع والقائمة بصيغها، والمستوى في الحالة', pr.topic === states[3].state.topics[0].topic && pr.items.length === states[3].state.topics[0].items.length && pr.items.every(x => Array.isArray(x.alts)) && states[3].state.topics[0].level === 'easy');
+  check('نص الباركود: الموضوع والقائمة بصيغها، ولا مستوى في الحالة (ش8-أ/63)', pr.topic === states[3].state.topics[0].topic && pr.items.length === states[3].state.topics[0].items.length && pr.items.every(x => Array.isArray(x.alts)) && !('level' in states[3].state.topics[0]));
   check('المواضيع الثلاثة بلا نتيجة، والأول الآن', states[3].state.results.length === 3 && states[3].state.results.every(x => x === null) && states[3].state.index === 0);
   check('الافتتاح والنهاية: لا قائمة في نص الباركود', auction.presenter(states[0].state).items.length === 0);
 
@@ -247,14 +267,14 @@ const { reporter } = require('./helpers.cjs');
   // الموضوع المفتوح (open): لا تحدّ المزايدةَ قائمتُه، و«صحيح · +1» لما قيل من خارجها، وبعد الحكم يرى الجمهور ما قيل فقط.
   {
     const ob = JSON.parse(JSON.stringify(small));
-    ob.topics.filter(t => t.level === 'easy').forEach(t => { t.open = true; });
+    ob.topics[0].open = true;
     const oc = { ...content, 'auction.json': ob };
-    let o = R.startRound(auction, { content: oc, first: 1, rng });
+    let o = inOrder(R.startRound(auction, { content: oc, first: 1, rng }));
     o = R.act(auction, o, 'show');
     const len = o.state.topics[0].items.length;
     for (let k = 0; k < len + 3; k++) o = R.act(auction, o, k % 2 ? 'raise:2' : 'raise:1');
     check(`المفتوح: المزايدة فوق طول القائمة (${len}) بلا إغلاق`, Math.max(...o.state.nums) === len + 3 && auction.actions(o.state).some(x => x.id === 'raise') && o.state.topics[0].open);
-    let capped = R.startRound(auction, { content: oc, first: 1, rng });
+    let capped = inOrder(R.startRound(auction, { content: oc, first: 1, rng }));
     capped = R.act(auction, capped, 'show');
     for (let k = 0; k < OPEN_MAX + 5; k++) capped = R.act(auction, capped, 'raise:1');
     check(`والحدّ الأعلى ${OPEN_MAX}`, capped.state.nums[0] === OPEN_MAX);

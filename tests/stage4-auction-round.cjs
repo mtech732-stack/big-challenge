@@ -22,7 +22,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   const real = JSON.parse(fs.readFileSync(path.join(__dirname, '../content/packs/general/auction.json'), 'utf8'));
   const africa = real.topics.reduce((x, t) => (t.items.length > x.items.length ? t : x));
   const TOPIC = 'أشياء تجدها في حقيبة طالب مدرسة';
-  const bank = { mode: 'auction', topics: [{ ...africa, open: undefined, id: 'test-auction-long', level: 'easy', topic: TOPIC, items: africa.items.slice(0, 12) }, ...real.topics.filter(t => t.level !== 'easy')] };
+  const bank = { mode: 'auction', topics: [{ ...africa, open: undefined, id: 'test-auction-long', topic: TOPIC, items: africa.items.slice(0, 12) }].concat(real.topics) };
+  // ولا مستوى (ش8-أ/63): الموضوع التجريبي أول ما يُلعب لأن غيره في ذاكرة الأسئلة (big-challenge.seen)، فهو وحده لم يظهر.
   const names = [...bank.topics[0].items, ...africa.items].flatMap(i => [i.name, ...(i.alts ?? [])]);
 
   const context = await browser.newContext({ viewport: { width: 1366, height: 768 }, serviceWorkers: 'block' });
@@ -35,7 +36,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   const stage = await context.newPage();
   await stage.setViewportSize({ width: 1920, height: 1080 });
   await stage.goto(base);
-  await stage.evaluate(() => localStorage.clear());
+  await stage.evaluate(ids => { localStorage.clear(); localStorage.setItem('big-challenge.seen', JSON.stringify(ids)); }, real.topics.map(t => t.id));
   await stage.reload();
   await unlock(stage);
   let audience = await stageFrame(stage);
