@@ -8,10 +8,8 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, qrRead, qrReadMatrix } = require('./helpers.cjs');
-// القارئ المستقل zxing (helpers.cjs qrRead). وإن لم يوجد طُبع ذلك، وسقطت فحوص الفكّ وحدها.
-const reader = qrRead(new Uint8ClampedArray(1), 1) !== null;
-if (!reader) console.log('تنبيه: القارئ المستقل @zxing/library غير موجود، فلا فحص فكّ');
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, qrRead, qrReadMatrix, qrReader } = require('./helpers.cjs');
+// القارئ المستقل zxing (helpers.cjs qrRead). وإن غاب فوجوده فحص مخفق، وفحوص الفكّ كلها تُخفق معه (ش8-أ/66)، فيخرج الملف أحمر.
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/';
@@ -51,13 +49,22 @@ if (!reader) console.log('تنبيه: القارئ المستقل @zxing/library
   check(`أطول موضوع في البنك (${biggest.id.slice(-3)}، ${N} عنصراً): الأسماء كلها في الرمز (${Buffer.byteLength(longText)} بايت)، والصيغ ${Q.fits(withAlts) ? 'معها لأنها تتسع' : 'محذوفة كلها لأنها لا تتسع'}`,
     N > 0 && longLines.length === N + 1 && longLines.slice(1).every((l, i) => l.startsWith(longList.items[i].name)) && Q.fits(longText)
     && (Q.fits(withAlts) ? longText === withAlts : longLines.slice(1).every((l, i) => l === longList.items[i].name)));
-  if (reader) {
+  check('القارئ المستقل @zxing/library موجود (npm ci --prefix tests، بنسخة tests/package.json)', qrReader());
+  {
     const m = Q.qrMatrix(longText);
     check(`أطول موضوع (${N}): الرمز (v${(m.n - 17) / 4}، الوحدة على الشاشة ${m.unit}) يُفكّ كاملاً حرفاً حرفاً بقارئ مستقل`, qrReadMatrix(m) === longText);
     // ورمز كل موضوع مزاد وكل قائمة ترتيب في البنكين يُفكّ ويطابق نصه، فيُكتشف رمز لا يُقرأ قبل أن يصل إلى المالك (ش8-أ/65).
     const unread = all.filter(x => qrReadMatrix(Q.qrMatrix(x.text)) !== x.text).map(x => `${x.id.slice(-3)}:v${(x.n - 17) / 4}`);
     const versions = [...new Set(all.map(x => (x.n - 17) / 4))].sort((a, b) => a - b);
-    check(`رموز البنكين كلها (${all.length}) تُفكّ مطابقة لنصها بقارئ مستقل (الإصدارات ${versions.join('، ')})${unread.length ? ' · لا يُفكّ: ' + unread.join('، ') : ''}`, unread.length === 0);
+    check(`رموز البنكين كلها (${all.length}) تُفكّ مطابقة لنصها بقارئ مستقل (الإصدارات ${versions.join('، ')})${unread.length ? ' · لا يُفكّ: ' + unread.join('، ') : ''}`, qrReader() && unread.length === 0);
+    // والقارئ يرفض الرمز التالف: رمز من الإصدار 23 (أو أقرب إصدار إليه في البنك) بعد قلب نحو عُشر وحداته في نصفه الأسفل، فوق ما يصلحه التصحيح.
+    // فنجاح الفكّ فوق لا يأتي من قارئ يقبل كل شيء.
+    const v23 = all.reduce((a, b) => (Math.abs((b.n - 17) / 4 - 23) < Math.abs((a.n - 17) / 4 - 23) ? b : a));
+    const mm = Q.qrMatrix(v23.text), damaged = { ...mm, dark: (r, c) => (r > mm.n / 2 && (r * 7 + c * 13) % 5 === 0) ? !mm.dark(r, c) : mm.dark(r, c) };
+    const flipped = [...Array(mm.n)].reduce((k, _, r) => k + [...Array(mm.n)].filter((_, c) => damaged.dark(r, c) !== mm.dark(r, c)).length, 0);
+    const back = qrReadMatrix(damaged);
+    check(`الرمز التالف لا يُفكّ (${v23.id.slice(-3)}، v${(mm.n - 17) / 4}، قُلبت ${flipped} وحدة من ${mm.n * mm.n})، والسليم نفسه يُفكّ`,
+      qrReader() && qrReadMatrix(mm) === v23.text && back !== null && back !== v23.text);
   }
 
   // ===== 2. بنافذة واحدة =====
@@ -104,7 +111,7 @@ if (!reader) console.log('تنبيه: القارئ المستقل @zxing/library
   };
   // القماش كما رُسم (بلا حاشية) في صورة رمادية بحاشية 4 وحدات، ثم يفكّه zxing.
   const decode = q => {
-    if (!reader) return null;
+    if (!qrReader()) return null;
     const pad = q.unit * 4, w = q.w + pad * 2, lum = new Uint8ClampedArray(w * w).fill(255);
     for (let y = 0; y < q.w; y++) for (let x = 0; x < q.w; x++) lum[(y + pad) * w + x + pad] = q.data[(y * q.w + x) * 4];
     return qrRead(lum, w);
@@ -126,7 +133,7 @@ if (!reader) console.log('تنبيه: القارئ المستقل @zxing/library
     let q = await qrOf(frame);
     const text = aText(t);
     check(`المزاد: يظهر تلقائياً مع الموضوع، ويطابق نصه (${q.bytes} بايت، الوحدة ${q.unit})`, q.shown && q.bytes === Buffer.byteLength(text) && matches(q, text));
-    if (reader) check('المزاد: يُفكّ بقارئ مستقل (zxing) مطابقاً حرفاً حرفاً', decode(q) === text);
+    check('المزاد: يُفكّ بقارئ مستقل (zxing) مطابقاً حرفاً حرفاً', decode(q) === text);
     check('المزاد والباركود ظاهر: «أخفِ الباركود» في البطاقة، ولا أزرار مزايدة، ولا مربع إعلان', (await near(frame)) === '' && await frame.isVisible('#aucCtl [data-cmd="qr:hide"]')
       && !(await frame.isVisible('#bids')) && !(await frame.isVisible('#box')));
     await look(frame, 'المزاد بالباركود');
@@ -178,7 +185,7 @@ if (!reader) console.log('تنبيه: القارئ المستقل @zxing/library
     const l = (await saved(stage)).round.state.lists[0], text = rText(l);
     const q = await qrOf(frame);
     check(`الترتيب: يظهر تلقائياً مع القائمة، ويطابق نصه (${q.bytes} بايت، الوحدة ${q.unit})`, q.shown && matches(q, text) && !(await frame.isVisible('#board')));
-    if (reader) check('الترتيب: يُفكّ بقارئ مستقل (zxing) مطابقاً', decode(q) === text);
+    check('الترتيب: يُفكّ بقارئ مستقل (zxing) مطابقاً', decode(q) === text);
     check('والباركود ظاهر: «أخفِ الباركود» تحت العنوان، ولا «ابدأ»', (await near(frame)) === '' && await frame.isVisible('#rnkCtl [data-cmd="qr:hide"]'));
     await look(frame, 'الترتيب بالباركود بأطول اسمين');
     await stage.screenshot({ path: path.join(shots, 's8-qr-ranking-long.png') });
