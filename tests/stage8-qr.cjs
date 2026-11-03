@@ -1,16 +1,17 @@
 // اختبار آلي لباركود الإجابات (الوثيقة 7.1، design/s8.md 2):
 // 1. النص لكل قوائم البنك (30 مزاداً و20 ترتيباً): الصيغة، والطول بالبايت، والوحدة. ويطبع أطول نص (حدّ الطول، البند 13 في docs/audits/ش8.md).
 // 2. بنافذة واحدة: يظهر تلقائياً في بداية سؤال المزاد وقائمة الترتيب لا في غيرهما، و«أخفِ الباركود» يخفيه، و«الباركود» يعيده،
-//    ويبقى كما هو بعد إعادة التحميل. والرمز المرسوم يطابق نصه وحدة وحدة، ويُفكّ بقارئ مستقل (jsQR) إن وُجد.
+//    ويبقى كما هو بعد إعادة التحميل. والرمز المرسوم يطابق نصه وحدة وحدة، ويُفكّ بقارئ مستقل (zxing، ش8-أ/65).
+// ورمز كل موضوع وقائمة في البنكين يُفكّ ويطابق نصه.
 // وفحص التداخل والشبكة في كل حالة، ولا طلب شبكة لتوليده.
 // الاستعمال: node tests/stage8-qr.cjs [الرابط] [مجلد الصور]
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./helpers.cjs');
-
-let jsQR = null;
-try { jsQR = require('jsqr'); } catch {}
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, qrRead, qrReadMatrix } = require('./helpers.cjs');
+// القارئ المستقل zxing (helpers.cjs qrRead). وإن لم يوجد طُبع ذلك، وسقطت فحوص الفكّ وحدها.
+const reader = qrRead(new Uint8ClampedArray(1), 1) !== null;
+if (!reader) console.log('تنبيه: القارئ المستقل @zxing/library غير موجود، فلا فحص فكّ');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/';
@@ -50,12 +51,13 @@ try { jsQR = require('jsqr'); } catch {}
   check(`أطول موضوع في البنك (${biggest.id.slice(-3)}، ${N} عنصراً): الأسماء كلها في الرمز (${Buffer.byteLength(longText)} بايت)، والصيغ ${Q.fits(withAlts) ? 'معها لأنها تتسع' : 'محذوفة كلها لأنها لا تتسع'}`,
     N > 0 && longLines.length === N + 1 && longLines.slice(1).every((l, i) => l.startsWith(longList.items[i].name)) && Q.fits(longText)
     && (Q.fits(withAlts) ? longText === withAlts : longLines.slice(1).every((l, i) => l === longList.items[i].name)));
-  if (jsQR) {
-    const m = Q.qrMatrix(longText), u = 4, pad = 4 * u, w = m.n * u + pad * 2, d = new Uint8ClampedArray(w * w * 4).fill(255);
-    for (let r = 0; r < m.n; r++) for (let c = 0; c < m.n; c++) if (m.dark(r, c)) for (let y = 0; y < u; y++) for (let x = 0; x < u; x++) {
-      const k = ((pad + r * u + y) * w + pad + c * u + x) * 4; d[k] = d[k + 1] = d[k + 2] = 0; }
-    const got = jsQR(d, w, w);
-    check(`أطول موضوع (${N}): الرمز (v${(m.n - 17) / 4}، الوحدة على الشاشة ${m.unit}) يُفكّ كاملاً حرفاً حرفاً بقارئ مستقل`, !!got && new TextDecoder().decode(new Uint8Array(got.binaryData)) === longText);
+  if (reader) {
+    const m = Q.qrMatrix(longText);
+    check(`أطول موضوع (${N}): الرمز (v${(m.n - 17) / 4}، الوحدة على الشاشة ${m.unit}) يُفكّ كاملاً حرفاً حرفاً بقارئ مستقل`, qrReadMatrix(m) === longText);
+    // ورمز كل موضوع مزاد وكل قائمة ترتيب في البنكين يُفكّ ويطابق نصه، فيُكتشف رمز لا يُقرأ قبل أن يصل إلى المالك (ش8-أ/65).
+    const unread = all.filter(x => qrReadMatrix(Q.qrMatrix(x.text)) !== x.text).map(x => `${x.id.slice(-3)}:v${(x.n - 17) / 4}`);
+    const versions = [...new Set(all.map(x => (x.n - 17) / 4))].sort((a, b) => a - b);
+    check(`رموز البنكين كلها (${all.length}) تُفكّ مطابقة لنصها بقارئ مستقل (الإصدارات ${versions.join('، ')})${unread.length ? ' · لا يُفكّ: ' + unread.join('، ') : ''}`, unread.length === 0);
   }
 
   // ===== 2. بنافذة واحدة =====
@@ -84,7 +86,7 @@ try { jsQR = require('jsqr'); } catch {}
     const r = await frame.evaluate(() => window.__stageCheck());
     if (!r.ok) { layoutOk = false; fails.push(`${label}: ${r.problems.join('، ')}`); }
   };
-  // الرمز المرسوم: يطابق نصه وحدة وحدة (من القماش نفسه)، ويُفكّ بـ jsQR إن وُجد.
+  // الرمز المرسوم: يطابق نصه وحدة وحدة (من القماش نفسه)، ويُفكّ بقارئ مستقل (zxing) إن وُجد.
   const qrOf = async frame => frame.evaluate(() => {
     const c = document.querySelector('#qrbox canvas'), box = document.getElementById('qrbox');
     const x = c.getContext('2d').getImageData(0, 0, c.width, c.height);
@@ -100,12 +102,12 @@ try { jsQR = require('jsqr'); } catch {}
     }
     return true;
   };
+  // القماش كما رُسم (بلا حاشية) في صورة رمادية بحاشية 4 وحدات، ثم يفكّه zxing.
   const decode = q => {
-    if (!jsQR) return null;
-    const pad = q.unit * 4, w = q.w + pad * 2, d = new Uint8ClampedArray(w * w * 4).fill(255);
-    for (let y = 0; y < q.w; y++) for (let x = 0; x < q.w; x++) for (let k = 0; k < 4; k++) d[((y + pad) * w + x + pad) * 4 + k] = q.data[(y * q.w + x) * 4 + k];
-    const r = jsQR(d, w, w);
-    return r ? new TextDecoder().decode(new Uint8Array(r.binaryData)) : '';
+    if (!reader) return null;
+    const pad = q.unit * 4, w = q.w + pad * 2, lum = new Uint8ClampedArray(w * w).fill(255);
+    for (let y = 0; y < q.w; y++) for (let x = 0; x < q.w; x++) lum[(y + pad) * w + x + pad] = q.data[(y * q.w + x) * 4];
+    return qrRead(lum, w);
   };
   const near = frame => frame.$$eval('#near .cbtn', x => x.map(y => y.textContent.trim()).join(' | '));
 
@@ -124,7 +126,7 @@ try { jsQR = require('jsqr'); } catch {}
     let q = await qrOf(frame);
     const text = aText(t);
     check(`المزاد: يظهر تلقائياً مع الموضوع، ويطابق نصه (${q.bytes} بايت، الوحدة ${q.unit})`, q.shown && q.bytes === Buffer.byteLength(text) && matches(q, text));
-    if (jsQR) check('المزاد: يُفكّ بقارئ مستقل (jsQR) مطابقاً حرفاً حرفاً', decode(q) === text);
+    if (reader) check('المزاد: يُفكّ بقارئ مستقل (zxing) مطابقاً حرفاً حرفاً', decode(q) === text);
     check('المزاد والباركود ظاهر: «أخفِ الباركود» في البطاقة، ولا أزرار مزايدة، ولا مربع إعلان', (await near(frame)) === '' && await frame.isVisible('#aucCtl [data-cmd="qr:hide"]')
       && !(await frame.isVisible('#bids')) && !(await frame.isVisible('#box')));
     await look(frame, 'المزاد بالباركود');
@@ -176,7 +178,7 @@ try { jsQR = require('jsqr'); } catch {}
     const l = (await saved(stage)).round.state.lists[0], text = rText(l);
     const q = await qrOf(frame);
     check(`الترتيب: يظهر تلقائياً مع القائمة، ويطابق نصه (${q.bytes} بايت، الوحدة ${q.unit})`, q.shown && matches(q, text) && !(await frame.isVisible('#board')));
-    if (jsQR) check('الترتيب: يُفكّ بقارئ مستقل مطابقاً', decode(q) === text);
+    if (reader) check('الترتيب: يُفكّ بقارئ مستقل (zxing) مطابقاً', decode(q) === text);
     check('والباركود ظاهر: «أخفِ الباركود» تحت العنوان، ولا «ابدأ»', (await near(frame)) === '' && await frame.isVisible('#rnkCtl [data-cmd="qr:hide"]'));
     await look(frame, 'الترتيب بالباركود بأطول اسمين');
     await stage.screenshot({ path: path.join(shots, 's8-qr-ranking-long.png') });

@@ -138,4 +138,23 @@ async function arrangeTopics(stage, ids) {
   return stageFrame(stage);
 }
 
-module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne, hideQr, auctionNamesShown, arrangeTopics };
+// ش8-أ/65: قارئ مستقل للباركود، zxing (@zxing/library) الذي يتبع المواصفة كما تفعل كاميرات الهواتف.
+// لا jsQR: في جدوله للإصدار 23 مركز محاذاة خاطئ (74 بدل 78)، فلا يفكّ رموزاً سليمة من هذا الإصدار.
+// qrRead: صورة رمادية (بايت لكل نقطة، 0 أسود) ← النص، أو '' إن لم يُفكّ. وnull إن لم يوجد القارئ.
+let ZX = null;
+try { ZX = require('@zxing/library'); } catch {}
+// والصورة رمز نظيف وحده بحاشيته (PURE_BARCODE)، كما يرسمه الاختبار أو القماش: يُقرأ بشبكته مباشرة، لا بالبحث عن أنماط المحاذاة في صورة.
+function qrRead(lum, w, h = w) {
+  if (!ZX) return null;
+  const hints = new Map([[ZX.DecodeHintType.CHARACTER_SET, 'UTF-8'], [ZX.DecodeHintType.PURE_BARCODE, true]]);
+  try { return new ZX.QRCodeReader().decode(new ZX.BinaryBitmap(new ZX.HybridBinarizer(new ZX.RGBLuminanceSource(lum, w, h))), hints).getText(); } catch { return ''; }
+}
+// يرسم مصفوفة qrMatrix (js/qr.js) بوحدة u وحاشية 4 وحدات، ثم يفكّها.
+function qrReadMatrix(m, u = 4) {
+  const pad = 4 * u, w = m.n * u + pad * 2, lum = new Uint8ClampedArray(w * w).fill(255);
+  for (let r = 0; r < m.n; r++) for (let c = 0; c < m.n; c++) if (m.dark(r, c))
+    for (let y = 0; y < u; y++) lum.fill(0, (pad + r * u + y) * w + pad + c * u, (pad + r * u + y) * w + pad + c * u + u);
+  return qrRead(lum, w);
+}
+
+module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne, hideQr, auctionNamesShown, arrangeTopics, qrRead, qrReadMatrix };
