@@ -39,20 +39,23 @@ try { jsQR = require('jsqr'); } catch {}
   const small = all.filter(x => x.unit < 4);
   check(`كل قوائم البنك (${all.length}) تُرمَّز كاملة، والرمز داخل 520 بحاشية 3 وحدات${small.length ? ` (بوحدة أصغر من 4: ${small.map(x => `${x.id.slice(-3)}:${x.unit}`).join('، ')})` : ''}`,
     all.length === auctions.length + rankings.length && all.every(x => x.unit >= 1 && (x.n + 6) * x.unit <= 520));
-  // قائمة 193 (أطول قوائم المزاد المفتوح) من أسماء البنك نفسه: الأسماء كلها في الرمز، والصيغ تُحذف كلها إن لم تتسع معها.
-  const pool = [...new Map(auctions.flatMap(t => t.items).map(x => [x.name, { name: x.name, alts: x.alts ?? [] }])).values()];
-  const longList = { topic: 'قائمة طويلة', items: pool.slice(0, 193) };
+  // أطول موضوع مزاد حقيقي في البنك بالبايت بعد الترميز (بصيغه إن اتسعت): الأسماء كلها في الرمز، والصيغ تُحذف كلها إن لم تتسع معها.
+  // ويُختار بالطول لا بموضعه في الملف، فلا يتغير بترتيب البنك ولا بإضافة مواضيع (ش8-أ/64: أول 193 اسماً من البنك صارت 3007 بايت مع #367).
+  const fullText = t => [t.topic, ...t.items.map(x => x.name + (x.alts?.length ? ` (${x.alts.join('، ')})` : ''))].join('\n');
+  const biggest = auctions.reduce((a, b) => (Buffer.byteLength(fullText(b)) > Buffer.byteLength(fullText(a)) ? b : a));
+  const longList = { topic: biggest.topic, items: biggest.items.map(x => ({ name: x.name, alts: x.alts ?? [] })) };
+  const N = longList.items.length;
   const longText = Q.answersText('auction', longList), longLines = longText.split('\n');
   const withAlts = [longList.topic, ...longList.items.map(x => x.name + (x.alts.length ? ` (${x.alts.join('، ')})` : ''))].join('\n');
-  check(`قائمة ${longList.items.length}: الأسماء كلها في الرمز (${Buffer.byteLength(longText)} بايت)، والصيغ ${Q.fits(withAlts) ? 'معها لأنها تتسع' : 'محذوفة كلها لأنها لا تتسع'}`,
-    longList.items.length === 193 && longLines.length === 194 && longLines.slice(1).every((l, i) => l.startsWith(longList.items[i].name)) && Q.fits(longText)
+  check(`أطول موضوع في البنك (${biggest.id.slice(-3)}، ${N} عنصراً): الأسماء كلها في الرمز (${Buffer.byteLength(longText)} بايت)، والصيغ ${Q.fits(withAlts) ? 'معها لأنها تتسع' : 'محذوفة كلها لأنها لا تتسع'}`,
+    N > 0 && longLines.length === N + 1 && longLines.slice(1).every((l, i) => l.startsWith(longList.items[i].name)) && Q.fits(longText)
     && (Q.fits(withAlts) ? longText === withAlts : longLines.slice(1).every((l, i) => l === longList.items[i].name)));
   if (jsQR) {
     const m = Q.qrMatrix(longText), u = 4, pad = 4 * u, w = m.n * u + pad * 2, d = new Uint8ClampedArray(w * w * 4).fill(255);
     for (let r = 0; r < m.n; r++) for (let c = 0; c < m.n; c++) if (m.dark(r, c)) for (let y = 0; y < u; y++) for (let x = 0; x < u; x++) {
       const k = ((pad + r * u + y) * w + pad + c * u + x) * 4; d[k] = d[k + 1] = d[k + 2] = 0; }
     const got = jsQR(d, w, w);
-    check(`قائمة ${longList.items.length}: الرمز (v${(m.n - 17) / 4}، الوحدة على الشاشة ${m.unit}) يُفكّ كاملاً حرفاً حرفاً بقارئ مستقل`, !!got && new TextDecoder().decode(new Uint8Array(got.binaryData)) === longText);
+    check(`أطول موضوع (${N}): الرمز (v${(m.n - 17) / 4}، الوحدة على الشاشة ${m.unit}) يُفكّ كاملاً حرفاً حرفاً بقارئ مستقل`, !!got && new TextDecoder().decode(new Uint8Array(got.binaryData)) === longText);
   }
 
   // ===== 2. بنافذة واحدة =====
