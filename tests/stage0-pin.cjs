@@ -3,7 +3,7 @@ const { chromium } = require('playwright');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { TEST_PIN, testPinRecord, usePin, unlock, reporter } = require('./helpers.cjs');
+const { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/';
@@ -58,14 +58,16 @@ const { TEST_PIN, testPinRecord, usePin, unlock, reporter } = require('./helpers
   await page.reload();
   check('إعادة التحميل: يُطلب الرقم من جديد', await page.isVisible('#pin') && await page.isHidden('#app'));
 
-  // نافذة الجمهور المفتوحة مباشرة لا تتحكم بشيء ولا تتصل دون مقدّم دخل بالرقم.
+  // شاشة الجمهور المفتوحة مباشرة لا تتحكم بشيء ولا تتصل (الوثيقة 1.13: لا تتصل إلا بالصفحة التي تضمّها بعد الرقم).
   const direct = await context.newPage();
   await direct.goto(base + 'audience.html');
   await wait(2500);
-  check('نافذة الجمهور دون مقدّم داخل: «بانتظار المقدّم»', (await direct.textContent('#label')).includes('بانتظار المقدّم'));
+  check('شاشة الجمهور خارج الصفحة: «بانتظار المقدّم»', (await direct.textContent('#label')).includes('بانتظار المقدّم'));
+  check('ولا شاشة جمهور في الصفحة قبل الرقم', !(await page.$('#frame iframe')));
   await unlock(page);
-  await wait(2500);
-  check('بعد دخول المقدّم تتصل', (await page.getAttribute('#status', 'data-on')) === 'true');
+  await stageFrame(page);
+  await wait(1000);
+  check('بعد الرقم: شاشة الجمهور في الصفحة متصلة، والمفتوحة مباشرة باقية بانتظار المقدّم', (await direct.textContent('#label')).includes('بانتظار المقدّم'));
   await direct.close();
 
   // بلا إنترنت: يُقبل الرقم بآخر صورة محفوظة في المتصفح.

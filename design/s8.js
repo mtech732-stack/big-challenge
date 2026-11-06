@@ -7,21 +7,7 @@
   const el = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; };
   const btn = (label, kind = '') => el(`<button class="cbtn ${kind}">${label}</button>`);
 
-  // 1. المواجهة: «ابدأ المباراة» بنافذة واحدة، و«بنافذة واحدة» يُحذف من البطاقة، وزر الخيارات في آخر صف الزاوية
-  function face(open) {
-    const one = document.querySelector('.scr.face [data-cmd="single"]'); if (one) one.hidden = true;
-    let row = $('s8opts');
-    if (!row) { row = el('<div class="ctl-corner opts" id="s8opts" data-hud="زر الخيارات"></div>'); canvas.append(row); }
-    let opt = row.querySelector('.opt');
-    if (!opt) { opt = btn('', 'alt opt'); opt.setAttribute('aria-label', 'خيارات'); row.append(opt); }
-    opt.classList.toggle('open', !!open);
-    $('s8menu')?.remove();
-    if (open) {
-      const m = el('<div class="optmenu" id="s8menu" data-hud="قائمة الخيارات"></div>');
-      m.append(btn('ابدأ بنافذتين'));
-      canvas.append(m);
-    }
-  }
+  // 1. المواجهة: حُذف زر الخيارات وقائمته «ابدأ بنافذتين» بالوثيقة 1.13 (design/s8.md 1)، فلا تصوّر لها هنا
 
   // 2. الباركود: النص بصيغة s8.md 2.2، والرمز بمكتبة qrcode-generator (UTF-8، تصحيح L)، والوحدة عدد صحيح من النقاط
   function qr(text) {
@@ -92,5 +78,5 @@
     document.querySelectorAll('#band .ws').forEach(w => { const k = w.querySelector('span').textContent.trim(); if (face[k]) w.querySelector('b').textContent = face[k]; });
   }
 
-  window.S8 = { face, qr, unqr, reshow, board, near, turn, box, scores, band, placeNear };
+  window.S8 = { qr, unqr, reshow, board, near, turn, box, scores, band, placeNear };
 })();

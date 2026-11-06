@@ -269,7 +269,7 @@
     const m = document.createElement('div'); m.className = 'menu';
     m.innerHTML = '<h1>ش6 · شريط البونص · شاشة الجمهور</h1><table>' + Object.entries(STATES).map(([k, s]) =>
       `<tr><td>${esc(s.t)}</td><td><a href="?s=${k}">نافذتان</a></td><td><a href="?s=${k}&w=1">نافذة واحدة</a></td><td><a href="?s=${k}&long=1">أطول محتوى</a></td><td><a href="?s=${k}&w=1&long=1&check=1">الأطول بنافذة واحدة مع الفحص</a></td><td><a href="?s=${k}&anim=1">الحركة</a></td></tr>`).join('') +
-      '</table><p>التفصيل في design/wheel.md. ونافذة المقدّم في <a href="presenter-wheel.html">presenter-wheel.html</a>.</p>';
+      '</table><p>التفصيل في design/wheel.md. ونافذة المقدّم حُذفت بالوثيقة 1.13.</p>';
     document.body.append(m);
   } else {
     Promise.all(['700 32px Kufi', '900 104px Kufi'].map(f => document.fonts.load(f, 'شريط البونص 0123456789+'))).then(() => document.fonts.ready).then(() => {

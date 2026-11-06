@@ -1,17 +1,15 @@
 // اختبار آلي لباركود الإجابات (الوثيقة 7.1، design/s8.md 2):
 // 1. النص لكل قوائم البنك (30 مزاداً و20 ترتيباً): الصيغة، والطول بالبايت، والوحدة. ويطبع أطول نص (حدّ الطول، البند 13 في docs/audits/ش8.md).
 // 2. بنافذة واحدة: يظهر تلقائياً في بداية سؤال المزاد وقائمة الترتيب لا في غيرهما، و«أخفِ الباركود» يخفيه، و«الباركود» يعيده،
-//    ويبقى كما هو بعد إعادة التحميل. والرمز المرسوم يطابق نصه وحدة وحدة، ويُفكّ بقارئ مستقل (jsQR) إن وُجد.
-// 3. بنافذتين: يظهر على التلفاز، ويُخفى من نافذة المقدّم.
+//    ويبقى كما هو بعد إعادة التحميل. والرمز المرسوم يطابق نصه وحدة وحدة، ويُفكّ بقارئ مستقل (zxing، ش8-أ/65).
+// ورمز كل موضوع وقائمة في البنكين يُفكّ ويطابق نصه.
 // وفحص التداخل والشبكة في كل حالة، ولا طلب شبكة لتوليده.
 // الاستعمال: node tests/stage8-qr.cjs [الرابط] [مجلد الصور]
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, beginTwo } = require('./helpers.cjs');
-
-let jsQR = null;
-try { jsQR = require('jsqr'); } catch {}
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, qrRead, qrReadMatrix, qrReader } = require('./helpers.cjs');
+// القارئ المستقل zxing (helpers.cjs qrRead). وإن غاب فوجوده فحص مخفق، وفحوص الفكّ كلها تُخفق معه (ش8-أ/66)، فيخرج الملف أحمر.
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/';
@@ -27,7 +25,7 @@ try { jsQR = require('jsqr'); } catch {}
   const aText = t => Q.answersText('auction', { topic: t.topic, items: t.items.map(x => ({ name: x.name, alts: x.alts ?? [] })) });
   const rText = l => Q.answersText('ranking', { title: l.title, items: l.items.map((x, i) => ({ rank: i + 1, name: x.name, alts: x.alts ?? [], trap: i >= 10 })) });
   const sample = aText(auctions[0]).split('\n');
-  check(`المزاد: السطر الأول «الموضوع · العدد»، ثم عنصر في كل سطر بصيغه (${sample[0]})`, sample[0] === `${auctions[0].topic} · ${auctions[0].items.length}` && sample.length === auctions[0].items.length + 1);
+  check(`المزاد: السطر الأول الموضوع وحده بلا عدد (المالك)، ثم عنصر في كل سطر بصيغه (${sample[0]})`, sample[0] === auctions[0].topic && sample.length === auctions[0].items.length + 1);
   const rs = rText(rankings[0]).split('\n');
   check(`الترتيب: العنوان، ثم «1 · الاسم» للعشرة و«11 فخ · الاسم» للثلاثة (${rs[1]} … ${rs[11]})`, rs[0] === rankings[0].title && rs.length === 14 && rs[1].startsWith('1 · ' + rankings[0].items[0].name) && rs[11] === `11 فخ · ${rankings[0].items[10].name}`);
   const withAlt = auctions.flatMap(t => t.items).find(x => x.alts?.length);
@@ -36,7 +34,38 @@ try { jsQR = require('jsqr'); } catch {}
   const longest = all.reduce((a, b) => (b.bytes > a.bytes ? b : a));
   const longestRank = all.filter(x => rankings.some(l => l.id === x.id)).reduce((a, b) => (b.bytes > a.bytes ? b : a));
   console.log(`حدّ الطول: أطول نص في البنك ${longest.id} ${longest.bytes} بايت، v${(longest.n - 17) / 4}، ${longest.n} وحدة، الوحدة ${longest.unit} · وأطول ترتيب ${longestRank.id} ${longestRank.bytes} بايت، الوحدة ${longestRank.unit}`);
-  check(`كل قوائم البنك (${all.length}) تُرمَّز، والوحدة لا تقل عن 4، والرمز داخل 520 بحاشية 3 وحدات`, all.length === auctions.length + rankings.length && all.every(x => x.unit >= 4 && (x.n + 6) * x.unit <= 520));
+  // القوائم كاملة دائماً (المالك، 30 أكتوبر 2026): تُقبل الوحدة الأصغر من 4 حين تلزم.
+  const small = all.filter(x => x.unit < 4);
+  check(`كل قوائم البنك (${all.length}) تُرمَّز كاملة، والرمز داخل 520 بحاشية 3 وحدات${small.length ? ` (بوحدة أصغر من 4: ${small.map(x => `${x.id.slice(-3)}:${x.unit}`).join('، ')})` : ''}`,
+    all.length === auctions.length + rankings.length && all.every(x => x.unit >= 1 && (x.n + 6) * x.unit <= 520));
+  // أطول موضوع مزاد حقيقي في البنك بالبايت بعد الترميز (بصيغه إن اتسعت): الأسماء كلها في الرمز، والصيغ تُحذف كلها إن لم تتسع معها.
+  // ويُختار بالطول لا بموضعه في الملف، فلا يتغير بترتيب البنك ولا بإضافة مواضيع (ش8-أ/64: أول 193 اسماً من البنك صارت 3007 بايت مع #367).
+  const fullText = t => [t.topic, ...t.items.map(x => x.name + (x.alts?.length ? ` (${x.alts.join('، ')})` : ''))].join('\n');
+  const biggest = auctions.reduce((a, b) => (Buffer.byteLength(fullText(b)) > Buffer.byteLength(fullText(a)) ? b : a));
+  const longList = { topic: biggest.topic, items: biggest.items.map(x => ({ name: x.name, alts: x.alts ?? [] })) };
+  const N = longList.items.length;
+  const longText = Q.answersText('auction', longList), longLines = longText.split('\n');
+  const withAlts = [longList.topic, ...longList.items.map(x => x.name + (x.alts.length ? ` (${x.alts.join('، ')})` : ''))].join('\n');
+  check(`أطول موضوع في البنك (${biggest.id.slice(-3)}، ${N} عنصراً): الأسماء كلها في الرمز (${Buffer.byteLength(longText)} بايت)، والصيغ ${Q.fits(withAlts) ? 'معها لأنها تتسع' : 'محذوفة كلها لأنها لا تتسع'}`,
+    N > 0 && longLines.length === N + 1 && longLines.slice(1).every((l, i) => l.startsWith(longList.items[i].name)) && Q.fits(longText)
+    && (Q.fits(withAlts) ? longText === withAlts : longLines.slice(1).every((l, i) => l === longList.items[i].name)));
+  check('القارئ المستقل @zxing/library موجود (npm ci --prefix tests، بنسخة tests/package.json)', qrReader());
+  {
+    const m = Q.qrMatrix(longText);
+    check(`أطول موضوع (${N}): الرمز (v${(m.n - 17) / 4}، الوحدة على الشاشة ${m.unit}) يُفكّ كاملاً حرفاً حرفاً بقارئ مستقل`, qrReadMatrix(m) === longText);
+    // ورمز كل موضوع مزاد وكل قائمة ترتيب في البنكين يُفكّ ويطابق نصه، فيُكتشف رمز لا يُقرأ قبل أن يصل إلى المالك (ش8-أ/65).
+    const unread = all.filter(x => qrReadMatrix(Q.qrMatrix(x.text)) !== x.text).map(x => `${x.id.slice(-3)}:v${(x.n - 17) / 4}`);
+    const versions = [...new Set(all.map(x => (x.n - 17) / 4))].sort((a, b) => a - b);
+    check(`رموز البنكين كلها (${all.length}) تُفكّ مطابقة لنصها بقارئ مستقل (الإصدارات ${versions.join('، ')})${unread.length ? ' · لا يُفكّ: ' + unread.join('، ') : ''}`, qrReader() && unread.length === 0);
+    // والقارئ يرفض الرمز التالف: رمز من الإصدار 23 (أو أقرب إصدار إليه في البنك) بعد قلب نحو عُشر وحداته في نصفه الأسفل، فوق ما يصلحه التصحيح.
+    // فنجاح الفكّ فوق لا يأتي من قارئ يقبل كل شيء.
+    const v23 = all.reduce((a, b) => (Math.abs((b.n - 17) / 4 - 23) < Math.abs((a.n - 17) / 4 - 23) ? b : a));
+    const mm = Q.qrMatrix(v23.text), damaged = { ...mm, dark: (r, c) => (r > mm.n / 2 && (r * 7 + c * 13) % 5 === 0) ? !mm.dark(r, c) : mm.dark(r, c) };
+    const flipped = [...Array(mm.n)].reduce((k, _, r) => k + [...Array(mm.n)].filter((_, c) => damaged.dark(r, c) !== mm.dark(r, c)).length, 0);
+    const back = qrReadMatrix(damaged);
+    check(`الرمز التالف لا يُفكّ (${v23.id.slice(-3)}، v${(mm.n - 17) / 4}، قُلبت ${flipped} وحدة من ${mm.n * mm.n})، والسليم نفسه يُفكّ`,
+      qrReader() && qrReadMatrix(mm) === v23.text && back !== null && back !== v23.text);
+  }
 
   // ===== 2. بنافذة واحدة =====
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
@@ -64,7 +93,7 @@ try { jsQR = require('jsqr'); } catch {}
     const r = await frame.evaluate(() => window.__stageCheck());
     if (!r.ok) { layoutOk = false; fails.push(`${label}: ${r.problems.join('، ')}`); }
   };
-  // الرمز المرسوم: يطابق نصه وحدة وحدة (من القماش نفسه)، ويُفكّ بـ jsQR إن وُجد.
+  // الرمز المرسوم: يطابق نصه وحدة وحدة (من القماش نفسه)، ويُفكّ بقارئ مستقل (zxing) إن وُجد.
   const qrOf = async frame => frame.evaluate(() => {
     const c = document.querySelector('#qrbox canvas'), box = document.getElementById('qrbox');
     const x = c.getContext('2d').getImageData(0, 0, c.width, c.height);
@@ -80,12 +109,12 @@ try { jsQR = require('jsqr'); } catch {}
     }
     return true;
   };
+  // القماش كما رُسم (بلا حاشية) في صورة رمادية بحاشية 4 وحدات، ثم يفكّه zxing.
   const decode = q => {
-    if (!jsQR) return null;
-    const pad = q.unit * 4, w = q.w + pad * 2, d = new Uint8ClampedArray(w * w * 4).fill(255);
-    for (let y = 0; y < q.w; y++) for (let x = 0; x < q.w; x++) for (let k = 0; k < 4; k++) d[((y + pad) * w + x + pad) * 4 + k] = q.data[(y * q.w + x) * 4 + k];
-    const r = jsQR(d, w, w);
-    return r ? new TextDecoder().decode(new Uint8Array(r.binaryData)) : '';
+    if (!qrReader()) return null;
+    const pad = q.unit * 4, w = q.w + pad * 2, lum = new Uint8ClampedArray(w * w).fill(255);
+    for (let y = 0; y < q.w; y++) for (let x = 0; x < q.w; x++) lum[(y + pad) * w + x + pad] = q.data[(y * q.w + x) * 4];
+    return qrRead(lum, w);
   };
   const near = frame => frame.$$eval('#near .cbtn', x => x.map(y => y.textContent.trim()).join(' | '));
 
@@ -104,7 +133,7 @@ try { jsQR = require('jsqr'); } catch {}
     let q = await qrOf(frame);
     const text = aText(t);
     check(`المزاد: يظهر تلقائياً مع الموضوع، ويطابق نصه (${q.bytes} بايت، الوحدة ${q.unit})`, q.shown && q.bytes === Buffer.byteLength(text) && matches(q, text));
-    if (jsQR) check('المزاد: يُفكّ بقارئ مستقل (jsQR) مطابقاً حرفاً حرفاً', decode(q) === text);
+    check('المزاد: يُفكّ بقارئ مستقل (zxing) مطابقاً حرفاً حرفاً', decode(q) === text);
     check('المزاد والباركود ظاهر: «أخفِ الباركود» في البطاقة، ولا أزرار مزايدة، ولا مربع إعلان', (await near(frame)) === '' && await frame.isVisible('#aucCtl [data-cmd="qr:hide"]')
       && !(await frame.isVisible('#bids')) && !(await frame.isVisible('#box')));
     await look(frame, 'المزاد بالباركود');
@@ -115,7 +144,10 @@ try { jsQR = require('jsqr'); } catch {}
     check('إعادة التحميل: يبقى ظاهراً', (await qrOf(f2)).shown);
     await cmd(f2, 'qr:hide');
     await wait(600);
-    check('«أخفِ الباركود»: يختفي، وتعود المزايدة، و«الباركود» في صف النوافذ', !(await qrOf(f2)).shown && (await near(f2)).includes('ابدأ') && await f2.isVisible('#cornerB [data-cmd="qr:show"]'));
+    check('«أخفِ الباركود»: يختفي، وتعود المزايدة، و«الباركود» في لوحة «⋯» بعد «ملء الشاشة»', !(await qrOf(f2)).shown && (await near(f2)).includes('ابدأ')
+      && !(await f2.$('[data-cmd="qr:show"]')) && (await f2.click('[data-cmd="more"]'), await f2.isVisible('#moreMenu [data-cmd="qr:show"]'))
+      && (await f2.$$eval('#moreMenu .cbtn', b => b.map(x => x.dataset.cmd).join(' '))) === 'mute fullscreen qr:show scores new');
+    await stage.keyboard.press('Escape'); await wait(300);
     await look(f2, 'المزاد بعد الإخفاء');
     await stage.reload(); await unlock(stage);
     f2 = await stageFrame(stage);
@@ -129,6 +161,15 @@ try { jsQR = require('jsqr'); } catch {}
     // المزايدة ثم الوفاء: لا باركود.
     await cmd(f2, 'raise:1'); await wait(300); await cmd(f2, 'act:start'); await wait(600);
     check('الوفاء: لا باركود', !(await qrOf(f2)).shown && (await saved(stage)).round.state.phase === 'fulfil');
+    // ويعود بطلب أثناء الوفاء، ثم يُخفى وحده عند «كشف القائمة»، فالقائمة صارت على الشاشة (الوثيقة 1.14، design/s8c.md 1).
+    await cmd(f2, 'qr:show'); await wait(600);
+    check('الوفاء: «الباركود» يعيده بطلب', (await qrOf(f2)).shown);
+    await cmd(f2, 'qr:hide'); await wait(900);
+    await cmd(f2, 'qr:show'); await wait(900);
+    // والباركود ظاهراً يُخفي أزرار الوفاء (design/s8.md 2.1)، فيُرسل «كشف القائمة» أمراً كما يرسله زرّه، ليُفحص الإخفاء وحده.
+    await f2.evaluate(() => parent.postMessage({ bc: 'cmd', cmd: 'act:reveal' }, location.origin)); await wait(900);
+    check('«كشف القائمة»: يُخفى الباركود وحده، ولا «الباركود» في لوحة «⋯» بعده', (await saved(stage)).round.state.phase === 'revealed' && !(await qrOf(f2)).shown
+      && !(await f2.$$('[data-cmd="qr:show"], [data-cmd="qr:hide"]')).length);
     await context.close();
   }
 
@@ -144,7 +185,7 @@ try { jsQR = require('jsqr'); } catch {}
     const l = (await saved(stage)).round.state.lists[0], text = rText(l);
     const q = await qrOf(frame);
     check(`الترتيب: يظهر تلقائياً مع القائمة، ويطابق نصه (${q.bytes} بايت، الوحدة ${q.unit})`, q.shown && matches(q, text) && !(await frame.isVisible('#board')));
-    if (jsQR) check('الترتيب: يُفكّ بقارئ مستقل مطابقاً', decode(q) === text);
+    check('الترتيب: يُفكّ بقارئ مستقل (zxing) مطابقاً', decode(q) === text);
     check('والباركود ظاهر: «أخفِ الباركود» تحت العنوان، ولا «ابدأ»', (await near(frame)) === '' && await frame.isVisible('#rnkCtl [data-cmd="qr:hide"]'));
     await look(frame, 'الترتيب بالباركود بأطول اسمين');
     await stage.screenshot({ path: path.join(shots, 's8-qr-ranking-long.png') });
@@ -155,20 +196,30 @@ try { jsQR = require('jsqr'); } catch {}
     await context.close();
   }
 
-  // ===== 3. بنافذتين =====
+  // قائمة أكبر مما يسعه الرمز (مثل المفتوح الكبير): لا يُرسم، وتبقى البطاقة واللعبة تعمل (design/auction.md 7.10 قيد القرار).
   {
+    const real = read('auction.json');
+    const huge = Array.from({ length: 220 }, (_, i) => ({ name: `عنصر طويل الاسم رقم ${i + 1}`, alts: [`صيغة ${i + 1}`] }));
+    let threw = false;
+    try { Q.qrMatrix(aText({ topic: 'قائمة كبيرة', items: huge })); } catch { threw = true; }
+    check(`نص قائمة 220 عنصراً يزيد عمّا يسعه الرمز (${Buffer.byteLength(aText({ topic: 'قائمة كبيرة', items: huge }))} بايت)`, threw);
+    const bank = { mode: 'auction', topics: real.topics.map(t => ({ ...t, items: huge })) };
     const { context, stage, frame } = await newStage();
-    await sharedToFace(frame, { names: ['الصقور', 'النجوم'], picks: ['auction', 'ranking'] });
+    await context.route('**/content/packs/general/auction.json', route => route.fulfill({ json: bank }));
+    await stage.reload(); await unlock(stage);
+    const f = await stageFrame(stage);
+    await sharedToFace(f, { names: ['الصقور', 'النجوم'], picks: ['auction', 'ranking'] });
     await wait(2700);
-    const host = await beginTwo(context, frame);
-    await host.click('#showQ');
-    await frame.waitForSelector('.scr.show[data-s="auc"]', { timeout: 5000 });
+    await cmd(f, 'begin');
+    await f.waitForSelector('.scr.show[data-s="intro"]', { timeout: 6000 });
+    await wait(500);
+    await cmd(f, 'act:show');
+    await f.waitForSelector('.scr.show[data-s="auc"]', { timeout: 5000 });
     await wait(600);
-    check('بنافذتين: يظهر على التلفاز، و«أخفِ الباركود» في نافذة المقدّم', (await qrOf(frame)).shown && (await host.textContent('#aQr')) === 'أخفِ الباركود' && await host.isVisible('#aQr'));
-    await look(frame, 'بنافذتين بالباركود');
-    await host.click('#aQr');
-    await wait(600);
-    check('بنافذتين: يُخفى من نافذة المقدّم، والزر «الباركود»', !(await qrOf(frame)).shown && (await host.textContent('#aQr')) === 'الباركود');
+    check('القائمة الكبيرة: لا باركود، والموضوع ظاهر', !(await qrOf(f)).shown && await f.isVisible('#topic'));
+    await cmd(f, 'raise:1'); await wait(300); await cmd(f, 'act:start'); await wait(600);
+    check('القائمة الكبيرة: المزايدة والوفاء يعملان', (await saved(stage)).round.state.phase === 'fulfil');
+    await look(f, 'القائمة الكبيرة دون باركود');
     await context.close();
   }
 

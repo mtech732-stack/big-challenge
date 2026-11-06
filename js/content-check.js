@@ -34,8 +34,10 @@ const length = text => [...String(text)].length;
 export const TARGETS = {
   letter: { easy: 20, medium: 20, hard: 20, tiebreak: 20 },
   'last-two': { easy: 20, medium: 20, hard: 20 },
-  auction: { easy: 10, medium: 10, hard: 10 },
-  ranking: { easy: 10, hard: 10 },
+  // والمزاد كذلك (المالك 3 نوفمبر 2026، ش8-أ/63): بنك واحد، وثلاثة مواضيع في الجولة منه.
+  auction: { topics: 30 },
+  // الترتيب بمستوى واحد (الوثيقة 1.15): بنك واحد، وقائمتان في الجولة منه.
+  ranking: { lists: 20 },
   wheel: { challenges: 7, luck: 3 },
 };
 
@@ -89,6 +91,32 @@ export function clashes(files) {
   return pairs;
 }
 
+// كشف بين النمطين (تدقيق ش8): إجابة سؤال من «الحرف المعيّن» أو صيغتها لا تظهر كلمةً كاملة في نص سؤال من «آخر حرفين»، ولا العكس،
+// فهما يجتمعان في مباراة واحدة. والمقارنة بالتوحيد (fold)، وبحذف «ال» والواو والباء والفاء واللام الملتصقة بأول الكلمة،
+// و«عبد الله» كـ«عبدالله»، و«أبي» و«أبا» كـ«أبو».
+const wordsOf = text => fold(text).replace(/[^\u0621-\u064A0-9 ]/g, ' ').replace(/(^| )([وبفل]?)عبد +(?=ال)/g, '$1$2عبد').split(' ').filter(Boolean);
+const abu = w => w.replace(/^اب[يا]$/, 'ابو');
+const noArticle = w => abu(w.replace(/^(ولل|فلل|وبال|فبال|وال|بال|فال|كال|لل|ال)(?=..)/, ''));
+const bareWord = w => abu(noArticle(w).replace(/^[وبفل](?=..)/, ''));
+const saysWord = (text, answer) => {
+  const a = wordsOf(answer).map(bareWord).join(' ');
+  if (!a) return false;
+  const ws = wordsOf(text);
+  return [ws.map(bareWord), ws.map(noArticle)].some(v => ` ${v.join(' ')} `.includes(` ${a} `));
+};
+// الأزواج: [{ id, mode, by, byMode, answer }]: نص السؤال id فيه إجابة السؤال by من النمط الآخر.
+export function crossReveals(files) {
+  const found = [];
+  const qs = mode => files?.[`${mode}.json`]?.questions ?? [];
+  for (const [mode, other] of [['letter', 'last-two'], ['last-two', 'letter']]) {
+    for (const p of qs(mode)) for (const q of qs(other)) {
+      const answer = typeof p?.prompt === 'string' && [q?.answer, ...(q?.alts ?? [])].find(x => typeof x === 'string' && saysWord(p.prompt, x));
+      if (answer) found.push({ id: p.id, mode, by: q.id, byMode: other, answer });
+    }
+  }
+  return found;
+}
+
 export function checkContent({ index, packs, wheel }) {
   const errors = [];
   const warnings = [];
@@ -105,8 +133,9 @@ export function checkContent({ index, packs, wheel }) {
     if (HINDI_DIGITS.test(obj[key])) err(where, `الحقل «${key}» فيه أرقام هندية (٠١٢)، والمطلوب أرقام إنجليزية`);
     return true;
   };
+  // levels null: نمط بلا مستوى (الترتيب، 1.15)، فـ level في ملف قديم يُقبل ويُهمل.
   const checkCommon = (where, item, levels) => {
-    if (!levels.includes(item.level)) err(where, `المستوى «${item.level}» غير صحيح، المسموح: ${levels.join(' · ')}`);
+    if (levels && !levels.includes(item.level)) err(where, `المستوى «${item.level}» غير صحيح، المسموح: ${levels.join(' · ')}`);
     if (!DOMAINS.includes(item.domain)) err(where, `المجال «${item.domain}» غير صحيح، المسموح: ${DOMAINS.join(' · ')}`);
     if (item.page !== undefined && !(Number.isInteger(item.page) && item.page > 0)) err(where, '«page» رقم صفحة صحيح موجب');
   };
@@ -233,7 +262,7 @@ export function checkContent({ index, packs, wheel }) {
 
         if (mode === 'auction') {
           allowOnly(where, item, ['id', 'level', 'topic', 'open', 'items', 'sources', 'domain', 'page', 'note']);
-          checkCommon(where, item, LEVELS);
+          checkCommon(where, item, null);
           checkNote(where, item);
           if (item.open !== undefined && item.open !== true) err(where, '«open» إما true وإما يُحذف');
           // معيار القبول في «note»: ما يُقبل من خارج القائمة وما لا يُقبل. لازم في المفتوح، ومطلوب في غيره.
@@ -255,12 +284,12 @@ export function checkContent({ index, packs, wheel }) {
             }
             item.items.forEach((it, k) => { if (typeof it?.name === 'string' && length(it.name) > ITEM_MAX) warn(`${where} · العنصر ${k + 1}`, `«${it.name}» ${length(it.name)} حرفاً، والحد ${ITEM_MAX} (شارة العنصر)`); });
           }
-          tally(mode, item.level);
+          tally(mode, 'topics');
         }
 
         if (mode === 'ranking') {
           allowOnly(where, item, ['id', 'level', 'title', 'asOf', 'items', 'sources', 'domain', 'page', 'note']);
-          checkCommon(where, item, ['easy', 'hard']);
+          checkCommon(where, item, null);
           checkNote(where, item);
           needText(where, item, 'title');
           if (typeof item.title === 'string') {
@@ -278,7 +307,7 @@ export function checkContent({ index, packs, wheel }) {
             item.items.forEach((it, k) => { if (typeof it?.name === 'string' && length(it.name) > ITEM_MAX) warn(`${where} · العنصر ${k + 1}`, `«${it.name}» ${length(it.name)} حرفاً، والحد ${ITEM_MAX} (خانة اللوحة)`); });
           }
           checkSources(where, item.sources, 2);
-          tally(mode, item.level);
+          tally(mode, 'lists');
         }
       });
       // تقاطع الترتيب والمزاد: تنبيه بالزوج، واللعبة لا تجمعهما في مباراة واحدة (js/play.js).
@@ -294,6 +323,11 @@ export function checkContent({ index, packs, wheel }) {
           if (LEVELS.some(l => c[l] < ROUND_PER_LEVEL)) err(`${file} · «${ending}»`, `مجموعة ناقصة: كل نهاية تحتاج ${ROUND_PER_LEVEL} من كل مستوى لتكفي جولة (الموجود: سهل ${c.easy} · متوسط ${c.medium} · صعب ${c.hard})`);
         }
       }
+    }
+    // الحرف المعيّن وآخر حرفين في مباراة واحدة: لا يكشف نص سؤال من أحدهما إجابة سؤال من الآخر.
+    if (!excluded.includes('letter') && !excluded.includes('last-two')) for (const c of crossReveals(pack)) {
+      const name = m => (m === 'letter' ? 'الحرف المعيّن' : 'آخر حرفين');
+      err(`${base}/${c.mode}.json · ${c.id}`, `نص السؤال فيه «${c.answer}»، إجابة السؤال «${c.by}» (${name(c.byMode)})، وهما في مباراة واحدة`);
     }
   }
   for (const id of index?.packs ?? []) if (!packs[id]) err('packs/index.json', `الحزمة «${id}» مذكورة ولا مجلد لها`);

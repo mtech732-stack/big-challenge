@@ -1,13 +1,13 @@
 // اختبار آلي لمرحلة «التحدي والحكم» في شريط البونص (5.7، design/wheel.md 2 و5، design/s8.md 4) في رابط المعاينة:
 // وحدةً (دون متصفح): التحدي بلا توقيت، فالحكم من لحظة الوقوف، و«نجح» +10 لمن أدارها و«لم ينجح» بلا خصم،
 // والتراجع عن الحكم يعيده، والحصيلة في نهاية الشريط.
-// ثم بالمتصفح بنافذتين: لا وقت في اللوحة ولا في رأس المقدّم، والحكم بلا مربع («[الاسم] · +10» و«نجح التحدي»،
-// أو «لا نقاط» و«لم ينجح التحدي»)، ونهاية الشريط بحصيلتها. ثم بأطول محتوى، ثم بالنافذة الواحدة.
+// ثم بالمتصفح بالنافذة الواحدة (الوثيقة 1.13): لا وقت في اللوحة، وزرّا الحكم، والحكم بلا مربع («[الاسم] · +10» و«نجح التحدي»،
+// أو «لا نقاط» و«لم ينجح التحدي»)، والتراجع، ونهاية الشريط بحصيلتها. ثم بأطول محتوى.
 // الاستعمال: node tests/stage6-wheel-challenge.cjs [الرابط] [مجلد الصور]
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/';
@@ -39,7 +39,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     const failed = R.act(wheel, round, 'failed', undefined, t0 + ms + 30000);
     a = wheel.audience(failed.state);
     check('«لم ينجح»: لا نقاط ولا خصم، والشارة «لا نقاط» والسطر «لم ينجح التحدي»، والحدّ في المنتصف', failed.scores[1] === 0 && failed.scores[2] === 0 && a.verdict?.team === 0 && a.verdict.say === 'لم ينجح التحدي' && a.turn === 0
-      && wheel.presenter(failed.state).track[0].result === 0);
+      && failed.state.results[0].team === 0);
     check('حال «run» محفوظة قبل ش8 تُحكم كالوقوف', wheel.actions({ ...round.state, phase: 'run' }).map(x => x.id).join() === 'won,failed' && wheel.audience({ ...round.state, phase: 'run' }).phase === 'slot');
     // الدورة الثانية للفريق الآخر (الخانة نفسها، تحدٍّ يجوز تكراره): «لم ينجح»، ثم «إنهاء الشريط».
     let end = R.act(wheel, won, 'next', undefined, t0 + 60000);
@@ -84,7 +84,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
   // يُقدَّم وقت نافذة الجمهور (هي التي تعدّ)، فتبلغ آخر ثوانٍ الدقيقتين دون انتظارهما.
   const skip = (frame, ms) => frame.evaluate(ms => { const real = Date.now; Date.now = () => real() + ms; }, ms);
 
-  let layoutOk = true, presenterOk = true;
+  let layoutOk = true;
   const fails = [];
   const audienceCheck = async (audience, label) => {
     const r = await audience.evaluate(() => window.__stageCheck());
@@ -92,130 +92,69 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, beginTwo, cmd } = re
     const body = await audience.evaluate(() => document.querySelector('.canvas').innerText);
     if (/سرقة|الأقل نقاطاً|خسر القرعة|دقيقتان حداً/.test(body)) { layoutOk = false; fails.push(`${label}: نص ممنوع على الجمهور`); }
   };
-  const presenterCheck = async (presenter, label) => {
-    for (const [w, h] of [[1920, 1080], [1366, 768], [1280, 800]]) {
-      await presenter.setViewportSize({ width: w, height: h });
-      await wait(150);
-      const r = await presenter.evaluate(() => {
-        const rem = parseFloat(getComputedStyle(document.documentElement).fontSize), problems = [];
-        const vis = n => n.getClientRects().length && getComputedStyle(n).visibility !== 'hidden';
-        for (const n of document.getElementById('app').querySelectorAll('*')) {
-          if (!vis(n)) continue;
-          if ([...n.childNodes].some(c => c.nodeType === 3 && c.textContent.trim())) {
-            if (parseFloat(getComputedStyle(n).fontSize) < rem - .01) problems.push(`نص أصغر من 32: «${n.textContent.trim().slice(0, 16)}»`);
-            if (/[٠-٩۰-۹]/.test(n.textContent)) problems.push('أرقام هندية');
-          }
-          if (n.tagName === 'BUTTON' && n.getBoundingClientRect().height < 2 * rem - .5) problems.push(`زر أقصر من 64: «${n.textContent.trim()}»`);
-          if (n.scrollWidth > n.clientWidth + 1 && getComputedStyle(n).overflow !== 'visible' && getComputedStyle(n).textOverflow !== 'ellipsis') problems.push(`يفيض: «${n.textContent.trim().slice(0, 16)}»`);
-        }
-        const d = document.documentElement;
-        if (d.scrollWidth > d.clientWidth + 1) problems.push('تمرير أفقي');
-        if (d.scrollHeight > d.clientHeight + 1) problems.push('تمرير رأسي');
-        return problems;
-      });
-      if (r.length) { presenterOk = false; fails.push(`المقدّم ${label} ${w}: ${[...new Set(r)].join('، ')}`); }
-    }
-    await presenter.setViewportSize({ width: 1280, height: 800 });
-  };
-
-  // ===== 2.1 بنافذتين (والأطول بعدها) =====
+  // ===== 2.1 بالنافذة الواحدة (الوثيقة 1.13)، بالاسمين المعتادين ثم بالأطول =====
   for (const LONG of [false, true]) {
     const tag = LONG ? 'الأطول · ' : '';
     const NAMES = LONG ? ['فريق النخبة الذهبي', 'نجوم المستقبل معاً'] : ['الصقور', 'النجوم'];
     const { context, stage, audience } = await open({ long: LONG });
     await sharedToFace(audience, { names: NAMES, count: 'short', picks: ['ranking', 'letter'] });
-    const presenter = await beginTwo(context, audience);
-    const click = async sel => { await presenter.click(sel); await wait(800); };
-    await click('#showQ');
-    for (let k = 0; k < 2; k++) { await click('#rCtl [data-act="finish"]'); await click('#rCtl [data-act="next"]'); }
-    // العشوائية ثابتة في نافذة المقدّم (هي التي تحسم الخانة): تقف العجلة على الخانة الأولى، وهي تحدٍّ.
-    await presenter.evaluate(() => { Math.random = () => 0.05; });
-    await click('#endNext');
+    await cmd(audience, 'begin');
+    await wait(600);
+    const go = async c => { await cmd(audience, c); await wait(800); };
+    const near = () => audience.$$eval('#near button', b => b.map(x => x.textContent.trim()).join('|'));
+    await go('act:show');
+    for (let k = 0; k < 2; k++) { await go('qr:hide'); await go('act:start'); await go('act:finish'); await go('act:next'); }
+    // العشوائية ثابتة في الصفحة التي تدير المباراة (هي التي تحسم الخانة): تقف العجلة على الخانة الأولى، وهي تحدٍّ.
+    await stage.evaluate(() => { Math.random = () => 0.05; });
+    await go('next');
     const spinner = (await saved(stage)).round.state.first, who = NAMES[spinner - 1];
-    await click('#wCtl [data-act="spin"]');
+    await go('act:spin');
     await audience.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
     await wait(900);
-    check(`${tag}وقفت على تحدٍّ: المقدّم «يؤدّي الفريق التحدي» و«نجح · +10» و«لم ينجح»، ولا وقت في الرأس`, await text(presenter, '#wState') === 'يؤدّي الفريق التحدي'
-      && (await presenter.$$eval('#wCtl button', b => b.map(x => x.textContent.trim()).join('|'))) === 'نجح · +10|لم ينجح' && await presenter.$eval('#wClock', e => e.hidden)
-      && (await text(presenter, '.rule')).startsWith('بلا توقيت'));
+    check(`${tag}وقفت على تحدٍّ: «نجح · +10» و«لم ينجح» (بإطار) بجانب الشارات من لحظة الوقوف`, await near() === 'نجح · +10|لم ينجح'
+      && await audience.$eval('#near button:last-child', b => b.classList.contains('no') || b.classList.contains('alt')));
     check(`${tag}الجمهور: لا وقت يجري ولا عدّاد في لوحة من أدارها، ولا مربع إعلان`, !(await cls(audience, 'running')) && await audience.evaluate(() => document.getElementById('box').hidden)
       && !/\d:\d\d/.test(await text(audience, '#c' + spinner)) && await cls(audience, 'turn-' + spinner));
     await audienceCheck(audience, `${tag}التحدي`);
-    await presenterCheck(presenter, `${tag}التحدي`);
     if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-run.png') });
 
-    // لم ينجح، ثم التراجع، ثم نجح.
-    await click('#wCtl [data-act="failed"]');
+    // لم ينجح، ثم التراجع، ثم نجح، ثم التراجع، ثم نجح.
+    await go('act:failed');
     check(`${tag}«لم ينجح»: «لا نقاط» و«لم ينجح التحدي» بلا مربع، والحدّ في المنتصف، والرصيد كما هو`, await text(audience, '#vtext') === 'لا نقاط' && await text(audience, '#say') === 'لم ينجح التحدي'
       && await audience.evaluate(() => document.getElementById('box').classList.contains('bare')) && !(await cls(audience, 'turn-1')) && !(await cls(audience, 'turn-2'))
       && (await saved(stage)).round.scores[spinner] === 0);
-    check(`${tag}المقدّم: «لا نقاط · لم ينجح التحدي» و«التالي · دور [الآخر]»`, await text(presenter, '#wWho') === 'لا نقاط · لم ينجح التحدي' && (await text(presenter, '#wCtl')).startsWith('التالي · دور ') && await presenter.$eval('#wClock', e => e.hidden));
+    check(`${tag}«لم ينجح»: «التالي · الدورة 2»`, await near() === 'التالي · الدورة 2');
     await audienceCheck(audience, `${tag}لم ينجح`);
     if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-failed.png') });
-    await presenter.click('#wUndo'); await wait(900);
-    check(`${tag}التراجع: الحكم من جديد`, (await saved(stage)).round.state.phase === 'slot' && (await presenter.$$('#wCtl button')).length === 2);
-    await click('#wCtl [data-act="won"]');
+    await go('undo');
+    check(`${tag}التراجع: الحكم من جديد`, (await saved(stage)).round.state.phase === 'slot' && await near() === 'نجح · +10|لم ينجح');
+    await go('act:won');
     const wonM = await saved(stage);
     check(`${tag}«نجح»: +10 لمن أدارها، و«[الاسم] · +10» و«نجح التحدي» بلا مربع، والحدّ عنده`, wonM.round.scores[spinner] === 10 && await text(audience, '#vtext') === `${who} · +10`
       && await text(audience, '#say') === 'نجح التحدي' && await audience.evaluate(() => document.getElementById('box').classList.contains('bare')) && await cls(audience, 'turn-' + spinner)
       && await text(audience, '#s' + spinner) === '10');
-    check(`${tag}المقدّم: «[الاسم] · +10 · نجح التحدي»، والمسار يكتبه`, await text(presenter, '#wWho') === `${who} · +10 · نجح التحدي` && !!(await presenter.$(`#pips .pip.won${spinner}`)));
-    await wait(800);
+    check(`${tag}«نجح»: «التالي · الدورة 2»، والمسار في الحالة يكتبه`, await near() === 'التالي · الدورة 2' && wonM.round.state.results[0].team === spinner);
     await audienceCheck(audience, `${tag}نجح`);
-    await presenterCheck(presenter, `${tag}نجح`);
     if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-won.png') });
+    await go('undo');
+    check(`${tag}«تراجع» بعد «نجح»: الحكم من جديد، والرصيد 0`, (await saved(stage)).round.state.phase === 'slot' && await near() === 'نجح · +10|لم ينجح' && (await saved(stage)).round.scores[spinner] === 0);
+    await go('act:won');
 
     // الدورة الثانية للفريق الآخر، والخانة نفسها (تحدٍّ يتكرر): «لم ينجح»، ثم «إنهاء الشريط».
-    await click('#wCtl [data-act="next"]');
-    await audience.waitForSelector('.scr.whl.show');
-    await click('#wCtl [data-act="spin"]');
-    await audience.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
-    await wait(900);
-    await click('#wCtl [data-act="failed"]');
-    await click('#wCtl [data-act="finish"]');
-    check(`${tag}نهاية العجلة: «+10» لمن نجح و«+0» للآخر، على الشاشة وفي المقدّم`, await text(audience, '#r' + spinner) === '+10' && await text(audience, '#r' + (3 - spinner)) === '+0'
-      && (await text(presenter, '#sum')).includes('+10'));
-    await audienceCheck(audience, `${tag}نهاية العجلة`);
-    await context.close();
-  }
-
-  // ===== 2.2 بنافذة واحدة =====
-  {
-    const { context, stage, audience } = await open();
-    await sharedToFace(audience, { names: ['الصقور', 'النجوم'], count: 'short', picks: ['ranking', 'letter'] });
-    await cmd(audience, 'begin');
-    await wait(600);
-    const go = async c => { await cmd(audience, c); await wait(800); };
-    await go('act:show');
-    for (let k = 0; k < 2; k++) { await go('qr:hide'); await go('act:start'); await go('act:finish'); await go('act:next'); }
-    await stage.evaluate(() => { Math.random = () => 0.05; });
-    await go('next');
-    await go('act:spin');
-    await audience.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
-    await wait(900);
-    const near = () => audience.$$eval('#near button', b => b.map(x => x.textContent.trim()).join('|'));
-    check('نافذة واحدة: «نجح · +10» و«لم ينجح» (بإطار) بجانب الشارات من لحظة الوقوف', await near() === 'نجح · +10|لم ينجح' && await audience.$eval('#near button:last-child', b => b.classList.contains('no') || b.classList.contains('alt')));
-    await audienceCheck(audience, 'نافذة واحدة · التحدي');
-    await stage.screenshot({ path: path.join(shots, 'wheel-run-w1.png') });
-    await go('act:won');
-    check('«نجح»: «التالي · الدورة 2»، و+10', await near() === 'التالي · الدورة 2' && (await saved(stage)).round.scores[(await saved(stage)).round.state.first] === 10);
-    await audienceCheck(audience, 'نافذة واحدة · نجح');
-    await stage.screenshot({ path: path.join(shots, 'wheel-won-w1.png') });
-    await go('undo');
-    check('«تراجع»: الحكم من جديد', (await saved(stage)).round.state.phase === 'slot' && await near() === 'نجح · +10|لم ينجح');
-    await go('act:failed');
     await go('act:next');
+    await audience.waitForSelector('.scr.whl.show');
     await go('act:spin');
     await audience.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
     await wait(900);
     await go('act:failed');
     await go('act:finish');
-    check('«إنهاء الشريط»: في البطاقة «ابدأ الجولة 2»', await text(audience, '.scr.end.show .ctl') === 'ابدأ الجولة 2');
+    check(`${tag}نهاية العجلة: «+10» لمن نجح و«+0» للآخر، وفي البطاقة «ابدأ الجولة 2»`, await text(audience, '#r' + spinner) === '+10' && await text(audience, '#r' + (3 - spinner)) === '+0'
+      && await text(audience, '.scr.end.show .ctl') === 'ابدأ الجولة 2');
+    await audienceCheck(audience, `${tag}نهاية العجلة`);
     await context.close();
   }
 
   check('فحص التداخل والشبكة، ولا نص ممنوع على الجمهور', layoutOk);
-  check('نافذة المقدّم بمقاساتها الثلاثة: لا تمرير، ولا نص أصغر من 32، ولا زر يفيض', presenterOk);
   check('لا أخطاء في الصفحات', errors.length === 0);
   await browser.close();
   process.exit(finish([...fails, ...errors]) ? 0 : 1);

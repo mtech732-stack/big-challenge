@@ -59,6 +59,7 @@ function sealEnd(match) {
 
 // يبدأ الجولة التالية في المسار. content: ملفات الحزمة. seen: ذاكرة الأسئلة.
 // match.used: ما اختير في جولات هذه المباراة، ليُترك ما يتقاطع معه.
+// ويبدأ الجولةَ الفائزُ بالقرعة في الأولى ثم بالتناوب (item.first، starter في js/match.js).
 export function startNext(match, { modes, content, seen = [], rng = Math.random }) {
   if (!between(match, modes) || nextKind(match, modes) !== 'start') return match;
   const item = upcoming(match);
@@ -69,7 +70,7 @@ export function startNext(match, { modes, content, seen = [], rng = Math.random 
     return { ...match, step: 'play', cursor: cursor(match) + 1, ends: sealEnd(match), round, scores: round.scores };
   }
   const mode = modeOf(modes, item.mode);
-  const round = { ...R.startRound(mode, { content, scores: match.scores, seen, avoid: avoidIn(content, match.used ?? []), rng }), n: item.n };
+  const round = { ...R.startRound(mode, { content, scores: match.scores, first: item.first || undefined, seen, avoid: avoidIn(content, match.used ?? []), rng }), n: item.n };
   return { ...match, step: 'play', cursor: cursor(match) + 1, ends: sealEnd(match), round, scores: round.scores, played: (match.played ?? 0) + 1, used: [...(match.used ?? []), ...mode.used(round.state)] };
 }
 

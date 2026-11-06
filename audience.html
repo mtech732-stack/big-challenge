@@ -74,13 +74,14 @@
         <div class="scr auc" data-s="auc" id="auc">
           <div class="ahead">
             <p class="topic" id="topic" data-fit="الموضوع"></p>
-            <p class="size" id="tsize" hidden></p>
             <p class="tally" id="tally" data-fit="العدّ" hidden><b class="n" id="tn"></b><span class="of">من <b class="ltr" id="tof"></b></span></p>
             <!-- بعد الحكم: «الموضوع التالي» هنا في النافذة الواحدة، لا في صف الشارات (design/auction.md 4) -->
             <div class="ctl" id="aucCtl"></div>
           </div>
           <div class="bids" id="bids"></div>
-          <div class="items" id="items"></div>
+          <!-- بعد «كشف القائمة» (الوثيقة 1.14، design/s8c.md 2): القائمة المرجعية صفحاتٍ تُقلب بالنقر، ونقاط تحتها بعدد الصفحات -->
+          <div class="cx-list" id="cxList" hidden></div>
+          <div class="cx-dots" id="cxDots" hidden></div>
         </div>
         <!-- الترتيب (ش5، design/ranking.md 2): العنوان، ثم اللوحة: 1–10 والفخاخ. لا اسم قبل أن يُكشف -->
         <div class="scr rnk" data-s="rnk" id="rnk">
@@ -152,10 +153,10 @@
 
     <!-- باركود الإجابات يمين البطاقة (design/s8.md 2): أبيض مستقيم 520×520 وخلفه صفيحة مائلة 6° -->
     <div class="qrbox" id="qrbox" data-hud="الباركود"><div class="plate"></div><div class="sheet"><canvas aria-label="باركود الإجابات"></canvas></div></div>
-    <!-- مربع الإعلان أسفل اليمين (15.4): الحكم والإجابة بعد الحكم الأخير · الفائز بالقرعة في المواجهة · «التالي» في نهاية الجولة -->
+    <!-- مربع الإعلان أسفل اليمين (15.4): الحكم والإجابة بعد الحكم الأخير · من يبدأ الإجابة في المواجهة · «التالي» في نهاية الجولة -->
     <div class="box" id="box" data-hud="مربع الإعلان" hidden><i></i>
       <p class="chip" id="verdict" hidden><i></i><span id="vtext"></span></p>
-      <p class="chip" id="faceChip" hidden><i></i><span>الفائز بالقرعة</span></p>
+      <p class="chip" id="faceChip" hidden><i></i><span>يبدأ الإجابة</span></p>
       <p class="line" id="reveal" data-fit="سطر الإجابة" hidden>الإجابة: <b id="answer"></b></p>
       <p class="line" id="told" data-fit="سطر ما ذُكر" hidden></p>
       <p class="line" id="say" data-fit="سطر الحكم" hidden></p>
@@ -165,12 +166,12 @@
 
     <!-- أزرار الشاشة المشتركة، بجانب ما تتحكم فيه (design/shared.md 3.2). فارغة في نافذة الجمهور وحدها -->
     <div class="ctl-near" id="near" data-hud="أزرار العدّاد"></div>
+    <div class="ctl-ans" id="ansCtl" data-hud="زر الكشف"></div>
     <div class="ctl-corner a" id="cornerA" data-hud="أزرار الزاوية العليا"></div>
     <div class="ctl-corner b" id="cornerB" data-hud="أزرار الزاوية السفلى"></div>
     <div class="ctl-corner c" id="cornerC" data-hud="أزرار الصف الثالث"></div>
-    <!-- الخيارات الجانبية في المواجهة (design/s8.md 1): زر صغير بلا نص، وقائمته تحته -->
-    <div class="ctl-corner opts" id="cornerO" data-hud="زر الخيارات"></div>
-    <div class="optmenu" id="optmenu" data-hud="قائمة الخيارات" hidden></div>
+    <!-- لوحة «⋯» (design/s8b.md): ما ليس في الزاوية من أزرار -->
+    <div class="ctl-more" id="moreMenu" data-hud="لوحة المزيد" hidden></div>
 
     <div class="shine" id="shine"></div>
     <div class="danger"></div>
@@ -180,8 +181,8 @@
 
 <script type="module">
   import './js/offline.js';
-  import { createLink } from './js/sync.js';
-  import { plan, chooser, picksDone, METHODS, other, gains, leaderOf } from './js/match.js';
+  import { createLink } from './js/frame-link.js';
+  import { plan, chooser, picksDone, starter, METHODS, other, gains, leaderOf } from './js/match.js';
   import { rectOf } from './js/stage-check.js';
   import { PLANNED } from './js/modes/index.js';
   import { play as sound, setMuted } from './js/sound.js';
@@ -271,6 +272,16 @@
     const from = 100 * Math.min(1, Math.max(0, 1 - left / total));
     drainAnim = $('p' + team).querySelector('polygon').animate([{ strokeDashoffset: from }, { strokeDashoffset: 100 }], { duration: Math.max(0, left * 1000), fill: 'forwards' });
   };
+  // الإطار الثابت للعدّاد الظاهر بلا عدّ: share ما بقي منه (0 فارغ). والموقوف متقطع حتى طوله الباقي ثم فراغ (s8b.css 1.2).
+  const holdRing = (team, share) => {
+    for (const k of [1, 2]) { const poly = $('p' + k).querySelector('polygon'); poly.style.strokeDashoffset = ''; }
+    canvas.style.removeProperty('--dash');
+    if (!team) return;
+    const L = 100 * share, d = [];
+    for (let x = 0; x + 1.6 <= L; x += 2.8) d.push(1.6, 1.2);
+    $('p' + team).querySelector('polygon').style.strokeDashoffset = L ? 0 : 100;
+    if (L) canvas.style.setProperty('--dash', [...d, 0, 200].join(' '));
+  };
   // مربع الإعلان (15.4): الحكم والإجابة · الفائز بالقرعة · «التالي». ولا يظهر إن لم يكن فيه شيء.
   // told: سطر المزاد بعد الحكم «ذُكر 10 من 12» مكان الإجابة (القائمة كلها في البطاقة، design/auction.md 2).
   // say: سطر الترتيب في المربع «المركز 7» أو «لم تُكشف خانة» (الاسم في خانته، design/ranking.md 7.6).
@@ -284,7 +295,7 @@
       $('verdict').className = `chip${v.team ? ' t' + v.team : ''}`;
       // الفريق الذي أخذ النقاط باسمه (الوثيقة 1.1، 7.1). وخصم الفخ «−2» بما خُصم فعلاً (design/ranking.md 7.7).
       $('vtext').innerHTML = v.label ? `${esc(name(v.who))} · ${esc(v.label)}`
-        : v.team ? `${esc(name(v.team))} · ${num(v.points < 0 ? '−' + -v.points : v.points ? '+' + v.points : '0')}` : 'لا نقاط';
+        : v.team ? `${esc(name(v.team))} · ${num(v.points < 0 ? '−' + -v.points : v.points ? '+' + v.points : '0')}` : esc(v.none ?? 'لا نقاط');
     }
     $('reveal').hidden = !answer; $('answer').textContent = answer ?? '';
     $('told').hidden = !told; $('told').innerHTML = told ? segs(told) : '';
@@ -293,6 +304,8 @@
     // وسطران صريحان («\n») لنهاية القائمة بانقضاء وقتها (الملاحظة 36، design/ranking.css 5): لا « · » معلّقة.
     $('next').hidden = !next; $('next').innerHTML = next ? next.split('\n').map(segs).join('<br>') : '';
     $('box').classList.toggle('two', !!next?.includes('\n'));
+    // بعد كشف الإجابة وقبل الاختيار: الإجابة وحدها في وسط المربع (design/s8b.md 4).
+    $('box').classList.toggle('ans', !!answer && !v && !told && !say && !face && !next);
     $('box').hidden = !(v || answer || told || say || face || next);
     // «التالي» في نهاية الجولة نص أبيض على الطرف بلا مربع، فلا يتجاوز الأبيض سقفه (15.4 و15.12).
     // وحكم المزاد (سطره told) بلا مربع كذلك، فالقائمة القصيرة لا ترفع الأبيض فوق 35 (design/auction.md 1.5).
@@ -304,14 +317,17 @@
   function placeBox() {
     const box = $('box'), p2 = $('p2');
     if (box.hidden) return;
-    const w = Math.min(659, 1794 - (p2.offsetLeft + p2.offsetWidth + 17 + 24 + 17));
-    box.style.left = (1794 - w) + 'px'; box.style.width = w + 'px';
+    let w = Math.min(659, 1794 - (p2.offsetLeft + p2.offsetWidth + 17 + 24 + 17));
+    const at = w => { box.style.left = (1794 - w) + 'px'; box.style.width = w + 'px'; };
+    at(w);
     box.classList.remove('wrap');
     const line = [...box.querySelectorAll('.line')].find(l => !l.hidden);
     // عرض النص نفسه (Range مقسوماً على المقياس) لا scrollWidth: مع المقاطع (.nb) في سطر من اليمين لا يُحسب ما فاض يساراً (الملاحظة 39)
-    let wide = false;
-    if (line) { const r = document.createRange(); r.selectNodeContents(line); wide = r.getBoundingClientRect().width / (canvas.getBoundingClientRect().width / 1920) > box.clientWidth - 96; }
-    box.classList.toggle('wrap', !box.classList.contains('two') && wide);
+    let tw = 0;
+    if (line) { const r = document.createRange(); r.selectNodeContents(line); tw = r.getBoundingClientRect().width / (canvas.getBoundingClientRect().width / 1920); }
+    // الإجابة القصيرة بعد الكشف (ش8-أ/56، design/s8b.md 7.3): على الأعمدة 9–12 (1281–1794، بعرض 513) إن اتسع لها سطرها، فينقص الأبيض.
+    if (box.classList.contains('ans') && line && tw <= 513 - 96 && w > 513) at(w = 513);
+    box.classList.toggle('wrap', !box.classList.contains('two') && tw > box.clientWidth - 96);
   }
 
   // صف الشارات من اليمين بفراغ الأمان، محسوباً عند الطرف الأدنى المائل (design/start.html وdesign/letter.html):
@@ -411,7 +427,11 @@
     if (m.step === 'pick') {
       showScreen('pick');
       const done = picksDone(m);
-      if (done) {
+      // قبل القرعة (design/s8b.md 3.2): البطاقات بلا نقر ولا مؤشر دور، و«قرعة البداية» وحده.
+      if (!m.winner) {
+        $('pickHead').innerHTML = '';
+        setBadges('اختيار الأنماط');
+      } else if (done) {
         const auto = m.picks.find(p => p.by === 0);
         $('pickHead').innerHTML = auto ? `الجولة <span class="ltr">4</span> للنمط المتبقي: ${esc(modeName(auto.mode))}` : 'اكتمل اختيار الأنماط';
         setBadges('اختيار الأنماط');
@@ -422,6 +442,8 @@
         setBadges('اختيار الأنماط', `الجولة ${k + 1} من ${total}`);
       }
       pickCards(m, modes, done ? 0 : turn);
+      // بعد اكتمال الاختيار: مؤشر الدور للفائز بسطر «يبدأ الإجابة» (design/s8b.md 3.2).
+      if (done) startsLine(m.winner);
       $('tiles').innerHTML = modes.map(mode => {
         const i = m.picks.findIndex(p => p.mode === mode.id), p = m.picks[i];
         const cls = p ? (p.by ? `by${p.by}` : 'auto') : (done ? 'left' : '');
@@ -442,7 +464,7 @@
       let n = 0;
       $('track').innerHTML = plan(m).map(s => s.kind === 'wheel'
         ? `<div class="seg wheel" style="--i:${n++}" data-fit="خانة العجلة"><span>شريط</span><span>البونص</span></div>`
-        : `<div class="seg ${s.by ? 'by' + s.by : ''}" style="--i:${n++}" data-fit="خانة الجولة"><span class="rn">${num('الجولة ' + s.n)}</span><span class="mname">${esc(modeName(s.mode))}</span></div>`).join('');
+        : `<div class="seg ${s.first ? 'by' + s.first : ''}" style="--i:${n++}" data-fit="خانة الجولة"><span class="rn">${num('الجولة ' + s.n)}</span><span class="mname">${esc(modeName(s.mode))}</span></div>`).join('');
       turn = m.winner;
     }
     setTurn(turn);
@@ -464,6 +486,13 @@
     return `<span class="bdg" style="width:${w}px;height:${H}px"><img src="design/logo/modes/${svg}.svg" alt="" style="left:${-m.l * ih}px;top:${-m.t * ih}px;height:${ih}px"${svg === 'ranking' ? ' class="edge"' : ''}></span>`;
   }
   let cardsKey = '';
+  // مؤشر الدور للفائز بسطر «يبدأ الإجابة»: تحت لوحة الأول، وفوق لوحة الثاني (فيُقرأ «يبدأ الإجابة [الاسم]»).
+  function startsLine(team) {
+    $('turnp').hidden = !team;
+    $('turnp').className = 'turnp t' + team;
+    $('turnName').textContent = team ? name(team) : '';
+    $('turnLine').textContent = team ? 'يبدأ الإجابة' : '';
+  }
   function pickCards(m, modes, turn) {
     const k = m.picks.length;
     // مؤشر الدور: لوحة صاحب الدور بلونه في جهته، و«يختار نمط الجولة N» تحتها للأول وفوقها للثاني (4.4). ولا مؤشر بعد اكتمال الاختيار.
@@ -474,7 +503,8 @@
     const list = modes.filter(x => CARDS[x.id]);
     const html = list.map((mode, i) => {
       const c = CARDS[mode.id], at = m.picks.findIndex(p => p.mode === mode.id), p = m.picks[at];
-      const state = p ? `picked tm${p.by}` : (picksDone(m) ? 'left' : 'avail');
+      // والختم بلون من يبدأ الإجابة في الجولة (design/s8b.md 3.3): المختار في 1–3، والباقية للخاسر في القرعة (st).
+      const state = p ? (p.by ? `picked tm${p.by}` : `picked st${starter(m, at + 1)}`) : !m.winner ? 'wait' : (picksDone(m) ? 'left' : 'avail');
       return `<div class="mc ${c.pat} ${state}" data-mode="${esc(mode.id)}" style="left:${96 + (3 - i) * 438}px">`
         + `<div class="face"><div class="in"><div class="ct" data-hud="بطاقة ${esc(mode.name)}" data-free aria-label="${esc(mode.name)}">${cardBadge(c)}<p class="line">${c.line}</p></div></div>`
         + (p ? `<div class="key done"><span>${num('الجولة ' + (at + 1))}</span></div>` : `<div class="key"><span><b class="ltr">${i + 1}</b>اختر</span></div>`) + '</div>'
@@ -642,8 +672,11 @@
       // و«خصم» (الأخذ من الخصم): السطر «[الخصم] · −3» بما أُخذ فعلاً، والصفر بلا إشارة (ملاحظة المعاين 38).
       : a.screen === 'slot' ? (v ? { verdict: v, say: v.from ? `${name(v.from)} · ${v.taken ? '−' + v.taken : '0'}` : v.say, bare: true } : {})
       // والجولة الفاصلة: الحكم بلا مربع «[الاسم] · أصاب» و«الإجابة: …» (design/final.md 2.5).
-      : a.tiebreak ? { verdict: v, answer: a.answer, bare: true }
-      : { verdict: v, answer: a.answer, told: v && a.tally ? `ذُكر ${a.tally.n} من ${a.tally.of}` : undefined });
+      // وبعد الكشف وقبل الاختيار الإجابة وحدها في المربع (design/s8b.md 2).
+      : a.tiebreak ? { verdict: v, answer: a.answer, bare: !!v }
+      // والمزاد (1.14، design/s8c.md 1): الحكم بلا مربع «[الاسم] · +12» و«وفى بـ 12» أو «لم يفِ بـ 12»، ولا «ذُكر».
+      : a.screen === 'topic' ? (v ? { verdict: v, say: `${(v.kept ?? v.team === a.commit?.team) ? 'وفى' : 'لم يفِ'} بـ ${a.commit?.n ?? ''}`, bare: true } : {})
+      : { verdict: v, answer: a.answer });
     syncTimer(p.timer, a);
     showQR(p.qr);
     setTurn(a.turn);
@@ -651,13 +684,19 @@
     // وبعد الحكم يقف على من أخذ النقاط، أو يعود إلى المنتصف إن لم يأخذ أحد. وفي غير شاشة السؤال في المنتصف.
     // والعدّاد يعمل: إطار الوقت حول لوحة صاحب الدور يتآكل، والثواني فيها، والحزم تخفت (.running وحده).
     const running = !!count && !count.test;
-    setRunning(running);
+    // والعدّاد الظاهر بلا عدّ (design/s8b.md 1.1): الموقوف يثبت رقمه وطول إطاره متقطعاً، ومن انتهى وقته إطاره فارغ ورقمه 0.
+    // والعدّ قبل الوقت (lead) بالأبيض: الرقم والإطار.
+    const hold = !running && a.screen === 'ask' && !!a.hold;
+    setRunning(running || hold);
+    canvas.classList.toggle('lead', (running || hold) && !!a.lead);
+    canvas.classList.toggle('paused', hold && !!a.paused);
     // وفي المزاد في المنتصف أثناء المزايدة (turn 0)، ثم للملتزم من «ابدأ» (design/auction.md 2، 3.0).
     // والترتيب يقرر حدّه بعد الحكم بنفسه (turn): في المنتصف بعد الفخ وإن كان للحكم صاحب (design/ranking.md 2).
     // والعجلة تقرره بنفسها كذلك: «خصم» في المنتصف وإن كان للشارة صاحب (design/wheel.md 2).
     setSide(!asking ? 0 : v && a.screen !== 'list' && a.screen !== 'slot' ? v.team || 0 : a.turn);
-    if (running && count.id !== drained) { drained = count.id; drain(a.turn, (count.endAt - Date.now()) / 1000, p.timer.seconds); }
+    if (running && count.id !== drained) { drained = count.id; drain(a.turn, (count.endAt - Date.now()) / 1000, a.total ?? p.timer.seconds); }
     if (!running && drained) { drained = 0; drain(0); }
+    holdRing(hold ? a.turn : 0, a.paused ? a.clock / a.total : 0);
     renderCtl();
   }
   let drained = 0;
@@ -710,41 +749,77 @@
   // باركود الإجابات (design/s8.md 2): الوعاء يمين البطاقة والبطاقة تضيق، ومربع الإعلان لا يظهر معه.
   // يُرسم من جديد حين يتغير النص وحده. والصفحة تحفظ آخر ما رُسم للفحص (dataset.bytes و.unit).
   let qrText = null;
+  // وإن زاد النص عمّا يسعه الرمز (قائمة كبيرة جداً) لم يُرسم، وبقيت البطاقة كاملة دونه، فلا تتعطل اللعبة (design/auction.md 7.10 لم يُقرّ بعد).
+  let qrFailed = null;
   function showQR(text) {
-    canvas.classList.toggle('qr', !!text);
-    if (!text || text === qrText) return;
-    qrText = text;
-    const info = drawQR($('qrbox').querySelector('canvas'), text);
-    Object.assign($('qrbox').dataset, { bytes: info.bytes, unit: info.unit, modules: info.modules });
+    if (text && text !== qrText && text !== qrFailed) {
+      try {
+        const info = drawQR($('qrbox').querySelector('canvas'), text);
+        Object.assign($('qrbox').dataset, { bytes: info.bytes, unit: info.unit, modules: info.modules });
+        qrText = text;
+      } catch { qrFailed = text; }
+    }
+    canvas.classList.toggle('qr', !!text && text !== qrFailed);
   }
   function renderAuction(a) {
+    // لا عدد للقائمة على الشاشة أبداً (design/auction.md 4.0).
     $('topic').textContent = a.topic;
-    // في المزايدة: «في القائمة 12» للقائمة حتى 20 وحدها (الوثيقة 5.5، design/auction.md 2.1).
-    $('tsize').hidden = !a.size;
-    $('tsize').innerHTML = a.size ? `في القائمة <span class="ltr">${a.size}</span>` : '';
     const bids = a.phase === 'bid' ? a.bids : [];
     $('bids').innerHTML = bids.map(b => `<span class="bid t${b.team}${b.top ? ' top' : ''}"><i></i><span>${num(b.n)}</span></span>`).join('');
     const t = a.tally;
     $('tally').hidden = !t;
     if (t) { $('tn').textContent = t.n; $('tof').textContent = t.of; $('tally').className = `tally t${t.team}`; }
-    // ما ذُكر بلون من ذكره، والأحدث يظهر بحركته. وبعد الحكم القائمة كلها: ما ذُكر أولاً، ثم ما لم يُذكر بإطار (design/auction.md 2.3 و2.4).
-    // وفي النافذة الواحدة يُعدّ دون أسماء، فلا عناصر قبل الحكم، وبعده القائمة كلها بإطار.
-    const reveal = !!a.list;
+    // ولا أسماء لما ذُكر على التلفاز (الوثيقة 1.14، المالك 31 أكتوبر 2026): العدّ وحده، ثم القائمة المكشوفة.
+    const reveal = !!a.reveal;
     $('auc').classList.toggle('reveal', reveal);
-    const it = (x, cls) => `<span class="it ${cls}"><i></i><span>${esc(x.name)}</span></span>`;
-    const said = a.said ?? [];
-    const fresh = !reveal && said.length > shownSaid;
-    shownSaid = said.length;
-    const items = said.map((x, i) => it(x, `t${x.team}${fresh && i === said.length - 1 ? ' new' : ''}`));
-    if (reveal) items.push(...a.list.filter(x => !x.by).map(x => it(x, 'left')));
-    $('items').innerHTML = items.join('');
-    // بعد الحكم: القائمة القصيرة بشارات المزايدة الكبيرة إن اتسعت كلها في صفين، وإلا فبالحجم المعتاد (design/auction.md 7.6)
-    $('auc').classList.toggle('big', reveal);
-    if (reveal && !fitsAll($('items'))) $('auc').classList.remove('big');
-    fitItems($('items'), reveal);
+    const counted = t?.n ?? 0, fresh = !reveal && counted > shownSaid;
+    shownSaid = counted;
     if (fresh) replay($('tally'), 'bump');
+    renderList(a);
   }
   let shownSaid = 0;
+  // القائمة المكشوفة (design/s8c.md 1.1 القسم 2، والمالك 31 أكتوبر 2026: «اقلبها يدوياً، نقاط أسفل القائمة توضح التعدد»):
+  // تُقسَم صفحاتٍ بالقياس (عنصر يتجاوز أسفل الأسطر الأربعة يبدأ صفحة)، ولا تقليب وحده: نقرة على القائمة أو على نقطة.
+  // والصفحة الظاهرة تبقى مع كل رسم جديد للبطاقة نفسها (الحكم بعد الكشف)، وتعود إلى الأولى في موضوع آخر.
+  // والقسمة بقياس القائمة نفسها: إن تغيّر مقاسها (البطاقة تضيق مع الباركود، أو القسم لم يظهر بعد) أُعيدت القسمة بمقاسها الجديد،
+  // فلا تبقى صفحات من سطر واحد قيست والبطاقة ضيقة (ش8-أ/58: الكشف ثم «وفى» ثم «الموضوع التالي» ثم «تراجع»).
+  let listKey = '', listPage = 0, listPages = 1, listView = null;
+  new ResizeObserver(() => { if (listView) renderList(listView); }).observe($('cxList'));
+  function renderList(a) {
+    const box = $('cxList'), dots = $('cxDots'), list = a.list ?? null;
+    $('auc').classList.toggle('list', !!list);
+    box.hidden = !list;
+    listView = list ? a : null;
+    if (!list) { listKey = ''; box.innerHTML = ''; dots.hidden = true; dots.innerHTML = ''; return; }
+    $('auc').style.setProperty('--cx-team', `var(--team-${a.commit?.team === 2 ? '2-ink' : '1'})`);
+    const key = `${a.n}|${a.topic}|${list.length}|${box.clientWidth}x${box.clientHeight}`;
+    if (key !== listKey) {
+      if (!listKey || listKey.split('|')[0] !== String(a.n) || listKey.split('|')[1] !== a.topic) listPage = 0;
+      listKey = key;
+      box.innerHTML = '';
+      const pages = [];
+      let pg = null;
+      const fresh = () => { pg = document.createElement('div'); pg.className = 'cx-pg'; box.append(pg); pages.push(pg); };
+      fresh();
+      for (const nm of list) {
+        const it = document.createElement('span'); it.className = 'cx-it'; it.textContent = nm; pg.append(it);
+        if (it.offsetTop + it.offsetHeight > box.clientHeight + 1 && pg.children.length > 1) { it.remove(); fresh(); pg.append(it); }
+      }
+      listPages = pages.length;
+      dots.innerHTML = listPages > 1 ? pages.map((_, k) => `<i data-page="${k}"></i>`).join('') : '';
+    }
+    listPage = Math.min(listPage, listPages - 1);
+    showPage(false);
+  }
+  function showPage(anim) {
+    [...$('cxList').children].forEach((p, k) => { p.hidden = k !== listPage; if (anim && k === listPage && !still()) replay(p, 'in'); });
+    const dots = $('cxDots');
+    dots.hidden = listPages < 2;
+    [...dots.children].forEach((d, k) => d.classList.toggle('on', k === listPage));
+    dots.setAttribute('aria-label', `الصفحة ${listPage + 1} من ${listPages}`);
+  }
+  // نقرة على القائمة: التالية، ومن الأخيرة إلى الأولى. ونقرة على نقطة: صفحتها (design/s8c.md 1.1).
+  const flipPage = to => { if (listPages < 2) return; const next = to ?? (listPage + 1) % listPages; if (next === listPage) return; listPage = next; showPage(true); };
 
   // ===== الترتيب (design/ranking.md 2): العنوان وإشارته، واللوحة: 13 خانة بالترتيب، وgrid-auto-flow يضعها في أعمدتها =====
   // الخانة المنتظرة رتبتها وحدها · المكشوفة بلون من ذكرها واسمها · الفخاخ ظاهرة الأرقام بلا اسم، والمكشوف منها رقمه خصمه «−13» (design/s8.md 3.1)
@@ -779,50 +854,51 @@
     if (!v) return {};
     return { verdict: v, say: !v.team ? 'لم تُكشف خانة' : v.rank > 10 ? `فخّ المركز ${v.rank}` : `المركز ${v.rank}`, bare: !v.team };
   }
-  // ما ذُكر: أثناء العدّ يبقى الأحدث (يسقط الأقدم). وبعد الحكم يبقى كل ما ذُكر، ويسقط من غير المذكور آخره،
-  // وفي آخر الصف «و N غيرها» (design/auction.md 7.2، fitItems في design/auction.html).
-  const fitsAll = box => !box.lastElementChild || rect(box.lastElementChild).bottom <= rect(box).bottom + 1;
-  function fitItems(box, reveal) {
-    const all = [...box.children];
-    const fits = () => !box.lastElementChild || rect(box.lastElementChild).bottom <= rect(box).bottom + 1;
-    if (fits()) return;
-    if (!reveal) { while (!fits() && box.firstElementChild) box.firstElementChild.remove(); return; }
-    const more = document.createElement('span'); more.className = 'it more'; box.append(more);
-    let hidden = 0;
-    const lefts = all.filter(e => e.classList.contains('left'));
-    while (!fits()) {
-      const el = lefts.length ? lefts.pop() : all.filter(e => e.isConnected).pop();
-      if (!el) break;
-      el.remove(); hidden++;
-      more.innerHTML = `<span>و <span class="ltr">${hidden}</span> غيرها</span>`;
-    }
-  }
-
   // ===== أزرار الشاشة المشتركة (design/shared.md 3): المقدّم يقرر ما يظهر (ctl)، وهنا موضعه =====
-  // ctl: { card, near, a, b, c: أزرار (c الصف الثالث في الجولة) · count: خانتا العدد · names: اللوحتان حقلان · pick: الخانات تُنقر · scores · error }
+  // ctl: { card, near, ans («كشف الإجابة» أسفل اليمين، design/s8b.md 1.3), a, b, c: أزرار (c الصف الثالث في الجولة) · count: خانتا العدد · names: اللوحتان حقلان · pick: الخانات تُنقر · scores · error }
   // والزر { cmd, label, kind: '' | 'alt' | 'no', off }. يصل من النافذة التي تحتوي هذه الشاشة وحدها، فلا يظهر في نافذة الجمهور.
-  let ctl = null;
-  const button = b => `<button class="cbtn${b.kind ? ' ' + b.kind : ''}${b.off ? ' off' : ''}" data-cmd="${esc(b.cmd)}">${b.html ?? num(b.label)}</button>`;
+  let ctl = null, moreOpen = false;
+  // الأيقونات (design/s8b.md 7.1، design/s8b-corner.js): 36 في مربع 64، والاسم يظهر عند المرور (data-tip) ولقارئ الشاشة. و«⋯» نقاط .opt المبنية.
+  const ICON = {
+    'تراجع': '<path d="M14 10 6 18l8 8"/><path d="M6 18h16a8 8 0 0 1 0 16h-6"/>',
+    'الصوت': '<path d="M5 14h6l8-7v22l-8-7H5z"/><path d="M25 12a9 9 0 0 1 0 12"/><path d="M29 8a14 14 0 0 1 0 20"/>',
+    'مكتوم': '<path d="M5 14h6l8-7v22l-8-7H5z"/><path d="m24 13 8 10M32 13l-8 10"/>',
+    'ملء الشاشة': '<path d="M5 13V5h8M23 5h8v8M31 23v8h-8M13 31H5v-8"/>',
+    'الباركود': '<rect x="5" y="5" width="10" height="10"/><rect x="21" y="5" width="10" height="10"/><rect x="5" y="21" width="10" height="10"/><path d="M21 21h4v4h-4zM29 29h2M25 29v2M29 21v4"/>',
+    'الرصيد': '<path d="M8 30V18M18 30V8M28 30V14"/>',
+    'مباراة جديدة': '<path d="M18 7v22M7 18h22"/>',
+  };
+  let showTip = () => {}, pointer = null;
+  const iconic = b => b.icon || b.cmd === 'more';
+  const button = b => `<button class="cbtn${b.kind ? ' ' + b.kind : ''}${iconic(b) ? ' ico' : ''}${b.cmd === 'more' && moreOpen ? ' open' : ''}${b.off ? ' off' : ''}" data-cmd="${esc(b.cmd)}"`
+    + (iconic(b) ? ` aria-label="${esc(b.label)}" data-tip="${esc(b.label)}">${b.icon ? `<svg viewBox="0 0 36 36" aria-hidden="true">${ICON[b.label] ?? ''}</svg>` : ''}` : `>${b.html ?? num(b.label)}`) + '</button>';
   const rows = list => (list ?? []).map(r => `<div class="ctl">${r.map(button).join('')}</div>`).join('');
+  // الأزرار لا تُستبدل إن لم يتغير ما فيها: ضغطة تقع بين نزول الإصبع ورفعه على زر استُبدل لا تصل (ش8-أ/54، عدّ المزاد السريع).
+  const drawn = new WeakMap();
+  const put = (el, html) => { if (drawn.get(el) !== html) { drawn.set(el, html); el.innerHTML = html; } };
   function renderCtl() {
     const c = embed && view ? ctl : null;
+    if (!c?.more) moreOpen = false;
+    $('ctlTip')?.remove();
     canvas.classList.toggle('editing', !!c?.names);
     // أزرار البطاقة في الشاشة الظاهرة وحدها.
     // وفي شاشتي البداية والاختيار لا بطاقة: زر «ابدأ» تحت الشعار، وأزرار الاختيار تحت البطاقات (design/logo/الدمج.md 3 و4.1).
     const hero = canvas.dataset.hero, inCard = hero !== 'start' && hero !== 'pick';
-    document.querySelectorAll('.card .ctl').forEach(el => { el.innerHTML = inCard && el.closest('.scr').classList.contains('show') ? (c?.card ?? []).map(button).join('') : ''; });
+    document.querySelectorAll('.card .ctl').forEach(el => put(el, inCard && el.closest('.scr').classList.contains('show') ? (c?.card ?? []).map(button).join('') : ''));
     $('startGo').innerHTML = hero === 'start' ? (c?.card ?? []).map(button).join('') : '';
     $('pickCtl').innerHTML = hero === 'pick' ? (c?.card ?? []).map(button).join('') : '';
-    $('near').innerHTML = (c?.near ?? []).map(button).join('');
-    $('cornerA').innerHTML = rows(c?.a);
-    $('cornerB').innerHTML = rows(c?.b);
-    $('cornerC').innerHTML = rows(c?.c);
-    // زر الخيارات (design/s8.md 1): ثلاث نقاط بلا نص، وقائمته «ابدأ بنافذتين» تحته ما دام مفتوحاً.
-    $('cornerO').innerHTML = c?.opts ? `<button class="cbtn alt opt${c.opts.open ? ' open' : ''}" data-cmd="opts" aria-label="خيارات"></button>` : '';
-    $('optmenu').innerHTML = c?.opts?.open ? c.opts.menu.map(button).join('') : '';
-    $('optmenu').hidden = !c?.opts?.open;
+    put($('near'), (c?.near ?? []).map(button).join(''));
+    put($('ansCtl'), (c?.ans ?? []).map(button).join(''));
+    put($('cornerA'), rows(c?.a));
+    put($('cornerB'), rows(c?.b));
+    put($('cornerC'), rows(c?.c));
+    // لوحة «⋯» (design/s8b.md 7.1): حالتها في هذه الشاشة وحدها. سطر الأيقونات، ثم فاصل، ثم «مباراة جديدة» وحدها.
+    const fresh = (c?.more ?? []).filter(b => b.cmd === 'new'), rest = (c?.more ?? []).filter(b => b.cmd !== 'new');
+    $('moreMenu').innerHTML = moreOpen ? `<div class="ctl">${rest.map(button).join('')}</div>` + (fresh.length ? `<hr><div class="ctl">${fresh.map(button).join('')}</div>` : '') : '';
+    $('moreMenu').hidden = !moreOpen;
+    canvas.classList.toggle('more-open', moreOpen);
     // النافذة الواحدة: صفّا أزرار الزاويتين مكان الشعار (1.3).
-    canvas.classList.toggle('has-a', ['cornerA', 'cornerB', 'cornerC', 'cornerO'].some(id => $(id).children.length));
+    canvas.classList.toggle('has-a', ['cornerA', 'cornerB', 'cornerC'].some(id => $(id).children.length));
     placeBadges();   // الشارة المرسومة تصغر بنافذة واحدة (has-a)، فيتغير موضع ما بعدها
     $('count').innerHTML = c?.count ? '<span class="lbl">عدد الأنماط</span>' + [['short', 2], ['full', 4]].map(([m, k]) =>
       `<button class="ctile${c.count.value === m ? ' sel' : ''}${k === 4 && !c.count.four ? ' off' : ''}" data-cmd="count:${m}"><span class="ltr">${k}</span></button>`).join('') : '';
@@ -841,6 +917,7 @@
       if (c?.names && input.value !== value && document.activeElement !== input) input.value = value;
     }
     placeNear();
+    if (pointer) showTip(document.elementFromPoint(pointer.x, pointer.y));
   }
   // أزرار العدّاد والحكم في صف الشارات (1.3): تنتهي قبل أول شارة بـ 32، أي 24 بعد ميلها (ارتفاع 64 × ظل 14° ÷ 2 = 8).
   function placeNear() {
@@ -858,12 +935,37 @@
       renderCtl();
     });
     document.addEventListener('click', e => {
-      // قائمة الخيارات تُغلق بنقرة خارجها (design/s8.md 1).
-      if (ctl?.opts?.open && !e.target.closest('#optmenu, #cornerO')) send('opts:close');
       const b = e.target.closest('[data-cmd]');
+      // لوحة «⋯» تُفتح وتُغلق هنا، وتُغلق باختيار زر فيها أو بنقرة خارجها (design/s8b.md 7.1).
+      if (b?.dataset.cmd === 'more') { moreOpen = !moreOpen; renderCtl(); return; }
+      if (moreOpen && (!e.target.closest('#moreMenu') || b)) { moreOpen = false; renderCtl(); }
+      // نقرة على القائمة المكشوفة تقلب صفحتها، في هذه الشاشة وحدها (design/s8c.md 2).
+      if (!b && e.target.closest('#cxList')) { flipPage(); return; }
+      if (!b && e.target.closest('#cxDots i')) { flipPage(Number(e.target.closest('#cxDots i').dataset.page)); return; }
       if (!b || b.classList.contains('off') || !ctl) return;
       send(b.dataset.cmd);
     });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && moreOpen) { moreOpen = false; renderCtl(); } });
+    // الاسم عند المرور (design/s8b.md 7.1–7.2): في الزاوية عنصر مستقل تحت الأيقونة بـ 24 (data-hud)، وفي لوحة «⋯» ابنٌ لها
+    // بجانب الأيقونة بـ 16 داخل سطرها، بلا data-hud، فيقيسه check.js مع اللوحة.
+    // وإعادة رسم الأزرار (بدء العدّاد، أو انتهاء التعطيل بعد النقر) تمحو الاسم والفأرة ثابتة، فيُعاد لما تحتها (ملاحظة المعاين بعد v62).
+    showTip = el => {
+      const b = el?.closest('.cbtn.ico[data-tip]'), old = $('ctlTip');
+      if (old && old.dataset.for === b?.dataset.cmd) return;
+      old?.remove();
+      const pan = b?.closest('#moreMenu');
+      if (!b || (moreOpen && !pan)) return;
+      const tip = document.createElement('div'); tip.id = 'ctlTip'; tip.className = 'ctl-tip'; tip.dataset.for = b.dataset.cmd; tip.textContent = b.dataset.tip;
+      if (pan) { pan.append(tip); tip.style.top = b.offsetTop + 'px'; tip.style.left = Math.max(0, b.offsetLeft - 16 - tip.offsetWidth) + 'px'; }
+      else {
+        const c = rect(canvas), k = c.width / 1920 || 1, r = rect(b);
+        tip.dataset.hud = 'اسم الزر'; canvas.append(tip);
+        tip.style.left = (r.left - c.left) / k + 'px'; tip.style.top = (r.bottom - c.top) / k + 24 + 'px';
+      }
+    };
+    document.addEventListener('mouseover', e => showTip(e.target));
+    document.addEventListener('mousemove', e => { pointer = { x: e.clientX, y: e.clientY }; });
+    document.documentElement.addEventListener('mouseleave', () => { pointer = null; });
     // الاسمان يُكتبان في اللوحتين. Enter في الأول ينقل إلى الثاني، وفي الثاني = «ابدأ القرعة».
     for (const k of [1, 2]) {
       // الأرقام الهندية تصير إنجليزية في الحقل نفسه وهو يُكتب (القاعدة: أرقام إنجليزية في كل شاشة).
@@ -891,10 +993,13 @@
     canvas.classList.add('anim');
     const winner = view.match.winner;
     if (name === 'draw' && winner) {
-      render(); showScreen('spin'); busy = true; canvas.classList.add('drawing');
-      // يتنقل المؤشر 12 مرة ويتباطأ، فيقف على الفائز في آخر خطوة. والحدّ يتأرجح معه، وإطار الوقت يتنقل معه (1.3).
+      // في صفحة الاختيار (design/s8b.md 3.2): مؤشر الدور يتنقل بين جهتي الفريقين والبطاقات تنتظر، ثم يقف على الفائز.
+      render(); busy = true; canvas.classList.add('drawing');
+      // يتنقل المؤشر 12 مرة ويتباطأ، فيقف على الفائز في آخر خطوة. والحدّ يتأرجح معه.
       let t = DRAW_STEPS.length % 2 === 0 ? other(winner) : winner, at = 0;
-      DRAW_STEPS.forEach(ms => { at += ms; const who = t; later(at, () => { setTurn(who); setSide(who); }); t = other(t); });
+      const wait = () => { cardsKey = ''; $('mcards').querySelectorAll('.mc.avail').forEach(c => { c.classList.remove('avail'); c.classList.add('wait'); }); };
+      wait();
+      DRAW_STEPS.forEach(ms => { at += ms; const who = t; later(at, () => { startsLine(who); $('turnLine').textContent = ''; wait(); setSide(who); }); t = other(t); });
       later(at + 420, () => { busy = false; canvas.classList.remove('drawing'); render(); bump(winner); });
     }
     // النتيجة النهائية: خانات المسار تدخل واحدة بعد الأخرى ثم رقماها (.anim .fin في css/final.css).
@@ -992,9 +1097,11 @@
   const run = () => {
     const left = Math.max(0, Math.ceil((count.endAt - Date.now()) / 1000));
     show(left);
-    setDanger(left > 0 && left <= 3);
-    if (!count.test) speed(left > 0 && left <= 3 ? 3.5 : 2.2);
-    if (left !== lastLeft && left > 0 && left <= 3) sound('tick');
+    // والنبض وصوت الثواني لوقت الإجابة وحده، لا للعدّ قبل الوقت (design/s8b.md 1.1).
+    const last3 = left > 0 && left <= 3 && !count.lead;
+    setDanger(last3);
+    if (!count.test) speed(last3 ? 3.5 : 2.2);
+    if (left !== lastLeft && last3) sound('tick');
     lastLeft = left;
     if (left > 0) return;
     const done = count;
@@ -1005,7 +1112,7 @@
   const begin = c => { stop(); count = c; run(); if (count) ticker = setInterval(run, 100); };
   function syncTimer(t, a) {
     mmss = !!a?.mmss;
-    if (t && t.id !== count?.id && t.id !== expired) return begin({ id: t.id, endAt: t.at + t.seconds * 1000 });
+    if (t && t.id !== count?.id && t.id !== expired) return begin({ id: t.id, endAt: t.at + t.seconds * 1000, lead: !!t.lead });
     if (!t && count && !count.test) stop();
     if (!count) show(a?.clock ?? 0);
   }
@@ -1033,21 +1140,15 @@
       if (data.play && data.match.step === 'play') roundMoments(data.moments ?? [], prev);
     }
     if (type === 'anim') { if (data.view) view = data.view; if (!count?.test) { setLocked(false); animate(data.name); } }
-    if (type === 'start') {
-      setLocked(false); ctl = null; renderCtl();
-      canvas.classList.remove('pre', 'fresh'); setHero(''); setTurn(0); setSide(0); showScreen('q'); setBadges(); announce();
-      $('label').textContent = 'العدّاد يعمل';
-      begin({ test: true, endAt: Date.now() + data.seconds * 1000 });
-    }
     // أُغلقت اللعبة لتغيّر الرقم السري: لا يبقى على شاشة الجمهور شيء من اللعب.
     if (type === 'lock') { view = null; waiting(); }
-    if (type === 'unlock' || type === 'reset') ready();
+    if (type === 'unlock') ready();
   });
   link.onStatus(on => {
     if (checking) return;
     if (!count && on) ready();
     if (!count && !on) waiting();
-    // اتصلت (أو عادت بعد إعادة تحميل): تطلب حالة المباراة، ولو كانت نافذة جمهور أخرى متصلة قبلها.
+    // اتصلت بالصفحة التي تضمّها (أو عادت بعد إعادة تحميل): تطلب حالة المباراة.
     if (on) { link.send('tick', { text: $('timer').textContent }); link.send('need-view'); }
   });
 

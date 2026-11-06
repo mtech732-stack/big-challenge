@@ -67,8 +67,51 @@ const { reporter } = require('./helpers.cjs');
     told.packs.general['auction.json'].topics[0].topic = 'أشهر السنة من يناير';
     const w = checkContent(told);
     check('نص الموضوع يكشف إجابة منه: تنبيه باسمها', w.errors.length === 0 && w.warnings.some(x => x.includes('يكشف إجابة') && x.includes('يناير')));
+    // كشف بين النمطين (تدقيق ش8): إجابة الحرف المعيّن كلمةً في نص آخر حرفين (وبحرف ملتصق كـ«والشاحن»)، أو العكس: خطأ باسميهما.
+    const cross = examples(), lq = cross.packs.general['letter.json'].questions[0], tq = cross.packs.general['last-two.json'].questions[0];
+    tq.prompt = `يحمله المسافر وال${lq.answer} في جيبه`;
+    const x = checkContent(cross);
+    check(`إجابة «${lq.answer}» في نص سؤال من آخر حرفين: خطأ باسميهما`, x.errors.some(e => e.includes(tq.id) && e.includes(lq.id) && e.includes(`«${lq.answer}»`)));
+    const back = examples(), lq2 = back.packs.general['letter.json'].questions[0], tq2 = back.packs.general['last-two.json'].questions[0];
+    lq2.prompt = `قبل ${tq2.answer} بقليل`;
+    check('والعكس: إجابة آخر حرفين في نص الحرف المعيّن خطأ', checkContent(back).errors.some(e => e.includes(lq2.id) && e.includes(tq2.id)));
+    const part = examples(), lq3 = part.packs.general['letter.json'].questions[0];
+    part.packs.general['last-two.json'].questions[0].prompt = `${lq3.answer}ات كثيرة`;
+    check('جزء كلمة لا يُعدّ كشفاً («شاحنات» ليست «شاحن»)', checkContent(part).errors.length === 0);
+    // تحسينات المدقّق على #299: «عبد الله» كـ«عبدالله»، و«أبي» و«أبا» كـ«أبو»، والسوابق المركبة «ولل» و«فلل» و«وبال» و«فبال».
+    const joined = (prompt, answer) => {
+      const c = examples();
+      c.packs.general['letter.json'].questions[0].answer = answer;
+      c.packs.general['last-two.json'].questions[0].prompt = prompt;
+      return checkContent(c).errors.some(e => e.includes('في مباراة واحدة'));
+    };
+    check('«عبد الله» بمسافة كـ«عبدالله»، والعكس', joined('سمّاه عبد الله', 'عبدالله') && joined('سمّاه عبدالله', 'عبد الله'));
+    check('«أبي لهب» و«أبا لهب» كـ«أبو لهب»، و«أبيض» ليست «أبو»', joined('نزلت في أبي لهب', 'أبو لهب') && joined('رأوا أبا لهب', 'أبو لهب') && !joined('ثوب أبيض', 'أبو'));
+    check('السوابق «ولل» و«فلل» و«وبال» و«فبال» تُحذف', joined('وللمسجد باب', 'المسجد') && joined('فللبيت رب', 'البيت') && joined('وبالقلم كتب', 'القلم') && joined('فبالصبر نفوز', 'الصبر'));
+    check('«فلل» و«وبال» كلمتين كاملتين لا تفرغان بحذف السابقة', joined('سكنوا فلل البحر', 'فلل') && joined('كان وبال أمرهم', 'وبال'));
+    const skip = examples();
+    skip.packs.general['last-two.json'].questions[0].prompt = `مع ${skip.packs.general['letter.json'].questions[0].answer}`;
+    skip.packs.general['pack.json'].excludeModes = ['last-two'];
+    check('حزمة تستثني أحد النمطين: لا كشف بينهما', !checkContent(skip).errors.some(e => e.includes('في مباراة واحدة')));
+    const { crossReveals } = await import(path.join(__dirname, '..', 'js', 'content-check.js'));
+    const bank = f => JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'content', 'packs', 'general', f), 'utf8'));
+    const found = crossReveals({ 'letter.json': bank('letter.json'), 'last-two.json': bank('last-two.json') });
+    check(`البنك الحالي: لا كشف بين الحرف المعيّن وآخر حرفين${found.length ? ' · ' + found.map(c => `${c.id}←${c.by}`).join('، ') : ''}`, found.length === 0);
     const { TARGETS } = await import(path.join(__dirname, '..', 'js', 'content-check.js'));
     check('الحرف المعيّن: 20 لكل مستوى، و20 لكسر التعادل', JSON.stringify(TARGETS.letter) === '{"easy":20,"medium":20,"hard":20,"tiebreak":20}');
+    // المزاد والترتيب بمستوى واحد (الوثيقة 1.15، المالك 3 نوفمبر 2026، ش8-أ/62 و63).
+    check('المزاد 30 موضوعاً والترتيب 20 قائمة، بلا مستوى', JSON.stringify(TARGETS.auction) === '{"topics":30}' && JSON.stringify(TARGETS.ranking) === '{"lists":20}');
+    const plain = examples();
+    check('أمثلة المزاد والترتيب بلا level، وتُعدّ في بنكها الواحد', !plain.packs.general['auction.json'].topics.some(t => 'level' in t) && !plain.packs.general['ranking.json'].lists.some(l => 'level' in l)
+      && checkContent(plain).counts.auction.topics === plain.packs.general['auction.json'].topics.length && checkContent(plain).counts.ranking.lists === plain.packs.general['ranking.json'].lists.length);
+    const old = examples();
+    old.packs.general['auction.json'].topics.forEach((t, k) => { t.level = ['easy', 'medium', 'hard'][k % 3]; });
+    old.packs.general['ranking.json'].lists.forEach(l => { l.level = 'easy'; });
+    const oc = checkContent(old);
+    check('ملف قديم بـ level في المزاد والترتيب: يُقبل ويُهمل، بلا خطأ ولا تنبيه', oc.errors.length === 0 && oc.warnings.length === 0 && oc.counts.auction.topics === old.packs.general['auction.json'].topics.length);
+    const odd = examples();
+    odd.packs.general['auction.json'].topics[0].level = 'x'; odd.packs.general['ranking.json'].lists[0].level = 'صعب';
+    check('وأي قيمة فيه تُهمل في النمطين، والحرف المعيّن ما زال يرفض المستوى الخطأ', checkContent(odd).errors.length === 0);
   }
 
   // طلبات الكاتب: ما صار تنبيهاً بعد أن كان خطأً.

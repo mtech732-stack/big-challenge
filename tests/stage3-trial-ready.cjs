@@ -50,7 +50,10 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
     await frame.fill('#i1', 'الصقور');
     await frame.fill('#i2', 'النجوم');
     await cmd(frame, 'draw');
-    await cmd(frame, 'toPick');
+    // 1.11: «اختيار الأنماط» يفتح صفحة الاختيار، و«قرعة البداية» فيها، والبطاقات تُنقر بعد حركتها.
+    await frame.waitForSelector('[data-hero="pick"] #pickCtl [data-cmd="draw"]', { timeout: 8000 });
+    await cmd(frame, 'draw');
+    await frame.waitForSelector('#mcards .mc[data-cmd]', { timeout: 8000 });
     await wait(200);
   };
   const tiles = () => frame.$$eval('#mcards .mc', b => b.map(x => x.dataset.mode).join(','));
@@ -86,7 +89,8 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
   check('اختيار من رابط المعاينة: يعود إلى الإعداد بالاسمين و2 وسطر يشرح', await frame.isVisible('[data-cmd="draw"]') && (await frame.inputValue('#i1')) === 'الصقور' && await sel('short')
     && (await text('#err')) === 'عادت المباراة إلى البداية.');
   await cmd(frame, 'draw');
-  await cmd(frame, 'toPick');
+  await frame.waitForSelector('[data-hero="pick"] #pickCtl [data-cmd="draw"]', { timeout: 8000 });
+  await cmd(frame, 'draw');
   await cmd(frame, 'pick:letter');
   await cmd(frame, 'pick:last-two');
   check('بعدها يكتمل الاختيار بجولتين', await frame.waitForSelector('[data-cmd="toFace"]', { timeout: 3000 }).then(() => true, () => false));

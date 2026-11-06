@@ -8,11 +8,15 @@ qrcode.stringToBytes = s => [...new TextEncoder().encode(s)];
 
 const alts = x => (x.alts?.length ? ` (${x.alts.join('، ')})` : '');
 
-// النص (design/s8.md 2.2). المزاد: «الموضوع · عدد العناصر» ثم عنصر في كل سطر وصيغه بين قوسين.
+// النص (design/s8.md 2.2). المزاد: الموضوع وحده (العدد مخفي دائماً)، ثم عنصر في كل سطر وصيغه بين قوسين.
+// والقائمة كاملة دائماً (المالك، 30 أكتوبر 2026: «ضع القوائم كاملة بالباركود»): إن لم تتسع الصيغ مع الأسماء كلها حُذفت كلها وبقيت الأسماء.
 // الترتيب: العنوان كما في الملف، ثم «رقم الخانة · الاسم (البديلة، …)» للعشرة، ثم «11 فخ · الاسم» للثلاثة.
 // p: ما تعيده presenter() للنمط.
 export function answersText(modeId, p) {
-  if (modeId === 'auction') return [`${p.topic} · ${p.items.length}`, ...p.items.map(x => x.name + alts(x))].join('\n');
+  if (modeId === 'auction') {
+    const full = [p.topic, ...p.items.map(x => x.name + alts(x))].join('\n');
+    return fits(full) ? full : [p.topic, ...p.items.map(x => x.name)].join('\n');
+  }
   if (modeId === 'ranking') return [p.title, ...p.items.map(x => (x.trap ? `${x.rank} فخ · ${x.name}` : `${x.rank} · ${x.name}${alts(x)}`))].join('\n');
   return '';
 }
@@ -26,6 +30,10 @@ export function qrMatrix(text) {
   q.make();
   const n = q.getModuleCount();
   return { n, dark: (r, c) => q.isDark(r, c), unit: Math.floor(QR_BOX / (n + 6)), bytes: new TextEncoder().encode(text).length };
+}
+// أيسعه الرمز بأي وحدة (حتى الإصدار 40). وما لا يسعه لا يُرسم (index.html: لا باركود لسؤاله).
+export function fits(text) {
+  try { qrMatrix(text); return true; } catch { return false; }
 }
 export function drawQR(canvas, text) {
   const { n, dark, unit: m, bytes } = qrMatrix(text);

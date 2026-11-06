@@ -145,17 +145,6 @@ function audience(s) {
   };
 }
 
-// نافذة المقدّم: ما يراه الجمهور، ومعه نصوص الخانات العشر كاملة، وسبب البدء، ومسار الدورتين.
-function presenter(s) {
-  const a = audience(s);
-  return {
-    ...a,
-    why: s.why,
-    items: s.slots.map(x => ({ kind: x.kind, effect: x.effect, text: x.text, ...face(x) })),
-    track: s.spinners.map((t, i) => ({ owner: t, result: s.results[i]?.team ?? null, now: s.phase !== 'end' && i === s.n - 1 })),
-  };
-}
-
 export default {
   id: 'wheel',
   name: 'شريط البونص',
@@ -164,7 +153,7 @@ export default {
   auto: ['land'],
   // الدوران حالة عابرة لا حكم فيها: التراجع يتخطاها إلى ما قبله (js/play.js).
   transient: s => s.phase === 'spin',
-  setup, actions, act, audience, presenter,
+  setup, actions, act, audience,
   finished: s => s.phase === 'end',
   used: () => [],
 };
