@@ -29,8 +29,12 @@ export const AUCTION_OPEN_MIN = 40;
 // أسئلة كل مستوى في الجولة لكل فريق سؤال (5.3 و5.4)، فسؤالان من كل مستوى في جولة «آخر حرفين» بنهاية واحدة.
 export const ROUND_PER_LEVEL = 2;
 const length = text => [...String(text)].length;
+// ما نقص من الأعداد counts (من checkContent) عن الحد الأدنى في TARGETS: [{ mode, key, have, min }]. والزيادة ليست نقصاً.
+export const short = (counts, targets = TARGETS) => Object.entries(targets).flatMap(([mode, t]) => Object.entries(t)
+  .map(([key, min]) => ({ mode, key, have: counts[mode]?.[key] ?? 0, min })).filter(x => x.have < x.min));
 
-// أحجام البنك المطلوبة (القسم 6.2 من الوثيقة)، للعرض لا للمنع.
+// أحجام البنك المطلوبة (القسم 6.2 من الوثيقة)، للعرض لا للمنع. وكلها حدّ أدنى «فأكثر» (ش8-أ/72): الزيادة سليمة ولا تُنبّه،
+// والنقص يُذكر في tools/validate-content (short). والكود لا يفترض حجماً للبنك.
 export const TARGETS = {
   letter: { easy: 20, medium: 20, hard: 20, tiebreak: 20 },
   'last-two': { easy: 20, medium: 20, hard: 20 },

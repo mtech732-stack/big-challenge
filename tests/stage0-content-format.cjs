@@ -102,6 +102,12 @@ const { reporter } = require('./helpers.cjs');
     // المزاد والترتيب بمستوى واحد (الوثيقة 1.15، المالك 3 نوفمبر 2026، ش8-أ/62 و63).
     check('الشريط 30 تحدياً على الأقل وثلاث خانات حظ (الوثيقة 1.18، 6.2)', JSON.stringify(TARGETS.wheel) === '{"challenges":30,"luck":3}');
     check('المزاد 30 موضوعاً والترتيب 20 قائمة، بلا مستوى', JSON.stringify(TARGETS.auction) === '{"topics":30}' && JSON.stringify(TARGETS.ranking) === '{"lists":20}');
+    // ش8-أ/72: الأهداف حدّ أدنى «فأكثر»: الزيادة لا تُذكر، والنقص يُذكر باسمه.
+    const { short } = await import(path.join(__dirname, '..', 'js', 'content-check.js'));
+    const full = { letter: { easy: 30, medium: 30, hard: 30, tiebreak: 20 }, 'last-two': { easy: 30, medium: 30, hard: 30 }, auction: { topics: 45 }, ranking: { lists: 30 }, wheel: { challenges: 30, luck: 3 } };
+    const less = short({ ...full, auction: { topics: 29 }, letter: { ...full.letter, hard: 19 } });
+    check('الأهداف حدّ أدنى: بنوك الدفعة الجديدة (30 · 45 · 30) بلا تنبيه، والنقص يُذكر باسمه وحده',
+      short(full).length === 0 && less.map(x => `${x.mode}.${x.key}:${x.have}/${x.min}`).sort().join() === 'auction.topics:29/30,letter.hard:19/20' && short({}).length === 11);
     const plain = examples();
     check('أمثلة المزاد والترتيب بلا level، وتُعدّ في بنكها الواحد', !plain.packs.general['auction.json'].topics.some(t => 'level' in t) && !plain.packs.general['ranking.json'].lists.some(l => 'level' in l)
       && checkContent(plain).counts.auction.topics === plain.packs.general['auction.json'].topics.length && checkContent(plain).counts.ranking.lists === plain.packs.general['ranking.json'].lists.length);
