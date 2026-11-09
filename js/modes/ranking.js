@@ -181,5 +181,6 @@ export default {
   finished: s => s.phase === 'end',
   used: s => s.lists.map(t => t.id),
   // كم جولة كاملة بقيت بلا تكرار: قائمتان لكل جولة (js/play.js freshLeft).
+  pool: content => content?.lists ?? [],
   fresh: (content, seen) => freshRounds(content?.lists ?? [], seen, LISTS),
 };

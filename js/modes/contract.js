@@ -9,7 +9,7 @@ export const REQUIRED = {
 };
 // presenter اختياري (الوثيقة 1.13: لا نافذة مقدّم): ما يحتاجه التحكم ولا يصل إلى الجمهور، كنصّ باركود الإجابات.
 // fresh اختياري (الوثيقة 1.18): fresh(محتوى النمط، ذاكرة الجهاز) ← كم جولة كاملة بقيت بلا تكرار، يجمعها js/play.js freshLeft.
-export const OPTIONAL = { presenter: 'function', fresh: 'function' };
+export const OPTIONAL = { presenter: 'function', fresh: 'function', pool: 'function' };
 
 export function checkMode(mod) {
   const errors = [];

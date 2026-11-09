@@ -130,6 +130,7 @@ export function wordMode({ id, name, order, seconds, key, tatweel = false, sameB
     used: s => s.questions.map(q => q.id),
     // كم جولة كاملة بقيت بلا تكرار (js/play.js freshLeft): سؤالان لكل مستوى مما لم يظهر.
     // و«آخر حرفين» الجولة كلها من مجموعة واحدة: عدد المجموعات التي بقي في كل مستوى منها سؤالان لم يظهرا.
+    pool: content => (content?.questions ?? []).filter(q => !q.tiebreak),
     fresh: (content, seen) => {
       const bank = (content?.questions ?? []).filter(q => !q.tiebreak);
       const rounds = qs => Math.min(...LEVELS.map(l => freshRounds(qs.filter(q => q.level === l), seen, ROUND_PER_LEVEL)));

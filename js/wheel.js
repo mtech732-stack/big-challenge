@@ -167,5 +167,6 @@ export default {
   // التحديات السبع تُحفظ في ذاكرة الجهاز كالأسئلة (الوثيقة 1.18). وحال محفوظة قبلها فيها تحدياتها، فتُحفظ كذلك.
   used: s => (s.slots ?? []).filter(x => x.kind === 'challenge' && x.id).map(x => x.id),
   // كم شريطاً كاملاً بقي بلا تكرار (js/play.js freshLeft).
+  pool: content => (content?.challenges ?? []).filter(x => x?.id),
   fresh: (content, seen) => freshRounds((content?.challenges ?? []).filter(x => x?.id), seen, CHALLENGES),
 };
