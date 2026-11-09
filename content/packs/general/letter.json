@@ -98,7 +98,7 @@
     {"id": "general-letter-153", "level": "medium", "letter": "و", "prompt": "الحجة الوحيدة التي حجّها النبي ﷺ: حجة ...", "answer": "الوداع", "domain": "religion", "note": "السنة العاشرة للهجرة. و«حجة الوداع» تُقبل"},
     {"id": "general-letter-154", "level": "medium", "letter": "ح", "prompt": "مرضعة النبي ﷺ التي نشأ عندها في بادية بني سعد", "answer": "حليمة السعدية", "alts": ["حليمة"], "domain": "religion", "note": "السيرة النبوية لابن هشام"},
     {"id": "general-letter-155", "level": "medium", "letter": "م", "prompt": "مشعرٌ يبيت فيه الحجاج ليلة العاشر من ذي الحجة", "answer": "مزدلفة", "alts": ["المزدلفة"], "domain": "religion", "note": "البقرة 198 (المشعر الحرام)"},
-    {"id": "general-letter-156", "level": "medium", "letter": "ز", "prompt": "شجرة تخرج في أصل الجحيم، وطعامها للأثيم", "answer": "الزقوم", "domain": "religion", "note": "الصافات 62–66، والدخان 43–44"},
+    {"id": "general-letter-156", "level": "medium", "letter": "ز", "prompt": "شجرة تخرج في أصل الجحيم، وهي طعام الأثيم", "answer": "الزقوم", "domain": "religion", "note": "الصافات 62–66، والدخان 43–44"},
     {"id": "general-letter-157", "level": "medium", "letter": "ش", "prompt": "لعبة لوحية فيها ملك ووزير، وتنتهي بقول: كش ملك", "answer": "الشطرنج", "domain": "sports"},
     {"id": "general-letter-158", "level": "medium", "letter": "ك", "prompt": "أكبر صحراء حارة في العالم، في شمال أفريقيا: الصحراء ...", "answer": "الكبرى", "domain": "geography", "note": "و«الصحراء الكبرى» تُقبل"},
     {"id": "general-letter-159", "level": "hard", "letter": "ط", "prompt": "ملكٌ بعثه الله لبني إسرائيل، وزاده بسطة في العلم والجسم", "answer": "طالوت", "domain": "religion", "note": "البقرة 247"},
