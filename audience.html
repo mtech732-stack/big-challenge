@@ -872,7 +872,24 @@
     }).join('') + (a.listClock ? `<p class="clock" id="rclock"><span>بقي للقائمة</span><b>${a.listEnds ? '' : format(a.listSeconds)}</b></p>` : '');
     listEnds = a.listEnds ?? null;
     if (listEnds) $('rclock').querySelector('b').textContent = listText();
+    markArmed();
   }
+  // خانات اللوحة في التطبيق (design/app.md 4.6، المالك 9 نوفمبر 2026): نقرتان. الأولى تحدّد الخانة (إطار حول شارة رقمها) ولا تكشفها،
+  // والثانية على الخانة نفسها تكشفها. والنقر على خانة أخرى ينقل التحديد إليها. ويزول بعد 4 ثوانٍ بلا نقرة، أو بأي زر آخر («خطأ»…)،
+  // أو حين لا تبقى الخانة زراً (انتهى الوقت، أو انتهى التحكيم). والموقع بنقرة واحدة كما كان. armed: أمر الخانة المحددة (act:item:N).
+  const TWO_TAPS = document.documentElement.classList.contains('native-app'), ARM_MS = 4000;
+  let armed = null, armTimer = null;
+  function disarm() { armed = null; clearTimeout(armTimer); document.querySelectorAll('#board .sl.armed').forEach(s => s.classList.remove('armed')); }
+  function markArmed() {
+    if (!armed) return;
+    const el = [...document.querySelectorAll('#board .sl[data-cmd]')].find(s => s.dataset.cmd === armed);
+    if (!el) return disarm();
+    document.querySelectorAll('#board .sl.armed').forEach(s => s !== el && s.classList.remove('armed'));
+    el.classList.add('armed');
+  }
+  // اهتزاز خفيف مع التحديد إن وُجد إضافة Haptics في الغلاف (Capacitor)، في هذه النافذة أو في الصفحة الأم. وبدونها لا شيء.
+  function haptic() { try { for (const w of [window, parent]) { const h = w.Capacitor?.Plugins?.Haptics; if (h?.impact) return void h.impact({ style: 'LIGHT' }); } } catch {} }
+  function arm(cmd) { armed = cmd; clearTimeout(armTimer); armTimer = setTimeout(disarm, ARM_MS); markArmed(); haptic(); }
   // مربع الإعلان في الترتيب: الحكم بالمربع («[الاسم] · +7» و«المركز 7»)، و«لا نقاط» و«لم تُكشف خانة».
   // ونهاية القائمة بلا مربع: «كُشف 7 من 10» (design/ranking.md 7.6).
   function rankBox(a) {
@@ -937,6 +954,7 @@
     // التحكيم المباشر في الترتيب (design/s8.md 3.2): في الإجابة رقم كل خانة لم تنكشف زرٌّ يحكم بها.
     $('rnk').classList.toggle('judge', !!c?.judge);
     $('board').querySelectorAll('.sl[data-r]').forEach(el => { if (c?.judge && !el.classList.contains('t1') && !el.classList.contains('t2')) el.dataset.cmd = 'act:item:' + el.dataset.r; else delete el.dataset.cmd; });
+    markArmed();
     $('mcards').querySelectorAll('.mc').forEach(t => { if (c?.pick && t.classList.contains('avail')) t.dataset.cmd = 'pick:' + t.dataset.mode; else delete t.dataset.cmd; });
     $('tiles').querySelectorAll('.tile').forEach(t => { if (c?.pick && !t.classList.contains('by1') && !t.classList.contains('by2') && !t.classList.contains('auto') && !t.classList.contains('left')) t.dataset.cmd = 'pick:' + t.dataset.mode; else delete t.dataset.cmd; });
     for (const k of [1, 2]) {
@@ -972,6 +990,8 @@
       if (!b && e.target.closest('#cxList')) { flipPage(); return; }
       if (!b && e.target.closest('#cxDots i')) { flipPage(Number(e.target.closest('#cxDots i').dataset.page)); return; }
       if (!b || b.classList.contains('off') || !ctl) return;
+      // التطبيق: خانة اللوحة بنقرتين (design/app.md 4.6)، وأي زر آخر يزيل التحديد.
+      if (TWO_TAPS && b.matches('#board .sl')) { if (armed !== b.dataset.cmd) return arm(b.dataset.cmd); disarm(); } else if (armed) disarm();
       send(b.dataset.cmd);
     });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && moreOpen) { moreOpen = false; renderCtl(); } });
