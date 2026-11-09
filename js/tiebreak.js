@@ -3,7 +3,7 @@
 // كل محاولة سؤال صعب من «الحرف المعيّن» (أسئلة tiebreak: true في letter.json) لكل فريق بالتناوب، يبدؤها الخاسر في القرعة.
 // من أصاب وأخطأ خصمه في المحاولة نفسها فاز، وإن أصابا معاً أو أخطآ معاً فسؤالان جديدان. ولا انتقال للخصم.
 // وسؤالها كسؤال النمط الأول (1.11، js/judge.js): العدّاد بعد 5 ثوانٍ، ثم «كشف الإجابة» ويختار المقدّم: أصاب، أو «لم يُجب أحد».
-import { freshFirst } from './round.js';
+import { freshFirst, freshRounds } from './round.js';
 import { lead, timing, timingActions, picked, clockView } from './judge.js';
 import { SECONDS } from './modes/letter.js';
 
@@ -19,8 +19,10 @@ const SUB = `سؤال لكل فريق بالتناوب · ${SECONDS} ثانية 
 // الحالات: intro المقدمة · ready التمهيد · ask العدّاد · over انتهى الوقت · revealed كُشفت الإجابة · decided بعد الحكم · end أُعلن الفائز.
 // questions: أسئلة الجولة الفاصلة كلها بترتيب عشوائي (ما لم يظهر أولاً)، وqi السؤال الحالي، ويعود إلى أولها إن نفدت.
 // attempt رقم المحاولة، وk دور من فيها (0 الذي يبدأ، 1 الآخر)، وhits إصابة كلٍّ في المحاولة الجارية.
+// ومحاولتها الأولى سؤالان (لكل فريق سؤال): أقل ما تحتاجه، فإن بقي مما لم يظهر أقل منهما بدأت دورة جديدة (js/round.js remember).
+const POOL = content => (content?.questions ?? []).filter(q => q.tiebreak);
 function setup({ content, first, seen = [], rng = Math.random }) {
-  const bank = (content?.questions ?? []).filter(q => q.tiebreak);
+  const bank = POOL(content);
   const questions = freshFirst(bank, seen, bank.length, rng).map(q => ({ id: q.id, box: q.letter, prompt: q.prompt, answer: q.answer, alts: q.alts ?? [] }));
   return { first, questions, qi: 0, attempt: 1, k: 0, phase: 'intro', team: first, hits: [null, null], winner: 0, asked: [], paused: null };
 }
@@ -85,4 +87,6 @@ export default {
   setup, actions, act, audience, presenter,
   finished: s => s.phase === 'end',
   used: s => s.asked,
+  pool: POOL,
+  fresh: (content, seen) => freshRounds(POOL(content), seen, 2),
 };
