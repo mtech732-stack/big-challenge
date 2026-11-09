@@ -34,10 +34,10 @@ async function shot(page, frame, name) {
   const f = await H.stageFrame(st); await wait(1500);
   await f.addScriptTag({ path: R + '/design/check.js' });
   await f.addScriptTag({ path: path.join(__dirname, 's8d.js') });
-  await f.evaluate(() => RP.show({ letter: 12, 'last-two': 9, auction: 10, ranking: 14 }));
+  await f.evaluate(() => RP.show({ letter: 12, 'last-two': 9, auction: 10, ranking: 14, wheel: 25 }));
   await shot(st, f, '1-البداية-فارغة');
   await f.evaluate(([a, b]) => { for (const [k, v] of [[1, a], [2, b]]) { const i = document.getElementById('i' + k); i.value = v; i.dispatchEvent(new Event('input', { bubbles: true })); } }, LONG);
-  await f.evaluate(() => RP.show({ letter: 3, 'last-two': 1, auction: 0, ranking: 2 }));
+  await f.evaluate(() => RP.show({ letter: 3, 'last-two': 1, auction: 0, ranking: 2, wheel: 0 }));
   await shot(st, f, '2-البداية-بالاسمين-وتتكرر');
   await ctx.close(); await browser.close();
 })();
