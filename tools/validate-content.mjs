@@ -3,7 +3,7 @@
 // المجلد فيه packs/index.json وpacks/<الحزمة>/... وwheel.json.
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { checkContent, TARGETS } from '../js/content-check.js';
+import { checkContent, TARGETS, short } from '../js/content-check.js';
 
 const root = process.argv[2] || 'content';
 const parseErrors = [];
@@ -32,11 +32,14 @@ const { errors, warnings, counts } = checkContent({ index, packs, wheel });
 const all = [...parseErrors, ...errors];
 
 console.log(`فحص ${root}`);
-console.log('\nالأعداد مقابل المطلوب للبنك الكامل:');
+// الأعداد مقابل الحد الأدنى (TARGETS، «فأكثر»): الزيادة سليمة، والنقص يُنبَّه عليه باسمه.
+console.log('\nالأعداد مقابل الحد الأدنى للبنك الكامل (فأكثر):');
+const less = short(counts);
 for (const [mode, target] of Object.entries(TARGETS)) {
-  const line = Object.entries(target).map(([k, v]) => `${k} ${counts[mode]?.[k] ?? 0}/${v}`).join(' · ');
+  const line = Object.entries(target).map(([k, v]) => `${k} ${counts[mode]?.[k] ?? 0} (${v} فأكثر)${less.some(x => x.mode === mode && x.key === k) ? ' ناقص' : ''}`).join(' · ');
   console.log(`  ${mode}: ${line}`);
 }
+if (less.length) console.log(`\nتنبيه: أقل من الحد الأدنى (${less.length}):\n  ${less.map(x => `${x.mode} · ${x.key}: ${x.have} من ${x.min}`).join('\n  ')}`);
 if (warnings.length) console.log(`\nتنبيهات (${warnings.length}):\n  ${warnings.join('\n  ')}`);
 if (all.length) console.log(`\nأخطاء (${all.length}):\n  ${all.join('\n  ')}`);
 console.log(all.length ? '\nالنتيجة: فشل' : '\nالنتيجة: سليم');
