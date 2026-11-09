@@ -1,0 +1,8 @@
+{
+  "name": "big-challenge-tests",
+  "private": true,
+  "description": "أدوات الاختبارات وحدها، لا اللعبة. التثبيت: npm ci --prefix tests (أو npm install --prefix tests). وPlaywright والمتصفح مثبتان في البيئة.",
+  "devDependencies": {
+    "@zxing/library": "0.21.3"
+  }
+}

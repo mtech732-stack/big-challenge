@@ -1,11 +1,11 @@
 // اختبار آلي لمرحلة «تتابع الجولة» في المزاد (ش4، القسم 5.5) بالنافذة الواحدة (الوثيقة 1.13)، بالبنك الحقيقي، في الرابط العادي:
-// ثلاثة مواضيع (سهل ثم متوسط ثم صعب) بلا مفتتح (3.0)، و«الموضوع التالي» يعرض الموضوع فوراً للمزايدة والحدّ في المنتصف،
+// ثلاثة مواضيع من بنك واحد بلا مستوى (ش8-أ/63) بلا مفتتح (3.0)، و«الموضوع التالي» يعرض الموضوع فوراً للمزايدة والحدّ في المنتصف،
 // ومسار المواضيع بمن أخذ كلاً منها (ومنه الخصم بنقطتيه إن لم يفِ الملتزم، 2.0)، و«إنهاء الجولة» بعد الثالث فشاشة النهاية بحصيلة كل فريق، والتراجع عن النهاية،
 // و«الموضوع التالي» و«إنهاء الجولة» في صف الشارات (الوثيقة 1.14، design/s8c.md 1)، و«شريط البونص» في البطاقة، والحكم بعد «كشف القائمة». وفحص التداخل في كل حالة.
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auctionNamesShown } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/'; // الرابط العادي: المزاد في MODES منذ اكتمال ش4
@@ -16,9 +16,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const LONG = ['فريق النخبة الذهبي', 'نجوم المستقبل معاً'];
 
-  // البنك الحقيقي، والموضوع الصعب «دول قارة أفريقيا» (54) كي تُفحص نافذة المقدّم بأطول قائمة.
+  // البنك الحقيقي، ومواضيعه كلها فوق 30 عنصراً، فالموضوع الثالث بقائمة طويلة أياً كان (ولا مستوى، ش8-أ/63).
   const real = JSON.parse(fs.readFileSync(path.join(__dirname, '../content/packs/general/auction.json'), 'utf8'));
-  const bank = { ...real, topics: real.topics.filter(t => t.level !== 'hard' || t.items.length > 30) };
+  const bank = { ...real, topics: real.topics.filter(t => t.items.length > 30) };
 
   const context = await browser.newContext({ viewport: { width: 1366, height: 768 }, serviceWorkers: 'block' });
   await usePin(context);
@@ -67,7 +67,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
     if (body.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
   };
   const both = async label => { await wait(700); await audienceCheck(label); };
-  const chips = () => audience.$$eval('#items .it', els => els.map(e => ({ name: e.textContent.trim(), t: e.classList.contains('t1') ? 1 : e.classList.contains('t2') ? 2 : 0, left: e.classList.contains('left'), more: e.classList.contains('more') })));
+  // ش8-أ/61: الأسماء التي لا يجوز ظهورها، بنص الشاشة كلها (helpers.cjs auctionNamesShown).
+  const names = async () => auctionNamesShown(audience, await st(), LONG);
   const tally = async () => `${await text(audience, '#tn')}/${await text(audience, '#tof')}`;
   const round = async () => (await stored()).round;
   const card = () => audience.$$eval('.scr.show .ctl .cbtn', els => els.map(e => e.textContent.trim()).join(' | '));
@@ -88,7 +89,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await audience.waitForSelector('.scr.show[data-s="intro"]', { timeout: 5000 });
   let s = await st();
   const first = Math.random() < 0.5 ? 1 : 2;
-  check('ثلاثة مواضيع: سهل ثم متوسط ثم صعب، بلا مفتتح', s.topics.map(t => t.level).join(',') === 'easy,medium,hard' && s.topics.every(t => !('opener' in t)));
+  check('ثلاثة مواضيع مختلفة من بنك واحد، بلا مستوى ولا مفتتح', s.topics.length === 3 && new Set(s.topics.map(t => t.id)).size === 3 && s.topics.every(t => !('opener' in t) && !('level' in t)));
   await cmd(audience, 'act:show');
   await audience.waitForSelector('.scr.show[data-s="auc"]');
   await wait(800);
@@ -112,7 +113,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   check('الموضوع 2: «الموضوع 2 من 3» على الشاشة، ونصّه، والمزايدة فوراً', s.index === 1 && s.phase === 'bid' && (await text(audience, '#b1')) === 'الموضوع 2 من 3'
     && (await text(audience, '#topic')) === s.topics[1].topic);
   check(`الموضوع 2: الحدّ في المنتصف، ولا أرقام ولا عدّ ولا قائمة`, s.team === 0 && s.nums.join(',') === '0,0' && await centered()
-    && !(await audience.isVisible('#tally')) && !(await chips()).length && !(await audience.$$('#bids .bid')).length && !(await audience.isVisible('#verdict')));
+    && !(await audience.isVisible('#tally')) && !(await names()).length && !(await audience.$$('#bids .bid')).length && !(await audience.isVisible('#verdict')));
   check(`«زايد» · «ابدأ» معطّل · «زايد» (${await near()})`, (await near()) === 'زايد | ابدأ(معطّل) | زايد');
   await both('الموضوع 2 · الافتتاح');
   await stage.screenshot({ path: `${shots}/s4-topic2.png` });
@@ -123,11 +124,11 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   w = await won();
   check('الموضوع 2: لم يفِ الآخر، فللأول نقطتان (رصيده 5)، والمسار باسمه', (await st()).phase === 'decided' && (await round()).scores[first] === 5 && (await round()).scores[other(first)] === 0 && w[1] === first);
 
-  // 5. الموضوع 3 (الصعب، أطول قائمة): يرسو على الأول بـ 1، ثم الكشف و«لم يفِ»، فللآخر نقطتان، ثم «إنهاء الجولة».
+  // 5. الموضوع 3 (قائمة طويلة): يرسو على الأول بـ 1، ثم الكشف و«لم يفِ»، فللآخر نقطتان، ثم «إنهاء الجولة».
   await cmd(audience, 'act:next'); await wait(1200);
   await hideQr(audience);
   s = await st();
-  check('الموضوع 3: صعب بأطول قائمة، والحدّ في المنتصف', s.index === 2 && s.team === 0 && await centered() && s.topics[2].items.length > 30 && (await text(audience, '#b1')) === 'الموضوع 3 من 3');
+  check('الموضوع 3: بقائمة طويلة، والحدّ في المنتصف', s.index === 2 && s.team === 0 && await centered() && s.topics[2].items.length > 30 && (await text(audience, '#b1')) === 'الموضوع 3 من 3');
   await both('الموضوع 3 · الافتتاح');
   check(`الموضوع 3: «زايد» · «ابدأ» معطّل · «زايد» (${await near()})`, (await near()) === 'زايد | ابدأ(معطّل) | زايد');
   await bidTo(1, first);

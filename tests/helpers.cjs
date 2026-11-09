@@ -100,4 +100,64 @@ async function passWheelOne(stage, frame) {
   }
 }
 
-module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne, hideQr };
+// ش8-أ/61: ما يظهر على شاشة المزاد من أسماء لا يجوز ظهورها (الوثيقة 1.14: ما قيل لا يظهر على التلفاز).
+// يبحث في نص الشاشة كلها (innerText للبطاقة والإطار)، بعد حذف نص الأزرار والموضوع وأسماء الفريقين:
+// · قبل «كشف القائمة»: لا اسم من القائمة ولا صيغة منها.
+// · وفي كل حال: لا نص «out:» محفوظ في said (ما لم يكن هو نفسه اسماً في القائمة المكشوفة).
+// واسم من حرف أو حرفين يقع في أي نص، فلا يُبحث عنه. يعيد ما ظهر.
+async function auctionNamesShown(frame, state, teams = []) {
+  const t = state.topics[state.index];
+  if (!t) return [];
+  const listed = ['revealed', 'decided'].includes(state.phase);
+  const listNames = t.items.flatMap(x => [x.name, ...(x.alts ?? [])]);
+  const texts = (state.said ?? []).map(x => x.text).filter(Boolean).filter(x => !(listed && listNames.includes(x)));
+  const look = [...(listed ? [] : listNames), ...texts].filter(n => [...n].length > 2);
+  const body = await frame.evaluate(cut => {
+    let b = document.querySelector('.canvas').innerText;
+    // ونص فارغ (زر بأيقونة) لا يُحذف: split('') يفرّق النص حرفاً حرفاً فلا يوجد فيه اسم.
+    const drop = n => { n = n.trim(); if (n) b = b.split(n).join(' '); };
+    for (const e of document.querySelectorAll('.cbtn')) drop(e.innerText);
+    drop(document.getElementById('topic').innerText);
+    for (const n of cut) drop(n);
+    return b;
+  }, teams);
+  return [...new Set(look.filter(n => body.includes(n)))];
+}
+
+// ش8-أ/63: المزاد بلا مستوى، فالمواضيع الثلاثة من بنك واحد بترتيب عشوائي. والاختبار الذي يلعبها بترتيب بعينه
+// يرتّبها في الحالة المحفوظة بالافتتاح (قبل أن يظهر شيء منها)، ثم يعيد التحميل كما تُستأنف المباراة. يعيد الإطار الجديد.
+async function arrangeTopics(stage, ids) {
+  await stage.evaluate(ids => {
+    const m = JSON.parse(localStorage.getItem('big-challenge.match')), s = m.round.state;
+    if (s.phase !== 'intro') throw new Error('arrangeTopics: الافتتاح وحده');
+    s.topics = [...ids.map(id => s.topics.find(t => t.id === id)).filter(Boolean), ...s.topics.filter(t => !ids.includes(t.id))];
+    localStorage.setItem('big-challenge.match', JSON.stringify(m));
+  }, ids);
+  await stage.reload();
+  await unlock(stage).catch(() => {});
+  return stageFrame(stage);
+}
+
+// ش8-أ/65: قارئ مستقل للباركود، zxing (@zxing/library) الذي يتبع المواصفة كما تفعل كاميرات الهواتف.
+// لا jsQR: في جدوله للإصدار 23 مركز محاذاة خاطئ (74 بدل 78)، فلا يفكّ رموزاً سليمة من هذا الإصدار.
+// qrRead: صورة رمادية (بايت لكل نقطة، 0 أسود) ← النص، أو '' إن لم يُفكّ. وnull إن لم يوجد القارئ،
+// فلا يساوي null نصاً أبداً، وكل فحص فكّ يُخفق. وغياب القارئ نفسه فحص مخفق باسمه (qrReader، ش8-أ/66)، لا تخطٍّ صامت.
+// التثبيت بنسخته في tests/package.json: npm ci --prefix tests.
+let ZX = null;
+try { ZX = require('@zxing/library'); } catch {}
+const qrReader = () => !!ZX;
+// والصورة رمز نظيف وحده بحاشيته (PURE_BARCODE)، كما يرسمه الاختبار أو القماش: يُقرأ بشبكته مباشرة، لا بالبحث عن أنماط المحاذاة في صورة.
+function qrRead(lum, w, h = w) {
+  if (!ZX) return null;
+  const hints = new Map([[ZX.DecodeHintType.CHARACTER_SET, 'UTF-8'], [ZX.DecodeHintType.PURE_BARCODE, true]]);
+  try { return new ZX.QRCodeReader().decode(new ZX.BinaryBitmap(new ZX.HybridBinarizer(new ZX.RGBLuminanceSource(lum, w, h))), hints).getText(); } catch { return ''; }
+}
+// يرسم مصفوفة qrMatrix (js/qr.js) بوحدة u وحاشية 4 وحدات، ثم يفكّها.
+function qrReadMatrix(m, u = 4) {
+  const pad = 4 * u, w = m.n * u + pad * 2, lum = new Uint8ClampedArray(w * w).fill(255);
+  for (let r = 0; r < m.n; r++) for (let c = 0; c < m.n; c++) if (m.dark(r, c))
+    for (let y = 0; y < u; y++) lum.fill(0, (pad + r * u + y) * w + pad + c * u, (pad + r * u + y) * w + pad + c * u + u);
+  return qrRead(lum, w);
+}
+
+module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne, hideQr, auctionNamesShown, arrangeTopics, qrRead, qrReadMatrix, qrReader };

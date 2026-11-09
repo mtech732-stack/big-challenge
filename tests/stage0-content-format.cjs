@@ -99,6 +99,19 @@ const { reporter } = require('./helpers.cjs');
     check(`البنك الحالي: لا كشف بين الحرف المعيّن وآخر حرفين${found.length ? ' · ' + found.map(c => `${c.id}←${c.by}`).join('، ') : ''}`, found.length === 0);
     const { TARGETS } = await import(path.join(__dirname, '..', 'js', 'content-check.js'));
     check('الحرف المعيّن: 20 لكل مستوى، و20 لكسر التعادل', JSON.stringify(TARGETS.letter) === '{"easy":20,"medium":20,"hard":20,"tiebreak":20}');
+    // المزاد والترتيب بمستوى واحد (الوثيقة 1.15، المالك 3 نوفمبر 2026، ش8-أ/62 و63).
+    check('المزاد 30 موضوعاً والترتيب 20 قائمة، بلا مستوى', JSON.stringify(TARGETS.auction) === '{"topics":30}' && JSON.stringify(TARGETS.ranking) === '{"lists":20}');
+    const plain = examples();
+    check('أمثلة المزاد والترتيب بلا level، وتُعدّ في بنكها الواحد', !plain.packs.general['auction.json'].topics.some(t => 'level' in t) && !plain.packs.general['ranking.json'].lists.some(l => 'level' in l)
+      && checkContent(plain).counts.auction.topics === plain.packs.general['auction.json'].topics.length && checkContent(plain).counts.ranking.lists === plain.packs.general['ranking.json'].lists.length);
+    const old = examples();
+    old.packs.general['auction.json'].topics.forEach((t, k) => { t.level = ['easy', 'medium', 'hard'][k % 3]; });
+    old.packs.general['ranking.json'].lists.forEach(l => { l.level = 'easy'; });
+    const oc = checkContent(old);
+    check('ملف قديم بـ level في المزاد والترتيب: يُقبل ويُهمل، بلا خطأ ولا تنبيه', oc.errors.length === 0 && oc.warnings.length === 0 && oc.counts.auction.topics === old.packs.general['auction.json'].topics.length);
+    const odd = examples();
+    odd.packs.general['auction.json'].topics[0].level = 'x'; odd.packs.general['ranking.json'].lists[0].level = 'صعب';
+    check('وأي قيمة فيه تُهمل في النمطين، والحرف المعيّن ما زال يرفض المستوى الخطأ', checkContent(odd).errors.length === 0);
   }
 
   // طلبات الكاتب: ما صار تنبيهاً بعد أن كان خطأً.

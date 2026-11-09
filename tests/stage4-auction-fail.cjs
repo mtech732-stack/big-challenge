@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auctionNamesShown } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/'; // الرابط العادي: المزاد في MODES منذ اكتمال ش4
@@ -17,12 +17,13 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const LONG = ['فريق النخبة الذهبي', 'نجوم المستقبل معاً'];
 
-  // بنك تجريبي بأطول محتوى (design/auction.md 3): الموضوع السهل 32 حرفاً بأطول قائمة في البنك كما هي (مفتوحة أو لا)، والباقي من البنك.
+  // بنك تجريبي بأطول محتوى (design/auction.md 3): الموضوع الأول 32 حرفاً بأطول قائمة في البنك كما هي (مفتوحة أو لا)، والباقي من البنك.
   // لا يعتمد على اسم قائمة بعينها.
   const real = JSON.parse(fs.readFileSync(path.join(__dirname, '../content/packs/general/auction.json'), 'utf8'));
   const africa = real.topics.reduce((x, t) => (t.items.length > x.items.length ? t : x));
   const TOPIC = 'أشياء تجدها في حقيبة طالب مدرسة';
-  const bank = { mode: 'auction', topics: [{ ...africa, id: 'test-auction-long', level: 'easy', topic: TOPIC }, ...real.topics.filter(t => t.level !== 'easy')] };
+  const bank = { mode: 'auction', topics: [{ ...africa, id: 'test-auction-long', topic: TOPIC }].concat(real.topics) };
+  // ولا مستوى (ش8-أ/63): الموضوع التجريبي أول ما يُلعب لأن غيره في ذاكرة الأسئلة (big-challenge.seen)، فهو وحده لم يظهر.
   const items = bank.topics[0].items;
   const N = 7;
 
@@ -36,7 +37,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   const stage = await context.newPage();
   await stage.setViewportSize({ width: 1920, height: 1080 });
   await stage.goto(base);
-  await stage.evaluate(() => localStorage.clear());
+  await stage.evaluate(ids => { localStorage.clear(); localStorage.setItem('big-challenge.seen', JSON.stringify(ids)); }, real.topics.map(t => t.id));
   await stage.reload();
   await unlock(stage);
   let audience = await stageFrame(stage);
@@ -71,7 +72,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
     if (body.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
   };
   const both = async label => { await wait(700); await audienceCheck(label); };
-  const chips = () => audience.$$eval('#items .it', els => els.map(e => ({ name: e.textContent.trim(), t: e.classList.contains('t1') ? 1 : e.classList.contains('t2') ? 2 : 0, left: e.classList.contains('left'), more: e.classList.contains('more') })));
+  // ش8-أ/61: الأسماء التي لا يجوز ظهورها، بنص الشاشة كلها (helpers.cjs auctionNamesShown).
+  const names = async () => auctionNamesShown(audience, await st(), LONG);
   const tally = async () => `${await text(audience, '#tn')}/${await text(audience, '#tof')}`;
 
   // 1. إلى الوفاء: يزايد فريق (عشوائي) حتى 7 بزرّه، ثم «ابدأ» يرسي عليه ويبدأ العدّاد، ثم «عُدّ · +1» يعدّ بلا أسماء
@@ -91,7 +93,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   await cmd(audience, 'act:start'); await wait(800);
   for (let k = 0; k < 4; k++) { await cmd(audience, 'act:count'); await wait(300); }
   await wait(600);
-  check(`الوفاء: ${LONG[opener - 1]} ملتزم بـ ${N}، و«عُدّ · +1» أربع مرات تُعدّ`, (await st()).phase === 'fulfil' && (await st()).commit.team === opener && (await tally()) === `4/${N}`);
+  check(`الوفاء: ${LONG[opener - 1]} ملتزم بـ ${N}، و«عُدّ · +1» أربع مرات تُعدّ، ولا اسم من القائمة على الشاشة`, (await st()).phase === 'fulfil' && (await st()).commit.team === opener && (await tally()) === `4/${N}` && !(await names()).length);
   await both('الوفاء');
   await cmd(audience, 'undo'); await wait(800);
   check('«تراجع» يعيد آخر عدّة، والعدّاد يعمل', (await tally()) === `3/${N}` && (await st()).phase === 'fulfil' && await audience.$eval('#canvas', c => c.classList.contains('running')));
@@ -114,8 +116,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr } = requ
   check(`لم يفِ: +2 للخصم (${LONG[rival - 1]})، ولا شيء للملتزم`, s.phase === 'decided' && sc[rival] === 2 && sc[opener] === 0 && s.results[0].team === rival && s.results[0].points === 2);
   check('الجمهور: الحدّ عند الخصم، ولا عدّاد يعمل، ورقمه الكبير 2', await audience.$eval('#canvas', (c, t) => c.classList.contains('turn-' + t) && !c.classList.contains('running'), rival)
     && (await score(rival)).includes('2'));
-  const after = await chips();
-  check(`الجمهور: «${LONG[rival - 1]} · +2» و«لم يفِ بـ ${N}» بلا مربع، ولا «ذُكر»، ولا شارات أسماء، والقائمة باقية (1.14)`, (await text(audience, '#vtext')) === `${LONG[rival - 1]} · +2`
+  const after = await names();
+  check(`الجمهور: «${LONG[rival - 1]} · +2» و«لم يفِ بـ ${N}» بلا مربع، ولا «ذُكر»، ولا اسم على الشاشة، والقائمة باقية (1.14)`, (await text(audience, '#vtext')) === `${LONG[rival - 1]} · +2`
     && (await text(audience, '#say')) === `لم يفِ بـ ${N}` && !(await audience.isVisible('#told')) && await audience.$eval('#box', b => b.classList.contains('bare'))
     && after.length === 0 && await audience.isVisible('#cxList') && (await text(audience, '#topic')).length > 0);
   check('بعد الحكم: «الموضوع التالي» في صف الشارات، ولا أزرار في البطاقة', (await near0()) === 'الموضوع التالي' && !(await audience.$$('.scr.show .ctl .cbtn')).length);
