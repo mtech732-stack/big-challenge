@@ -136,7 +136,8 @@
 
 /* تأكيد «مباراة جديدة» في التطبيق (design/app.md 5.5): لوحة 880×296 عند (520، 392) فوق البطاقة، بيضاء بصفيحتها المائلة 6°،
    فيها السؤال بحبر البطاقة 48/700 في الوسط، وتحته «مباراة جديدة» (.cbtn.no) و«إلغاء» (إطار الحبر) بفاصل 24. */
-.ask { position: absolute; left: 520px; top: 392px; width: 880px; height: 296px; z-index: 5; }
+.ask { position: absolute; left: 127px; top: 410px; width: 1666px; height: 352px; z-index: 5; }
+.canvas.qr .ask { width: 1036px; }
 .ask[hidden] { display: none; }
 .ask > * { position: absolute; }
 .ask .plate { inset: 12px -12px -12px -12px; background: var(--stage-3); transform: skewX(calc(-1 * var(--tilt))); }

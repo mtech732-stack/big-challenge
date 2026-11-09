@@ -30,8 +30,10 @@
 /* design/app.md 5.8: عرض الزر بنصه («اختيار الأنماط» 296 + 48 من كل جانب = 392) لا 260 الثابت من «ابدأ القرعة».
    ويبدأ عند 816 لا 764 (وسطه 1012 لا 960): لوحة الفريق الثاني تنتهي عند 772 كما يقيسها check.js (صفها كله، لا خطّ الخانة 724)،
    وميل الإطار وظله يمدّانه 17 يساراً، فالفاصل 24. وأزرار العدد تبدأ من 1288، فالفاصل بعده 80. */
-[data-hero="start"] .start-go { display: flex; left: 816px; top: 878px; width: auto; height: 84px; justify-content: center; }
-.start-go .cbtn { position: relative; isolation: isolate; width: auto; height: 84px; padding: 0 48px; white-space: nowrap; background: transparent; color: var(--card); font-size: 44px; font-weight: 900; }
+/* لوحة الفريق الثاني في البداية بعرض خانتها (126–724): لوحتها شفافة هنا، فلا يتغير شيء مرئي، ويبتعد الزر عنها (design/app.md 5.10) */
+[data-hero="start"] .team.t2 .row { padding-right: 0; }
+[data-hero="start"] .start-go { display: flex; left: 768px; top: 878px; width: auto; height: 84px; justify-content: center; }
+.start-go .cbtn { position: relative; isolation: isolate; width: auto; height: 84px; padding: 0 44px; white-space: nowrap; background: transparent; color: var(--card); font-size: 44px; font-weight: 900; }
 .start-go .cbtn::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ink); transform: skewX(calc(-1 * var(--lean))); box-shadow: 0 0 0 5px var(--card), 10px 10px 0 5px #0B1033; }
 /* عدد الأنماط (جواب المصمّم): على خط «ابدأ» في الجهة اليمنى حتى 1794، وسطر الخطأ فوقه. بأبيض على المسرح */
 /* من x 1114 فأكثر (نهاية الزر 1090 + 24، الدمج.md 6.2)، وسطر الخطأ فوقه بفراغ 24 وينكسر في عرضه */
