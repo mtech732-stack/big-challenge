@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>التحدي الكبير · نافذة الجمهور</title>
 <link rel="icon" href="design/logo/icon-48.png">
+<!-- تطبيق آبل (design/app.md 3): الصنف native-app قبل الرسم، والجسر في هذه النافذة أو في الصفحة الأم التي تضمّها -->
+<script>try { if ([window, parent].some(w => w.Capacitor?.isNativePlatform?.() === true)) document.documentElement.classList.add('native-app'); } catch {}</script>
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/stage.css">
@@ -195,6 +197,18 @@
   const query = new URLSearchParams(location.search);
   const embed = query.has('embed');
   if (embed) document.body.classList.add('embed');
+  // تطبيق آبل (design/app.md 3.3): المسرح وحده (الطرفان والحدّ والحزم والجسيمات) يمتد إلى الأشرطة الجانبية.
+  // يُنقل إلى طبقة خلف اللوحة بالتكبير نفسه وبلا قصّ، وتنسخ أصناف اللوحة (الدور، swap، running…) فتعمل قواعد المسرح كما هي.
+  // وكل ما سواه يبقى في اللوحة مقصوصاً على 1920×1080. والموقع لا يتغير: لا طبقة فيه.
+  if (document.documentElement.classList.contains('native-app')) {
+    const back = document.createElement('div');
+    back.id = 'backdrop';
+    back.append($('stagebg'), $('particles'));
+    canvas.before(back);
+    const mirror = () => { back.className = 'backdrop ' + canvas.className.replace(/(^|\s)canvas(?=\s|$)/, ' ').trim(); };
+    new MutationObserver(mirror).observe(canvas, { attributes: true, attributeFilter: ['class'] });
+    mirror();
+  }
   const fit = () => document.documentElement.style.setProperty(
     '--scale', Math.min(innerWidth / 1920, innerHeight / 1080));
   addEventListener('resize', fit);
@@ -239,7 +253,7 @@
     if (t === side) return;
     side = t;
     canvas.classList.toggle('turn-1', t === 1); canvas.classList.toggle('turn-2', t === 2);
-    if (still()) replay(canvas, 'swap'); else replay($('edge'), 'sweep');
+    if (still()) { replay(canvas, 'swap'); if ($('backdrop')) replay($('backdrop'), 'swap'); } else replay($('edge'), 'sweep');
   };
   // الحزم: حركة واحدة متصلة، وسرعتها بالحالة دون قفز: القراءة 1 · العدّاد 2.2 · آخر 3 ثوانٍ 3.5 · لحظة الحكم 6 لنصف ثانية.
   const beams = still() ? [] : [...document.querySelectorAll('.beam')].map((b, i) => {
