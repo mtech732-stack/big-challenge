@@ -37,6 +37,8 @@
   #gate form { background: var(--card); color: var(--ink); padding: 1.5rem; width: min(18rem, 100%); display: grid; gap: 0.75rem; text-align: center; box-shadow: 0.375rem 0.375rem 0 var(--stage-3); }
   #gate h1 { font-size: 1.25rem; }
   #pin { font: inherit; font-size: 1.25rem; text-align: center; letter-spacing: 0.375rem; padding: 0.25rem; border: 3px solid var(--ink); border-radius: 0; direction: ltr; width: 100%; }
+  /* تطبيق آبل: لا شاشة رقم أصلاً (الوثيقة 1.17، 4.3)، فلا تومض قبل فتح اللعبة */
+  html.native-app #gate { display: none; }
   #gate .alert { margin: 0; color: var(--team-1); background: var(--card); padding: 0.25rem 0.5rem; border: 2px solid var(--team-1); }
 
   /* الشاشة المشتركة (design/shared.md 2): لوحة الجمهور 1920×1080 تملأ النافذة، وأزرارها فيها. لا شريط تحتها */
@@ -46,6 +48,7 @@
   body.one { overflow: hidden; }
 
 </style>
+<script>if (window.Capacitor?.isNativePlatform?.() === true) document.documentElement.classList.add('native-app');</script>
 </head>
 <body>
 <section id="gate">
@@ -77,7 +80,7 @@
 <script type="module">
   import './js/offline.js';
   import { createLink } from './js/frame-link.js';
-  import { fetchPinRecord, checkPin, watchPin } from './js/pin.js';
+  import { fetchPinRecord, checkPin, watchPin, isNativeApp } from './js/pin.js';
   import { loadPacks, loadWheel } from './js/content.js';
   import WHEEL, { spinMs, CHALLENGE_POINTS as WHEEL_POINTS } from './js/wheel.js';
   import TIEBREAK from './js/tiebreak.js';
@@ -95,6 +98,7 @@
   const DRAW_MS = 2690; // مدة حركة القرعة على شاشة الجمهور (design/start.md، القسم 6)
   const query = new URLSearchParams(location.search);
   let link = null, watcher = null, packs = [], wheel = null, match = null, drawing = 0, pin = '', faceError = '';
+  const NATIVE = isNativeApp();
   let muted = false;
   try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch {}
 
@@ -133,7 +137,8 @@
     link.send('unlock');
     link.send('view', view());
     watcher?.stop();
-    watcher = watchPin(pin, lock);
+    // في تطبيق آبل لا تحقق مستمر، فلا يُغلق أبداً بتغيّر الرقم.
+    watcher = NATIVE ? null : watchPin(pin, lock);
     render(reset ? { text: 'عادت المباراة إلى البداية.' } : undefined);
   }
 
@@ -577,6 +582,9 @@
     if (cmd === 'fullscreen') document.documentElement.requestFullscreen?.().catch(() => {});
     if (['toPick', 'undoPick', 'toFace', 'replay', 'undo', 'scores', 'announce', 'tiebreak'].includes(cmd)) actions[cmd]();
   });
+
+  // تطبيق آبل: تُفتح اللعبة مباشرة بلا رقم (الوثيقة 1.17، 4.3).
+  if (NATIVE) unlock('');
 
   function startLink() {
     link = createLink('presenter', (type, data) => {
