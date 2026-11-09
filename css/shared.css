@@ -127,5 +127,20 @@
    و«ملء الشاشة» بلا معنى في التطبيق، فيُخفى */
 .native-app .ctl-more { top: 184px; flex-direction: row; align-items: center; min-width: 0; }
 .native-app .ctl-more hr { align-self: stretch; width: 3px; height: auto; }
+/* design/app.md 5 ج: بأربع أيقونات (مع «الباركود») الفواصل 16، فتنتهي اللوحة قبل حدّ لوحة الفريق الأول */
+.native-app .ctl-more:has(.cbtn.ico:nth-child(4)), .native-app .ctl-more:has(.cbtn.ico:nth-child(4)) .ctl { gap: 16px; }
+/* ومساحة لمس كل أيقونة فيها 112 (8 من كل جهة، نصف الفاصل) حتى لا تتداخل مساحتان (design/app.md 5، الملاحظات الصغيرة) */
+.native-app .ctl-more:has(.cbtn.ico:nth-child(4)) .cbtn.ico::after { inset: -8px; }
 .native-app [data-cmd="fullscreen"] { display: none; }
 /* خانتا الاسمين: الصف كله (136) مساحة لمسها، والنقر فيه خارج الخانة ينقل التركيز إليها (audience.html)، والخط المتقطع والنص في مكانهما */
+
+/* تأكيد «مباراة جديدة» في التطبيق (design/app.md 5.5): لوحة 880×296 عند (520، 392) فوق البطاقة، بيضاء بصفيحتها المائلة 6°،
+   فيها السؤال بحبر البطاقة 48/700 في الوسط، وتحته «مباراة جديدة» (.cbtn.no) و«إلغاء» (إطار الحبر) بفاصل 24. */
+.ask { position: absolute; left: 520px; top: 392px; width: 880px; height: 296px; z-index: 5; }
+.ask[hidden] { display: none; }
+.ask > * { position: absolute; }
+.ask .plate { inset: 12px -12px -12px -12px; background: var(--stage-3); transform: skewX(calc(-1 * var(--tilt))); }
+.ask .sheet { inset: 0; background: var(--card); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px; }
+.ask p { margin: 0; color: var(--ink); font-size: 48px; font-weight: 700; line-height: 1.2; }
+.ask .ctl { position: static; display: flex; gap: 24px; }
+.ask .cbtn.alt { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 4px var(--ink); }
