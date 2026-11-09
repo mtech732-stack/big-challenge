@@ -3,7 +3,7 @@
 // يبدأ العدّاد تلقائياً بعد 5 ثوانٍ، و«وقت الخصم» بزر في 10 ثوانٍ بالنقاط نفسها، ثم «كشف الإجابة» واختيار من أجاب.
 // وما يُعرض لا يذكر المستوى ولا كلمة «سرقة» (الوثيقة 1.1، 7.3)، والإجابة النموذجية تظهر للجمهور بعد الكشف (7.1).
 // كل نمط يعطي ما يخصه: اسمه، ووقت السؤال، وحقل ما في المربع، ونصوص الافتتاح وسطر القبول.
-import { freshFirst, besides } from '../round.js';
+import { freshFirst, besides, freshRounds } from '../round.js';
 import { ROUND_PER_LEVEL } from '../content-check.js';
 import { lead, timing, timingActions, picked, clockView } from '../judge.js';
 
@@ -128,5 +128,16 @@ export function wordMode({ id, name, order, seconds, key, tatweel = false, sameB
     setup, actions, act, audience,
     finished: s => s.phase === 'end',
     used: s => s.questions.map(q => q.id),
+    // كم جولة كاملة بقيت بلا تكرار (js/play.js freshLeft): سؤالان لكل مستوى مما لم يظهر.
+    // و«آخر حرفين» الجولة كلها من مجموعة واحدة: عدد المجموعات التي بقي في كل مستوى منها سؤالان لم يظهرا.
+    pool: content => (content?.questions ?? []).filter(q => !q.tiebreak),
+    fresh: (content, seen) => {
+      const bank = (content?.questions ?? []).filter(q => !q.tiebreak);
+      const rounds = qs => Math.min(...LEVELS.map(l => freshRounds(qs.filter(q => q.level === l), seen, ROUND_PER_LEVEL)));
+      if (!sameBox) return rounds(bank);
+      const groups = new Map();
+      for (const q of bank) groups.set(q[key], [...(groups.get(q[key]) ?? []), q]);
+      return [...groups.values()].filter(g => rounds(g) >= 1).length;
+    },
   };
 }

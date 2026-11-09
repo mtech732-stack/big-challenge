@@ -103,6 +103,20 @@ export function setScore(round, team, value) {
 // ما يُختار منه بعد ترك avoid، أو البنك كله إن بقي منه أقل من need (فلا تقف جولة ولا تنقص لبنك صغير).
 export const besides = (items, avoid = [], need = 1) => { const rest = items.filter(i => !avoid.includes(i.id)); return rest.length >= need ? rest : items; };
 
+// كم جولة كاملة بقيت مما لم يظهر: ما لم يظهر من items ÷ ما تأخذه الجولة (per). لا يفترض حجماً للبنك (الوثيقة 1.18، 8).
+export const freshRounds = (items, seen = [], per = 1) => Math.floor(items.filter(i => !seen.includes(i.id)).length / per);
+
+// ذاكرة الأسئلة بعد جولة (ش8-أ/69): taken ما أخذته الجولة من بنك الوحدة unit (ملفه content) يُضاف إلى seen. فإن صار ما لم يظهر
+// من ذلك البنك أقل مما تحتاجه جولة (unit.fresh < 1) بدأت له دورة جديدة: تُفرَّغ من الذاكرة معرّفات بنكه وحده (unit.pool)،
+// إلا ما أخذته هذه الجولة، فلا يعود في أول الدورة الجديدة ما ظهر للتو، ولا تمسّ ذاكرة البنوك الأخرى.
+// ووحدة بلا fresh أو pool تُضاف معرّفاتها وحدها كما كانت.
+export function remember(seen, unit, content, taken = []) {
+  const all = [...new Set([...seen, ...taken])];
+  if (typeof unit?.fresh !== 'function' || typeof unit?.pool !== 'function' || unit.fresh(content, all) >= 1) return all;
+  const bank = new Set(unit.pool(content).map(i => i.id));
+  return all.filter(id => !bank.has(id) || taken.includes(id));
+}
+
 // يختار من البنك ما لم يظهر، فإن نفد ما لم يظهر بدأ البنك من جديد.
 export function freshFirst(items, seen, count, rng = Math.random) {
   const shuffle = list => list.map(x => [rng(), x]).sort((a, b) => a[0] - b[0]).map(p => p[1]);

@@ -93,6 +93,7 @@
   import { matchModes, pickableModes, MODES as BUILT, DRAFTS } from './js/modes/index.js';
   import * as M from './js/match.js';
   import * as P from './js/play.js';
+  import * as R from './js/round.js';
 
   const $ = id => document.getElementById(id);
   const SAVE_KEY = 'big-challenge.match';
@@ -203,9 +204,17 @@
   // الجولة نفسها (وفيها الإجابات) لا تُرسل أبداً.
   const view = (moments = []) => {
     const { history, round, ...pub } = match;
-    return { match: pub, modes: modes().map(({ id, name }) => ({ id, name })), play: playView(), muted, moments };
+    return { match: pub, modes: modes().map(({ id, name }) => ({ id, name })), play: playView(), muted, moments, left: leftRows() };
   };
   const roundMode = () => match.round && P.modeOf(units(), match.round.mode);
+  // المباريات قبل التكرار (الوثيقة 1.18، 8، design/s8d.md): في شاشة البداية وحدها، لكل نمط يُختار منه ثم «شريط البونص».
+  function leftRows() {
+    if (match.step !== 'setup' || !pack()) return null;
+    // modes() أسماء ومعرّفات وحدها (pickableModes)، فالوحدات نفسها من units().
+    const list = [...modes().map(m => P.modeOf(units(), m.id)).filter(Boolean), ...(wheel ? [WHEEL] : [])];
+    const left = P.freshLeft(match, { modes: list, content: { ...pack().files, [WHEEL.contentKey]: wheel }, seen: seen() });
+    return list.filter(u => u.id in left).map(u => ({ id: u.id, name: u.name, left: left[u.id] }));
+  }
   // باركود الإجابات (7.1، design/s8.md 2): في سؤال المزاد وقائمة الترتيب. يظهر تلقائياً في بدايته (قبل المزايدة، وقبل «ابدأ»)،
   // ويخفيه المقدّم بضغطة، ولا يعود إلا بطلبه («الباركود»). والحال في المباراة (match.qr: مفتاح السؤال وظاهر أو لا)، فيبقى بعد إعادة التحميل،
   // ولا يدخل التراجع. key: الجولة والسؤال · open: السؤال جارٍ (يُعاد فيه بطلب) · auto: بدايته.
@@ -265,7 +274,7 @@
     // الجولة الفاصلة تنتهي إلى النتيجة النهائية بخانتها (final.tb، بحركة دخول المسار)، أو يعيدها التراجع إليها قبل أول سؤال:
     // خطوة جديدة لا فعل في جولة. وأسئلتها التي ظهرت تدخل ذاكرة الأسئلة عند انتهائها.
     if (next.step === 'final' && match.step === 'play') {
-      if (next.final.tb) try { localStorage.setItem(SEEN_KEY, JSON.stringify([...new Set([...seen(), ...TIEBREAK.used(match.round.state)])])); } catch {}
+      if (next.final.tb) remember(TIEBREAK, pack().files[TIEBREAK.contentKey], TIEBREAK.used(match.round.state));
       hold();
       return update(next, next.final.tb ? 'fin' : undefined);
     }
@@ -317,12 +326,15 @@
 
   // ذاكرة الأسئلة: ما ظهر لا يتكرر حتى يُستنفد البنك.
   const seen = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY)) ?? []; } catch { return []; } };
+  // وما أخذته الجولة يدخلها، ودورة جديدة لبنكها إن لم يبقَ منه ما يكفي جولة (ش8-أ/69، js/round.js). والجولة الفاصلة مرة في المباراة.
+  const remember = (unit, file, taken) => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(R.remember(seen(), unit, file, taken))); } catch {} };
   function startNext() {
     if (held()) return;
-    const next = P.startNext(match, { modes: units(), content: { ...pack().files, [WHEEL.contentKey]: wheel }, seen: seen() });
+    const content = { ...pack().files, [WHEEL.contentKey]: wheel };
+    const next = P.startNext(match, { modes: units(), content, seen: seen() });
     if (next === match) return;
-    const mode = P.modeOf(units(), next.round.mode);
-    try { localStorage.setItem(SEEN_KEY, JSON.stringify([...new Set([...seen(), ...mode.used(next.round.state)])])); } catch {}
+    // وما أخذه بنكها في المباراة كلها (ش8-أ/71).
+    try { localStorage.setItem(SEEN_KEY, JSON.stringify(P.remember(seen(), next, { modes: units(), content }))); } catch {}
     roundUpdate(next);
   }
   // نقرتان على «تخطَّ…» لا تتخطيان عنصرين.

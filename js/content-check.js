@@ -29,8 +29,12 @@ export const AUCTION_OPEN_MIN = 40;
 // أسئلة كل مستوى في الجولة لكل فريق سؤال (5.3 و5.4)، فسؤالان من كل مستوى في جولة «آخر حرفين» بنهاية واحدة.
 export const ROUND_PER_LEVEL = 2;
 const length = text => [...String(text)].length;
+// ما نقص من الأعداد counts (من checkContent) عن الحد الأدنى في TARGETS: [{ mode, key, have, min }]. والزيادة ليست نقصاً.
+export const short = (counts, targets = TARGETS) => Object.entries(targets).flatMap(([mode, t]) => Object.entries(t)
+  .map(([key, min]) => ({ mode, key, have: counts[mode]?.[key] ?? 0, min })).filter(x => x.have < x.min));
 
-// أحجام البنك المطلوبة (القسم 6.2 من الوثيقة)، للعرض لا للمنع.
+// أحجام البنك المطلوبة (القسم 6.2 من الوثيقة)، للعرض لا للمنع. وكلها حدّ أدنى «فأكثر» (ش8-أ/72): الزيادة سليمة ولا تُنبّه،
+// والنقص يُذكر في tools/validate-content (short). والكود لا يفترض حجماً للبنك.
 export const TARGETS = {
   letter: { easy: 20, medium: 20, hard: 20, tiebreak: 20 },
   'last-two': { easy: 20, medium: 20, hard: 20 },
@@ -38,7 +42,8 @@ export const TARGETS = {
   auction: { topics: 30 },
   // الترتيب بمستوى واحد (الوثيقة 1.15): بنك واحد، وقائمتان في الجولة منه.
   ranking: { lists: 20 },
-  wheel: { challenges: 7, luck: 3 },
+  // والشريط (الوثيقة 1.18، 6.2): 30 تحدياً على الأقل، وسبعة في كل مباراة مما لم يظهر.
+  wheel: { challenges: 30, luck: 3 },
 };
 
 // حروف العربية دون التطويل «ـ» (U+0640) الذي يقع داخل مداها.
