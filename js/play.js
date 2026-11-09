@@ -75,6 +75,14 @@ export function startNext(match, { modes, content, seen = [], rng = Math.random 
   return { ...match, step: 'play', cursor: cursor(match) + 1, ends: sealEnd(match), round, scores: round.scores, played: (match.played ?? 0) + 1, used: [...(match.used ?? []), ...mode.used(round.state)] };
 }
 
+// ذاكرة الأسئلة بعد بدء جولة في المباراة match (ش8-أ/71): R.remember بما أخذه بنك الجولة في المباراة كلها (match.used)، لا الجولة
+// الأخيرة وحدها. فإن بدأت للبنك دورة جديدة بقي فيها كل ما ظهر منه في هذه المباراة: الشريطان في مباراة الأربعة معاً، فلا يعود
+// تحدٍّ من الشريط الأول في المباراة التالية. وما في match.used من بنوك أخرى ظهر في هذه المباراة، فهو في الذاكرة أصلاً.
+export function remember(seen, match, { modes, content }) {
+  const unit = modeOf(modes, match.round.mode);
+  return R.remember(seen, unit, content[unit.contentKey], [...new Set([...(match.used ?? []), ...unit.used(match.round.state)])]);
+}
+
 // المباريات قبل التكرار (الوثيقة 1.18، 8، design/s8d.md): لكل نمط وللشريط عدد المباريات الكاملة الباقية قبل أن يتكرر فيه شيء،
 // من البنك (content) وذاكرة الجهاز (seen). وما تستهلكه المباراة من طريقتها (METHODS في js/match.js): النمط جولة واحدة فيها
 // (لا يُختار مرتين)، والشريط بعدد أشرطتها (جولتان: شريط · أربع: شريطان، فيستهلك 14 تحدياً).
