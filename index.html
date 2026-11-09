@@ -97,6 +97,10 @@
 
   const $ = id => document.getElementById(id);
   const SAVE_KEY = 'big-challenge.match';
+  // ش8-أ/73 (المالك 9 نوفمبر 2026): المباراة المحفوظة تُستأنف ما لم يمضِ على آخر فعل فيها أكثر من STALE_MS، وإلا فُتحت اللعبة
+  // على شاشة البداية بمباراة جديدة. وقت آخر حفظ في مفتاح وحده (SAVED_AT_KEY)، فلا يتغير شكل المباراة المحفوظة.
+  const STALE_MS = 60 * 60 * 1000;   // ساعة
+  const SAVED_AT_KEY = 'big-challenge.savedAt';
   const SEEN_KEY = 'big-challenge.seen';   // ذاكرة الأسئلة المستعملة على هذا الجهاز (docs/decisions.md)
   const MUTE_KEY = 'big-challenge.muted';
   const DRAW_MS = 2690; // مدة حركة القرعة على شاشة الجمهور (design/start.md، القسم 6)
@@ -161,13 +165,29 @@
   window.verifyPinNow = () => watcher?.checkNow();
 
   // ===== حفظ المباراة: إن أُعيد تحميل المتصفح عادت من حيث توقفت (docs/decisions.md) =====
+  // ومباراة تركت أكثر من ساعة (stale) لا تُستأنف: مباراة جديدة بطريقتها في شاشة البداية. وذاكرة الأسئلة لا تُمسّ، فما ظهر فيها لا يعود.
+  // ومباراة محفوظة قبل v87 بلا وقت تُستأنف كما كانت، ووقتها من أول حفظ بعدها.
+  function savedAt() { try { return Number(localStorage.getItem(SAVED_AT_KEY)) || 0; } catch { return 0; } }
+  const stale = (now = Date.now()) => { const at = savedAt(); return at > 0 && now - at > STALE_MS; };
   function restore() {
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch {}
+    if (M.isMatch(saved) && saved.step !== 'setup' && stale()) {
+      const fresh = M.newMatch({ pack: packs.some(p => p.id === saved.pack) ? saved.pack : packs[0]?.id ?? null, method: saved.method });
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(fresh)); localStorage.setItem(SAVED_AT_KEY, String(Date.now())); } catch {}
+      return fresh;
+    }
     if (M.isMatch(saved) && (!saved.pack || packs.some(p => p.id === saved.pack))) return saved.pack ? saved : { ...saved, pack: packs[0]?.id ?? null };
     return M.newMatch({ pack: packs[0]?.id ?? null });
   }
-  const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(match)); } catch {} };
+  const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(match)); localStorage.setItem(SAVED_AT_KEY, String(Date.now())); } catch {} };
+  // والتطبيق أو الصفحة يعودان من الخلفية دون إعادة تحميل (visibilitychange، ويطلقه WKWebView في تطبيق آبل عند العودة):
+  // القاعدة نفسها، فإن تُركت المباراة أكثر من ساعة صارت اللعبة على شاشة البداية بمباراة جديدة، بلا سؤال.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !match || match.step === 'setup' || !$('gate').hidden || !stale()) return;
+    clearTimeout(drawing); drawing = 0;
+    update(M.newMatch({ pack: match.pack, method: match.method }));
+  });
 
   // الحزمة تُختار تلقائياً ولا تظهر (الوثيقة 1.1، 4.5): الحزمة الأولى في الفهرس.
   const pack = () => packs.find(p => p.id === match.pack);
