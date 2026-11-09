@@ -1,0 +1,10 @@
+const { chromium } = require('playwright');const H = require('../../tests/helpers.cjs');
+const out=process.argv[2],fix=process.argv[3]==='fix',dbg=process.argv[4]==='dbg';const css=require('fs').readFileSync(__dirname+'/app.css','utf8');
+(async()=>{const b=await chromium.launch();const ctx=await b.newContext({viewport:{width:956,height:440},deviceScaleFactor:2});await H.usePin(ctx);const page=await ctx.newPage();
+await page.goto('http://localhost:8765/');await page.evaluate(()=>localStorage.clear());await page.reload();await H.unlock(page);const f=await H.stageFrame(page);
+const inj=async()=>{if(!fix)return;await f.addStyleTag({content:css});await f.evaluate(d=>{if(d)document.documentElement.classList.add('hitdbg');document.querySelectorAll('.cbtn').forEach(e=>{if(getComputedStyle(e).position==='static')e.style.position='relative'})},dbg)};
+const w=ms=>new Promise(r=>setTimeout(r,ms));const shot=async n=>{await inj();await w(700);await page.screenshot({path:`${out}/${n}.png`})};
+await H.sharedToFace(f,{names:['الصقور','النجوم'],picks:['letter','last-two']});
+await H.cmd(f,'begin');await f.waitForSelector('.scr.show[data-s="intro"]');await H.cmd(f,'act:show');await f.waitForSelector('.scr.show[data-s="q"]');await w(5500);await shot('q');
+await f.click('[data-cmd="more"]');await shot('more');await f.click('[data-cmd="more"]');
+await H.cmd(f,'act:reveal');await shot('reveal');await b.close();})();

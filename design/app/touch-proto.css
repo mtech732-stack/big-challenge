@@ -1,0 +1,11 @@
+.cbtn.ico, .cbtn.opt { width: 96px !important; height: 96px !important; }
+.cbtn.ico svg { width: 52px !important; height: 52px !important; stroke-width: 4 !important; }
+.cbtn.opt::before { width: 44px !important; height: 10px !important; background-size: 17px 10px !important; background-image: radial-gradient(circle, currentColor 0 5px, transparent 5.5px) !important; }
+.ctl-corner .ctl:has(.cbtn.ico), .ctl-more .ctl, .ctl-more { gap: 24px !important; }
+.ctl-more { top: 184px !important; }
+.cbtn::after { content: ""; position: absolute; inset: -24px -12px; }
+.cbtn.ico::after, .cbtn.opt::after { inset: -12px; }
+.hitdbg .cbtn::after { outline: 2px dashed #FFC300; }
+[data-cmd="fullscreen"] { display: none !important; }
+.ctl-more { flex-direction: row !important; align-items: center !important; min-width: 0 !important; }
+.ctl-more hr { align-self: stretch !important; width: 3px !important; height: auto !important; }
