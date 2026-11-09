@@ -85,11 +85,13 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
   {
     // حال شريط محفوظة قبل 1.18: التحديات بترتيب الملف، ولا seen. تُكمل كما هي، وused تعطي تحدياتها.
     const old = { ...W.setup({ content: real, first: 2, rng: () => 0.05 }) };
-    old.slots = WM.LAYOUT.map((k, i) => k === 'c' ? { kind: 'challenge', id: real.challenges[[0, 2, 3, 5, 6, 8, 9].indexOf(i)].id, text: real.challenges[[0, 2, 3, 5, 6, 8, 9].indexOf(i)].text } : old.slots[i]);
+    // أول سبعة في الملف بترتيبها (ما كان يأخذه الشريط قبل 1.18)، أياً كان حجم البنك (ش8-أ/68).
+    const first7 = real.challenges.slice(0, WM.CHALLENGES), at = WM.LAYOUT.map((k, i) => i).filter(i => WM.LAYOUT[i] === 'c');
+    old.slots = WM.LAYOUT.map((k, i) => k === 'c' ? { kind: 'challenge', id: first7[at.indexOf(i)].id, text: first7[at.indexOf(i)].text } : old.slots[i]);
     let round = { mode: 'wheel', first: 2, state: old, scores: { 1: 0, 2: 0 }, timer: null, timers: 0, history: [], events: [] };
     round = R.act(W, round, 'spin', undefined, 1000);
     round = R.act(W, round, 'land', undefined, 1000 + WM.spinMs(round.state.landed));
-    check('حال شريط قديمة: تدور وتقف وتُحكم، وused تعطي تحدياتها السبعة', round.state.landed !== null && ['slot', 'done'].includes(round.state.phase) && ids(old).join() === real.challenges.map(c => c.id).join());
+    check('حال شريط قديمة: تدور وتقف وتُحكم، وused تعطي تحدياتها السبعة', round.state.landed !== null && ['slot', 'done'].includes(round.state.phase) && ids(old).join() === first7.map(c => c.id).join());
     check('وحال بلا slots (تالفة) لا تكسر used', JSON.stringify(W.used({})) === '[]');
   }
 
