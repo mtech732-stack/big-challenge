@@ -98,19 +98,27 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     });
     return bad;
   };
+  // سطر الشريط المتوقّع من حجم البنك (N) وما تأخذه المباراة منه (per): قبل كل مباراة floor(الباقي/per)، وحين ينزل تحت 1
+  // تُصفّر الذاكرة إلا ما أُخذ للتو، فيبقى N − per (R.remember). البنك ينمو (40 ثم 70، #432)، فلا تُكتب الأرقام بيدها.
+  const wheelLine = (n, per, count) => { const out = []; let rem = n;
+    for (let i = 0; i < count; i++) { out.push(Math.floor(rem / per)); rem -= per; if (Math.floor(rem / per) < 1) rem = n - per; }
+    return out; };
+  const N = files['wheel.json'].challenges.length;
   {
     const runs = sequence('full', ['letter', 'last-two', 'auction', 'ranking'], 60);
     const b = audit(runs), wheels = runs.map(r => r.line.wheel);
     check(`مباراة الأربعة × 60 ببنك ${files['wheel.json'].challenges.length}: لا تشترك مباراة مع سابقتها في شيء (${b.shared})، ولا تكرار داخلها (${b.inside})`,
       b.shared === 0 && b.inside === 0 && runs.every(r => r.took.wheel.length === 14));
-    check(`مباراة الأربعة: السطر «1» للشريط بعد أول مباراة، وصادق في كل بنك (${[...new Set(wheels.slice(1))].join('،')} · ${b.lied})`,
-      wheels[0] === 2 && wheels.slice(1).every(x => x === 1) && b.lied === 0);
+    const want = wheelLine(N, 14, runs.length).join();
+    check(`مباراة الأربعة: سطر الشريط كما يتوقّع من بنك ${N} و14 في المباراة (${wheels.slice(0, 8).join('،')}…)، وصادق في كل بنك (${b.lied})`,
+      wheels.join() === want && b.lied === 0);
   }
   {
     const runs = sequence('short', ['auction', 'letter'], 40);
     const b = audit(runs), wheels = runs.map(r => r.line.wheel);
-    check(`مباراة النمطين × 40: لا اشتراك مع السابقة ولا تكرار داخلها، والشريط ${wheels.slice(0, 8).join('،')}…`,
-      b.shared === 0 && b.inside === 0 && b.lied === 0 && wheels.slice(0, 8).join() === '4,3,2,1,3,2,1,3');
+    const per = runs[0].took.wheel.length, want = wheelLine(N, per, runs.length).join();
+    check(`مباراة النمطين × 40: لا اشتراك مع السابقة ولا تكرار داخلها، والشريط كما يتوقّع من بنك ${N} و${per} في المباراة (${wheels.slice(0, 8).join('،')}…)`,
+      b.shared === 0 && b.inside === 0 && b.lied === 0 && per > 0 && runs.every(r => r.took.wheel.length === per) && wheels.join() === want);
   }
 
   // في الصفحة: index.html يحفظ بـ remember. ذاكرة فيها المزاد كله إلا ثلاثة، فأول جولة مزاد تأخذ الثلاثة ثم تبدأ دورته.

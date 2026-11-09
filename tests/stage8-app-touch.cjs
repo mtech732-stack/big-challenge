@@ -69,10 +69,12 @@ const { touchAudit } = require('./touch-audit.cjs');
     check(`أيقونات الزاوية 96×96 (${JSON.stringify(icons)})`, icons.length >= 1 && icons.every(([w, h]) => w === 96 && h === 96));
     check('الأيقونة بداخلها 52 بخط 4', await f.$eval('#cornerA [data-cmd="more"]', () => true) && await f.evaluate(() => {
       const s = document.querySelector('#cornerA .cbtn.ico svg'); return !s || (getComputedStyle(s).width === '52px' && getComputedStyle(s).strokeWidth === '4px'); }));
-    // الاسم عند المرور يتبع الأيقونة بمقاسها الجديد: تحتها بـ 24 (design/s8b.md 7.1).
-    await f.hover('#cornerA [data-cmd="more"]'); await wait(300);
+    // الاسم يتبع الأيقونة بمقاسها الجديد: تحتها بـ 24 (design/s8b.md 7.1). وفي التطبيق يظهر بالضغط المطوّل لا بالمرور (design/app.md 5.6).
+    const mb = await (await f.$('#cornerA [data-cmd="more"]')).boundingBox();
+    await page.mouse.move(mb.x + mb.width / 2, mb.y + mb.height / 2); await page.mouse.down(); await wait(700);
     const ic = await box(f, '#cornerA [data-cmd="more"]'), tip = await box(f, '#ctlTip');
-    check(`الاسم عند المرور تحت الأيقونة 96 بـ 24 (${ic.t + ic.h} ← ${tip.t})`, tip.t === ic.t + ic.h + 24 && tip.l === ic.l);
+    check(`الاسم بالضغط المطوّل تحت الأيقونة 96 بـ 24 (${ic.t + ic.h} ← ${tip.t})`, tip.t === ic.t + ic.h + 24 && tip.l === ic.l);
+    await page.mouse.up(); await wait(300);
     await page.mouse.move(1, 1);
     await cmd(f, 'act:show'); await f.waitForSelector('.scr.show[data-s="q"]'); await wait(800);
     await f.click('[data-cmd="more"]'); await wait(400);

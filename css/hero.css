@@ -27,8 +27,11 @@
 [data-hero="start"] .rays { display: block; left: 299px; top: -122px; width: 1322px; height: 1322px; }
 [data-hero="start"] .halo { display: block; left: 550px; top: 129px; width: 820px; height: 820px; }
 /* زر «ابدأ» 260×84 تحت الشعار بـ 24 (878): أبيض 44 على حبر مائل، بحلقة بيضاء 5 وظلّ صلب 10 */
-[data-hero="start"] .start-go { display: flex; left: 830px; top: 878px; width: 260px; height: 84px; justify-content: center; }
-.start-go .cbtn { position: relative; isolation: isolate; width: 260px; height: 84px; padding: 0; background: transparent; color: var(--card); font-size: 44px; font-weight: 900; }
+/* design/app.md 5.8: عرض الزر بنصه («اختيار الأنماط» 296 + 48 من كل جانب = 392) لا 260 الثابت من «ابدأ القرعة».
+   ويبدأ عند 816 لا 764 (وسطه 1012 لا 960): لوحة الفريق الثاني تنتهي عند 772 كما يقيسها check.js (صفها كله، لا خطّ الخانة 724)،
+   وميل الإطار وظله يمدّانه 17 يساراً، فالفاصل 24. وأزرار العدد تبدأ من 1288، فالفاصل بعده 80. */
+[data-hero="start"] .start-go { display: flex; left: 816px; top: 878px; width: auto; height: 84px; justify-content: center; }
+.start-go .cbtn { position: relative; isolation: isolate; width: auto; height: 84px; padding: 0 48px; white-space: nowrap; background: transparent; color: var(--card); font-size: 44px; font-weight: 900; }
 .start-go .cbtn::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ink); transform: skewX(calc(-1 * var(--lean))); box-shadow: 0 0 0 5px var(--card), 10px 10px 0 5px #0B1033; }
 /* عدد الأنماط (جواب المصمّم): على خط «ابدأ» في الجهة اليمنى حتى 1794، وسطر الخطأ فوقه. بأبيض على المسرح */
 /* من x 1114 فأكثر (نهاية الزر 1090 + 24، الدمج.md 6.2)، وسطر الخطأ فوقه بفراغ 24 وينكسر في عرضه */
@@ -56,7 +59,9 @@
 .pick-ctl .cbtn.alt::before { box-shadow: inset 0 0 0 4px var(--card); }
 
 /* مؤشر الدور (4.4): لوحة صاحب الدور بلونه في جهته، 52 أبيض بسطر 84، مائلة بظلّ 8، وحولها الإطار الأصفر 6 على بعد 10 (15.4) */
-[data-hero="pick"] .turnp:not([hidden]) { display: flex; flex-direction: column; gap: 14px; }
+/* design/app.md 5.9: لا يلتصق السطر بالإطار، ففاصله 24 لا 14. والسطر بارتفاع 38 لا 48 (1.2)، فيبقى المؤشر كله بارتفاعه السابق
+   ولا يقترب من سطر «اختيار …» تحت البطاقات (stage1-start، فحص التداخل) */
+[data-hero="pick"] .turnp:not([hidden]) { display: flex; flex-direction: column; gap: 24px; }
 .turnp.t1 { right: 126px; top: 64px; align-items: flex-start; }
 .turnp.t2 { left: 126px; bottom: calc(1080px - 1016px); align-items: flex-end; flex-direction: column-reverse !important; }
 .turnp b { display: inline-block; padding: 0 34px; font-size: 52px; font-weight: 800; line-height: 84px; color: #fff; transform: skewX(calc(-1 * var(--lean)));
@@ -64,7 +69,7 @@
 .turnp.t1 b { background: var(--team-1); }
 .turnp.t2 b { background: var(--ink); }
 .turnp b > span { display: inline-block; transform: skewX(var(--lean)); white-space: nowrap; }
-.turnp p { margin: 0; font-size: 40px; font-weight: 900; line-height: 1.2; color: var(--on-stage); white-space: nowrap; }
+.turnp p { margin: 0; font-size: 40px; font-weight: 900; line-height: 38px; color: var(--on-stage); white-space: nowrap; }
 
 /* البطاقة 414×470 على ثلاثة أعمدة، أعلاها 312، مائلة 14° حول مركزها، بظلّ مدرّج من ثلاث درجات */
 .mc { position: absolute; top: 312px; width: 414px; height: 470px; }
