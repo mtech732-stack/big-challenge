@@ -18,7 +18,10 @@ button:disabled { opacity: .45; cursor: default; }
 /* شاشة الجمهور: لوحة ثابتة بمقاس 1920×1080 تُكبَّر أو تُصغَّر لتملأ الشاشة. */
 /* clip لا hidden: ما يُقصّ لا يُمرَّر أبداً، فلا يزيح تركيزُ حقل الاسم أو نقرةٌ اللوحةَ عن مكانها (اختبار ش3، الإصدار 1.1) */
 .screen { position: fixed; inset: 0; overflow: clip; background: #050E2E; }
-.canvas {
+.canvas, .backdrop {
   position: absolute; top: 50%; left: 50%; width: 1920px; height: 1080px; overflow: clip;
   transform: translate(-50%, -50%) scale(var(--scale, 1)); transform-origin: center;
 }
+/* تطبيق آبل (design/app.md 3.3): الأشرطة حول اللوحة بتدرّج المسرح الأساسي لا بشبه الأسود، وطبقة المسرح (.backdrop) بلا قصّ. */
+.native-app .screen { background: linear-gradient(135deg, #1A4BD1 0%, #1238A8 55%, #0E2C86 100%); }
+.backdrop { overflow: visible; pointer-events: none; }

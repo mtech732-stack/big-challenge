@@ -45,6 +45,9 @@
   #single { position: fixed; inset: 0; z-index: 6; overflow: clip; background: #050E2E; }
   .frame { position: absolute; top: 50%; left: 50%; width: 1920px; height: 1080px; transform: translate(-50%, -50%) scale(var(--scale, 1)); }
   .frame iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; display: block; }
+  /* تطبيق آبل (design/app.md 3.3): الإطار بنسبة الشاشة لا 16:9، فتملأ نافذة الجمهور الأشرطة، واللوحة 1920×1080 في وسطها. والتكبير كما هو */
+  .native-app #single { background: linear-gradient(135deg, #1A4BD1 0%, #1238A8 55%, #0E2C86 100%); }
+  .native-app .frame, .native-app .frame iframe { width: var(--frame-w, 1920px); height: var(--frame-h, 1080px); }
   body.one { overflow: hidden; }
 
 </style>
@@ -404,7 +407,12 @@
     fitStage();
     if (on) sendCtl(error);
   }
-  const fitStage = () => document.documentElement.style.setProperty('--scale', Math.min(innerWidth / 1920, innerHeight / 1080));
+  const fitStage = () => {
+    const root = document.documentElement.style, k = Math.min(innerWidth / 1920, innerHeight / 1080);
+    root.setProperty('--scale', k);
+    // في التطبيق: الإطار يغطي الشاشة كلها بالتكبير نفسه (أعرض: 1080 × vw/vh · أطول: 1920 × vh/vw).
+    if (NATIVE) { root.setProperty('--frame-w', Math.ceil(innerWidth / k) + 'px'); root.setProperty('--frame-h', Math.ceil(innerHeight / k) + 'px'); }
+  };
   addEventListener('resize', fitStage);
   document.addEventListener('fullscreenchange', () => render());
 
