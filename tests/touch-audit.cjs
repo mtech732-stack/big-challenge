@@ -19,7 +19,7 @@ function touchAudit() {
     if (el.classList.contains('name-in')) { const row = el.closest('.row').getBoundingClientRect(); box = { l: row.left, t: row.top, r: row.right, b: row.bottom }; }
     const z = v => Math.round(v * 10) / 10;
     const toC = b => ({ l: z((b.l - c.left) / k), t: z((b.t - c.top) / k), r: z((b.r - c.left) / k), b: z((b.b - c.top) / k) });
-    items.push({ name: el.dataset.cmd || el.id || el.className, el: toC({ l: r.left, t: r.top, r: r.right, b: r.bottom }), hit: toC(box) });
+    items.push({ node: el, name: el.dataset.cmd || el.id || el.className, el: toC({ l: r.left, t: r.top, r: r.right, b: r.bottom }), hit: toC(box) });
   }
   // كسور البكسل من التكبير لا تُعدّ تداخلاً: يلزم أن يتجاوز التقاطع نصف بكسل في الاتجاهين.
   const over = (a, b) => Math.min(a.r, b.r) - Math.max(a.l, b.l) > 0.5 && Math.min(a.b, b.b) - Math.max(a.t, b.t) > 0.5;
@@ -30,7 +30,11 @@ function touchAudit() {
   }
   // خانات لوحة الترتيب صفوفها متلاصقة (48 بلا فاصل)، فلا تمتد مساحتها رأسياً (4.5: إلى منتصف الفاصل، وهو 0)؛ تُقاس وحدها.
   const tight = x => /^act:item:/.test(x.name);
-  const small = items.filter(x => !tight(x) && (x.hit.r - x.hit.l < 119.5 || x.hit.b - x.hit.t < 119.5)).map(x => `${x.name} ${Math.round(x.hit.r - x.hit.l)}×${Math.round(x.hit.b - x.hit.t)}`);
+  // ولوحة «⋯» بأربع أيقونات فواصلها 16، فمساحة كل أيقونة فيها 112 (design/app.md 5، الملاحظات الصغيرة).
+  const four = canvas.querySelector('.ctl-more .cbtn.ico:nth-child(4)')?.closest('.ctl-more');
+  const least = x => (four && four.contains(x.node) ? 111.5 : 119.5);
+  const small = items.filter(x => !tight(x) && (x.hit.r - x.hit.l < least(x) || x.hit.b - x.hit.t < least(x))).map(x => `${x.name} ${Math.round(x.hit.r - x.hit.l)}×${Math.round(x.hit.b - x.hit.t)}`);
+  for (const x of items) delete x.node;
   return { items, clash, small, slots: items.filter(tight) };
 }
 module.exports = { touchAudit };
