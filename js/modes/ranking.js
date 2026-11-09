@@ -6,7 +6,7 @@
 // ونهاية القائمة حين تنكشف العشرة، أو بـ «أنهِ القائمة» حين يعجز الفريقان، أو تنقضي دقيقتان ونصف تجري من «ابدأ» بلا توقف،
 // ثم تنكشف بقيتها والفخاخ للجميع. والقائمة لا تصل إلى الجمهور قبل نهايتها: ما كُشف وحده (7.1).
 // والقائمة الثانية بعد الأولى، يبدأها الفريق الآخر.
-import { freshFirst, besides } from '../round.js';
+import { freshFirst, besides, freshRounds } from '../round.js';
 import { sharedItems, CLASH_MIN } from '../content-check.js';
 
 // وقت الإجابة (5.6 و12)، ومثله لكل دور بعد الخطأ أو انتهاء الوقت.
@@ -180,4 +180,6 @@ export default {
   transient: s => s.phase === 'hit',
   finished: s => s.phase === 'end',
   used: s => s.lists.map(t => t.id),
+  // كم جولة كاملة بقيت بلا تكرار: قائمتان لكل جولة (js/play.js freshLeft).
+  fresh: (content, seen) => freshRounds(content?.lists ?? [], seen, LISTS),
 };

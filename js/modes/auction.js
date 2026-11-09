@@ -7,7 +7,7 @@
 // ثم الوفاء (الوثيقة 1.14، design/s8c.md): المقدّم يقارن ما يُذكر بقائمة الباركود، و«عُدّ · +1» عدّاد مساعد لا حكم.
 // و«كشف القائمة» في أي لحظة يوقف الوقت ويُظهر القائمة للجمهور، ثم «وفى» (نقاط بعدد ما التزم به) أو «لم يفِ» (نقطتان للخصم، لا إكمال).
 // ثم «الموضوع التالي» حتى الثالث، و«إنهاء الجولة».
-import { freshFirst, besides } from '../round.js';
+import { freshFirst, besides, freshRounds } from '../round.js';
 
 // وقت الوفاء 45 ثابتاً لكل القوائم (المالك، 30 أكتوبر 2026: «ابق التوقيت ثابت كما هو لكل القوائم»)، ونقطتان للخصم إن لم يفِ الملتزم (5.5 و12).
 export const FULFIL_SECONDS = 45;
@@ -186,4 +186,6 @@ export default {
   setup, actions, act, audience, presenter,
   finished: s => s.phase === 'end',
   used: s => s.topics.map(t => t.id),
+  // كم جولة كاملة بقيت بلا تكرار: 3 مواضيع لكل جولة (js/play.js freshLeft).
+  fresh: (content, seen) => freshRounds(content?.topics ?? [], seen, TOPICS),
 };

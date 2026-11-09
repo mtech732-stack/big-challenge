@@ -203,9 +203,17 @@
   // الجولة نفسها (وفيها الإجابات) لا تُرسل أبداً.
   const view = (moments = []) => {
     const { history, round, ...pub } = match;
-    return { match: pub, modes: modes().map(({ id, name }) => ({ id, name })), play: playView(), muted, moments };
+    return { match: pub, modes: modes().map(({ id, name }) => ({ id, name })), play: playView(), muted, moments, left: leftRows() };
   };
   const roundMode = () => match.round && P.modeOf(units(), match.round.mode);
+  // المباريات قبل التكرار (الوثيقة 1.18، 8، design/s8d.md): في شاشة البداية وحدها، لكل نمط يُختار منه ثم «شريط البونص».
+  function leftRows() {
+    if (match.step !== 'setup' || !pack()) return null;
+    // modes() أسماء ومعرّفات وحدها (pickableModes)، فالوحدات نفسها من units().
+    const list = [...modes().map(m => P.modeOf(units(), m.id)).filter(Boolean), ...(wheel ? [WHEEL] : [])];
+    const left = P.freshLeft(match, { modes: list, content: { ...pack().files, [WHEEL.contentKey]: wheel }, seen: seen() });
+    return list.filter(u => u.id in left).map(u => ({ id: u.id, name: u.name, left: left[u.id] }));
+  }
   // باركود الإجابات (7.1، design/s8.md 2): في سؤال المزاد وقائمة الترتيب. يظهر تلقائياً في بدايته (قبل المزايدة، وقبل «ابدأ»)،
   // ويخفيه المقدّم بضغطة، ولا يعود إلا بطلبه («الباركود»). والحال في المباراة (match.qr: مفتاح السؤال وظاهر أو لا)، فيبقى بعد إعادة التحميل،
   // ولا يدخل التراجع. key: الجولة والسؤال · open: السؤال جارٍ (يُعاد فيه بطلب) · auto: بدايته.
