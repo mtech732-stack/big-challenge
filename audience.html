@@ -406,8 +406,22 @@
   const name = t => view.match.teams[t] || (t === 1 ? 'الفريق الأول' : 'الفريق الثاني');
   const tn = t => `<b class="tn t${t}">${esc(name(t))}</b>`;
 
+  // المباريات قبل التكرار (الوثيقة 1.18، 8، design/s8d.md 1.2): في شاشة البداية وحدها، أعلى اليسار تحت «ملء الشاشة» بـ 24 (152)،
+  // أو على 64 إن غاب. سطر لكل نمط بترتيب الأنماط ثم «شريط البونص»، والعدد من المقدّم (view.left، js/play.js freshLeft)، و0 «تتكرر الآن».
+  function renderLeft(rows) {
+    $('rp')?.remove();
+    if (!rows?.length) return;
+    const el = document.createElement('div');
+    el.id = 'rp'; el.className = 'rp'; el.dataset.hud = 'المباريات قبل التكرار'; el.dataset.free = '';
+    el.innerHTML = '<p class="h">المباريات قبل التكرار</p>' + rows.map(r => `<p>${esc(r.name)} · <b>${r.left > 0 ? num(String(r.left)) : 'تتكرر الآن'}</b></p>`).join('');
+    canvas.append(el);
+    placeLeft();
+  }
+  const placeLeft = () => { const el = $('rp'); if (el) el.style.top = [...document.querySelectorAll('.ctl-corner .cbtn')].some(b => b.offsetParent) ? '152px' : '64px'; };
+
   function render() {
     if (!view || busy) return;
+    renderLeft(view.match.step === 'setup' ? view.left : null);
     if (view.match.step === 'play' && view.play) return renderPlay(view.play);
     canvas.classList.remove('qr');
     if (view.match.step === 'final') return renderFinal(view);
@@ -858,7 +872,24 @@
     }).join('') + (a.listClock ? `<p class="clock" id="rclock"><span>بقي للقائمة</span><b>${a.listEnds ? '' : format(a.listSeconds)}</b></p>` : '');
     listEnds = a.listEnds ?? null;
     if (listEnds) $('rclock').querySelector('b').textContent = listText();
+    markArmed();
   }
+  // خانات اللوحة في التطبيق (design/app.md 4.6، المالك 9 نوفمبر 2026): نقرتان. الأولى تحدّد الخانة (إطار حول شارة رقمها) ولا تكشفها،
+  // والثانية على الخانة نفسها تكشفها. والنقر على خانة أخرى ينقل التحديد إليها. ويزول بعد 4 ثوانٍ بلا نقرة، أو بأي زر آخر («خطأ»…)،
+  // أو حين لا تبقى الخانة زراً (انتهى الوقت، أو انتهى التحكيم). والموقع بنقرة واحدة كما كان. armed: أمر الخانة المحددة (act:item:N).
+  const TWO_TAPS = document.documentElement.classList.contains('native-app'), ARM_MS = 4000;
+  let armed = null, armTimer = null;
+  function disarm() { armed = null; clearTimeout(armTimer); document.querySelectorAll('#board .sl.armed').forEach(s => s.classList.remove('armed')); }
+  function markArmed() {
+    if (!armed) return;
+    const el = [...document.querySelectorAll('#board .sl[data-cmd]')].find(s => s.dataset.cmd === armed);
+    if (!el) return disarm();
+    document.querySelectorAll('#board .sl.armed').forEach(s => s !== el && s.classList.remove('armed'));
+    el.classList.add('armed');
+  }
+  // اهتزاز خفيف مع التحديد إن وُجد إضافة Haptics في الغلاف (Capacitor)، في هذه النافذة أو في الصفحة الأم. وبدونها لا شيء.
+  function haptic() { try { for (const w of [window, parent]) { const h = w.Capacitor?.Plugins?.Haptics; if (h?.impact) return void h.impact({ style: 'LIGHT' }); } } catch {} }
+  function arm(cmd) { armed = cmd; clearTimeout(armTimer); armTimer = setTimeout(disarm, ARM_MS); markArmed(); haptic(); }
   // مربع الإعلان في الترتيب: الحكم بالمربع («[الاسم] · +7» و«المركز 7»)، و«لا نقاط» و«لم تُكشف خانة».
   // ونهاية القائمة بلا مربع: «كُشف 7 من 10» (design/ranking.md 7.6).
   function rankBox(a) {
@@ -913,6 +944,7 @@
     canvas.classList.toggle('more-open', moreOpen);
     // النافذة الواحدة: صفّا أزرار الزاويتين مكان الشعار (1.3).
     canvas.classList.toggle('has-a', ['cornerA', 'cornerB', 'cornerC'].some(id => $(id).children.length));
+    placeLeft();
     placeBadges();   // الشارة المرسومة تصغر بنافذة واحدة (has-a)، فيتغير موضع ما بعدها
     $('count').innerHTML = c?.count ? '<span class="lbl">عدد الأنماط</span>' + [['short', 2], ['full', 4]].map(([m, k]) =>
       `<button class="ctile${c.count.value === m ? ' sel' : ''}${k === 4 && !c.count.four ? ' off' : ''}" data-cmd="count:${m}"><span class="ltr">${k}</span></button>`).join('') : '';
@@ -922,6 +954,7 @@
     // التحكيم المباشر في الترتيب (design/s8.md 3.2): في الإجابة رقم كل خانة لم تنكشف زرٌّ يحكم بها.
     $('rnk').classList.toggle('judge', !!c?.judge);
     $('board').querySelectorAll('.sl[data-r]').forEach(el => { if (c?.judge && !el.classList.contains('t1') && !el.classList.contains('t2')) el.dataset.cmd = 'act:item:' + el.dataset.r; else delete el.dataset.cmd; });
+    markArmed();
     $('mcards').querySelectorAll('.mc').forEach(t => { if (c?.pick && t.classList.contains('avail')) t.dataset.cmd = 'pick:' + t.dataset.mode; else delete t.dataset.cmd; });
     $('tiles').querySelectorAll('.tile').forEach(t => { if (c?.pick && !t.classList.contains('by1') && !t.classList.contains('by2') && !t.classList.contains('auto') && !t.classList.contains('left')) t.dataset.cmd = 'pick:' + t.dataset.mode; else delete t.dataset.cmd; });
     for (const k of [1, 2]) {
@@ -957,6 +990,8 @@
       if (!b && e.target.closest('#cxList')) { flipPage(); return; }
       if (!b && e.target.closest('#cxDots i')) { flipPage(Number(e.target.closest('#cxDots i').dataset.page)); return; }
       if (!b || b.classList.contains('off') || !ctl) return;
+      // التطبيق: خانة اللوحة بنقرتين (design/app.md 4.6)، وأي زر آخر يزيل التحديد.
+      if (TWO_TAPS && b.matches('#board .sl')) { if (armed !== b.dataset.cmd) return arm(b.dataset.cmd); disarm(); } else if (armed) disarm();
       send(b.dataset.cmd);
     });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && moreOpen) { moreOpen = false; renderCtl(); } });
@@ -989,6 +1024,12 @@
         send('teams', { a: $('i1').value, b: $('i2').value });
       });
       $('i' + k).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); k === 1 ? $('i2').focus() : send('draw'); } });
+    }
+    // تطبيق آبل (design/app.md 4.3.2): مساحة لمس الخانة صف اللوحة كله (136)، فالنقر فيه خارج الخانة يركّز عليها.
+    if (document.documentElement.classList.contains('native-app')) for (const k of [1, 2]) {
+      $('p' + k).querySelector('.row').addEventListener('click', e => {
+        if (canvas.classList.contains('editing') && e.target !== $('i' + k)) $('i' + k).focus();
+      });
     }
     parent.postMessage({ bc: 'need-ctl' }, location.origin);
   }

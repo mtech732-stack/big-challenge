@@ -111,3 +111,21 @@
   font-size: 32px; font-weight: 700; white-space: nowrap; pointer-events: none; }
 /* داخل لوحة «⋯» لوح داكن بنص أبيض (ش8-أ/56، design/s8b.md 7.3): لا يزيد الأبيض لحظة الفتح. وفي الزاوية أبيض كما هو */
 .ctl-more .ctl-tip { background: var(--stage-3); color: var(--on-stage); }
+
+/* ===== تطبيق آبل: مساحات اللمس 44 نقطة (design/app.md 4، النموذج design/app/touch-proto.css) =====
+   44 نقطة على الآيفون ≈ 120 بكسلاً من اللوحة. مساحة شفافة حول كل زر لا تُرى (::after)، ارتفاعها 120 أياً كان ارتفاع الزر
+   (min(0px, 50% − 60px) من الأعلى والأسفل: 72 ← −24، 64 ← −28، 88 ← −16، 96 ← −12)، و12 يميناً ويساراً،
+   فتلتقي مساحتا زرين بينهما 24 ولا تتداخلان. ولا يتغير شكل زر نصي. والموقع لا يتغير: كله تحت .native-app. */
+.native-app .cbtn, .native-app .ctile { position: relative; }
+.native-app .cbtn::after, .native-app .ctile::after { content: ""; position: absolute; inset: min(0px, calc(50% - 60px)) -12px; }
+/* أيقونات الزاوية تكبر من 64 إلى 96 (الأيقونة 52 بخط 4)، والفاصل بينها 24، ومساحتها 120×120 */
+.native-app .cbtn.ico { width: 96px; height: 96px; }
+.native-app .cbtn.ico svg { width: 52px; height: 52px; stroke-width: 4; }
+.native-app .cbtn.opt::before { width: 44px; height: 10px; background: radial-gradient(circle, currentColor 0 5px, transparent 5.5px) 0 0 / 17px 10px repeat-x; }
+.native-app .ctl-corner .ctl:has(.cbtn.ico), .native-app .ctl-more, .native-app .ctl-more .ctl { gap: 24px; }
+/* لوحة «⋯» صفاً واحداً تحت صف الزاوية بـ 24 (64 + 96 + 24 = 184): الصوت والرصيد، ثم فاصل عمودي، ثم «مباراة جديدة».
+   و«ملء الشاشة» بلا معنى في التطبيق، فيُخفى */
+.native-app .ctl-more { top: 184px; flex-direction: row; align-items: center; min-width: 0; }
+.native-app .ctl-more hr { align-self: stretch; width: 3px; height: auto; }
+.native-app [data-cmd="fullscreen"] { display: none; }
+/* خانتا الاسمين: الصف كله (136) مساحة لمسها، والنقر فيه خارج الخانة ينقل التركيز إليها (audience.html)، والخط المتقطع والنص في مكانهما */

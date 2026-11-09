@@ -49,15 +49,45 @@ const { reporter } = require('./helpers.cjs');
     rotSeen = [...rotSeen, ...s.questions.map(q => q.id)];
   }
   check(`مباريات متتالية: كل جولة بنهاية جديدة حتى تنفد (${new Set(rot).size} من ${groups.size})`, new Set(rot).size === groups.size);
-  let forced = 0, seen = [];
-  for (let i = 0; i < 60; i++) {
-    const s = lastTwo.setup({ content: bank, first: 1, seen, rng });
-    const fresh = s.questions.filter(q => !seen.includes(q.id)).length;
-    if (fresh !== Math.min(6, s.questions.length) && bank.questions.filter(q => !seen.includes(q.id)).length >= 6) forced++;
-    seen = [...seen, ...s.questions.map(q => q.id)];
-    if (seen.length >= bank.questions.length) seen = [];
+  // ذاكرة الأسئلة أسبق من تجنّب التكرار (ش8-أ/72: القاعدة لا العدد 6): ما دامت في البنك جولة نظيفة (fresh ≥ 1) فالجولة كلها
+  // مما لم يظهر، بنهاية واحدة. والذاكرة كما يحفظها المشغّل (remember، دورة جديدة حين لا تبقى جولة نظيفة).
+  const play = (b, rounds) => {
+    let seen = [], mixed = 0, clean = 0, oneBox = 0;
+    const left = [];
+    for (let i = 0; i < rounds; i++) {
+      const before = lastTwo.fresh(b, seen);
+      left.push(before);
+      const s = lastTwo.setup({ content: b, first: 1, seen, rng });
+      const fresh = s.questions.filter(q => !seen.includes(q.id)).length;
+      if (before >= 1 && fresh !== s.questions.length) mixed++;
+      if (fresh === s.questions.length) clean++;
+      if (new Set(s.questions.map(q => q.box)).size === 1 && s.questions.length === 6) oneBox++;
+      seen = R.remember(seen, lastTwo, b, s.questions.map(q => q.id));
+    }
+    return { mixed, clean, oneBox, left };
+  };
+  {
+    const r = play(bank, 60);
+    check(`وذاكرة الأسئلة أسبق من تجنّب التكرار: 60 جولة بالبنك الحالي، كلها نظيفة بنهاية واحدة (${r.clean} · ${r.oneBox})`, r.mixed === 0 && r.clean === 60 && r.oneBox === 60);
   }
-  check('وذاكرة الأسئلة أسبق من تجنّب التكرار', forced === 0);
+  // بنك 3/3/3 لكل نهاية (دفعة 9 نوفمبر، #412): بعد أن تُستعمل النهاية يبقى فيها سؤال لكل مستوى، لا يكفي جولة بنهايتها.
+  const triple = { ...bank, questions: [...new Set(bank.questions.map(q => q.ending))].slice(0, 10).flatMap((e, g) => ['easy', 'medium', 'hard']
+    .flatMap(l => [0, 1, 2].map(k => ({ ...bank.questions.find(q => q.ending === e && q.level === l), id: `t-${g}-${l}-${k}` })))) };
+  {
+    // ش8-أ/74: نهايات بأربعة لكل مستوى (#421): في كل نهاية جولتان، فالسطر 20 ثم 10 بعد عشر جولات، والدورة بعد العشرين.
+    const quad = { ...bank, questions: [...new Set(bank.questions.map(q => q.ending))].slice(0, 10).flatMap((e, g) => ['easy', 'medium', 'hard']
+      .flatMap(l => [0, 1, 2, 3].map(k => ({ ...bank.questions.find(q => q.ending === e && q.level === l), id: `q-${g}-${l}-${k}` })))) };
+    const r = play(quad, 50);
+    check(`بنك 4/4/4 (120): السطر 20 بلا ذاكرة، و10 بعد عشر جولات، ثم دورة بعد العشرين (${r.left.slice(0, 22).join('،')})`,
+      r.left[0] === 20 && r.left[10] === 10 && r.left[19] === 1 && r.left[20] === 19 && !r.left.includes(0));
+    check(`و50 جولة به بلا خلط، كلها نظيفة بنهاية واحدة (${r.clean})`, r.mixed === 0 && r.clean === 50 && r.oneBox === 50);
+  }
+  {
+    const r = play(triple, 40);
+    check(`بنك 3/3/3 (90): 40 جولة حتى النفاد وما بعده بلا خلط، كلها نظيفة بنهاية واحدة (${r.clean})`, r.mixed === 0 && r.clean === 40 && r.oneBox === 40);
+    check(`والسطر صادق: عشر جولات في الدورة الأولى ثم تسع في كل دورة بعدها (${r.left.slice(0, 21).join('،')})`,
+      r.left.slice(0, 10).join() === '10,9,8,7,6,5,4,3,2,1' && r.left.slice(10, 19).join() === '9,8,7,6,5,4,3,2,1' && !r.left.includes(0));
+  }
   const same = { questions: ['easy', 'easy', 'medium', 'medium', 'hard', 'hard'].map((level, i) => ({ id: `x-${i}`, level, ending: 'ان', prompt: 'س', answer: 'فنجان' })) };
   check('إن لم يكن بدّ من التكرار: تكتمل الجولة بستة أسئلة', lastTwo.setup({ content: same, first: 1, rng }).questions.length === 6);
 

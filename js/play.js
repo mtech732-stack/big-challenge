@@ -1,7 +1,7 @@
 // اللعب بعد شاشة المواجهة: تتابع مسار المباراة (الجولات والعجلات) وربط كل جولة بوحدة نمطها عبر مشغّل الجولة.
 // دوال خالصة على حالة المباراة (JSON) كما في js/match.js. الجولة الجارية في match.round، والرصيد يتبعها.
 // modes: وحدات الأنماط المبنية (MODES في js/modes/index.js)، ومعها العجلة (js/wheel.js) إن كانت تُلعب: وحدة id «wheel».
-import { plan, other, leaderOf } from './match.js';
+import { plan, other, leaderOf, METHODS } from './match.js';
 import * as R from './round.js';
 import { clashes } from './content-check.js';
 
@@ -63,15 +63,39 @@ function sealEnd(match) {
 export function startNext(match, { modes, content, seen = [], rng = Math.random }) {
   if (!between(match, modes) || nextKind(match, modes) !== 'start') return match;
   const item = upcoming(match);
-  // العجلة: تُدار في match.round كالجولة، ولا تُعدّ جولة (played)، ولا ذاكرة لخاناتها.
+  // العجلة: تُدار في match.round كالجولة، ولا تُعدّ جولة (played).
   if (item.kind === 'wheel') {
     const wheel = modeOf(modes, 'wheel');
-    const round = { ...R.startRound(wheel, { content, scores: match.scores, first: wheelFirst(match), rng }), n: item.after, wheel: true };
-    return { ...match, step: 'play', cursor: cursor(match) + 1, ends: sealEnd(match), round, scores: round.scores };
+    // وتحدياته مما لم يظهر (الوثيقة 1.18): seen ذاكرة الجهاز، وما اختير في شريط سابق في المباراة نفسها لا يعود ما وُجد غيره.
+    const round = { ...R.startRound(wheel, { content, scores: match.scores, first: wheelFirst(match), seen, avoid: match.used ?? [], rng }), n: item.after, wheel: true };
+    return { ...match, step: 'play', cursor: cursor(match) + 1, ends: sealEnd(match), round, scores: round.scores, used: [...(match.used ?? []), ...wheel.used(round.state)] };
   }
   const mode = modeOf(modes, item.mode);
   const round = { ...R.startRound(mode, { content, scores: match.scores, first: item.first || undefined, seen, avoid: avoidIn(content, match.used ?? []), rng }), n: item.n };
   return { ...match, step: 'play', cursor: cursor(match) + 1, ends: sealEnd(match), round, scores: round.scores, played: (match.played ?? 0) + 1, used: [...(match.used ?? []), ...mode.used(round.state)] };
+}
+
+// ذاكرة الأسئلة بعد بدء جولة في المباراة match (ش8-أ/71): R.remember بما أخذه بنك الجولة في المباراة كلها (match.used)، لا الجولة
+// الأخيرة وحدها. فإن بدأت للبنك دورة جديدة بقي فيها كل ما ظهر منه في هذه المباراة: الشريطان في مباراة الأربعة معاً، فلا يعود
+// تحدٍّ من الشريط الأول في المباراة التالية. وما في match.used من بنوك أخرى ظهر في هذه المباراة، فهو في الذاكرة أصلاً.
+export function remember(seen, match, { modes, content }) {
+  const unit = modeOf(modes, match.round.mode);
+  return R.remember(seen, unit, content[unit.contentKey], [...new Set([...(match.used ?? []), ...unit.used(match.round.state)])]);
+}
+
+// المباريات قبل التكرار (الوثيقة 1.18، 8، design/s8d.md): لكل نمط وللشريط عدد المباريات الكاملة الباقية قبل أن يتكرر فيه شيء،
+// من البنك (content) وذاكرة الجهاز (seen). وما تستهلكه المباراة من طريقتها (METHODS في js/match.js): النمط جولة واحدة فيها
+// (لا يُختار مرتين)، والشريط بعدد أشرطتها (جولتان: شريط · أربع: شريطان، فيستهلك 14 تحدياً).
+// يعيد { letter, 'last-two', auction, ranking, wheel } لما له ملف في content، ولا يفترض حجماً للبنك.
+export function freshLeft(match, { modes, content, seen = [] }) {
+  const left = {};
+  const per = id => (id === 'wheel' ? Math.max(1, METHODS[match.method]?.wheelsAfter.length ?? 1) : 1);
+  for (const unit of modes) {
+    if (!content[unit.contentKey]) continue;
+    if (typeof unit.fresh !== 'function') continue;
+    left[unit.id] = Math.floor(unit.fresh(content[unit.contentKey], seen) / per(unit.id));
+  }
+  return left;
 }
 
 // تخطّي ما لم يُبنَ بعد. تبقى على الشاشة الجولة السابقة (أو المواجهة) كما هي.
