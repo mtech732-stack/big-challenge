@@ -1861,6 +1861,1017 @@
         }
       ],
       "note": "بالكيلومتر المربع: الجزائر 2.38 مليون · الكونغو الديمقراطية 2.34 · السودان 1.86 · ليبيا 1.76 · تشاد 1.28 · النيجر 1.27 · أنغولا 1.25 · مالي 1.24 · جنوب أفريقيا 1.22 · إثيوبيا 1.10 · موريتانيا 1.03 · مصر 1.00 · تنزانيا 0.95، ثم نيجيريا (14). والسودان بعد انفصال جنوب السودان 2011. و«الكونغو» وحدها يسأل المقدّم عنها: الديمقراطية أم برازافيل؟"
+    },
+    {
+      "id": "general-ranking-033",
+      "domain": "sports",
+      "title": "بطولة العالم للفورمولا 1 · ترتيب السائقين 2025",
+      "asOf": "2025-12",
+      "items": [
+        {
+          "rank": 1,
+          "name": "لاندو نوريس",
+          "alts": [
+            "نوريس"
+          ]
+        },
+        {
+          "rank": 2,
+          "name": "ماكس فيرستابن",
+          "alts": [
+            "فيرستابن",
+            "فيرشتابن"
+          ]
+        },
+        {
+          "rank": 3,
+          "name": "أوسكار بياستري",
+          "alts": [
+            "بياستري"
+          ]
+        },
+        {
+          "rank": 4,
+          "name": "جورج راسل",
+          "alts": [
+            "راسل"
+          ]
+        },
+        {
+          "rank": 5,
+          "name": "شارل لوكلير",
+          "alts": [
+            "لوكلير",
+            "لوكلارك"
+          ]
+        },
+        {
+          "rank": 6,
+          "name": "لويس هاميلتون",
+          "alts": [
+            "هاميلتون"
+          ]
+        },
+        {
+          "rank": 7,
+          "name": "كيمي أنتونيلي",
+          "alts": [
+            "أنتونيلي"
+          ]
+        },
+        {
+          "rank": 8,
+          "name": "ألكسندر ألبون",
+          "alts": [
+            "ألبون"
+          ]
+        },
+        {
+          "rank": 9,
+          "name": "كارلوس ساينز",
+          "alts": [
+            "ساينز"
+          ]
+        },
+        {
+          "rank": 10,
+          "name": "فرناندو ألونسو",
+          "alts": [
+            "ألونسو"
+          ]
+        },
+        {
+          "rank": 11,
+          "name": "نيكو هولكنبرغ",
+          "alts": [
+            "هولكنبرغ",
+            "هولكنبيرغ"
+          ]
+        },
+        {
+          "rank": 12,
+          "name": "إسحاق حجار",
+          "alts": [
+            "حجار",
+            "هادجار"
+          ]
+        },
+        {
+          "rank": 13,
+          "name": "أوليفر بيرمان",
+          "alts": [
+            "بيرمان"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "2025 Drivers' Standings — Formula 1",
+          "url": "https://www.formula1.com/en/results/2025/drivers",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "2025 Standings — Mercedes-AMG PETRONAS F1 Team",
+          "url": "https://www.mercedesamgf1.com/standings/2025",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "Final 2025 F1 championship standings after Abu Dhabi — RacingNews365",
+          "url": "https://racingnews365.com/final-2025-f1-championship-standings-after-abu-dhabi-grand-prix",
+          "accessed": "2026-11-09"
+        }
+      ],
+      "note": "النقاط: نوريس 423 · فيرستابن 421 · بياستري 410 · راسل 319 · لوكلير 242 · هاميلتون 156 · أنتونيلي 150 · ألبون 73 · ساينز 64 · ألونسو 56 · هولكنبرغ 51 وحجار 51 (بالجدول الرسمي) · بيرمان 41، ثم أوكون 38 (14). ويكفي اسم العائلة."
+    },
+    {
+      "id": "general-ranking-034",
+      "domain": "sports",
+      "title": "أعلى الرياضيين أجراً · قائمة فوربس 2026",
+      "asOf": "2026-05",
+      "items": [
+        {
+          "rank": 1,
+          "name": "كريستيانو رونالدو",
+          "alts": [
+            "رونالدو"
+          ]
+        },
+        {
+          "rank": 2,
+          "name": "كانيلو ألفاريز",
+          "alts": [
+            "كانيلو"
+          ]
+        },
+        {
+          "rank": 3,
+          "name": "ليونيل ميسي",
+          "alts": [
+            "ميسي"
+          ]
+        },
+        {
+          "rank": 4,
+          "name": "ليبرون جيمس",
+          "alts": [
+            "ليبرون"
+          ]
+        },
+        {
+          "rank": 5,
+          "name": "شوهي أوتاني",
+          "alts": [
+            "أوتاني"
+          ]
+        },
+        {
+          "rank": 6,
+          "name": "ستيفن كوري",
+          "alts": [
+            "كوري"
+          ]
+        },
+        {
+          "rank": 7,
+          "name": "جون رام",
+          "alts": [
+            "رام"
+          ]
+        },
+        {
+          "rank": 8,
+          "name": "كريم بنزيمة",
+          "alts": [
+            "بنزيمة"
+          ]
+        },
+        {
+          "rank": 9,
+          "name": "كيفن ديورانت",
+          "alts": [
+            "ديورانت",
+            "دورانت"
+          ]
+        },
+        {
+          "rank": 10,
+          "name": "لويس هاميلتون",
+          "alts": [
+            "هاميلتون"
+          ]
+        },
+        {
+          "rank": 11,
+          "name": "كيليان مبابي",
+          "alts": [
+            "مبابي"
+          ]
+        },
+        {
+          "rank": 12,
+          "name": "يانيس أنتيتوكونمبو",
+          "alts": [
+            "يانيس",
+            "أنتيتوكونمبو"
+          ]
+        },
+        {
+          "rank": 13,
+          "name": "مايكا بارسونز",
+          "alts": [
+            "بارسونز"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Forbes' 2026 Highest-Paid Athletes List — Bleacher Report",
+          "url": "https://bleacherreport.com/articles/25430214-forbes-2026-highest-paid-athletes-list-drops-rankings-lebron-james-steph-curry-more-revealed",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "Cristiano Ronaldo leads Forbes' 2026 50 highest-paid athletes [Full List] — The Sun",
+          "url": "https://thesun.ng/cristiano-ronaldo-leads-forbes-2026-50-highest-paid-athletes-full-list/",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "Forbes World's Highest-Paid Athletes 2026 — World of Statistics",
+          "url": "https://www.threads.com/@stats_feed/post/DZPPQp7iBxn/forbes-worlds-highest-paid-athletes-cristiano-ronaldo-m-canelo-alvarez-m-lionel",
+          "accessed": "2026-11-09"
+        }
+      ],
+      "note": "بملايين الدولارات من مايو 2025 إلى مايو 2026: رونالدو 300 · كانيلو 170 · ميسي 140 · ليبرون 137.8 · أوتاني 127.6 · كوري 124.7 · رام 107 · بنزيمة 104 · ديورانت 103.8 · هاميلتون 100 · مبابي 95 · يانيس 90 · بارسونز 86، ثم فيرستابن 86 (14 بترتيب فوربس) وماهومز 84.7 (15). وكانيلو ملاكم، وأوتاني لاعب بيسبول، ورام لاعب غولف."
+    },
+    {
+      "id": "general-ranking-035",
+      "domain": "sports",
+      "title": "دوري أبطال أوروبا 2025–2026 · ترتيب مرحلة الدوري",
+      "asOf": "2026-01",
+      "items": [
+        {
+          "rank": 1,
+          "name": "آرسنال",
+          "alts": [
+            "أرسنال"
+          ]
+        },
+        {
+          "rank": 2,
+          "name": "بايرن ميونخ",
+          "alts": [
+            "بايرن"
+          ]
+        },
+        {
+          "rank": 3,
+          "name": "ليفربول"
+        },
+        {
+          "rank": 4,
+          "name": "توتنهام"
+        },
+        {
+          "rank": 5,
+          "name": "برشلونة"
+        },
+        {
+          "rank": 6,
+          "name": "تشيلسي"
+        },
+        {
+          "rank": 7,
+          "name": "سبورتينغ لشبونة",
+          "alts": [
+            "سبورتينغ"
+          ]
+        },
+        {
+          "rank": 8,
+          "name": "مانشستر سيتي",
+          "alts": [
+            "السيتي"
+          ]
+        },
+        {
+          "rank": 9,
+          "name": "ريال مدريد"
+        },
+        {
+          "rank": 10,
+          "name": "إنتر ميلان",
+          "alts": [
+            "إنتر",
+            "الإنتر"
+          ]
+        },
+        {
+          "rank": 11,
+          "name": "باريس سان جيرمان",
+          "alts": [
+            "سان جيرمان",
+            "بي إس جي"
+          ]
+        },
+        {
+          "rank": 12,
+          "name": "نيوكاسل",
+          "alts": [
+            "نيوكاسل يونايتد"
+          ]
+        },
+        {
+          "rank": 13,
+          "name": "يوفنتوس",
+          "alts": [
+            "اليوفي"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Champions League 2025–26 Final League Phase Table — Sports Illustrated",
+          "url": "https://www.si.com/soccer/champions-league-2025-26-final-league-phase-table-knockout-stage-seedings",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "UEFA Champions League 2025-26 final table — NBC Sports",
+          "url": "https://www.nbcsports.com/soccer/news/uefa-champions-league-2025-26-league-phase-table",
+          "accessed": "2026-11-09"
+        }
+      ],
+      "note": "النقاط: آرسنال 24 · بايرن 21 · ليفربول 18 · توتنهام 17 · برشلونة وتشيلسي وسبورتينغ ومانشستر سيتي 16 · ريال مدريد وإنتر 15 · باريس ونيوكاسل 14 · يوفنتوس 13، ثم أتلتيكو مدريد 13 (14) وأتالانتا 13 (15). والتعادلات محسومة بترتيب الاتحاد الأوروبي الرسمي. و«مانشستر» و«مدريد» وحدهما خطأ."
+    },
+    {
+      "id": "general-ranking-036",
+      "domain": "sports",
+      "title": "أغلى أندية كرة القدم قيمة · فوربس 2026",
+      "asOf": "2026-05",
+      "items": [
+        {
+          "rank": 1,
+          "name": "ريال مدريد"
+        },
+        {
+          "rank": 2,
+          "name": "برشلونة"
+        },
+        {
+          "rank": 3,
+          "name": "مانشستر يونايتد",
+          "alts": [
+            "اليونايتد"
+          ]
+        },
+        {
+          "rank": 4,
+          "name": "ليفربول"
+        },
+        {
+          "rank": 5,
+          "name": "باريس سان جيرمان",
+          "alts": [
+            "سان جيرمان",
+            "بي إس جي"
+          ]
+        },
+        {
+          "rank": 6,
+          "name": "بايرن ميونخ",
+          "alts": [
+            "بايرن"
+          ]
+        },
+        {
+          "rank": 7,
+          "name": "مانشستر سيتي",
+          "alts": [
+            "السيتي"
+          ]
+        },
+        {
+          "rank": 8,
+          "name": "آرسنال",
+          "alts": [
+            "أرسنال"
+          ]
+        },
+        {
+          "rank": 9,
+          "name": "تشيلسي"
+        },
+        {
+          "rank": 10,
+          "name": "توتنهام"
+        },
+        {
+          "rank": 11,
+          "name": "أتلتيكو مدريد",
+          "alts": [
+            "أتلتيكو"
+          ]
+        },
+        {
+          "rank": 12,
+          "name": "يوفنتوس",
+          "alts": [
+            "اليوفي"
+          ]
+        },
+        {
+          "rank": 13,
+          "name": "بوروسيا دورتموند",
+          "alts": [
+            "دورتموند"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "The World's Most Valuable Soccer Teams 2026 — Forbes",
+          "url": "https://www.forbes.com/sites/justinteitelbaum/2026/05/29/the-worlds-most-valuable-soccer-teams-2026/",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "Real Madrid most valuable football team for fifth straight year — ESPN",
+          "url": "https://www.espn.com/soccer/story/_/id/48908919/real-madrid-break-annual-revenue-record-most-valuable-football-team-fifth-straight-year",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "Forbes list of the most valuable football clubs — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Forbes_list_of_the_most_valuable_football_clubs",
+          "accessed": "2026-11-09"
+        }
+      ],
+      "note": "بمليارات الدولارات: ريال مدريد 9.5 · برشلونة 7.5 · مانشستر يونايتد 7.2 · ليفربول 6.2 · باريس 5.8 · بايرن 5.7 · مانشستر سيتي 5.5 · آرسنال 5.4 · تشيلسي 4.2 · توتنهام 3.0 · أتلتيكو 2.95 · يوفنتوس 2.4 · دورتموند 2.2، ثم ميلان 1.85 (14). وترتيبها يختلف عن ديلويت (031)."
+    },
+    {
+      "id": "general-ranking-037",
+      "domain": "sports",
+      "title": "التصنيف العالمي لمحترفي التنس · نهاية 2025",
+      "asOf": "2025-11",
+      "items": [
+        {
+          "rank": 1,
+          "name": "كارلوس ألكاراز",
+          "alts": [
+            "ألكاراز"
+          ]
+        },
+        {
+          "rank": 2,
+          "name": "يانيك سينر",
+          "alts": [
+            "سينر"
+          ]
+        },
+        {
+          "rank": 3,
+          "name": "ألكسندر زفيريف",
+          "alts": [
+            "زفيريف"
+          ]
+        },
+        {
+          "rank": 4,
+          "name": "نوفاك ديوكوفيتش",
+          "alts": [
+            "ديوكوفيتش",
+            "جوكوفيتش"
+          ]
+        },
+        {
+          "rank": 5,
+          "name": "فيليكس أوجيه ألياسيم",
+          "alts": [
+            "أوجيه ألياسيم",
+            "ألياسيم"
+          ]
+        },
+        {
+          "rank": 6,
+          "name": "تايلور فريتز",
+          "alts": [
+            "فريتز"
+          ]
+        },
+        {
+          "rank": 7,
+          "name": "أليكس دي مينور",
+          "alts": [
+            "دي مينور"
+          ]
+        },
+        {
+          "rank": 8,
+          "name": "لورينزو موزيتي",
+          "alts": [
+            "موزيتي"
+          ]
+        },
+        {
+          "rank": 9,
+          "name": "بن شيلتون",
+          "alts": [
+            "شيلتون"
+          ]
+        },
+        {
+          "rank": 10,
+          "name": "جاك درايبر",
+          "alts": [
+            "درايبر"
+          ]
+        },
+        {
+          "rank": 11,
+          "name": "ألكسندر بوبليك",
+          "alts": [
+            "بوبليك"
+          ]
+        },
+        {
+          "rank": 12,
+          "name": "كاسبر رود",
+          "alts": [
+            "رود"
+          ]
+        },
+        {
+          "rank": 13,
+          "name": "دانييل ميدفيديف",
+          "alts": [
+            "ميدفيديف"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Year-end PIF ATP Rankings 2025 — ATP Tour",
+          "url": "https://www.atptour.com/en/news/year-end-pif-atp-rankings-2025-release",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "ATP Rankings: Alcaraz wins No 1 battle — Tennis365",
+          "url": "https://www.tennis365.com/atp-tour/atp-rankings-carlos-alcaraz-no-1-jannik-sinner-atp-finals-fight-felix-auger-aliassime-3",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "Men's Tennis ATP Rankings 2025 — ESPN",
+          "url": "https://www.espn.com/tennis/rankings/_/season/2025",
+          "accessed": "2026-11-09"
+        }
+      ],
+      "note": "التصنيف الختامي في 17 نوفمبر 2025: ألكاراز 12,050 نقطة أولاً، ثم بوبليك 2,870 (11) ورود 2,835 (12) وميدفيديف 2,760 (13)، ثم دافيدوفيتش فوكينا (14). ويطابق Tennis Majors ترتيب 11–13. ويكفي اسم العائلة."
+    },
+    {
+      "id": "general-ranking-038",
+      "domain": "geography",
+      "title": "أكثر مدن العالم سكاناً · الأمم المتحدة 2025",
+      "asOf": "2025",
+      "items": [
+        {
+          "rank": 1,
+          "name": "جاكرتا"
+        },
+        {
+          "rank": 2,
+          "name": "دكا",
+          "alts": [
+            "دكّا",
+            "داكا"
+          ]
+        },
+        {
+          "rank": 3,
+          "name": "طوكيو"
+        },
+        {
+          "rank": 4,
+          "name": "نيودلهي",
+          "alts": [
+            "دلهي",
+            "نيو دلهي"
+          ]
+        },
+        {
+          "rank": 5,
+          "name": "شنغهاي",
+          "alts": [
+            "شانغهاي"
+          ]
+        },
+        {
+          "rank": 6,
+          "name": "قوانغتشو",
+          "alts": [
+            "غوانزو",
+            "كانتون"
+          ]
+        },
+        {
+          "rank": 7,
+          "name": "القاهرة"
+        },
+        {
+          "rank": 8,
+          "name": "مانيلا"
+        },
+        {
+          "rank": 9,
+          "name": "كولكاتا",
+          "alts": [
+            "كلكتا"
+          ]
+        },
+        {
+          "rank": 10,
+          "name": "سيول",
+          "alts": [
+            "سول"
+          ]
+        },
+        {
+          "rank": 11,
+          "name": "كراتشي"
+        },
+        {
+          "rank": 12,
+          "name": "مومباي",
+          "alts": [
+            "بومباي"
+          ]
+        },
+        {
+          "rank": 13,
+          "name": "ساو باولو",
+          "alts": [
+            "ساوباولو"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Cities now home to nearly half of humanity: UN report — UN News",
+          "url": "https://news.un.org/en/story/2025/11/1166395",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "The largest cities worldwide 2025 — Destatis",
+          "url": "https://www.destatis.de/EN/Themes/Countries-Regions/International-Statistics/Data-Topic/Population-Labour-Social-Issues/DemographyMigration/UrbanPopulation.html",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "Largest Cities in the World by Population (UN 2025) — StatRanker",
+          "url": "https://statranker.org/cities-urban-life/largest-cities-in-the-world-by-population-2026-snapshot-based-on-un-2025-estimates/",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "Tóquio vai para segundo lugar… — Times Brasil",
+          "url": "https://timesbrasil.com.br/mundo/toquio-vai-para-segundo-lugar-e-nova-cidade-vira-a-mais-populosa-do-mundo-saiba-qual/",
+          "accessed": "2026-11-09"
+        }
+      ],
+      "note": "بالمليون في تقرير «آفاق التحضّر في العالم 2025»: جاكرتا 41.9 · دكا 36.6 · طوكيو 33.4 · نيودلهي 30.2 · شنغهاي 29.6 · قوانغتشو 27.6 · القاهرة 25.6 · مانيلا 24.7 · كولكاتا 22.6 · سيول 22.5 · كراتشي 21.4 · مومباي 20.2 · ساو باولو 18.9. والتعريف الجديد للمدينة جعل جاكرتا الأولى وأنزل طوكيو إلى الثالثة. وبكين (16) وإسطنبول (18) خطأ."
+    },
+    {
+      "id": "general-ranking-039",
+      "domain": "geography",
+      "title": "أكبر دول الاتحاد الأوروبي مساحة",
+      "asOf": "2026",
+      "items": [
+        {
+          "rank": 1,
+          "name": "فرنسا"
+        },
+        {
+          "rank": 2,
+          "name": "إسبانيا"
+        },
+        {
+          "rank": 3,
+          "name": "السويد"
+        },
+        {
+          "rank": 4,
+          "name": "ألمانيا"
+        },
+        {
+          "rank": 5,
+          "name": "فنلندا"
+        },
+        {
+          "rank": 6,
+          "name": "بولندا"
+        },
+        {
+          "rank": 7,
+          "name": "إيطاليا"
+        },
+        {
+          "rank": 8,
+          "name": "رومانيا"
+        },
+        {
+          "rank": 9,
+          "name": "اليونان"
+        },
+        {
+          "rank": 10,
+          "name": "بلغاريا"
+        },
+        {
+          "rank": 11,
+          "name": "المجر"
+        },
+        {
+          "rank": 12,
+          "name": "البرتغال"
+        },
+        {
+          "rank": 13,
+          "name": "النمسا"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The 27 EU Countries: Full List of Member States — MapGuesser",
+          "url": "https://mapguesser.fr/en/blogs/european-union-countries-list",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "List of European countries by area — Wikiwand",
+          "url": "https://www.wikiwand.com/simple/List_of_European_countries_by_area",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "The Largest Countries In Europe — WorldAtlas",
+          "url": "https://www.worldatlas.com/geography/the-largest-countries-in-europe.html",
+          "accessed": "2026-11-09"
+        }
+      ],
+      "note": "بالكيلومتر المربع تقريباً: فرنسا 544 ألفاً في أوروبا · إسبانيا 506 · السويد 450 · ألمانيا 357 · فنلندا 338 · بولندا 313 · إيطاليا 301 · رومانيا 238 · اليونان 132 · بلغاريا 111 · المجر 93.0 · البرتغال 92.1 · النمسا 83.9، ثم التشيك 78.9 (14). والأرقام تختلف قليلاً بين المصادر والترتيب واحد."
+    },
+    {
+      "id": "general-ranking-040",
+      "domain": "geography",
+      "title": "أكبر الدول الآسيوية مساحة · عدا الاتحاد الروسي",
+      "asOf": "2026",
+      "items": [
+        {
+          "rank": 1,
+          "name": "الصين"
+        },
+        {
+          "rank": 2,
+          "name": "الهند"
+        },
+        {
+          "rank": 3,
+          "name": "كازاخستان"
+        },
+        {
+          "rank": 4,
+          "name": "السعودية"
+        },
+        {
+          "rank": 5,
+          "name": "إندونيسيا"
+        },
+        {
+          "rank": 6,
+          "name": "إيران"
+        },
+        {
+          "rank": 7,
+          "name": "منغوليا"
+        },
+        {
+          "rank": 8,
+          "name": "باكستان"
+        },
+        {
+          "rank": 9,
+          "name": "تركيا"
+        },
+        {
+          "rank": 10,
+          "name": "ميانمار",
+          "alts": [
+            "بورما"
+          ]
+        },
+        {
+          "rank": 11,
+          "name": "أفغانستان"
+        },
+        {
+          "rank": 12,
+          "name": "اليمن"
+        },
+        {
+          "rank": 13,
+          "name": "تايلاند"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Largest countries in Asia (CIA World Factbook classification) — Factsinstitute",
+          "url": "https://factsinstitute.com/ranking/largest-countries-in-asia/",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "List of Asian countries by area — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/List_of_Asian_countries_by_area",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "Countries of Asia by Land Area — WorldAtlas",
+          "url": "https://www.worldatlas.com/articles/countries-of-asia-by-land-area.html",
+          "accessed": "2026-11-09"
+        }
+      ],
+      "note": "بالكيلومتر المربع: الصين 9.6 مليون · الهند 3.29 · كازاخستان 2.72 · السعودية 2.15 · إندونيسيا 1.90 · إيران 1.65 · منغوليا 1.56 · باكستان 0.80–0.88 · تركيا 0.78 · ميانمار 0.68 · أفغانستان 0.65 · اليمن 0.53 · تايلاند 0.51، ثم تركمانستان 0.49 (14). وتركيا وكازاخستان تُحسبان كاملتين، ولا يتغير الترتيب لو حُسب جزؤهما الآسيوي وحده."
+    },
+    {
+      "id": "general-ranking-041",
+      "domain": "geography",
+      "title": "أكثر دول أفريقيا سكاناً · الأمم المتحدة 2025",
+      "asOf": "2025",
+      "items": [
+        {
+          "rank": 1,
+          "name": "نيجيريا"
+        },
+        {
+          "rank": 2,
+          "name": "إثيوبيا",
+          "alts": [
+            "اثيوبيا"
+          ]
+        },
+        {
+          "rank": 3,
+          "name": "مصر"
+        },
+        {
+          "rank": 4,
+          "name": "الكونغو الديمقراطية",
+          "alts": [
+            "الكونغو كينشاسا"
+          ]
+        },
+        {
+          "rank": 5,
+          "name": "تنزانيا"
+        },
+        {
+          "rank": 6,
+          "name": "جنوب أفريقيا"
+        },
+        {
+          "rank": 7,
+          "name": "كينيا"
+        },
+        {
+          "rank": 8,
+          "name": "السودان"
+        },
+        {
+          "rank": 9,
+          "name": "أوغندا"
+        },
+        {
+          "rank": 10,
+          "name": "الجزائر"
+        },
+        {
+          "rank": 11,
+          "name": "أنغولا",
+          "alts": [
+            "أنجولا"
+          ]
+        },
+        {
+          "rank": 12,
+          "name": "المغرب"
+        },
+        {
+          "rank": 13,
+          "name": "موزمبيق",
+          "alts": [
+            "موزنبيق"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Africa Population by Country (UN 2025) — AfricaMap",
+          "url": "https://africamap.net/africa-population",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "Africa Population, Countries (2025 Data) — Worldostats",
+          "url": "https://worldostats.com/continents/africa/",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "African countries by population — StatisticsTimes",
+          "url": "https://statisticstimes.com/demographics/african-countries-by-population.php",
+          "accessed": "2026-11-09"
+        }
+      ],
+      "note": "بالمليون، تقدير الأمم المتحدة لعام 2025: نيجيريا 237.5 · إثيوبيا 135.5 · مصر 118.4 · الكونغو الديمقراطية 112.8 · تنزانيا 70.5 · جنوب أفريقيا 64.7 · كينيا 57.5 · السودان 51.7 · أوغندا 51.4 · الجزائر 47.4 · أنغولا 39.0 · المغرب 38.4 · موزمبيق 35.6، ثم غانا 35.1 (14). و«الكونغو» وحدها يسأل المقدّم عنها: الديمقراطية أم برازافيل؟"
+    },
+    {
+      "id": "general-ranking-042",
+      "domain": "geography",
+      "title": "أكثر الدول الإسلامية سكاناً · أعضاء منظمة التعاون الإسلامي",
+      "asOf": "2025",
+      "items": [
+        {
+          "rank": 1,
+          "name": "إندونيسيا"
+        },
+        {
+          "rank": 2,
+          "name": "باكستان"
+        },
+        {
+          "rank": 3,
+          "name": "نيجيريا"
+        },
+        {
+          "rank": 4,
+          "name": "بنغلاديش",
+          "alts": [
+            "بنغلادش"
+          ]
+        },
+        {
+          "rank": 5,
+          "name": "مصر"
+        },
+        {
+          "rank": 6,
+          "name": "إيران"
+        },
+        {
+          "rank": 7,
+          "name": "تركيا"
+        },
+        {
+          "rank": 8,
+          "name": "السودان"
+        },
+        {
+          "rank": 9,
+          "name": "أوغندا"
+        },
+        {
+          "rank": 10,
+          "name": "الجزائر"
+        },
+        {
+          "rank": 11,
+          "name": "العراق"
+        },
+        {
+          "rank": 12,
+          "name": "أفغانستان"
+        },
+        {
+          "rank": 13,
+          "name": "اليمن"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Member states of the Organisation of Islamic Cooperation — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Member_states_of_the_Organisation_of_Islamic_Cooperation",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "OIC Summit set to discuss US' recognition of Jerusalem (Uganda joined 1974) — The Eagle",
+          "url": "https://eagle.co.ug/2017/12/11/oic-summit-set-discuss-us-recognition-jerusalem/",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "Africa Population by Country (UN 2025) — AfricaMap",
+          "url": "https://africamap.net/africa-population",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "Iraq population (UN WPP 2024) — StatisticsTimes",
+          "url": "https://www.statisticstimes.com/demographics/country/iraq-population.php",
+          "accessed": "2026-11-09"
+        },
+        {
+          "title": "Top 20 most populous countries in 2025",
+          "url": "https://kolaking.substack.com/p/full-list-top-20-most-populous-countries",
+          "accessed": "2026-11-09"
+        }
+      ],
+      "note": "بالمليون، تقدير الأمم المتحدة لعام 2025: إندونيسيا 285.7 · باكستان 255.2 · نيجيريا 237.5 · بنغلاديش 175.7 · مصر 118.4 · إيران 92.4 · تركيا 87.7 · السودان 51.7 · أوغندا 51.4 · الجزائر 47.4 · العراق 47.0 · أفغانستان 43.8 · اليمن 41.8، ثم المغرب 38.4 (14). والمعيار عضوية المنظمة لا نسبة المسلمين، ولذلك تدخل نيجيريا وأوغندا، وأوغندا عضو منذ 1974."
     }
   ]
 }
