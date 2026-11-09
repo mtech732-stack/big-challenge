@@ -187,5 +187,6 @@ export default {
   finished: s => s.phase === 'end',
   used: s => s.topics.map(t => t.id),
   // كم جولة كاملة بقيت بلا تكرار: 3 مواضيع لكل جولة (js/play.js freshLeft).
+  pool: content => content?.topics ?? [],
   fresh: (content, seen) => freshRounds(content?.topics ?? [], seen, TOPICS),
 };
