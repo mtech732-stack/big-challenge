@@ -100,6 +100,7 @@ const { reporter } = require('./helpers.cjs');
     const { TARGETS } = await import(path.join(__dirname, '..', 'js', 'content-check.js'));
     check('الحرف المعيّن: 20 لكل مستوى، و20 لكسر التعادل', JSON.stringify(TARGETS.letter) === '{"easy":20,"medium":20,"hard":20,"tiebreak":20}');
     // المزاد والترتيب بمستوى واحد (الوثيقة 1.15، المالك 3 نوفمبر 2026، ش8-أ/62 و63).
+    check('الشريط 30 تحدياً على الأقل وثلاث خانات حظ (الوثيقة 1.18، 6.2)', JSON.stringify(TARGETS.wheel) === '{"challenges":30,"luck":3}');
     check('المزاد 30 موضوعاً والترتيب 20 قائمة، بلا مستوى', JSON.stringify(TARGETS.auction) === '{"topics":30}' && JSON.stringify(TARGETS.ranking) === '{"lists":20}');
     const plain = examples();
     check('أمثلة المزاد والترتيب بلا level، وتُعدّ في بنكها الواحد', !plain.packs.general['auction.json'].topics.some(t => 'level' in t) && !plain.packs.general['ranking.json'].lists.some(l => 'level' in l)
