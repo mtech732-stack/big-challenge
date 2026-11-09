@@ -74,6 +74,15 @@ const { reporter } = require('./helpers.cjs');
   const triple = { ...bank, questions: [...new Set(bank.questions.map(q => q.ending))].slice(0, 10).flatMap((e, g) => ['easy', 'medium', 'hard']
     .flatMap(l => [0, 1, 2].map(k => ({ ...bank.questions.find(q => q.ending === e && q.level === l), id: `t-${g}-${l}-${k}` })))) };
   {
+    // ش8-أ/74: نهايات بأربعة لكل مستوى (#421): في كل نهاية جولتان، فالسطر 20 ثم 10 بعد عشر جولات، والدورة بعد العشرين.
+    const quad = { ...bank, questions: [...new Set(bank.questions.map(q => q.ending))].slice(0, 10).flatMap((e, g) => ['easy', 'medium', 'hard']
+      .flatMap(l => [0, 1, 2, 3].map(k => ({ ...bank.questions.find(q => q.ending === e && q.level === l), id: `q-${g}-${l}-${k}` })))) };
+    const r = play(quad, 50);
+    check(`بنك 4/4/4 (120): السطر 20 بلا ذاكرة، و10 بعد عشر جولات، ثم دورة بعد العشرين (${r.left.slice(0, 22).join('،')})`,
+      r.left[0] === 20 && r.left[10] === 10 && r.left[19] === 1 && r.left[20] === 19 && !r.left.includes(0));
+    check(`و50 جولة به بلا خلط، كلها نظيفة بنهاية واحدة (${r.clean})`, r.mixed === 0 && r.clean === 50 && r.oneBox === 50);
+  }
+  {
     const r = play(triple, 40);
     check(`بنك 3/3/3 (90): 40 جولة حتى النفاد وما بعده بلا خلط، كلها نظيفة بنهاية واحدة (${r.clean})`, r.mixed === 0 && r.clean === 40 && r.oneBox === 40);
     check(`والسطر صادق: عشر جولات في الدورة الأولى ثم تسع في كل دورة بعدها (${r.left.slice(0, 21).join('،')})`,
