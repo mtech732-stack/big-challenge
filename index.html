@@ -326,15 +326,15 @@
 
   // ذاكرة الأسئلة: ما ظهر لا يتكرر حتى يُستنفد البنك.
   const seen = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY)) ?? []; } catch { return []; } };
-  // وما أخذته الجولة يدخلها، ودورة جديدة لبنكها إن لم يبقَ منه ما يكفي جولة (ش8-أ/69، js/round.js).
+  // وما أخذته الجولة يدخلها، ودورة جديدة لبنكها إن لم يبقَ منه ما يكفي جولة (ش8-أ/69، js/round.js). والجولة الفاصلة مرة في المباراة.
   const remember = (unit, file, taken) => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(R.remember(seen(), unit, file, taken))); } catch {} };
   function startNext() {
     if (held()) return;
     const content = { ...pack().files, [WHEEL.contentKey]: wheel };
     const next = P.startNext(match, { modes: units(), content, seen: seen() });
     if (next === match) return;
-    const mode = P.modeOf(units(), next.round.mode);
-    remember(mode, content[mode.contentKey], mode.used(next.round.state));
+    // وما أخذه بنكها في المباراة كلها (ش8-أ/71).
+    try { localStorage.setItem(SEEN_KEY, JSON.stringify(P.remember(seen(), next, { modes: units(), content }))); } catch {}
     roundUpdate(next);
   }
   // نقرتان على «تخطَّ…» لا تتخطيان عنصرين.

@@ -1,4 +1,4 @@
-// اختبار آلي لـ ش8-أ/69: دورة جديدة لكل بنك. حين يقلّ ما لم يظهر من بنك عمّا تحتاجه جولته، تُفرَّغ معرّفات ذلك البنك وحده
+// اختبار آلي لـ ش8-أ/69 و71: دورة جديدة لكل بنك. حين يقلّ ما لم يظهر من بنك عمّا تحتاجه جولته، تُفرَّغ معرّفات ذلك البنك وحده
 // من الذاكرة إلا ما أخذته الجولة للتو (remember في js/round.js). في الأنماط الأربعة والشريط والجولة الفاصلة:
 // يُستنفد البنك ثم تُلعب جولتان، فلا تكرار في الدورة الجديدة، ولا شيء فيها من آخر جولة في الدورة السابقة.
 const fs = require('fs');
@@ -59,6 +59,59 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
   check('العقد: pool اختيارية، والأنماط تمرّ بفحص العقد، وpool ليست دالة تُرفض', MODES.every(u => typeof u.pool === 'function' && checkMode(u).length === 0)
     && checkMode({ ...MODES[0], pool: [] }).length === 1 && [W, TB].every(u => typeof u.pool === 'function' && typeof u.fresh === 'function'));
   check('وحدة بلا pool: تُضاف معرّفاتها وحدها كما كانت', R.remember(['a'], { fresh: () => 0 }, {}, ['b', 'a']).join() === 'a,b');
+
+  // ===== ش8-أ/71: مباريات متتالية بذاكرة واحدة كما يحفظها index.html (P.remember بما في match.used) =====
+  // كل مباراة: يُقرأ السطر قبلها (freshLeft)، ثم تُلعب جولاتها كلها والشريط بينها، وتُجمع معرّفات كل بنك.
+  const sequence = (method, picks, count) => {
+    let seen = [];
+    const out = [];
+    for (let k = 0; k < count; k++) {
+      let m = M.newMatch({ pack: 'general', method });
+      m = M.setTeams(m, 'أ', 'ب'); m = M.toDraw(m); m = M.draw(m, () => 0.1); m = M.toPick(m);
+      for (const id of picks) m = M.pick(m, id, MODES);
+      m = M.toFace(m);
+      const line = P.freshLeft(m, { modes: [...MODES, W], content: files, seen });
+      const took = {};
+      for (let i = 0; i < 12; i++) {
+        const next = P.startNext(m, { modes: [...MODES, W], content: files, seen, rng });
+        if (next === m) break;
+        m = next;
+        const unit = P.modeOf([...MODES, W], m.round.mode);
+        took[unit.id] = [...(took[unit.id] ?? []), ...unit.used(m.round.state)];
+        seen = P.remember(seen, m, { modes: [...MODES, W], content: files });
+        m = { ...m, round: { ...m.round, state: { ...m.round.state, phase: 'end' } } };
+      }
+      out.push({ line, took });
+    }
+    return out;
+  };
+  const audit = (runs, from = 0) => {
+    const bad = { shared: 0, inside: 0, lied: 0 };
+    runs.forEach((r, k) => {
+      for (const [id, got] of Object.entries(r.took)) {
+        if (new Set(got).size !== got.length) bad.inside++;
+        const prev = runs[k - 1]?.took[id] ?? [];
+        if (got.some(x => prev.includes(x))) bad.shared++;
+        // السطر صادق: إن قال 1 فأكثر فلا يعود في هذه المباراة شيء من سابقتها.
+        if (k >= from && r.line[id] >= 1 && got.some(x => prev.includes(x))) bad.lied++;
+      }
+    });
+    return bad;
+  };
+  {
+    const runs = sequence('full', ['letter', 'last-two', 'auction', 'ranking'], 60);
+    const b = audit(runs), wheels = runs.map(r => r.line.wheel);
+    check(`مباراة الأربعة × 60 ببنك ${files['wheel.json'].challenges.length}: لا تشترك مباراة مع سابقتها في شيء (${b.shared})، ولا تكرار داخلها (${b.inside})`,
+      b.shared === 0 && b.inside === 0 && runs.every(r => r.took.wheel.length === 14));
+    check(`مباراة الأربعة: السطر «1» للشريط بعد أول مباراة، وصادق في كل بنك (${[...new Set(wheels.slice(1))].join('،')} · ${b.lied})`,
+      wheels[0] === 2 && wheels.slice(1).every(x => x === 1) && b.lied === 0);
+  }
+  {
+    const runs = sequence('short', ['auction', 'letter'], 40);
+    const b = audit(runs), wheels = runs.map(r => r.line.wheel);
+    check(`مباراة النمطين × 40: لا اشتراك مع السابقة ولا تكرار داخلها، والشريط ${wheels.slice(0, 8).join('،')}…`,
+      b.shared === 0 && b.inside === 0 && b.lied === 0 && wheels.slice(0, 8).join() === '4,3,2,1,3,2,1,3');
+  }
 
   // في الصفحة: index.html يحفظ بـ remember. ذاكرة فيها المزاد كله إلا ثلاثة، فأول جولة مزاد تأخذ الثلاثة ثم تبدأ دورته.
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
