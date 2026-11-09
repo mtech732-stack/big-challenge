@@ -1,4 +1,4 @@
-// سطر «المباريات قبل تكرار الأسئلة» (ش8-أ/67، design/s8d.md): صوره وقياسه على شاشة البداية المبنية.
+// سطر «المباريات قبل التكرار» (ش8-أ/67، design/s8d.md): صوره وقياسه على شاشة البداية المبنية.
 // الاستعمال: node design/s8d-shots.cjs [مجلد] (والخادم على localhost:8000)، ثم: node design/ratio.cjs [مجلد]/1920/*.png
 const fs = require('fs'), path = require('path');
 const { chromium } = require('playwright');

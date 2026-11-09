@@ -103,6 +103,9 @@ export function setScore(round, team, value) {
 // ما يُختار منه بعد ترك avoid، أو البنك كله إن بقي منه أقل من need (فلا تقف جولة ولا تنقص لبنك صغير).
 export const besides = (items, avoid = [], need = 1) => { const rest = items.filter(i => !avoid.includes(i.id)); return rest.length >= need ? rest : items; };
 
+// كم جولة كاملة بقيت مما لم يظهر: ما لم يظهر من items ÷ ما تأخذه الجولة (per). لا يفترض حجماً للبنك (الوثيقة 1.18، 8).
+export const freshRounds = (items, seen = [], per = 1) => Math.floor(items.filter(i => !seen.includes(i.id)).length / per);
+
 // يختار من البنك ما لم يظهر، فإن نفد ما لم يظهر بدأ البنك من جديد.
 export function freshFirst(items, seen, count, rng = Math.random) {
   const shuffle = list => list.map(x => [rng(), x]).sort((a, b) => a[0] - b[0]).map(p => p[1]);

@@ -1,4 +1,4 @@
-// سطر «المباريات قبل تكرار الأسئلة» للمقدّم في شاشة البداية (ش8-أ/67، design/s8d.md). تصوّر فوق اللعبة المبنية للتصوير والقياس وحده.
+// سطر «المباريات قبل التكرار» للمقدّم في شاشة البداية (ش8-أ/67، design/s8d.md). تصوّر فوق اللعبة المبنية للتصوير والقياس وحده.
 (() => {
   const canvas = document.getElementById('canvas');
   const css = document.createElement('style');
@@ -18,7 +18,7 @@
     show(left) {
       document.querySelector('.rp')?.remove();
       const el = document.createElement('div'); el.className = 'rp'; el.dataset.hud = 'المباريات قبل التكرار'; el.dataset.free = '';
-      el.innerHTML = '<p class="h">المباريات قبل تكرار الأسئلة</p>' + MODES.map(([id, name]) =>
+      el.innerHTML = '<p class="h">المباريات قبل التكرار</p>' + MODES.map(([id, name]) =>
         `<p>${name} · <b>${left[id] > 0 ? left[id] : 'تتكرر الآن'}</b></p>`).join('');
       canvas.append(el);
     },

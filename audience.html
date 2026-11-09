@@ -406,8 +406,22 @@
   const name = t => view.match.teams[t] || (t === 1 ? 'الفريق الأول' : 'الفريق الثاني');
   const tn = t => `<b class="tn t${t}">${esc(name(t))}</b>`;
 
+  // المباريات قبل التكرار (الوثيقة 1.18، 8، design/s8d.md 1.2): في شاشة البداية وحدها، أعلى اليسار تحت «ملء الشاشة» بـ 24 (152)،
+  // أو على 64 إن غاب. سطر لكل نمط بترتيب الأنماط ثم «شريط البونص»، والعدد من المقدّم (view.left، js/play.js freshLeft)، و0 «تتكرر الآن».
+  function renderLeft(rows) {
+    $('rp')?.remove();
+    if (!rows?.length) return;
+    const el = document.createElement('div');
+    el.id = 'rp'; el.className = 'rp'; el.dataset.hud = 'المباريات قبل التكرار'; el.dataset.free = '';
+    el.innerHTML = '<p class="h">المباريات قبل التكرار</p>' + rows.map(r => `<p>${esc(r.name)} · <b>${r.left > 0 ? num(String(r.left)) : 'تتكرر الآن'}</b></p>`).join('');
+    canvas.append(el);
+    placeLeft();
+  }
+  const placeLeft = () => { const el = $('rp'); if (el) el.style.top = [...document.querySelectorAll('.ctl-corner .cbtn')].some(b => b.offsetParent) ? '152px' : '64px'; };
+
   function render() {
     if (!view || busy) return;
+    renderLeft(view.match.step === 'setup' ? view.left : null);
     if (view.match.step === 'play' && view.play) return renderPlay(view.play);
     canvas.classList.remove('qr');
     if (view.match.step === 'final') return renderFinal(view);
@@ -913,6 +927,7 @@
     canvas.classList.toggle('more-open', moreOpen);
     // النافذة الواحدة: صفّا أزرار الزاويتين مكان الشعار (1.3).
     canvas.classList.toggle('has-a', ['cornerA', 'cornerB', 'cornerC'].some(id => $(id).children.length));
+    placeLeft();
     placeBadges();   // الشارة المرسومة تصغر بنافذة واحدة (has-a)، فيتغير موضع ما بعدها
     $('count').innerHTML = c?.count ? '<span class="lbl">عدد الأنماط</span>' + [['short', 2], ['full', 4]].map(([m, k]) =>
       `<button class="ctile${c.count.value === m ? ' sel' : ''}${k === 4 && !c.count.four ? ' off' : ''}" data-cmd="count:${m}"><span class="ltr">${k}</span></button>`).join('') : '';
@@ -989,6 +1004,12 @@
         send('teams', { a: $('i1').value, b: $('i2').value });
       });
       $('i' + k).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); k === 1 ? $('i2').focus() : send('draw'); } });
+    }
+    // تطبيق آبل (design/app.md 4.3.2): مساحة لمس الخانة صف اللوحة كله (136)، فالنقر فيه خارج الخانة يركّز عليها.
+    if (document.documentElement.classList.contains('native-app')) for (const k of [1, 2]) {
+      $('p' + k).querySelector('.row').addEventListener('click', e => {
+        if (canvas.classList.contains('editing') && e.target !== $('i' + k)) $('i' + k).focus();
+      });
     }
     parent.postMessage({ bc: 'need-ctl' }, location.origin);
   }
