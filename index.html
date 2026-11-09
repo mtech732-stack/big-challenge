@@ -51,7 +51,9 @@
   body.one { overflow: hidden; }
 
 </style>
-<script>if (window.Capacitor?.isNativePlatform?.() === true) document.documentElement.classList.add('native-app');</script>
+<script>if (window.Capacitor?.isNativePlatform?.() === true) { document.documentElement.classList.add('native-app');
+  // design/app.md 5.3: لا تكبير بنقرتين ولا بإصبعين في التطبيق.
+  const v = document.querySelector('meta[name="viewport"]'); if (v) v.content += ', maximum-scale=1, user-scalable=no'; }</script>
 </head>
 <body>
 <section id="gate">
@@ -401,8 +403,9 @@
     startNext();
   }
 
-  function newMatch() {
-    if (match.step !== 'setup' && !confirm('تبدأ مباراة جديدة ويُمحى ما سبق. أتتابع؟')) return;
+  // sure: أكّدها المقدّم بلوحة اللعبة في التطبيق (design/app.md 5.5)، فلا confirm. وفي الموقع confirm كما كان.
+  function newMatch(sure) {
+    if (match.step !== 'setup' && !(NATIVE && sure) && !confirm('تبدأ مباراة جديدة ويُمحى ما سبق. أتتابع؟')) return;
     clearTimeout(drawing); drawing = 0;
     update(M.newMatch({ pack: match.pack, method: match.method }));
   }
@@ -617,7 +620,7 @@
     if (cmd === 'raise') raise(Number(arg));
     if (cmd === 'next') actions[nextButton().act]?.();
     if (cmd === 'mute') toggleMute();
-    if (cmd === 'new') newMatch();
+    if (cmd === 'new') newMatch(arg === 'sure');
     if (cmd === 'qr') setQr(arg === 'show');
     if (cmd === 'fullscreen') document.documentElement.requestFullscreen?.().catch(() => {});
     if (['toPick', 'undoPick', 'toFace', 'replay', 'undo', 'scores', 'announce', 'tiebreak'].includes(cmd)) actions[cmd]();

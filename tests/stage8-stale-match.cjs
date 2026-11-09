@@ -61,6 +61,11 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     await page.evaluate(m => { localStorage.setItem('big-challenge.match', m); localStorage.removeItem('big-challenge.savedAt'); }, resumed.match);
     r = await reopen(page, false);
     check(`مباراة محفوظة بلا وقت (قبل الإصدار): تُستأنف (${r.step})`, r.step === 'play');
+    // ويأخذ وقتاً من أول فعل بعدها (اقتراح المدقّق، «رابع وأربعون»).
+    const none = (await state(page)).at;
+    await cmd(r.frame, 'undo'); await wait(800);
+    const stamped = (await state(page)).at;
+    check(`والمحفوظ بلا وقت يأخذ وقتاً بعد أول فعل (${none} ← ${stamped ? 'وقت' : 'لا شيء'})`, !none && stamped > 0 && Date.now() - stamped < 30000);
     await context.close();
   }
   {
