@@ -129,7 +129,9 @@ export function wordMode({ id, name, order, seconds, key, tatweel = false, sameB
     finished: s => s.phase === 'end',
     used: s => s.questions.map(q => q.id),
     // كم جولة كاملة بقيت بلا تكرار (js/play.js freshLeft): سؤالان لكل مستوى مما لم يظهر.
-    // و«آخر حرفين» الجولة كلها من مجموعة واحدة: عدد المجموعات التي بقي في كل مستوى منها سؤالان لم يظهرا.
+    // و«آخر حرفين» الجولة كلها من مجموعة واحدة: مجموع الجولات النظيفة في كل مجموعة (ش8-أ/74): نهاية فيها 4 لكل مستوى جولتان،
+    // و3/3/3 جولة واحدة (ما يبقى بعدها سؤال لكل مستوى لا يكفي جولة بنهايتها). فيصير 0، وتبدأ remember الدورة، حين لا تبقى
+    // جولة نظيفة في أي نهاية.
     pool: content => (content?.questions ?? []).filter(q => !q.tiebreak),
     fresh: (content, seen) => {
       const bank = (content?.questions ?? []).filter(q => !q.tiebreak);
@@ -137,7 +139,7 @@ export function wordMode({ id, name, order, seconds, key, tatweel = false, sameB
       if (!sameBox) return rounds(bank);
       const groups = new Map();
       for (const q of bank) groups.set(q[key], [...(groups.get(q[key]) ?? []), q]);
-      return [...groups.values()].filter(g => rounds(g) >= 1).length;
+      return [...groups.values()].reduce((n, g) => n + rounds(g), 0);
     },
   };
 }
