@@ -1,11 +1,16 @@
+import { freshFirst, besides, freshRounds } from './round.js';
+
 // شريط البونص (القسم 5.7 من الوثيقة، وتصميمها design/wheel.md 1.2، وكان اسمه «عجلة البونص»: wheel في الكود). ليست نمطاً، لكنها تلتزم شكل «عقد الوحدة»،
 // فيديرها مشغّل الجولة (js/round.js) كما يدير الجولات: التراجع والعدّاد والأحداث، والرصيد يغيّره المشغّل وحده.
 // عشر خانات ظاهرة قبل الدوران: سبع تحديات وثلاث خانات حظ، بترتيب ثابت لا تتجاور فيه خانتا حظ (design/wheel.md 2.2).
 // «أطلق الشريط» يحسم الخانة قبل الحركة (كالقرعة): المؤشر في نافذة الجمهور يدور إليها ويقف، ثم تظهر الخانة بعد 1.2 ثانية.
 // والخانة محسومة من الإعداد (rng)، فالتراجع عن الدوران ثم إعادته يقف على الخانة نفسها، ولا تُعاد العجلة لخانة أفضل.
 
-// الترتيب من اليمين: تحدٍّ · خسارة · تحدٍّ · تحدٍّ · هدية · تحدٍّ · تحدٍّ · خصم · تحدٍّ · تحدٍّ. والتحديات بترتيبها في wheel.json.
+// الترتيب من اليمين: تحدٍّ · خسارة · تحدٍّ · تحدٍّ · هدية · تحدٍّ · تحدٍّ · خصم · تحدٍّ · تحدٍّ. والتحديات السبع مما لم يظهر من البنك (CHALLENGES).
 export const LAYOUT = ['c', 'lose-5', 'c', 'c', 'gift-5', 'c', 'c', 'steal-5', 'c', 'c'];
+// التحديات في الشريط الواحد (7). وتُختار مما لم يظهر من البنك كله، أياً كان حجمه، وتُحفظ في ذاكرة الجهاز كالأسئلة
+// (الوثيقة 1.18، 5.7)، فلا يتكرر تحدٍّ حتى يُستنفد البنك. ومعرّفاتها wheel-NNN لا تتصادم مع معرّفات الأسئلة (general-…).
+export const CHALLENGES = LAYOUT.filter(k => k === 'c').length;
 export const SLOTS = LAYOUT.length;
 // نقاط التحدي (الوثيقة 5.7 و12، 1.5): +10. والتحدي بلا توقيت (1.6): يحكم المقدّم متى انتهى الفريق.
 export const CHALLENGE_POINTS = 10;
@@ -28,16 +33,20 @@ export const spinMs = stop => spinSteps(stop).reduce((a, b) => a + b, 0) + LAND_
 // وrun حال قديمة (وقت التحدي قبل ش8): تُقبل كـ slot، فلا تعلق مباراة محفوظة قبل التحديث.
 // results[i]: نتيجة الدورة i: { team, points } (team 0 إن لم يأخذ أحد، وpoints ما تغيّر فعلاً بإشارته)،
 // ومعها في «خصم» (steal) from وtaken (من أُخذ منه وكم)، أو null ما لم تنتهِ.
-function setup({ content, first, scores = { 1: 0, 2: 0 }, rng = Math.random }) {
-  const challenges = content?.challenges ?? [], luck = content?.luck ?? [];
+// seen: ذاكرة الجهاز (الأسئلة والتحديات) · avoid: ما اختير في هذه المباراة، فلا يعود في شريطها الثاني ما وُجد غيره.
+function setup({ content, first, scores = { 1: 0, 2: 0 }, seen = [], avoid = [], rng = Math.random }) {
+  const bank = (content?.challenges ?? []).filter(x => x?.id), luck = content?.luck ?? [];
+  // خانتا الوقوف أولاً بالعشوائية نفسها كما كانت قبل 1.18، ثم التحديات.
+  const pick = () => Math.min(SLOTS - 1, Math.floor(rng() * SLOTS));
+  const stops = [pick(), pick()];
+  const challenges = freshFirst(besides(bank, avoid, CHALLENGES), seen, CHALLENGES, rng);
   let c = 0;
   const slots = LAYOUT.map(k => {
     if (k === 'c') { const x = challenges[c++] ?? { id: '', text: '' }; return { kind: 'challenge', id: x.id, text: x.text }; }
     const l = luck.find(x => x.effect === k) ?? { label: '' };
     return { kind: 'luck', effect: k, text: l.label };
   });
-  const pick = () => Math.min(SLOTS - 1, Math.floor(rng() * SLOTS));
-  return { first, why: scores[1] === scores[2] ? 'draw' : 'score', spinners: [first, other(first)], n: 1, slots, stops: [pick(), pick()], phase: 'ready', at: null, landed: null, timeup: false, results: [null, null] };
+  return { first, why: scores[1] === scores[2] ? 'draw' : 'score', spinners: [first, other(first)], n: 1, slots, stops, phase: 'ready', at: null, landed: null, timeup: false, results: [null, null] };
 }
 
 const spinner = s => s.spinners[s.n - 1];
@@ -155,5 +164,8 @@ export default {
   transient: s => s.phase === 'spin',
   setup, actions, act, audience,
   finished: s => s.phase === 'end',
-  used: () => [],
+  // التحديات السبع تُحفظ في ذاكرة الجهاز كالأسئلة (الوثيقة 1.18). وحال محفوظة قبلها فيها تحدياتها، فتُحفظ كذلك.
+  used: s => (s.slots ?? []).filter(x => x.kind === 'challenge' && x.id).map(x => x.id),
+  // كم شريطاً كاملاً بقي بلا تكرار (js/play.js freshLeft).
+  fresh: (content, seen) => freshRounds((content?.challenges ?? []).filter(x => x?.id), seen, CHALLENGES),
 };
