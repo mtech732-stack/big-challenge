@@ -990,6 +990,12 @@
       });
       $('i' + k).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); k === 1 ? $('i2').focus() : send('draw'); } });
     }
+    // تطبيق آبل (design/app.md 4.3.2): مساحة لمس الخانة صف اللوحة كله (136)، فالنقر فيه خارج الخانة يركّز عليها.
+    if (document.documentElement.classList.contains('native-app')) for (const k of [1, 2]) {
+      $('p' + k).querySelector('.row').addEventListener('click', e => {
+        if (canvas.classList.contains('editing') && e.target !== $('i' + k)) $('i' + k).focus();
+      });
+    }
     parent.postMessage({ bc: 'need-ctl' }, location.origin);
   }
 
