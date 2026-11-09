@@ -32,7 +32,10 @@ const { reporter } = require('./helpers.cjs');
   const kinds = s.slots.map(x => x.kind === 'luck' ? x.effect : 'c').join(',');
   check('عشر خانات: سبع تحديات وثلاث حظ، بالترتيب من اليمين (تحدٍّ · خصم · تحدٍّ · تحدٍّ · هدية · تحدٍّ · تحدٍّ · اسرق · تحدٍّ · تحدٍّ)', s.slots.length === 10 && kinds === 'c,lose-5,c,c,gift-5,c,c,steal-5,c,c');
   check('لا تتجاور خانتا حظ', s.slots.every((x, i) => !(x.kind === 'luck' && s.slots[i + 1]?.kind === 'luck')));
-  check('التحديات بترتيبها في wheel.json، ونص كل خانة حظ من label', s.slots.filter(x => x.kind === 'challenge').map(x => x.id).join(',') === data.challenges.map(c => c.id).join(',')
+  // ش8-أ/67 (الوثيقة 1.18): التحديات مما لم يظهر بترتيب عشوائي، لا بترتيب الملف. فالفحص: سبعة مختلفة كلها من البنك.
+  const ids = s.slots.filter(x => x.kind === 'challenge').map(x => x.id);
+  check('سبعة تحديات مختلفة من wheel.json، ونص كل منها من الملف، ونص كل خانة حظ من label', ids.length === 7 && new Set(ids).size === 7
+    && s.slots.filter(x => x.kind === 'challenge').every(x => data.challenges.find(c => c.id === x.id)?.text === x.text)
     && s.slots.filter(x => x.kind === 'luck').every(x => x.text === data.luck.find(l => l.effect === x.effect).label));
   const faces = s.slots.map(W.face);
   check('كلمة الخانة ورقمها من التأثير: «تحدٍّ +10» · «خسارة −5» · «هدية +5» · «خصم 5»', faces[0].word === 'تحدٍّ' && faces[0].n === '+10' && faces[1].word === 'خسارة' && faces[1].n === '−5'
