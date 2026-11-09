@@ -12,7 +12,7 @@
   .rp b { font-weight: 900; }
   `;
   document.head.append(css);
-  const MODES = [['letter', 'الحرف المعيّن'], ['last-two', 'آخر حرفين'], ['auction', 'المزاد'], ['ranking', 'الترتيب']];
+  const MODES = [['letter', 'الحرف المعيّن'], ['last-two', 'آخر حرفين'], ['auction', 'المزاد'], ['ranking', 'الترتيب'], ['wheel', 'شريط البونص']];
   window.RP = {
     // left: { letter: 6, ... } عدد المباريات الكاملة الباقية قبل أن يُعاد سؤال في النمط
     show(left) {
