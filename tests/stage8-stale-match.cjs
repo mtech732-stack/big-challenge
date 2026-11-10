@@ -64,7 +64,12 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     check(`مباراة محفوظة بلا وقت (قبل الإصدار): تُستأنف (${r.step})`, r.step === 'play');
     // ويأخذ وقتاً من أول فعل بعدها (اقتراح المدقّق، «رابع وأربعون»).
     const none = (await state(page)).at;
-    await cmd(r.frame, 'undo'); await wait(800);
+    // «تراجع» قد يُهمل في مهلة 0.7 ثانية بعد تغيّر الحالة (HOLD_MS)، أو يتأخّر تحت الحمل: يُنتظر حتى يُكتب الوقت (8 ثوانٍ)،
+    // ويُعاد الأمر إن لم يُكتب، ثلاث مرات على الأكثر. والشرط كما هو.
+    for (let i = 0; i < 3; i++) {
+      await cmd(r.frame, 'undo');
+      if (await page.waitForFunction(() => Number(localStorage.getItem('big-challenge.savedAt')) > 0, null, { timeout: 8000 }).catch(() => null)) break;
+    }
     const stamped = (await state(page)).at;
     // لا وقت قبل الفعل ولو حفظ عدّاد يجري (ش8-أ/75: المؤقتات لا تجدّد الوقت؛ وكان هذا الفحص يُخفق تحت الحمل بهذا الخلل نفسه).
     check(`والمحفوظ بلا وقت يأخذ وقتاً بعد أول فعل، لا قبله (${none ? 'وقت' : 'لا شيء'} ← ${stamped ? 'وقت' : 'لا شيء'})`, !none && stamped > 0 && Date.now() - stamped < 30000);
