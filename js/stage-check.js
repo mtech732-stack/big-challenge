@@ -13,7 +13,7 @@
    في الامتداد · [data-free] صندوق موضعه من جدول المصمّم لا من الشبكة · [data-edge] الشعار الكبير يتجاوز الهامش الآمن أعلاه عمداً (1.2 و4.1).
  العناصر المخفية (display:none أو visibility:hidden) خارج الحساب. */
 const SAFE = { x1: 96, y1: 54, x2: 1824, y2: 1026 };
-const GRID = { left: [SAFE.x1, 109, 127, 213], right: [SAFE.x2, 1811, 1793] };   // كما في design/check.js (PR #78)، و213 أزرار الزاوية بعد الأيقونة (design/logo/الدمج.md 1.3 ب)
+const GRID = { left: [SAFE.x1, 109, 127, 213, 229], right: [SAFE.x2, 1811, 1793] };   // كما في design/check.js (PR #78)، و213 أزرار الزاوية بعد الأيقونة (design/logo/الدمج.md 1.3 ب)، و229 هي نفسها في التطبيق (design/app.md 6.5)
 const visible = n => n.getClientRects().length && getComputedStyle(n).visibility !== 'hidden';
 
 // [data-overhang]: حدود رسم الصورة غير الشفافة (ألفا > 20 من 255) بنسبة من صندوقها، فيدخل ظلّه ويخرج هامشه الشفاف (كما في design/check.js، الملاحظة 43).
