@@ -1067,14 +1067,19 @@
     if (TWO_TAPS) {
       let top = window; try { if (parent.visualViewport) top = parent; } catch {}
       const vv = top.visualViewport, screenEl = document.querySelector('.screen');
+      // ش8-أ/78 (المالك على آيفون 15 Pro): كانت تُعاد اللوحة إلى مكانها (transform فارغ) ثم تُقاس وتُرفع من جديد مع كل تغيّر
+      // في visualViewport، وهو يتغيّر على iOS بعد أول حرف (شريط الاقتراحات). فتقفز الخانة المركّزة تحت لوحة المفاتيح لحظةً،
+      // فيُغلقها iOS. والآن تُقاس الخانة في موضعها المرفوع، وتُضبط الإزاحة مباشرة (القديمة + ما تغطّيه الآن)، ولا تُكتب إلا إن تغيّرت.
+      // ولا تعود اللوحة إلى مكانها إلا بزوال التركيز عن الخانتين.
+      let shift = 0;
+      const setShift = v => { v = Math.max(0, Math.round(v)); if (v === shift) return; shift = v; screenEl.style.transform = v ? `translateY(${-v}px)` : ''; };
       const lift = () => {
         const el = document.activeElement;
-        if (!vv || !(el === $('i1') || el === $('i2'))) { screenEl.style.transform = ''; return; }
+        if (!vv || !(el === $('i1') || el === $('i2'))) return setShift(0);
         const fe = window.frameElement, fr = fe?.getBoundingClientRect(), k = fr ? fr.height / innerHeight : 1;
-        screenEl.style.transform = '';
         const bottom = (fr?.top ?? 0) + rect(el).bottom * k, gap = 24 * k * Math.min(innerWidth / 1920, innerHeight / 1080);
         const cover = bottom + gap - (vv.offsetTop + vv.height);
-        if (cover > 0) screenEl.style.transform = `translateY(${-cover / k}px)`;
+        setShift(shift + cover / k);
       };
       vv?.addEventListener('resize', lift); vv?.addEventListener('scroll', lift);
       for (const k of [1, 2]) { $('i' + k).addEventListener('focus', () => setTimeout(lift, 50)); $('i' + k).addEventListener('blur', () => setTimeout(lift, 50)); }
