@@ -27,11 +27,13 @@
 [data-hero="start"] .rays { display: block; left: 299px; top: -122px; width: 1322px; height: 1322px; }
 [data-hero="start"] .halo { display: block; left: 550px; top: 129px; width: 820px; height: 820px; }
 /* زر «ابدأ» 260×84 تحت الشعار بـ 24 (878): أبيض 44 على حبر مائل، بحلقة بيضاء 5 وظلّ صلب 10 */
-/* design/app.md 5.8: عرض الزر بنصه («اختيار الأنماط» 296 + 48 من كل جانب = 392) لا 260 الثابت من «ابدأ القرعة».
-   ويبدأ عند 816 لا 764 (وسطه 1012 لا 960): لوحة الفريق الثاني تنتهي عند 772 كما يقيسها check.js (صفها كله، لا خطّ الخانة 724)،
-   وميل الإطار وظله يمدّانه 17 يساراً، فالفاصل 24. وأزرار العدد تبدأ من 1288، فالفاصل بعده 80. */
-[data-hero="start"] .start-go { display: flex; left: 816px; top: 878px; width: auto; height: 84px; justify-content: center; }
-.start-go .cbtn { position: relative; isolation: isolate; width: auto; height: 84px; padding: 0 48px; white-space: nowrap; background: transparent; color: var(--card); font-size: 44px; font-weight: 900; }
+/* design/app.md 5.8 و5.11: عرض الزر بنصه («اختيار الأنماط» 296 + 44 من كل جانب = 384) لا 260 الثابت من «ابدأ القرعة».
+   ويبدأ عند 768 (768–1152، وسطه 960 تحت الشعار): لوحة الفريق الثاني تنتهي عند 724 مع خانتها (السطر التالي)،
+   وميل الإطار وظله يمدّانه 17 يساراً، فالفاصل 27. وأزرار العدد تبدأ من 1288، فالفاصل بعده 136. */
+/* لوحة الفريق الثاني في البداية بعرض خانتها (126–724): لوحتها شفافة هنا، فلا يتغير شيء مرئي، ويبتعد الزر عنها (design/app.md 5.10) */
+[data-hero="start"] .team.t2 .row { padding-right: 0; }
+[data-hero="start"] .start-go { display: flex; left: 768px; top: 878px; width: auto; height: 84px; justify-content: center; }
+.start-go .cbtn { position: relative; isolation: isolate; width: auto; height: 84px; padding: 0 44px; white-space: nowrap; background: transparent; color: var(--card); font-size: 44px; font-weight: 900; }
 .start-go .cbtn::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ink); transform: skewX(calc(-1 * var(--lean))); box-shadow: 0 0 0 5px var(--card), 10px 10px 0 5px #0B1033; }
 /* عدد الأنماط (جواب المصمّم): على خط «ابدأ» في الجهة اليمنى حتى 1794، وسطر الخطأ فوقه. بأبيض على المسرح */
 /* من x 1114 فأكثر (نهاية الزر 1090 + 24، الدمج.md 6.2)، وسطر الخطأ فوقه بفراغ 24 وينكسر في عرضه */
@@ -95,8 +97,9 @@
 .mc.p-rank .face { background-image: repeating-linear-gradient(0deg, rgba(14,44,134,.06) 0 14px, transparent 14px 40px); }
 
 /* المتاحة: إطار نبض أبيض 4 يبعد 14، يتردد بين 55% و20% كل 1.6 ثانية، وثابت مع تقليل الحركة */
-.mc.avail::before { content: ''; position: absolute; inset: -14px; transform: skewX(calc(-1 * var(--lean))); border: 4px solid rgba(255,255,255,.55); box-shadow: 0 0 0 8px rgba(255,255,255,.14); animation: pulse 1.6s ease-in-out infinite alternate; }
-@keyframes pulse { to { border-color: rgba(255,255,255,.2); } }
+.mc.avail::before { content: ''; position: absolute; inset: -14px; transform: skewX(calc(-1 * var(--lean))); border: 4px solid rgba(255,255,255,.55); box-shadow: 0 0 0 8px rgba(255,255,255,.14); animation: cardpulse 1.6s ease-in-out infinite alternate; }
+/* ش8: كان اسمها pulse كنبض حواف الوقت في stage.css، وهذا الملف يُحمَّل بعده فكانت تحلّ محلّه، فلا تنبض الحواف الحمراء (design/system.md 201) */
+@keyframes cardpulse { to { border-color: rgba(255,255,255,.2); } }
 @media (prefers-reduced-motion: reduce) { .mc.avail::before { animation: none; } }
 .mc[data-cmd] { cursor: pointer; }
 /* لم تُختر بعد اكتمال الاختيار (المباراة بنمطين): باهتة */
@@ -130,3 +133,9 @@
    وسطر التعريف سطران متوازنان إن لم يتسع، لا أصغر من 32 (حد النص في الشاشة) */
 .mc .by { position: absolute; left: 50%; transform: translateX(-50%); bottom: -50px; margin: 0; text-align: center; font-size: 36px; font-weight: 900; line-height: 1.2; color: #fff; white-space: nowrap; }
 .mc .by.tight { font-size: 32px; }
+
+/* design/app.md 6.2 و6.4 (التطبيق): الصف السفلي على خط 948 (الزر والعدد 906–990)، وخانتا الاسمين بعرض 440
+   بعيداً عن الشعار والزر (الأولى 1306–1746، والثانية 174–614، و#p2 يتبعها). */
+.native-app [data-hero="start"] .start-go { top: 906px; }
+.native-app [data-hero="start"] .start-side { bottom: calc(1080px - 990px); }
+.native-app [data-hero="start"] .team .name-in { flex-basis: 440px; }

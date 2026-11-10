@@ -48,9 +48,20 @@
   /* تطبيق آبل (design/app.md 3.3): الإطار بنسبة الشاشة لا 16:9، فتملأ نافذة الجمهور الأشرطة، واللوحة 1920×1080 في وسطها. والتكبير كما هو */
   .native-app #single { background: linear-gradient(135deg, #1A4BD1 0%, #1238A8 55%, #0E2C86 100%); }
   .native-app .frame, .native-app .frame iframe { width: var(--frame-w, 1920px); height: var(--frame-h, 1080px); }
+  /* ش8-أ/82 (المعاين، v95): وسط الإطار على نصف ارتفاع الصفحة عند آخر حساب (--fit-h)، لا على 50% منها. فإذا أنقصت لوحة المفاتيح
+     الصفحة والحجم ثابت في الكتابة (80) بقي الإطار مكانه، ولم يرتفع نصف لوحة المفاتيح فتخرج الخانة العليا من أعلى الشاشة */
+  .native-app .frame { top: calc(var(--fit-h, 100vh) / 2); }
   body.one { overflow: hidden; }
 
 </style>
+<script>
+  // ش8-أ/79 (design/app.md 2.1): شاشة الإطلاق في التطبيق لا تختفي وحدها (launchAutoHide: false)، فتُخفى بعد أول رسم صحيح
+  // لشاشة الجمهور (audience.html يستدعي __hideSplash)، أو بعد 8 ثوانٍ مهما حدث، ولو رمى ما بعدها خطأ. مرة واحدة. ولا شيء في الموقع.
+  // كانت المهلة 3 ثوانٍ، وفي محاكي iPhone 16 Pro (v94) جاء أول رسم عند 4.6 ثانية، فأخفتها المهلة وظهر المسرح فارغاً بينهما.
+  window.__hideSplash = (() => { let done = false; return () => { if (done) return; done = true;
+    try { window.Capacitor?.Plugins?.SplashScreen?.hide?.({ fadeOutDuration: 200 }); } catch {} }; })();
+  setTimeout(window.__hideSplash, 8000);
+</script>
 <script>if (window.Capacitor?.isNativePlatform?.() === true) { document.documentElement.classList.add('native-app');
   // design/app.md 5.3: لا تكبير بنقرتين ولا بإصبعين في التطبيق.
   const v = document.querySelector('meta[name="viewport"]'); if (v) v.content += ', maximum-scale=1, user-scalable=no'; }</script>
@@ -171,10 +182,15 @@
   // ومباراة محفوظة قبل v87 بلا وقت تُستأنف كما كانت، ووقتها من أول حفظ بعدها.
   function savedAt() { try { return Number(localStorage.getItem(SAVED_AT_KEY)) || 0; } catch { return 0; } }
   const stale = (now = Date.now()) => { const at = savedAt(); return at > 0 && now - at > STALE_MS; };
+  // ش8-أ/87 (المالك 10 نوفمبر 2026): «اذا اغلق التطبيق غلقا تاما فتعيد اما اذا كان غلقا و يظل باقي في الخلفية فيبقى». في التطبيق وحده:
+  // sessionStorage يبقى ما دام التطبيق حياً (ولو في الخلفية) ويُمسح بإغلاقه التام. فإن غاب علَمه عند التحميل فهذا تشغيل بعد
+  // إغلاق تام: بداية جديدة بلا اسمين، وذاكرة الأسئلة لا تُمسّ. وإلا فالقاعدة كما هي (الساعة). والموقع على حاله.
+  const ALIVE_KEY = 'big-challenge.alive';
+  const cold = (() => { if (!NATIVE) return false; try { const was = sessionStorage.getItem(ALIVE_KEY); sessionStorage.setItem(ALIVE_KEY, '1'); return !was; } catch { return false; } })();
   function restore() {
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch {}
-    if (M.isMatch(saved) && saved.step !== 'setup' && stale()) {
+    if (M.isMatch(saved) && ((saved.step !== 'setup' && stale()) || (cold && (saved.step !== 'setup' || saved.teams?.[1] || saved.teams?.[2])))) {
       const fresh = M.newMatch({ pack: packs.some(p => p.id === saved.pack) ? saved.pack : packs[0]?.id ?? null, method: saved.method });
       try { localStorage.setItem(SAVE_KEY, JSON.stringify(fresh)); localStorage.setItem(SAVED_AT_KEY, String(Date.now())); } catch {}
       return fresh;
@@ -182,7 +198,11 @@
     if (M.isMatch(saved) && (!saved.pack || packs.some(p => p.id === saved.pack))) return saved.pack ? saved : { ...saved, pack: packs[0]?.id ?? null };
     return M.newMatch({ pack: packs[0]?.id ?? null });
   }
-  const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(match)); localStorage.setItem(SAVED_AT_KEY, String(Date.now())); } catch {} };
+  // ش8-أ/75: وقت آخر فعل لا يجدّده إلا فعل المقدّم (نقرة أو أمر، byHand). والحفظ من المؤقتات (انتهاء عدّاد، وقت القائمة، العجلة،
+  // دور الترتيب) يحفظ الحالة ويُبقي الوقت كما هو: فإن انطلقت متأخرة في الخلفية قبل visibilitychange لم تبدُ فعلاً جديداً.
+  let byHand = false;
+  const hand = fn => function (...a) { byHand = true; try { return fn.apply(this, a); } finally { byHand = false; } };
+  const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(match)); if (byHand) localStorage.setItem(SAVED_AT_KEY, String(Date.now())); } catch {} };
   // والتطبيق أو الصفحة يعودان من الخلفية دون إعادة تحميل (visibilitychange، ويطلقه WKWebView في تطبيق آبل عند العودة):
   // القاعدة نفسها، فإن تُركت المباراة أكثر من ساعة صارت اللعبة على شاشة البداية بمباراة جديدة، بلا سؤال.
   document.addEventListener('visibilitychange', () => {
@@ -382,7 +402,8 @@
     // التحقق من الرقم السري عند بدء كل مباراة جديدة (4.3): إن تأكد تغيّره أُغلقت اللعبة.
     const result = await watcher?.checkNow();
     if (result === 'changed') return;
-    update(M.toDraw(match));
+    // ش8-أ/76: ما بعد await يجري بعد أن ينزل byHand (finally في hand)، فيُعاد رفعه للحفظ: «اختيار الأنماط» فعل المقدّم.
+    hand(() => update(M.toDraw(match)))();
   }
 
   // «قرعة البداية» في صفحة الاختيار (design/s8b.md 3).
@@ -442,13 +463,25 @@
     fitStage();
     if (on) sendCtl(error);
   }
-  const fitStage = () => {
+  // ش8-أ/80 (محاكي iPhone 16 Pro، v94): لوحة المفاتيح في التطبيق تُنقص ارتفاع الصفحة، وكل حرف يرسم (render ← fitStage)، فكان المسرح
+  // يُحسب على الارتفاع المنقوص فيصغُر وينحشر، ثم لا يُعاد بعد إغلاقها. فما دامت خانة اسم مركّزة في شاشة الجمهور يبقى الحجم كما هو،
+  // ويُعاد حسابه حين يزول التركيز (audience.html يستدعي __refit عند blur، ثم بعد 0.4 و1 ثانية حتى تنغلق لوحة المفاتيح).
+  const typing = () => { try { return !!$('frame').querySelector('iframe')?.contentDocument?.activeElement?.classList.contains('name-in'); } catch { return false; } };
+  // ش8-أ/84 (محاكي iPhone 16 Pro، v96): وبعد «تم» يزول التركيز ولوحة المفاتيح لم تنغلق بعد، فكان أول رسم أو إعادة يحسب المسرح على
+  // الصفحة المنقوصة فيظهر بربع حجمه أعلى الشاشة لحظةً. فما دامت الصفحة أقصر بوضوح من آخر حساب (لوحة المفاتيح ظاهرة) لا يُعاد
+  // الحساب أيضاً، إلا في الإعادة الأخيرة بعد ثانية (last). وانغلاق لوحة المفاتيح نفسه يُطلق resize فيُعاد به.
+  let fitH = 0;
+  window.__refit = last => fitStage(last === true);
+  const fitStage = force => {
+    if (NATIVE && force !== true && (typing() || innerHeight < fitH * 0.85)) return;
     const root = document.documentElement.style, k = Math.min(innerWidth / 1920, innerHeight / 1080);
     root.setProperty('--scale', k);
     // في التطبيق: الإطار يغطي الشاشة كلها بالتكبير نفسه (أعرض: 1080 × vw/vh · أطول: 1920 × vh/vw).
-    if (NATIVE) { root.setProperty('--frame-w', Math.ceil(innerWidth / k) + 'px'); root.setProperty('--frame-h', Math.ceil(innerHeight / k) + 'px'); }
+    if (NATIVE) { root.setProperty('--frame-w', Math.ceil(innerWidth / k) + 'px'); root.setProperty('--frame-h', Math.ceil(innerHeight / k) + 'px'); root.setProperty('--fit-h', innerHeight + 'px'); fitH = innerHeight; }
   };
-  addEventListener('resize', fitStage);
+  // وإن بقيت الصفحة أقصر بلا كتابة ثانيةً (نافذة صغُرت في الآيباد لا لوحة مفاتيح) حُسب عليها.
+  let refitLater = 0;
+  addEventListener('resize', () => { fitStage(); clearTimeout(refitLater); if (NATIVE) refitLater = setTimeout(() => { if (!typing()) fitStage(true); }, 1000); });
   document.addEventListener('fullscreenchange', () => render());
 
   // الأزرار التي تظهر على الشاشة المشتركة الآن، بمواضعها: card في البطاقة · near بجانب العدّاد · a وb صفوف الزاويتين.
@@ -601,7 +634,7 @@
   };
 
   // نقرات الشاشة المشتركة: تصل من شاشة الجمهور التي في هذه النافذة وحدها.
-  addEventListener('message', e => {
+  addEventListener('message', hand(e => {
     const frame = $('frame').querySelector('iframe');
     if (!frame || e.source !== frame.contentWindow || e.origin !== location.origin || !match) return;
     if (e.data?.bc === 'need-ctl') return sendCtl();
@@ -624,7 +657,7 @@
     if (cmd === 'qr') setQr(arg === 'show');
     if (cmd === 'fullscreen') document.documentElement.requestFullscreen?.().catch(() => {});
     if (['toPick', 'undoPick', 'toFace', 'replay', 'undo', 'scores', 'announce', 'tiebreak'].includes(cmd)) actions[cmd]();
-  });
+  }));
 
   // تطبيق آبل: تُفتح اللعبة مباشرة بلا رقم (الوثيقة 1.17، 4.3).
   if (NATIVE) unlock('');
@@ -639,15 +672,15 @@
 
   $('closeScores').onclick = () => { $('scores').hidden = true; };
   // أثناء الجولة يُعدَّل الرصيد عبر مشغّل الجولة، فيُتراجع عنه كأي حكم (عقد الوحدة 5).
-  $('scores').onclick = e => {
+  $('scores').onclick = hand(e => {
     const b = e.target.closest('[data-team]');
     if (!b) return;
     const team = +b.dataset.team;
     if (match.step === 'play') roundUpdate(P.setScore(match, team, match.scores[team] + +b.dataset.d));
     else update(M.adjustScore(match, team, +b.dataset.d));
-  };
+  });
   // «تراجع» في طبقة الرصيد لا تقع عليه نقرة من زر آخر، فلا يُمهل.
-  $('undoScore').onclick = () => (match.step === 'play' ? roundUpdate(P.undo(match, units())) : update(M.undoScore(match)));
+  $('undoScore').onclick = hand(() => (match.step === 'play' ? roundUpdate(P.undo(match, units())) : update(M.undoScore(match))));
 
 </script>
 </body>

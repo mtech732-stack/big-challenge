@@ -127,7 +127,7 @@
       if (it.r.x1 < 256) edges.left.add(Math.round(it.r.x1));
     }
     // حواف 1.3 المقبولة (system.md 15.3) مع الهامش.
-    const OK = { right: [SAFE.x2, 1811, 1793], left: [SAFE.x1, 109, 127, 213] };   // 213: أزرار الزاوية بعد الأيقونة (design/logo/الدمج.md 1.3 ب)
+    const OK = { right: [SAFE.x2, 1811, 1793], left: [SAFE.x1, 109, 127, 213, 229] };   // 213: أزرار الزاوية بعد الأيقونة (design/logo/الدمج.md 1.3 ب)، و229 في التطبيق (design/app.md 6.5)
     const offSide = side => [...edges[side]].filter(x => !OK[side].some(e => Math.abs(x - e) <= 1.5));
     const off = offSide('right').concat(offSide('left'));
     if (grid && off.length) problems.push(`حواف خارج الشبكة: ${off.join('، ')}`);

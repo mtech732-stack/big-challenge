@@ -33,7 +33,7 @@
 </head>
 <body>
 <div class="screen">
-  <div class="canvas locked pre" id="canvas">
+  <div class="canvas locked pre unready" id="canvas">
     <!-- المسرح بطرفين بلوني الفريقين، والحدّ بينهما يكتسح لصاحب الدور (1.3، design/system.md 15.1–15.2) -->
     <div class="stagebg" id="stagebg"><div class="f f1"></div><div class="f f2"></div><div class="e" id="edge"></div>
       <div class="beam"></div><div class="beam w"></div><div class="beam"></div><div class="beam w"></div></div>
@@ -422,19 +422,48 @@
 
   // المباريات قبل التكرار (الوثيقة 1.18، 8، design/s8d.md 1.2): في شاشة البداية وحدها، أعلى اليسار تحت «ملء الشاشة» بـ 24 (152)،
   // أو على 64 إن غاب. سطر لكل نمط بترتيب الأنماط ثم «شريط البونص»، والعدد من المقدّم (view.left، js/play.js freshLeft)، و0 «تتكرر الآن».
+  // وفي التطبيق (design/app.md 6.1): القائمة خلف أيقونة 96 عند (127، 64)، تفتح لوحاً أبيض عند (127، 184) بعمودين بلا «·»،
+  // وتُغلق بنقرة ثانية عليها أو بنقرة في أي مكان آخر أو بالانتقال من شاشة البداية (rpOpen، والنقر في document click).
+  const APP = document.documentElement.classList.contains('native-app');
+  let rpOpen = false;
   function renderLeft(rows) {
     $('rp')?.remove();
-    if (!rows?.length) return;
+    if (!rows?.length) { rpOpen = false; $('rpIco')?.remove(); return; }
     const el = document.createElement('div');
-    el.id = 'rp'; el.className = 'rp'; el.dataset.hud = 'المباريات قبل التكرار'; el.dataset.free = '';
-    el.innerHTML = '<p class="h">المباريات قبل التكرار</p>' + rows.map(r => `<p>${esc(r.name)} · <b>${r.left > 0 ? num(String(r.left)) : 'تتكرر الآن'}</b></p>`).join('');
+    el.id = 'rp'; el.className = 'rp' + (APP && rpOpen ? ' open' : ''); el.dataset.free = '';
+    // في التطبيق لا تُفحص القائمة مغلقةً (مخفية)، ومفتوحةً هي لوح فوق ما تحته، فتُفحص (data-hud).
+    if (!APP || rpOpen) el.dataset.hud = 'المباريات قبل التكرار';
+    el.innerHTML = '<p class="h">المباريات قبل التكرار</p>'
+      + rows.map(r => `<p><span class="nm">${esc(r.name)}</span>${APP ? '' : ' · '}<b>${r.left > 0 ? num(String(r.left)) : 'تتكرر الآن'}</b></p>`).join('');
     canvas.append(el);
+    if (APP) {
+      // الأيقونة لا تُستبدل ما بقيت: ضغطة بين نزول الإصبع ورفعه على زر استُبدل لا تصل (ش8-أ/54).
+      let ico = $('rpIco');
+      if (!ico) {
+        ico = document.createElement('button');
+        ico.id = 'rpIco'; ico.className = 'cbtn ico rp-ico'; ico.dataset.cmd = 'rp'; ico.dataset.tip = ico.ariaLabel = 'المباريات قبل التكرار'; ico.dataset.hud = 'أيقونة المباريات قبل التكرار';
+        ico.innerHTML = '<svg viewBox="0 0 52 52" aria-hidden="true"><path d="M6 12h28M6 26h28M6 40h28"/><circle cx="44" cy="12" r="3"/><circle cx="44" cy="26" r="3"/><circle cx="44" cy="40" r="3"/></svg>';
+        canvas.append(ico);
+      }
+      ico.classList.toggle('open', rpOpen);
+    }
     placeLeft();
   }
-  const placeLeft = () => { const el = $('rp'); if (el) el.style.top = [...document.querySelectorAll('.ctl-corner .cbtn')].some(b => b.offsetParent) ? '152px' : '64px'; };
+  const placeLeft = () => { const el = $('rp'); if (el && !APP) el.style.top = [...document.querySelectorAll('.ctl-corner .cbtn')].some(b => b.offsetParent) ? '152px' : '64px'; };
 
+  // ش8-أ/79 (design/app.md 2.1): في الإطار (الموقع والتطبيق) لا يُرى من اللوحة شيء قبل أول رسم بحالة معروفة: كانت تظهر بطاقة
+  // «بانتظار المقدّم» (شاشة السؤال) لحظةً عند الفتح. ألوان المسرح وحدها تظهر. وبعد أول رسم تُخفى شاشة الإطلاق في التطبيق.
+  if (!embed) canvas.classList.remove('unready');
+  function shown() {
+    if (!canvas.classList.contains('unready')) return;
+    canvas.classList.remove('unready');
+    // شاشة الإطلاق تُخفى بعد أن تُرسم البداية فعلاً: الخطوط محمّلة، ثم إطاران (وإلا ظهر بينهما المسرح فارغاً، محاكي v94).
+    const hide = () => requestAnimationFrame(() => requestAnimationFrame(() => { try { parent.__hideSplash?.(); } catch {} }));
+    Promise.resolve(document.fonts?.ready).then(hide, hide);
+  }
   function render() {
     if (!view || busy) return;
+    queueMicrotask(shown);
     renderLeft(view.match.step === 'setup' ? view.left : null);
     if (view.match.step === 'play' && view.play) return renderPlay(view.play);
     canvas.classList.remove('qr');
@@ -552,7 +581,24 @@
         + (p ? `<div class="key done"><span>${num('الجولة ' + (at + 1))}</span></div>` : `<div class="key"><span><b class="ltr">${i + 1}</b>اختر</span></div>`) + '</div>'
         + (p ? `<i class="stamp ltr">${at + 1}</i><p class="by" data-hud="سطر من اختار" data-free data-name="${p.by ? esc(name(p.by)) : ''}">${p.by ? 'اختيار ' + esc(name(p.by)) : 'النمط المتبقي'}</p>` : '') + '</div>';
     }).join('');
-    if (html !== cardsKey) { cardsKey = html; $('mcards').innerHTML = html; }
+    // ش8-أ/86 (المالك على آيفون 15 Pro، v97): «وميض بعد انتهاء القرعة مباشرة». عند وقوف المؤشر كانت البطاقات تُبنى من جديد
+    // (wait ← avail) فتُنشأ عناصرها وصور شاراتها من جديد، وWebKit يرسم الجديد فارغاً حتى يفكّ الصورة. فالآن البطاقة التي لم يتغيّر
+    // إلا صنفها وموضعها تبقى كما هي ويُبدَّل صنفها وحده، والتي تغيّر ما فيها تُستبدل وتُنقل إليها صورة شارتها القديمة المفكوكة.
+    if (html !== cardsKey) {
+      cardsKey = html;
+      const box = $('mcards'), next = document.createElement('div');
+      next.innerHTML = html;
+      const old = new Map([...box.querySelectorAll('.mc')].map(el => [el.dataset.mode, el]));
+      const cards = [...next.children].map(el => {
+        const was = old.get(el.dataset.mode);
+        if (!was) return el;
+        if (was.innerHTML === el.innerHTML) { was.className = el.className; was.setAttribute('style', el.getAttribute('style')); return was; }
+        const a = was.querySelector('.bdg img'), b = el.querySelector('.bdg img');
+        if (a && b && a.getAttribute('src') === b.getAttribute('src')) { a.className = b.className; a.setAttribute('style', b.getAttribute('style')); b.replaceWith(a); }
+        return el;
+      });
+      if (cards.length !== box.children.length || cards.some((c, i) => box.children[i] !== c)) box.replaceChildren(...cards);
+    }
     // «اختيار {الفريق}» باسم طويل تحت بطاقة طرفية يُزاح إلى داخل الهامش الآمن (96–1824).
     const c = rect(canvas), s = c.width / 1920 || 1;
     $('mcards').querySelectorAll('.by').forEach(el => {
@@ -999,6 +1045,9 @@
       // تأكيد «مباراة جديدة» ظاهر: «مباراة جديدة» تُرسلها مؤكدة، وأي نقرة غيرها = إلغاء (design/app.md 5.5).
       if (!$('askNew').hidden) { const yes = !!e.target.closest('#askNew [data-ask="yes"]'); $('askNew').hidden = true; if (yes) send('new:sure'); return; }
       const b = e.target.closest('[data-cmd]');
+      // قائمة «المباريات قبل التكرار» في التطبيق (design/app.md 6.1): الأيقونة تفتحها وتغلقها، وأي نقرة أخرى تغلقها ثم تمضي.
+      if (b?.dataset.cmd === 'rp') { rpOpen = !rpOpen; render(); return; }
+      if (rpOpen) { rpOpen = false; render(); }
       // لوحة «⋯» تُفتح وتُغلق هنا، وتُغلق باختيار زر فيها أو بنقرة خارجها (design/s8b.md 7.1).
       if (b?.dataset.cmd === 'more') { moreOpen = !moreOpen; renderCtl(); return; }
       if (moreOpen && (!e.target.closest('#moreMenu') || b)) { moreOpen = false; renderCtl(); }
@@ -1052,6 +1101,8 @@
       document.addEventListener('click', e => { if (held) { held = false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
     }
     // الاسمان يُكتبان في اللوحتين. Enter في الأول ينقل إلى الثاني، وفي الثاني = «ابدأ القرعة».
+    // ش8-أ/84: يُعرَّف في كتلة الرفع أدناه (التطبيق وحده).
+    let preLift = null;
     for (const k of [1, 2]) {
       // الأرقام الهندية تصير إنجليزية في الحقل نفسه وهو يُكتب (القاعدة: أرقام إنجليزية في كل شاشة).
       $('i' + k).addEventListener('input', e => {
@@ -1060,25 +1111,53 @@
         send('teams', { a: $('i1').value, b: $('i2').value });
       });
       // وفي التطبيق «تم» في الثاني تغلق لوحة المفاتيح (enterkeyhint="done"، design/app.md 5.7)، لا تبدأ شيئاً.
-      $('i' + k).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); k === 1 ? $('i2').focus() : TWO_TAPS ? e.target.blur() : send('draw'); } });
+      $('i' + k).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); k === 1 ? (preLift?.($('i2')), $('i2').focus()) : TWO_TAPS ? e.target.blur() : send('draw'); } });
     }
     // التطبيق (design/app.md 5.7): لوحة المفاتيح بالأفقي تغطي نحو نصف الشاشة، والصفحة لا تمرَّر. فإن غطّت الخانة التي فيها
     // التركيز رُفعت اللوحة كلها بمقدار ما غطّت + 24، من visualViewport في النافذة العليا (التي تضيق للوحة المفاتيح)، وتعود بزوال التركيز.
     if (TWO_TAPS) {
       let top = window; try { if (parent.visualViewport) top = parent; } catch {}
       const vv = top.visualViewport, screenEl = document.querySelector('.screen');
-      const lift = () => {
-        const el = document.activeElement;
-        if (!vv || !(el === $('i1') || el === $('i2'))) { screenEl.style.transform = ''; return; }
+      // ش8-أ/78 (المالك على آيفون 15 Pro، v92 ثم v93): كتابة حرف في الخانة السفلى تُغلق لوحة المفاتيح. والرفع عند التركيز لم يُغلقها،
+      // وإنما ما يقع بعد أول حرف: على iOS يتغيّر visualViewport (شريط الاقتراحات يظهر)، فيتحرك الرفع، فتتحرك الخانة المركّزة
+      // وiOS يمرّرها، فيُغلقها. وفي v93 بقي يتحرك (بلا عودة). فالآن يُرفع مرة واحدة لكل تركيز: عند أول تغيّر في visualViewport
+      // بعده (لوحة المفاتيح ظهرت)، أو بعد 0.7 ثانية إن كانت ظاهرة من قبل (من الأولى إلى الثانية). ومعه هامش لشريط الاقتراحات (56)،
+      // فلا يلزم تحريك بعده. ثم لا يُكتب شيء حتى يزول التركيز عن الخانتين، فتعود اللوحة.
+      // ش8-أ/81 (المدقّق): و«التالي» من خانة إلى أخرى ولوحة المفاتيح ظاهرة لا يغيّر visualViewport، فكان الرفع ينتظر 0.7 ثانية
+      // والكتابة جارية، فيتحرك في أثنائها والخانة تحت لوحة المفاتيح. فإن كانت ظاهرة عند التركيز (المتاح أقصر بوضوح من أعلى ما رُئي
+      // بلا كتابة، full) يُرفع فوراً.
+      let shift = 0, armed = false, waitKb = 0, full = vv?.height ?? 0;
+      // ش8-أ/83 (محاكي iPhone 16 Pro، v95): كان الهامش 56 فظهر تحت اللوحة المرفوعة شريط داكن فوق لوحة المفاتيح. فصار ارتفاع شريط
+      // الاقتراحات نفسه (44): أقل منه يُغطّي الخانةَ إن ظهر بعد أول حرف، فيلزم تحريكها في الكتابة، وهو ما كان يُغلق لوحة المفاتيح (78).
+      const BAR = 44;
+      const setShift = v => { v = Math.max(0, Math.round(v)); if (v === shift) return; shift = v; screenEl.style.transform = v ? `translateY(${-v}px)` : ''; };
+      const typing = () => { const el = document.activeElement; return el === $('i1') || el === $('i2') ? el : null; };
+      const place = (el = typing()) => {
+        clearTimeout(waitKb); if (!armed) return; armed = false;
+        if (!vv || !el) return;
         const fe = window.frameElement, fr = fe?.getBoundingClientRect(), k = fr ? fr.height / innerHeight : 1;
-        screenEl.style.transform = '';
-        const bottom = (fr?.top ?? 0) + rect(el).bottom * k, gap = 24 * k * Math.min(innerWidth / 1920, innerHeight / 1080);
-        const cover = bottom + gap - (vv.offsetTop + vv.height);
-        if (cover > 0) screenEl.style.transform = `translateY(${-cover / k}px)`;
+        const bottom = (fr?.top ?? 0) + rect(el).bottom * k, gap = 24 * k * Math.min(innerWidth / 1920, innerHeight / 1080) + BAR;
+        setShift(shift + (bottom + gap - (vv.offsetTop + vv.height)) / k);
       };
-      vv?.addEventListener('resize', lift); vv?.addEventListener('scroll', lift);
-      for (const k of [1, 2]) { $('i' + k).addEventListener('focus', () => setTimeout(lift, 50)); $('i' + k).addEventListener('blur', () => setTimeout(lift, 50)); }
+      // ش8-أ/84 (محاكي iPhone 16 Pro، v96): «التالي» من العليا إلى السفلى كان يرفع اللوحة عند التركيز، والسفلى حينها تحت لوحة
+      // المفاتيح. وiOS يحسب كشف الخانة المركّزة من موضعها قبل الرفع، فيزيح الشاشة فوق الرفع، فتخرج اللوحة كلها من أعلى الشاشة
+      // (زرقاء فارغة 2–3 ثوانٍ)، ثم تبقى أعلى مما يلزم بـ 25 (الشريط 39). فالآن تُرفع قبل أن يُنقل التركيز، فتكون الخانة ظاهرة
+      // حين يصلها، ولا يبقى لـ iOS ما يكشفه. ويُقرأ موضعها بعد الرفع فيُرسم قبل التركيز.
+      preLift = el => { if (!vv || vv.height >= full * 0.85) return; armed = true; place(el); rect(el); };
+      vv?.addEventListener('resize', () => { if (!typing()) full = Math.max(full, vv.height); place(); });
+      for (const k of [1, 2]) {
+        $('i' + k).addEventListener('focus', () => { armed = true; clearTimeout(waitKb);
+          if (vv && vv.height < full * 0.85) place(); else waitKb = setTimeout(place, 700); });
+        // وبزوال التركيز يُعاد حساب حجم المسرح في الصفحة الأم (ش8-أ/80)، مرات حتى تنغلق لوحة المفاتيح.
+        // ش8-أ/84: وبعد «تم» كانت اللوحة تبقى مرفوعة 50 جزءاً من الثانية وتحتها أزرق ولوحة المفاتيح تنزل. فإن لم يذهب التركيز إلى
+        // الخانة الأخرى (relatedTarget) تنزل في المهمة التالية، وإلا فبعد 50 كما كانت.
+        const down = () => { if (!typing()) { armed = false; clearTimeout(waitKb); setShift(0);
+          for (const ms of [0, 400, 1000]) setTimeout(() => { if (!typing()) try { parent.__refit?.(ms === 1000); } catch {} }, ms); } };
+        $('i' + k).addEventListener('blur', e => { setTimeout(down, e.relatedTarget?.classList?.contains('name-in') ? 50 : 0); });
+      }
     }
+    // والنص الإرشادي في التطبيق أقصر ليسع الخانتين بعرض 440 (design/app.md 6.4).
+    if (APP) { $('i1').placeholder = 'اسم الفريق الأول'; $('i2').placeholder = 'اسم الفريق الثاني'; }
     // تطبيق آبل (design/app.md 4.3.2): مساحة لمس الخانة صف اللوحة كله (136)، فالنقر فيه خارج الخانة يركّز عليها.
     if (document.documentElement.classList.contains('native-app')) for (const k of [1, 2]) {
       $('p' + k).querySelector('.row').addEventListener('click', e => {

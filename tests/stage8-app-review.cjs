@@ -39,7 +39,12 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     const { context, page, f } = await open(native);
     // النص داخل إطاره بـ 48 من كل جانب (مدى النص نفسه، لا scrollWidth الذي يزيده ميل الإطار).
     const b = await box(f, '#startGo .cbtn'), text = await f.$eval('#startGo .cbtn', e => { const r = document.createRange(); r.selectNodeContents(e); const t = r.getBoundingClientRect(), o = e.getBoundingClientRect(); return [t.left - o.left, o.right - t.right].map(Math.round); });
-    check(`${tag} 5.8: «اختيار الأنماط» بنصه داخل إطاره بـ 48 من كل جانب، من 816 بعد لوحة الفريق الثاني (${b.l}–${b.l + b.w} · ${text})`, b.l === 816 && text.every(x => x >= 47));
+    // 5.10 (2): حشوة 44 من 768، فوسطه وسط الشعار 960. ولوحة الفريق الثاني بعرض خانتها (126–724).
+    const p2 = await box(f, '#p2');
+    // وفي التطبيق الخانة 440 (design/app.md 6.4)، فاللوحة تنتهي عند 614.
+    const p2end = native ? 614 : 724;
+    check(`${tag} 5.8: «اختيار الأنماط» بنصه داخل إطاره بـ 44 من كل جانب، من 768 ووسطه 960، ولوحة الفريق الثاني تنتهي عند ${p2end} (${b.l}–${b.l + b.w} · ${text} · ${p2.l}–${p2.l + p2.w})`,
+      b.l === 768 && Math.abs(b.l + b.w / 2 - 960) <= 2 && text.every(x => x >= 43) && p2.l === 126 && p2.l + p2.w === p2end);
     const sc = await stageOk(f);
     check(`${tag}: فحص التداخل والشبكة سليم في البداية (${sc.ok ? '' : sc.problems.join('، ')})`, sc.ok);
     if (!native) {
@@ -96,7 +101,10 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     await f.click('#moreMenu [data-cmd="new"]'); await wait(400);
     const ask = await box(f, '#askNew'), txt = await f.$eval('#askNew', e => e.innerText.replace(/\s+/g, ' ').trim());
     const st = await f.$eval('#askNew p', e => { const s = getComputedStyle(e); return `${s.fontSize}/${s.fontWeight}`; });
-    check(`5.5: لوحة التأكيد 880×296 عند (520، 392)، وفيها السؤال 48/700 والزرّان، ولا نافذة متصفح (${JSON.stringify(ask)} · ${txt})`, ask.l === 520 && ask.t === 392 && ask.w === 880 && ask.h === 296
+    // 5.10 (1): تأخذ مكان البطاقة نفسه (127، 410، 1666×352، وصفيحتها إلى 774)، فلا يظهر شيء من السؤال حولها.
+    const cw = await box(f, '#cardWrap'), plate = await box(f, '#askNew .plate'), cplate = await box(f, '#cardWrap .plate');
+    check(`5.5: لوحة التأكيد في مكان البطاقة نفسه وصفيحتها كصفيحتها (${JSON.stringify(ask)} · ${JSON.stringify(cw)})، وفيها السؤال 48/700 والزرّان، ولا نافذة متصفح (${txt})`,
+      ask.l === 127 && ask.t === 410 && ask.w === 1666 && ask.h === 352 && JSON.stringify(ask) === JSON.stringify(cw) && JSON.stringify(plate) === JSON.stringify(cplate)
       && txt === 'تبدأ مباراة جديدة ويُمحى ما سبق مباراة جديدة إلغاء' && st === '48px/700' && dialogs.length === 0);
     const sc = await stageOk(f);
     check(`وفحص التداخل والشبكة سليم معها (${sc.ok ? '' : sc.problems.join('، ')})`, sc.ok);
