@@ -11,7 +11,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const MIN = 60 * 1000;
 
-  async function open(native) {
+  async function open(native, clock = false) {
     const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, serviceWorkers: 'block' });
     context.on('page', p => {
       p.on('pageerror', e => errors.push(e.message));
@@ -20,6 +20,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     await usePin(context);
     if (native) await context.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true }; });
     const page = await context.newPage();
+    if (clock) await page.clock.install();
     await page.goto(base);
     await page.evaluate(() => localStorage.clear());
     await page.reload();
@@ -65,7 +66,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     const none = (await state(page)).at;
     await cmd(r.frame, 'undo'); await wait(800);
     const stamped = (await state(page)).at;
-    check(`والمحفوظ بلا وقت يأخذ وقتاً بعد أول فعل (${none} ← ${stamped ? 'وقت' : 'لا شيء'})`, !none && stamped > 0 && Date.now() - stamped < 30000);
+    // لا وقت قبل الفعل ولو حفظ عدّاد يجري (ش8-أ/75: المؤقتات لا تجدّد الوقت؛ وكان هذا الفحص يُخفق تحت الحمل بهذا الخلل نفسه).
+    check(`والمحفوظ بلا وقت يأخذ وقتاً بعد أول فعل، لا قبله (${none ? 'وقت' : 'لا شيء'} ← ${stamped ? 'وقت' : 'لا شيء'})`, !none && stamped > 0 && Date.now() - stamped < 30000);
     await context.close();
   }
   {
@@ -91,6 +93,44 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     check('التطبيق، عودة من الخلفية بعد 30 دقيقة: المباراة كما هي', (await back(30 * MIN)) === 'play');
     check('وبعد 61 دقيقة: شاشة البداية بلا سؤال، والذاكرة كما هي', (await back(61 * MIN)) === 'setup' && (await state(page)).seen === seen
       && !!(await (await stageFrame(page)).waitForSelector('[data-cmd="draw"]', { timeout: 5000 }).catch(() => null)));
+    await context.close();
+  }
+  {
+    // ش8-أ/75 (تقرير المعاين #443): العدّاد يجري والتطبيق في الخلفية. المؤقتات المتأخرة تنطلق قبل visibilitychange فتحفظ،
+    // ولا يجدّد ذلك وقت آخر فعل: لا يجدّده إلا فعل المقدّم. والساعة مزيّفة (clock) فتُقدَّم ساعة كاملة وتنطلق المؤقتات فيها.
+    const { context, page } = await open(true, true);
+    const timer = () => page.evaluate(() => !!JSON.parse(localStorage.getItem('big-challenge.match')).round?.timer);
+    const visible = () => page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
+    const hidden = () => page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); });
+    const step = () => page.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).step);
+    // نقرة حقيقية، ثم 59 دقيقة في الخلفية تنطلق فيها المؤقتات: تُستأنف.
+    await cmd((await stageFrame(page)), 'undo'); await wait(300); await cmd((await stageFrame(page)), 'act:show'); await wait(800);
+    const running = await timer();
+    let s0 = await state(page);
+    await hidden(); await page.clock.fastForward(59 * MIN); await wait(500);
+    let s1 = await state(page);
+    await visible(); await wait(800);
+    check(`التطبيق، العدّاد يجري (${running}) ونقرة ثم 59 دقيقة في الخلفية: المؤقتات حفظت (${s1.match !== s0.match}) والوقت كما هو، وتُستأنف (${await step()})`,
+      running && s1.match !== s0.match && s1.at === s0.at && (await step()) === 'play');
+    // كما في الآيفون: نقرة تبدأ العدّاد، ثم تتجمّد المؤقتات في الخلفية 61 دقيقة (الساعة تتقدّم بلا إطلاقها)،
+    // ثم تنطلق عند العودة قبل visibilitychange فيحفظ انتهاء العدّاد: شاشة البداية.
+    await context.close();
+  }
+  {
+    const { context, page } = await open(true, true);
+    const timer = () => page.evaluate(() => !!JSON.parse(localStorage.getItem('big-challenge.match')).round?.timer);
+    const visible = () => page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
+    const hidden = () => page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); });
+    const step = () => page.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).step);
+    const again = await timer();
+    const s0 = await state(page);
+    await hidden();
+    await page.clock.setSystemTime(await page.evaluate(() => Date.now()) + 61 * MIN);
+    await page.clock.runFor(45000); await wait(500);
+    const s1 = await state(page);
+    await visible(); await wait(800);
+    check(`التطبيق، نقرة تبدأ العدّاد (${again}) ثم 61 دقيقة مجمّدة، والمؤقتات تنطلق وتحفظ قبل الرجوع (${s1.match !== s0.match}) والوقت كما هو (${s1.at === s0.at}): شاشة البداية (${await step()})`,
+      again && s1.match !== s0.match && s1.at === s0.at && (await step()) === 'setup');
     await context.close();
   }
   await browser.close();
