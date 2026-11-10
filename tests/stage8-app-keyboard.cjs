@@ -213,6 +213,38 @@ const { usePin, reporter, stageFrame } = require('./helpers.cjs');
       lifted.length === 0 && small.length === 0 && Math.abs(log2[log2.length - 1].width - w0) < 1 && log2[log2.length - 1].top >= -1);
     await c4.close();
   }
+  // ===== ش8-أ/88 (المدقّق، خطر): لوحة المفاتيح تنفتح على خطوات (visualViewport يضيق ثلاث مرات) =====
+  // كان الرفع عند الخطوة الأولى فيبقى ناقصاً والخانة تحت لوحة المفاتيح. والآن يزيد مع الخطوات ما لم يُكتب حرف، ولا يتحرك بعد الحرف
+  // الأول ولو تغيّر visualViewport (78).
+  {
+    const c5 = await browser.newContext({ viewport: { width: 956, height: H }, hasTouch: true });
+    c5.on('page', p => { p.on('pageerror', e => errors.push(e.message)); });
+    await usePin(c5);
+    await c5.addInitScript(H => {
+      window.Capacitor = { isNativePlatform: () => true };
+      if (window !== window.top) return;
+      const vv = new EventTarget();
+      Object.assign(vv, { height: H, width: innerWidth, offsetTop: 0, offsetLeft: 0, scale: 1 });
+      Object.defineProperty(window, 'visualViewport', { configurable: true, get: () => vv });
+      window.__kb = (h, top = 0) => { vv.height = h; vv.offsetTop = top; vv.dispatchEvent(new Event('resize')); };
+    }, H);
+    const p5 = await c5.newPage();
+    await p5.goto(base); await p5.evaluate(() => localStorage.clear()); await p5.reload();
+    const g = await stageFrame(p5); await wait(1500);
+    const kb5 = h => p5.evaluate(h => window.__kb(h), h);
+    const at5 = () => p5.evaluate(() => { const fr = document.querySelector('#single iframe'), fb = fr.getBoundingClientRect(), w = fr.contentWindow, s = fb.height / w.innerHeight;
+      return { bottom: Math.round(fb.top + w.document.getElementById('i2').getBoundingClientRect().bottom * s), kb: visualViewport.height, tr: w.document.querySelector('.screen').style.transform }; });
+    await g.tap('#i2'); await wait(100);
+    for (const h of [360, 290, 220]) { await kb5(h); await wait(120); }
+    await wait(300);
+    const o = await at5();
+    check(`ش8-أ/88: لوحة المفاتيح تنفتح على ثلاث خطوات (360 ← 290 ← 220): السفلى فوقها بعد الأخيرة (${o.bottom} من ${o.kb}، ${o.tr})`, o.bottom <= o.kb);
+    const tr0 = o.tr;
+    await p5.keyboard.type('S'); await kb5(176); await wait(150); await p5.keyboard.type('tars'); await kb5(150); await wait(200);
+    const o2 = await at5();
+    check(`ش8-أ/88: وبعد أول حرف لا تتحرك اللوحة ولو ضاق المتاح (${tr0} ← ${o2.tr})`, o2.tr === tr0);
+    await c5.close();
+  }
   check(`الاسمان في المباراة (${teams[1]}، ${teams[2]})`, teams[1] === names[1] && teams[2] === names[2]);
   await browser.close();
   finish(errors);
