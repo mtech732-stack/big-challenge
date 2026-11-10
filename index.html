@@ -462,15 +462,21 @@
   // يُحسب على الارتفاع المنقوص فيصغُر وينحشر، ثم لا يُعاد بعد إغلاقها. فما دامت خانة اسم مركّزة في شاشة الجمهور يبقى الحجم كما هو،
   // ويُعاد حسابه حين يزول التركيز (audience.html يستدعي __refit عند blur، ثم بعد 0.4 و1 ثانية حتى تنغلق لوحة المفاتيح).
   const typing = () => { try { return !!$('frame').querySelector('iframe')?.contentDocument?.activeElement?.classList.contains('name-in'); } catch { return false; } };
-  window.__refit = () => fitStage(true);
+  // ش8-أ/84 (محاكي iPhone 16 Pro، v96): وبعد «تم» يزول التركيز ولوحة المفاتيح لم تنغلق بعد، فكان أول رسم أو إعادة يحسب المسرح على
+  // الصفحة المنقوصة فيظهر بربع حجمه أعلى الشاشة لحظةً. فما دامت الصفحة أقصر بوضوح من آخر حساب (لوحة المفاتيح ظاهرة) لا يُعاد
+  // الحساب أيضاً، إلا في الإعادة الأخيرة بعد ثانية (last). وانغلاق لوحة المفاتيح نفسه يُطلق resize فيُعاد به.
+  let fitH = 0;
+  window.__refit = last => fitStage(last === true);
   const fitStage = force => {
-    if (NATIVE && force !== true && typing()) return;
+    if (NATIVE && force !== true && (typing() || innerHeight < fitH * 0.85)) return;
     const root = document.documentElement.style, k = Math.min(innerWidth / 1920, innerHeight / 1080);
     root.setProperty('--scale', k);
     // في التطبيق: الإطار يغطي الشاشة كلها بالتكبير نفسه (أعرض: 1080 × vw/vh · أطول: 1920 × vh/vw).
-    if (NATIVE) { root.setProperty('--frame-w', Math.ceil(innerWidth / k) + 'px'); root.setProperty('--frame-h', Math.ceil(innerHeight / k) + 'px'); root.setProperty('--fit-h', innerHeight + 'px'); }
+    if (NATIVE) { root.setProperty('--frame-w', Math.ceil(innerWidth / k) + 'px'); root.setProperty('--frame-h', Math.ceil(innerHeight / k) + 'px'); root.setProperty('--fit-h', innerHeight + 'px'); fitH = innerHeight; }
   };
-  addEventListener('resize', () => fitStage());
+  // وإن بقيت الصفحة أقصر بلا كتابة ثانيةً (نافذة صغُرت في الآيباد لا لوحة مفاتيح) حُسب عليها.
+  let refitLater = 0;
+  addEventListener('resize', () => { fitStage(); clearTimeout(refitLater); if (NATIVE) refitLater = setTimeout(() => { if (!typing()) fitStage(true); }, 1000); });
   document.addEventListener('fullscreenchange', () => render());
 
   // الأزرار التي تظهر على الشاشة المشتركة الآن، بمواضعها: card في البطاقة · near بجانب العدّاد · a وb صفوف الزاويتين.
