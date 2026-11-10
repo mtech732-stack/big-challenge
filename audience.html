@@ -422,16 +422,34 @@
 
   // المباريات قبل التكرار (الوثيقة 1.18، 8، design/s8d.md 1.2): في شاشة البداية وحدها، أعلى اليسار تحت «ملء الشاشة» بـ 24 (152)،
   // أو على 64 إن غاب. سطر لكل نمط بترتيب الأنماط ثم «شريط البونص»، والعدد من المقدّم (view.left، js/play.js freshLeft)، و0 «تتكرر الآن».
+  // وفي التطبيق (design/app.md 6.1): القائمة خلف أيقونة 96 عند (127، 64)، تفتح لوحاً أبيض عند (127، 184) بعمودين بلا «·»،
+  // وتُغلق بنقرة ثانية عليها أو بنقرة في أي مكان آخر أو بالانتقال من شاشة البداية (rpOpen، والنقر في document click).
+  const APP = document.documentElement.classList.contains('native-app');
+  let rpOpen = false;
   function renderLeft(rows) {
     $('rp')?.remove();
-    if (!rows?.length) return;
+    if (!rows?.length) { rpOpen = false; $('rpIco')?.remove(); return; }
     const el = document.createElement('div');
-    el.id = 'rp'; el.className = 'rp'; el.dataset.hud = 'المباريات قبل التكرار'; el.dataset.free = '';
-    el.innerHTML = '<p class="h">المباريات قبل التكرار</p>' + rows.map(r => `<p>${esc(r.name)} · <b>${r.left > 0 ? num(String(r.left)) : 'تتكرر الآن'}</b></p>`).join('');
+    el.id = 'rp'; el.className = 'rp' + (APP && rpOpen ? ' open' : ''); el.dataset.free = '';
+    // في التطبيق لا تُفحص القائمة مغلقةً (مخفية)، ومفتوحةً هي لوح فوق ما تحته، فتُفحص (data-hud).
+    if (!APP || rpOpen) el.dataset.hud = 'المباريات قبل التكرار';
+    el.innerHTML = '<p class="h">المباريات قبل التكرار</p>'
+      + rows.map(r => `<p><span class="nm">${esc(r.name)}</span>${APP ? '' : ' · '}<b>${r.left > 0 ? num(String(r.left)) : 'تتكرر الآن'}</b></p>`).join('');
     canvas.append(el);
+    if (APP) {
+      // الأيقونة لا تُستبدل ما بقيت: ضغطة بين نزول الإصبع ورفعه على زر استُبدل لا تصل (ش8-أ/54).
+      let ico = $('rpIco');
+      if (!ico) {
+        ico = document.createElement('button');
+        ico.id = 'rpIco'; ico.className = 'cbtn ico rp-ico'; ico.dataset.cmd = 'rp'; ico.dataset.tip = ico.ariaLabel = 'المباريات قبل التكرار'; ico.dataset.hud = 'أيقونة المباريات قبل التكرار';
+        ico.innerHTML = '<svg viewBox="0 0 52 52" aria-hidden="true"><path d="M6 12h28M6 26h28M6 40h28"/><circle cx="44" cy="12" r="3"/><circle cx="44" cy="26" r="3"/><circle cx="44" cy="40" r="3"/></svg>';
+        canvas.append(ico);
+      }
+      ico.classList.toggle('open', rpOpen);
+    }
     placeLeft();
   }
-  const placeLeft = () => { const el = $('rp'); if (el) el.style.top = [...document.querySelectorAll('.ctl-corner .cbtn')].some(b => b.offsetParent) ? '152px' : '64px'; };
+  const placeLeft = () => { const el = $('rp'); if (el && !APP) el.style.top = [...document.querySelectorAll('.ctl-corner .cbtn')].some(b => b.offsetParent) ? '152px' : '64px'; };
 
   function render() {
     if (!view || busy) return;
@@ -999,6 +1017,9 @@
       // تأكيد «مباراة جديدة» ظاهر: «مباراة جديدة» تُرسلها مؤكدة، وأي نقرة غيرها = إلغاء (design/app.md 5.5).
       if (!$('askNew').hidden) { const yes = !!e.target.closest('#askNew [data-ask="yes"]'); $('askNew').hidden = true; if (yes) send('new:sure'); return; }
       const b = e.target.closest('[data-cmd]');
+      // قائمة «المباريات قبل التكرار» في التطبيق (design/app.md 6.1): الأيقونة تفتحها وتغلقها، وأي نقرة أخرى تغلقها ثم تمضي.
+      if (b?.dataset.cmd === 'rp') { rpOpen = !rpOpen; render(); return; }
+      if (rpOpen) { rpOpen = false; render(); }
       // لوحة «⋯» تُفتح وتُغلق هنا، وتُغلق باختيار زر فيها أو بنقرة خارجها (design/s8b.md 7.1).
       if (b?.dataset.cmd === 'more') { moreOpen = !moreOpen; renderCtl(); return; }
       if (moreOpen && (!e.target.closest('#moreMenu') || b)) { moreOpen = false; renderCtl(); }
@@ -1084,6 +1105,8 @@
       vv?.addEventListener('resize', lift); vv?.addEventListener('scroll', lift);
       for (const k of [1, 2]) { $('i' + k).addEventListener('focus', () => setTimeout(lift, 50)); $('i' + k).addEventListener('blur', () => setTimeout(lift, 50)); }
     }
+    // والنص الإرشادي في التطبيق أقصر ليسع الخانتين بعرض 440 (design/app.md 6.4).
+    if (APP) { $('i1').placeholder = 'اسم الفريق الأول'; $('i2').placeholder = 'اسم الفريق الثاني'; }
     // تطبيق آبل (design/app.md 4.3.2): مساحة لمس الخانة صف اللوحة كله (136)، فالنقر فيه خارج الخانة يركّز عليها.
     if (document.documentElement.classList.contains('native-app')) for (const k of [1, 2]) {
       $('p' + k).querySelector('.row').addEventListener('click', e => {
