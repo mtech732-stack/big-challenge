@@ -64,15 +64,18 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     check(`مباراة محفوظة بلا وقت (قبل الإصدار): تُستأنف (${r.step})`, r.step === 'play');
     // ويأخذ وقتاً من أول فعل بعدها (اقتراح المدقّق، «رابع وأربعون»).
     const none = (await state(page)).at;
-    // «تراجع» قد يُهمل في مهلة 0.7 ثانية بعد تغيّر الحالة (HOLD_MS)، أو يتأخّر تحت الحمل. فيُنتظر (8 ثوانٍ) أن يُكتب الوقت
-    // أو تتغيّر المباراة المحفوظة. ويُعاد الأمر (ثلاث مرات على الأكثر) ما دامت المباراة كما هي، أي أُهمل.
-    // فإن تغيّرت ولا وقت، فهذا التراجع لم يكتبه: يُخفق سطر الشرط ولا يُعاد (ش8-أ/77، المدقّق #452).
+    // «تراجع» يظهر معطّلاً ويُهمل 0.7 ثانية بعد كل تغيّر في الحالة (HOLD_MS، تقرير المعاين ش2)، ومنها انتهاء عدّاد يجري.
+    // ش8-أ/85 (المدقّق، «حادي وستون»): كان الفحص يحكم بتغيّر المباراة المحفوظة، فإن انتهى العدّاد مع الضغطة تغيّرت بلا وقت
+    // فأخفق، والتراجع نفسه أُهمل في المهلة كما صُمّم. فالحكم الآن على أثر التراجع نفسه: يُنتظر أن يظهر الزر مفعّلاً، ثم يُضغط،
+    // ثم يُنتظر الوقت أو أن يقصر سجل الجولة (أي طُبّق التراجع). فإن طُبّق بلا وقت أخفق السطر ولا يُعاد (درس 75 و77). ولا يُعاد
+    // إلا إن لم يُطبّق (السجل لم يقصر)، أي وقعت الضغطة في المهلة، ثلاث مرات على الأكثر.
+    const hist = () => page.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).round?.history?.length ?? 0);
     for (let i = 0; i < 3; i++) {
-      const before = (await state(page)).match;
+      await r.frame.waitForSelector('[data-cmd="undo"]:not(.off)', { timeout: 8000 }).catch(() => null);
+      const h0 = await hist();
       if (!(await cmd(r.frame, 'undo').then(() => true, () => false))) break;
-      await page.waitForFunction(m => Number(localStorage.getItem('big-challenge.savedAt')) > 0 || localStorage.getItem('big-challenge.match') !== m, before, { timeout: 8000 }).catch(() => null);
-      const now = await state(page);
-      if (now.at > 0 || now.match !== before) break;
+      await page.waitForFunction(h0 => Number(localStorage.getItem('big-challenge.savedAt')) > 0 || (JSON.parse(localStorage.getItem('big-challenge.match')).round?.history?.length ?? 0) < h0, h0, { timeout: 8000 }).catch(() => null);
+      if ((await state(page)).at > 0 || (await hist()) < h0) break;
     }
     const stamped = (await state(page)).at;
     // لا وقت قبل الفعل ولو حفظ عدّاد يجري (ش8-أ/75: المؤقتات لا تجدّد الوقت؛ وكان هذا الفحص يُخفق تحت الحمل بهذا الخلل نفسه).

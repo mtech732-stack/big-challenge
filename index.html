@@ -182,10 +182,15 @@
   // ومباراة محفوظة قبل v87 بلا وقت تُستأنف كما كانت، ووقتها من أول حفظ بعدها.
   function savedAt() { try { return Number(localStorage.getItem(SAVED_AT_KEY)) || 0; } catch { return 0; } }
   const stale = (now = Date.now()) => { const at = savedAt(); return at > 0 && now - at > STALE_MS; };
+  // ش8-أ/87 (المالك 10 نوفمبر 2026): «اذا اغلق التطبيق غلقا تاما فتعيد اما اذا كان غلقا و يظل باقي في الخلفية فيبقى». في التطبيق وحده:
+  // sessionStorage يبقى ما دام التطبيق حياً (ولو في الخلفية) ويُمسح بإغلاقه التام. فإن غاب علَمه عند التحميل فهذا تشغيل بعد
+  // إغلاق تام: بداية جديدة بلا اسمين، وذاكرة الأسئلة لا تُمسّ. وإلا فالقاعدة كما هي (الساعة). والموقع على حاله.
+  const ALIVE_KEY = 'big-challenge.alive';
+  const cold = (() => { if (!NATIVE) return false; try { const was = sessionStorage.getItem(ALIVE_KEY); sessionStorage.setItem(ALIVE_KEY, '1'); return !was; } catch { return false; } })();
   function restore() {
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch {}
-    if (M.isMatch(saved) && saved.step !== 'setup' && stale()) {
+    if (M.isMatch(saved) && ((saved.step !== 'setup' && stale()) || (cold && (saved.step !== 'setup' || saved.teams?.[1] || saved.teams?.[2])))) {
       const fresh = M.newMatch({ pack: packs.some(p => p.id === saved.pack) ? saved.pack : packs[0]?.id ?? null, method: saved.method });
       try { localStorage.setItem(SAVE_KEY, JSON.stringify(fresh)); localStorage.setItem(SAVED_AT_KEY, String(Date.now())); } catch {}
       return fresh;
