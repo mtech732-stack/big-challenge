@@ -58,16 +58,21 @@ const { usePin, reporter, stageFrame } = require('./helpers.cjs');
   }, k);
 
   const names = { 1: 'الصقور الذهبية', 2: 'النجوم الزرق' };
-  // ح: كيف تصل الخانة. «نقر» تفتح لوحة المفاتيح (visualViewport يضيق). «Enter» من الأولى إلى الثانية ولوحة المفاتيح ظاهرة (لا يتغير).
-  const ways = [[1, 'نقر'], [2, 'نقر'], [2, 'Enter']];
+  // كيف تصل الخانة. «نقر» تفتح لوحة المفاتيح (visualViewport يضيق). «التالي» من الأولى إلى الثانية، و«نقر من السفلى» إلى الأولى،
+  // ولوحة المفاتيح ظاهرة فلا يتغير visualViewport (ش8-أ/81): يُكتب أول حرف بعد 0.1 ثانية.
+  const ways = [[1, 'نقر'], [2, 'نقر'], [2, 'التالي'], [1, 'نقر من السفلى']];
   for (const [k, how] of ways) {
     const tag = `الخانة ${k === 1 ? 'العليا' : 'السفلى'} (${how})`;
     if (how === 'نقر') { await f.evaluate(k => { document.getElementById('i' + k).value = ''; window.__writes = []; }, k); await f.tap('#i' + k); await wait(100); await kb(220); await wait(300); }
     else {
-      await f.tap('#i1'); await wait(100); await kb(220); await wait(900);
-      await f.evaluate(() => { document.getElementById('i2').value = ''; window.__writes = []; });
-      await page.keyboard.press('Enter'); await wait(1000);   // يُرفع بعد 0.7 ثانية، فلا تغيّر في visualViewport يأتي
+      const from = k === 2 ? 1 : 2;
+      await f.tap('#i' + from); await wait(100); await kb(220); await wait(900);
+      await f.evaluate(k => { document.getElementById('i' + k).value = ''; window.__writes = []; }, k);
+      // والعليا خارج الشاشة والسفلى مرفوعة، فلا تُنقر: يُنقل إليها التركيز كما يفعل زر الخانة السابقة.
+      if (how === 'التالي') await page.keyboard.press('Enter'); else await f.focus('#i' + k);
+      await wait(100);
     }
+    const before = (await f.evaluate(() => window.__writes)).length;
     const bad = [];
     let i = 0;
     for (const ch of names[k]) {
@@ -79,17 +84,54 @@ const { usePin, reporter, stageFrame } = require('./helpers.cjs');
       if (w.active !== 'i' + k || !w.orig) bad.push(`${i}: التركيز ${w.active || 'لا شيء'}${w.orig ? '' : '، عنصر آخر'}`);
       else if (w.bottom > w.kb + 0.5) bad.push(`${i}: الخانة تحت لوحة المفاتيح (${Math.round(w.bottom)} > ${Math.round(w.kb)})`);
     }
-    const w = await where(k), writes = await f.evaluate(() => window.__writes);
+    const w = await where(k), writes = await f.evaluate(() => window.__writes), typed = writes.slice(before);
     check(`${tag}: اسم كامل حرفاً حرفاً، والعنصر نفسه مركّز بعد كل حرف وفوق لوحة المفاتيح ولو ظهر شريط الاقتراحات (${bad.slice(0, 3).join(' | ')})`, bad.length === 0 && w.value === names[k]);
-    // لا تتحرك اللوحة والتركيز في الخانة إلا مرة: الرفع عند وصولها (السفلى)، ولا شيء في الكتابة.
-    check(`${tag}: تتحرك اللوحة ${k === 1 ? 'صفر مرة' : 'مرة واحدة'} ولا تتحرك في الكتابة (${writes.length} كتابة: ${writes.map(x => x.t || 'لا شيء').join(' ، ')})`,
-      writes.length === (k === 1 ? 0 : 1) && (k === 1 || /translateY/.test(writes[0].t)));
-    await page.screenshot({ path: `${shots}/app-keyboard-${k}-${how === 'نقر' ? 'tap' : 'enter'}.png` });
+    // لا تتحرك اللوحة إلا مرة عند وصول الخانة (رفع السفلى، أو نزول العليا من السفلى)، قبل أول حرف، ولا شيء في الكتابة.
+    const once = { 'نقر': k === 1 ? 0 : 1, 'التالي': 1, 'نقر من السفلى': 1 }[how];
+    check(`${tag}: تتحرك اللوحة ${once ? 'مرة واحدة قبل أول حرف' : 'صفر مرة'} ولا تتحرك في الكتابة (${writes.length} كتابة، ${typed.length} في الكتابة: ${writes.map(x => x.t || 'لا شيء').join(' ، ')})`,
+      writes.length === once && typed.length === 0 && (k === 1 ? writes.every(x => !/translateY/.test(x.t)) : /translateY/.test(writes[0].t)));
+    await page.screenshot({ path: `${shots}/app-keyboard-${k}-${{ 'نقر': 'tap', 'التالي': 'next', 'نقر من السفلى': 'back' }[how]}.png` });
     await f.evaluate(k => document.getElementById('i' + k).blur(), k); await kb(H); await wait(200);
     check(`${tag}: وبزوال التركيز تعود اللوحة إلى مكانها`, await f.evaluate(() => !document.querySelector('.screen').style.transform));
   }
   const m = await page.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).teams);
-  check(`الاسمان في المباراة (${m[1]}، ${m[2]})`, m[1] === names[1] && m[2] === names[2]);
+  const teams = m;
+  await context.close();
+
+  // ===== ش8-أ/80 (محاكي iPhone 16 Pro، v94): لوحة المفاتيح تُنقص ارتفاع الصفحة نفسها (resize)، وكل حرف يرسم =====
+  // كان المسرح يُحسب على الارتفاع المنقوص فيصغُر وينحشر أعلى الشاشة، ثم يبقى مصغّراً بعد إغلاقها. والآن يبقى كما هو ما دامت
+  // خانة مركّزة، ويعود حجمه بزوال التركيز، سواء انغلقت لوحة المفاتيح بعده أو قبله.
+  {
+    const c2 = await browser.newContext({ viewport: { width: 956, height: H }, hasTouch: true });
+    c2.on('page', p => { p.on('pageerror', e => errors.push(e.message)); });
+    await usePin(c2);
+    await c2.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true }; });
+    const p2 = await c2.newPage();
+    await p2.goto(base); await p2.evaluate(() => localStorage.clear()); await p2.reload();
+    const g = await stageFrame(p2); await wait(1500);
+    // موضع اللوحة 1920×1080 ومقاسها في الصفحة.
+    const stage = () => p2.evaluate(() => { const fr = document.querySelector('#single iframe'), fb = fr.getBoundingClientRect(), w = fr.contentWindow,
+      r = w.document.getElementById('canvas').getBoundingClientRect(), s = fb.height / w.innerHeight;
+      return [fb.left + r.left * s, fb.top + r.top * s, r.width * s, r.height * s].map(Math.round).join(','); });
+    const r0 = await stage();
+    const runs = [[2, 'بعد الإغلاق'], [2, 'قبل الإغلاق'], [1, 'بعد الإغلاق']];
+    for (const [k, when] of runs) {
+      const tag = `ش8-أ/80، الخانة ${k === 1 ? 'العليا' : 'السفلى'} (تزول قبل انغلاق لوحة المفاتيح ${when === 'بعد الإغلاق' ? 'لا' : 'بل بعده'})`;
+      await g.evaluate(k => { document.getElementById('i' + k).value = ''; }, k);
+      await g.tap('#i' + k); await wait(100);
+      await p2.setViewportSize({ width: 956, height: 220 }); await wait(300);   // لوحة المفاتيح تنقص الصفحة
+      const during = [];
+      for (const ch of 'Eagles') { await p2.keyboard.type(ch); await wait(150); during.push(await stage()); }
+      if (when === 'بعد الإغلاق') { await g.evaluate(k => document.getElementById('i' + k).blur(), k); await wait(300); await p2.setViewportSize({ width: 956, height: H }); }
+      else { await p2.setViewportSize({ width: 956, height: H }); await wait(300); await g.evaluate(k => document.getElementById('i' + k).blur(), k); }
+      await wait(1500);
+      // في الكتابة: المقاس والموضع الأفقي كما هما (الرفع يحرّك الموضع الرأسي وحده). وبعدها: كل شيء كما كان.
+      const size = x => x.split(',').filter((_, i) => i !== 1).join(), after = await stage(), moved = during.filter(x => size(x) !== size(r0));
+      check(`${tag}: المسرح بمقاسه في الكتابة (${moved.length ? moved[0] : size(r0)})، ويعود كما كان بعدها (${after})`, moved.length === 0 && after === r0);
+    }
+    await c2.close();
+  }
+  check(`الاسمان في المباراة (${teams[1]}، ${teams[2]})`, teams[1] === names[1] && teams[2] === names[2]);
   await browser.close();
   finish(errors);
 })();

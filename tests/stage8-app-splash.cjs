@@ -1,8 +1,8 @@
 // اختبار آلي لـ ش8-أ/79 (المالك على v93، design/app.md 2.1): عند فتح التطبيق كانت تومض بطاقة سؤال ثم تختفي. وهي بطاقة
 // «بانتظار المقدّم» التي ترسمها شاشة الجمهور قبل أن تصلها حالة المباراة. والآن لا يُرى من اللوحة شيء قبل أول رسم بحالة معروفة،
-// وشاشة الإطلاق (SplashScreen مزيّف) تُخفى بعده مرة واحدة، أو بعد 3 ثوانٍ مهما حدث.
+// وشاشة الإطلاق (SplashScreen مزيّف) تُخفى بعده مرة واحدة (والخطوط محمّلة، بعد إطارين)، أو بعد 8 ثوانٍ مهما حدث.
 // · مباراة محفوظة عمرها 61 دقيقة: كل إطار رُسم قبل أن تظهر اللوحة فيه ألوان المسرح وحدها، وأول ما يظهر شاشة البداية، ولا شيء من المباراة.
-// · hide تُستدعى مرة واحدة، بعد ظهور شاشة البداية. · وإن تعطّل الكود قبل الرسم: hide بالمهلة (3 ثوانٍ) مرة واحدة.
+// · hide تُستدعى مرة واحدة، بعد ظهور شاشة البداية والخطوط محمّلة. · وإن تعطّل الكود قبل الرسم: hide بالمهلة (8 ثوانٍ) مرة واحدة.
 // · الموقع: لا خطأ، واللوحة تظهر بعد الرقم.
 const { chromium } = require('playwright');
 const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./helpers.cjs');
@@ -26,7 +26,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
         window.__t0 = performance.now(); window.__hides = [];
         if (native) window.Capacitor = { isNativePlatform: () => true, Plugins: { SplashScreen: { hide: o => {
           const fr = document.querySelector('#single iframe')?.contentDocument, cv = fr?.getElementById('canvas');
-          window.__hides.push({ t: performance.now() - window.__t0, o, hero: cv && !cv.classList.contains('unready') ? cv.dataset.hero ?? '' : 'مخفية' });
+          window.__hides.push({ t: performance.now() - window.__t0, o, hero: cv && !cv.classList.contains('unready') ? cv.dataset.hero ?? '' : 'مخفية', fonts: fr?.fonts?.status });
         } } } };
         return;
       }
@@ -65,10 +65,10 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     const firstSeen = fr.find(x => x.vis);
     check(`التطبيق، فتح بعد 61 دقيقة: لا يُرى من اللوحة شيء قبل أول رسم، وأول ما يظهر شاشة البداية بلا بطاقة (${fr.map(x => `${x.vis ? 'ظاهرة' : 'مخفية'}/${x.hero || '-'}${x.card ? '/بطاقة' : ''}`).join(' ← ')})`,
       !!firstSeen && firstSeen.hero === 'start' && !fr.some(x => x.vis && (x.card || x.hero !== 'start')));
-    check(`وشاشة الإطلاق تُخفى مرة واحدة بعد ظهور البداية، بتلاشٍ 200 (${hides.map(h => `${Math.round(h.t)}ms/${h.hero}`).join('، ')})`,
-      hides.length === 1 && hides[0].hero === 'start' && hides[0].o?.fadeOutDuration === 200 && hides[0].t < 3000);
-    await page.waitForTimeout(500);
-    check('ولا تُستدعى ثانية بالمهلة بعد 3 ثوانٍ', (await page.evaluate(() => window.__hides.length)) === 1);
+    check(`وشاشة الإطلاق تُخفى مرة واحدة بعد ظهور البداية والخطوط محمّلة، بتلاشٍ 200 (${hides.map(h => `${Math.round(h.t)}ms/${h.hero}/${h.fonts}`).join('، ')})`,
+      hides.length === 1 && hides[0].hero === 'start' && hides[0].fonts === 'loaded' && hides[0].o?.fadeOutDuration === 200 && hides[0].t < 8000);
+    await page.waitForTimeout(5200);
+    check('ولا تُستدعى ثانية بالمهلة بعد 8 ثوانٍ', (await page.evaluate(() => window.__hides.length)) === 1);
     // وفتح بمباراة جارية (قبل الساعة): أول ما يظهر سؤالها نفسه، لا بطاقة «بانتظار المقدّم».
     f = await stageFrame(page);
     await sharedToFace(f, { names: ['الصقور', 'النجوم'], picks: ['letter', 'auction'] });
@@ -86,10 +86,10 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     await c.route(/\/js\/.*\.js/, r => r.abort());
     const page = await c.newPage();
     page.removeAllListeners('pageerror'); page.removeAllListeners('console');
-    await page.goto(base); await wait(3600);
+    await page.goto(base); await wait(8800);
     const hides = await page.evaluate(() => window.__hides);
-    check(`التطبيق، الكود معطّل قبل الرسم: شاشة الإطلاق تُخفى بالمهلة بعد 3 ثوانٍ، مرة واحدة (${hides.map(h => Math.round(h.t) + 'ms').join('، ')})`,
-      hides.length === 1 && hides[0].t >= 2900 && hides[0].t < 3600);
+    check(`التطبيق، الكود معطّل قبل الرسم: شاشة الإطلاق تُخفى بالمهلة بعد 8 ثوانٍ، مرة واحدة (${hides.map(h => Math.round(h.t) + 'ms').join('، ')})`,
+      hides.length === 1 && hides[0].t >= 7900 && hides[0].t < 8800);
     await c.close();
   }
   // ===== الموقع =====
