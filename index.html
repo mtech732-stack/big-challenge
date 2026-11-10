@@ -48,6 +48,9 @@
   /* تطبيق آبل (design/app.md 3.3): الإطار بنسبة الشاشة لا 16:9، فتملأ نافذة الجمهور الأشرطة، واللوحة 1920×1080 في وسطها. والتكبير كما هو */
   .native-app #single { background: linear-gradient(135deg, #1A4BD1 0%, #1238A8 55%, #0E2C86 100%); }
   .native-app .frame, .native-app .frame iframe { width: var(--frame-w, 1920px); height: var(--frame-h, 1080px); }
+  /* ش8-أ/82 (المعاين، v95): وسط الإطار على نصف ارتفاع الصفحة عند آخر حساب (--fit-h)، لا على 50% منها. فإذا أنقصت لوحة المفاتيح
+     الصفحة والحجم ثابت في الكتابة (80) بقي الإطار مكانه، ولم يرتفع نصف لوحة المفاتيح فتخرج الخانة العليا من أعلى الشاشة */
+  .native-app .frame { top: calc(var(--fit-h, 100vh) / 2); }
   body.one { overflow: hidden; }
 
 </style>
@@ -465,7 +468,7 @@
     const root = document.documentElement.style, k = Math.min(innerWidth / 1920, innerHeight / 1080);
     root.setProperty('--scale', k);
     // في التطبيق: الإطار يغطي الشاشة كلها بالتكبير نفسه (أعرض: 1080 × vw/vh · أطول: 1920 × vh/vw).
-    if (NATIVE) { root.setProperty('--frame-w', Math.ceil(innerWidth / k) + 'px'); root.setProperty('--frame-h', Math.ceil(innerHeight / k) + 'px'); }
+    if (NATIVE) { root.setProperty('--frame-w', Math.ceil(innerWidth / k) + 'px'); root.setProperty('--frame-h', Math.ceil(innerHeight / k) + 'px'); root.setProperty('--fit-h', innerHeight + 'px'); }
   };
   addEventListener('resize', () => fitStage());
   document.addEventListener('fullscreenchange', () => render());
