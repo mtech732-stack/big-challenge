@@ -1,0 +1,170 @@
+// اختبار آلي لـ ش8-أ/73 (المالك 9 نوفمبر 2026): مباراة تُركت أكثر من ساعة لا تُستأنف، فتفتح اللعبة على شاشة البداية.
+// وقبل الساعة تُستأنف كما كانت، وذاكرة الأسئلة لا تتغير. وفي التطبيق: العودة من الخلفية (visibilitychange) بالقاعدة نفسها.
+const { chromium } = require('playwright');
+const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./helpers.cjs');
+
+(async () => {
+  const base = process.argv[2] || 'http://localhost:8000/';
+  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+  const errors = [];
+  const { check, finish } = reporter();
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const MIN = 60 * 1000;
+
+  async function open(native, clock = false) {
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, serviceWorkers: 'block' });
+    context.on('page', p => {
+      p.on('pageerror', e => errors.push(e.message));
+      p.on('console', m => m.type() === 'error' && !/pin\.json|Failed to load resource/.test(m.text()) && errors.push(m.text()));
+    });
+    await usePin(context);
+    if (native) await context.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true }; });
+    const page = await context.newPage();
+    if (clock) await page.clock.install();
+    await page.goto(base);
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    if (!native) await unlock(page);
+    const frame = await stageFrame(page);
+    await sharedToFace(frame, { names: ['الصقور', 'النجوم'], picks: ['letter', 'auction'] });
+    await wait(2700);
+    await cmd(frame, 'begin'); await frame.waitForSelector('.scr.show[data-s="intro"]');
+    await cmd(frame, 'act:show'); await wait(800);
+    return { context, page };
+  }
+  const state = page => page.evaluate(() => ({ match: localStorage.getItem('big-challenge.match'), seen: localStorage.getItem('big-challenge.seen'), at: Number(localStorage.getItem('big-challenge.savedAt')) }));
+  const age = (page, ms) => page.evaluate(ms => localStorage.setItem('big-challenge.savedAt', String(Date.now() - ms)), ms);
+  // بعد إعادة التحميل: الخطوة ونص الشاشة المعروضة.
+  async function reopen(page, native) {
+    await page.reload();
+    if (!native) await unlock(page);
+    const frame = await stageFrame(page);
+    await wait(500);
+    const m = await page.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match') ?? 'null'));
+    const shown = await frame.$eval('.scr.show', e => e.dataset.s ?? e.className);
+    return { frame, step: m?.step ?? 'none', shown, start: !!(await frame.$('[data-cmd="draw"]')), names: [await frame.inputValue('#i1').catch(() => '?'), await frame.inputValue('#i2').catch(() => '?')] };
+  }
+
+  {
+    const { context, page } = await open(false);
+    const before = await state(page);
+    check(`الحفظ يكتب وقت آخر فعل (${Math.round((Date.now() - before.at) / 1000)} ثانية)`, before.at > 0 && Date.now() - before.at < 30000 && JSON.parse(before.match).step === 'play');
+    await age(page, 59 * MIN);
+    let r = await reopen(page, false);
+    check(`الموقع، 59 دقيقة: تُستأنف المباراة في جولتها (${r.step} · ${r.shown})`, r.step === 'play' && r.shown === 'q' && !r.start);
+    const resumed = await state(page);
+    await age(page, 61 * MIN);
+    r = await reopen(page, false);
+    const after = await state(page);
+    check(`الموقع، 61 دقيقة: شاشة البداية بمباراة جديدة بلا اسمين (${r.step} · ${r.names.join('،')})`, r.step === 'setup' && r.start && r.names.join() === ',');
+    check('وذاكرة الأسئلة كما هي بعدها، لا تُفرَّغ ولا يُزاد عليها', after.seen === resumed.seen && after.seen === before.seen && JSON.parse(after.seen).length >= 6);
+    // مباراة محفوظة قبل هذا الإصدار بلا وقت تُستأنف (القاعدة الثابتة: المباريات المحفوظة تُستأنف).
+    await page.evaluate(m => { localStorage.setItem('big-challenge.match', m); localStorage.removeItem('big-challenge.savedAt'); }, resumed.match);
+    r = await reopen(page, false);
+    check(`مباراة محفوظة بلا وقت (قبل الإصدار): تُستأنف (${r.step})`, r.step === 'play');
+    // ويأخذ وقتاً من أول فعل بعدها (اقتراح المدقّق، «رابع وأربعون»).
+    const none = (await state(page)).at;
+    // «تراجع» قد يُهمل في مهلة 0.7 ثانية بعد تغيّر الحالة (HOLD_MS)، أو يتأخّر تحت الحمل. فيُنتظر (8 ثوانٍ) أن يُكتب الوقت
+    // أو تتغيّر المباراة المحفوظة. ويُعاد الأمر (ثلاث مرات على الأكثر) ما دامت المباراة كما هي، أي أُهمل.
+    // فإن تغيّرت ولا وقت، فهذا التراجع لم يكتبه: يُخفق سطر الشرط ولا يُعاد (ش8-أ/77، المدقّق #452).
+    for (let i = 0; i < 3; i++) {
+      const before = (await state(page)).match;
+      if (!(await cmd(r.frame, 'undo').then(() => true, () => false))) break;
+      await page.waitForFunction(m => Number(localStorage.getItem('big-challenge.savedAt')) > 0 || localStorage.getItem('big-challenge.match') !== m, before, { timeout: 8000 }).catch(() => null);
+      const now = await state(page);
+      if (now.at > 0 || now.match !== before) break;
+    }
+    const stamped = (await state(page)).at;
+    // لا وقت قبل الفعل ولو حفظ عدّاد يجري (ش8-أ/75: المؤقتات لا تجدّد الوقت؛ وكان هذا الفحص يُخفق تحت الحمل بهذا الخلل نفسه).
+    check(`والمحفوظ بلا وقت يأخذ وقتاً بعد أول فعل، لا قبله (${none ? 'وقت' : 'لا شيء'} ← ${stamped ? 'وقت' : 'لا شيء'})`, !none && stamped > 0 && Date.now() - stamped < 30000);
+    await context.close();
+  }
+  {
+    const { context, page } = await open(true);
+    await age(page, 59 * MIN);
+    let r = await reopen(page, true);
+    check(`التطبيق، فتح بعد 59 دقيقة: تُستأنف المباراة (${r.step} · ${r.shown})`, r.step === 'play' && r.shown === 'q');
+    await age(page, 61 * MIN);
+    r = await reopen(page, true);
+    check(`التطبيق، فتح بعد 61 دقيقة: شاشة البداية (${r.step})`, r.step === 'setup' && r.start);
+    await context.close();
+  }
+  {
+    // العودة من الخلفية بلا إعادة تحميل (visibilitychange).
+    const { context, page } = await open(true);
+    const back = async ms => {
+      await age(page, ms);
+      await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
+      await wait(800);
+      return page.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).step);
+    };
+    const seen = (await state(page)).seen;
+    check('التطبيق، عودة من الخلفية بعد 30 دقيقة: المباراة كما هي', (await back(30 * MIN)) === 'play');
+    check('وبعد 61 دقيقة: شاشة البداية بلا سؤال، والذاكرة كما هي', (await back(61 * MIN)) === 'setup' && (await state(page)).seen === seen
+      && !!(await (await stageFrame(page)).waitForSelector('[data-cmd="draw"]', { timeout: 5000 }).catch(() => null)));
+    await context.close();
+  }
+  {
+    // ش8-أ/75 (تقرير المعاين #443): العدّاد يجري والتطبيق في الخلفية. المؤقتات المتأخرة تنطلق قبل visibilitychange فتحفظ،
+    // ولا يجدّد ذلك وقت آخر فعل: لا يجدّده إلا فعل المقدّم. والساعة مزيّفة (clock) فتُقدَّم ساعة كاملة وتنطلق المؤقتات فيها.
+    const { context, page } = await open(true, true);
+    const timer = () => page.evaluate(() => !!JSON.parse(localStorage.getItem('big-challenge.match')).round?.timer);
+    const visible = () => page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
+    const hidden = () => page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); });
+    const step = () => page.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).step);
+    // نقرة حقيقية، ثم 59 دقيقة في الخلفية تنطلق فيها المؤقتات: تُستأنف.
+    await cmd((await stageFrame(page)), 'undo'); await wait(300); await cmd((await stageFrame(page)), 'act:show'); await wait(800);
+    const running = await timer();
+    let s0 = await state(page);
+    await hidden(); await page.clock.fastForward(59 * MIN); await wait(500);
+    let s1 = await state(page);
+    await visible(); await wait(800);
+    check(`التطبيق، العدّاد يجري (${running}) ونقرة ثم 59 دقيقة في الخلفية: المؤقتات حفظت (${s1.match !== s0.match}) والوقت كما هو، وتُستأنف (${await step()})`,
+      running && s1.match !== s0.match && s1.at === s0.at && (await step()) === 'play');
+    // كما في الآيفون: نقرة تبدأ العدّاد، ثم تتجمّد المؤقتات في الخلفية 61 دقيقة (الساعة تتقدّم بلا إطلاقها)،
+    // ثم تنطلق عند العودة قبل visibilitychange فيحفظ انتهاء العدّاد: شاشة البداية.
+    await context.close();
+  }
+  {
+    const { context, page } = await open(true, true);
+    const timer = () => page.evaluate(() => !!JSON.parse(localStorage.getItem('big-challenge.match')).round?.timer);
+    const visible = () => page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
+    const hidden = () => page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); });
+    const step = () => page.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).step);
+    const again = await timer();
+    const s0 = await state(page);
+    await hidden();
+    await page.clock.setSystemTime(await page.evaluate(() => Date.now()) + 61 * MIN);
+    await page.clock.runFor(45000); await wait(500);
+    const s1 = await state(page);
+    await visible(); await wait(800);
+    check(`التطبيق، نقرة تبدأ العدّاد (${again}) ثم 61 دقيقة مجمّدة، والمؤقتات تنطلق وتحفظ قبل الرجوع (${s1.match !== s0.match}) والوقت كما هو (${s1.at === s0.at}): شاشة البداية (${await step()})`,
+      again && s1.match !== s0.match && s1.at === s0.at && (await step()) === 'setup');
+    await context.close();
+  }
+  // ش8-أ/76 (المدقّق #446): «اختيار الأنماط» (goDraw) فعل المقدّم وفيه await قبل الحفظ. من كتب الاسمين وانتظر أكثر من ساعة،
+  // ثم ضغطه وخرج قبل أن يختار نمطاً: يعود إلى «اختيار النمط» باسميه، لا إلى البداية. في الموقع (فيه تحقق الرقم) والتطبيق.
+  for (const native of [false, true]) {
+    const tag = native ? 'التطبيق' : 'الموقع';
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, serviceWorkers: 'block' });
+    context.on('page', p => { p.on('pageerror', e => errors.push(e.message)); });
+    await usePin(context);
+    if (native) await context.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true }; });
+    const page = await context.newPage();
+    await page.goto(base); await page.evaluate(() => localStorage.clear()); await page.reload();
+    if (!native) await unlock(page);
+    const frame = await stageFrame(page);
+    await frame.fill('#i1', 'الصقور'); await frame.fill('#i2', 'النجوم'); await cmd(frame, 'count:short'); await wait(500);
+    await age(page, 61 * MIN);
+    await cmd(frame, 'draw');
+    await frame.waitForSelector('[data-hero="pick"] #pickCtl [data-cmd="draw"]', { timeout: 8000 }); await wait(300);
+    const at = (await state(page)).at;
+    const r = await reopen(page, native);
+    const m = await page.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')));
+    check(`${tag}، ش8-أ/76: «اختيار الأنماط» بعد 61 دقيقة يكتب الوقت (${Math.round((Date.now() - at) / 1000)} ثانية)، وإعادة الفتح على «اختيار النمط» باسميه (${r.step} · ${m.teams?.[1]}،${m.teams?.[2]})`,
+      Date.now() - at < 30000 && r.step === 'pick' && m.teams?.[1] === 'الصقور' && m.teams?.[2] === 'النجوم');
+    await context.close();
+  }
+  await browser.close();
+  finish(errors);
+})();

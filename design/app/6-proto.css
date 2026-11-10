@@ -1,0 +1,12 @@
+.native-app #rp { display: none; }
+.native-app #rp.open { display: grid; grid-template-columns: auto auto; column-gap: 48px; align-items: baseline; top: 184px !important; left: 127px;
+  background: var(--card); color: var(--ink); opacity: 1; padding: 24px 40px; font-size: 36px; line-height: 56px; box-shadow: 10px 10px 0 0 #0B1033; }
+.native-app #rp.open .h { grid-column: 1 / -1; font-size: 36px; margin-bottom: 8px; }
+.native-app #rp.open p:not(.h) { display: contents; }
+.native-app #rp.open p:not(.h) .nm { justify-self: start; }
+.native-app #rp.open p:not(.h) b { justify-self: end; }
+#protoIco { position: absolute; left: 127px; top: 64px; width: 96px; height: 96px; box-sizing: border-box; border: 4px solid var(--card); display: grid; place-items: center; z-index: 3; color: var(--card); }
+#protoIco.open { background: var(--card); color: var(--ink); }
+.native-app [data-hero="start"] .start-go { top: 906px; }
+.native-app [data-hero="start"] .start-side { bottom: calc(1080px - 990px); }
+.native-app [data-hero="start"] .team .name-in { flex-basis: 440px; }

@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>التحدي الكبير · نافذة الجمهور</title>
 <link rel="icon" href="design/logo/icon-48.png">
+<!-- تطبيق آبل (design/app.md 3): الصنف native-app قبل الرسم، والجسر في هذه النافذة أو في الصفحة الأم التي تضمّها -->
+<script>try { if ([window, parent].some(w => w.Capacitor?.isNativePlatform?.() === true)) { document.documentElement.classList.add('native-app');
+  // design/app.md 5.3: لا تكبير بنقرتين ولا بإصبعين في التطبيق.
+  const v = document.querySelector('meta[name="viewport"]'); if (v) v.content += ', maximum-scale=1, user-scalable=no'; } } catch {}</script>
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/stage.css">
@@ -29,7 +33,7 @@
 </head>
 <body>
 <div class="screen">
-  <div class="canvas locked pre" id="canvas">
+  <div class="canvas locked pre unready" id="canvas">
     <!-- المسرح بطرفين بلوني الفريقين، والحدّ بينهما يكتسح لصاحب الدور (1.3، design/system.md 15.1–15.2) -->
     <div class="stagebg" id="stagebg"><div class="f f1"></div><div class="f f2"></div><div class="e" id="edge"></div>
       <div class="beam"></div><div class="beam w"></div><div class="beam"></div><div class="beam w"></div></div>
@@ -56,7 +60,7 @@
     <!-- لوحة الفريق بلا شكل: الاسم ثم الرقم الكبير ثم العدّاد لصاحب الدور، وإطار الوقت حولها (15.3 و15.5) -->
     <section class="team t1" id="p1" data-hud="لوحة الفريق الأول">
       <div class="shape"></div><svg class="ring" preserveAspectRatio="none"><polygon pathLength="100"/></svg>
-      <div class="row" data-fit="لوحة الفريق الأول"><span class="name" id="n1">الفريق الأول</span><input class="name-in" id="i1" maxlength="18" autocomplete="off" placeholder="اكتب اسم الفريق الأول" aria-label="اسم الفريق الأول"><span class="score" id="s1"></span><span class="cnt" id="c1"></span></div>
+      <div class="row" data-fit="لوحة الفريق الأول"><span class="name" id="n1">الفريق الأول</span><input class="name-in" id="i1" maxlength="18" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="next" placeholder="اكتب اسم الفريق الأول" aria-label="اسم الفريق الأول"><span class="score" id="s1"></span><span class="cnt" id="c1"></span></div>
     </section>
 
     <div class="badge mode" data-hud="شارة النمط"><i></i><span id="mode">اختبار العرض</span><img class="art" alt="" data-overhang hidden></div>
@@ -148,11 +152,15 @@
 
     <section class="team t2" id="p2" data-hud="لوحة الفريق الثاني">
       <div class="shape"></div><svg class="ring" preserveAspectRatio="none"><polygon pathLength="100"/></svg>
-      <div class="row" data-fit="لوحة الفريق الثاني"><span class="name" id="n2">الفريق الثاني</span><input class="name-in" id="i2" maxlength="18" autocomplete="off" placeholder="اكتب اسم الفريق الثاني" aria-label="اسم الفريق الثاني"><span class="score" id="s2"></span><span class="cnt" id="c2"></span></div>
+      <div class="row" data-fit="لوحة الفريق الثاني"><span class="name" id="n2">الفريق الثاني</span><input class="name-in" id="i2" maxlength="18" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="اكتب اسم الفريق الثاني" aria-label="اسم الفريق الثاني"><span class="score" id="s2"></span><span class="cnt" id="c2"></span></div>
     </section>
 
     <!-- باركود الإجابات يمين البطاقة (design/s8.md 2): أبيض مستقيم 520×520 وخلفه صفيحة مائلة 6° -->
     <div class="qrbox" id="qrbox" data-hud="الباركود"><div class="plate"></div><div class="sheet"><canvas aria-label="باركود الإجابات"></canvas></div></div>
+    <!-- تأكيد «مباراة جديدة» في التطبيق (design/app.md 5.5): من اللعبة لا نافذة النظام، وسط الشاشة فوق البطاقة.
+         طبقة فوق اللوحة عمداً، فلا data-hud: لا يقيس check.js تداخلها مع البطاقة والشارات تحتها -->
+    <div class="ask" id="askNew" hidden><div class="plate"></div><div class="sheet"><p>تبدأ مباراة جديدة ويُمحى ما سبق</p>
+      <div class="ctl"><button class="cbtn no" data-ask="yes">مباراة جديدة</button><button class="cbtn alt" data-ask="no">إلغاء</button></div></div></div>
     <!-- مربع الإعلان أسفل اليمين (15.4): الحكم والإجابة بعد الحكم الأخير · من يبدأ الإجابة في المواجهة · «التالي» في نهاية الجولة -->
     <div class="box" id="box" data-hud="مربع الإعلان" hidden><i></i>
       <p class="chip" id="verdict" hidden><i></i><span id="vtext"></span></p>
@@ -195,23 +203,43 @@
   const query = new URLSearchParams(location.search);
   const embed = query.has('embed');
   if (embed) document.body.classList.add('embed');
+  // تطبيق آبل (design/app.md 3.3): المسرح وحده (الطرفان والحدّ والحزم والجسيمات) يمتد إلى الأشرطة الجانبية.
+  // يُنقل إلى طبقة خلف اللوحة بالتكبير نفسه وبلا قصّ، وتنسخ أصناف اللوحة (الدور، swap، running…) فتعمل قواعد المسرح كما هي.
+  // وكل ما سواه يبقى في اللوحة مقصوصاً على 1920×1080. والموقع لا يتغير: لا طبقة فيه.
+  if (document.documentElement.classList.contains('native-app')) {
+    const back = document.createElement('div');
+    back.id = 'backdrop';
+    back.append($('stagebg'), $('particles'));
+    canvas.before(back);
+    const mirror = () => { back.className = 'backdrop ' + canvas.className.replace(/(^|\s)canvas(?=\s|$)/, ' ').trim(); };
+    new MutationObserver(mirror).observe(canvas, { attributes: true, attributeFilter: ['class'] });
+    mirror();
+  }
   const fit = () => document.documentElement.style.setProperty(
     '--scale', Math.min(innerWidth / 1920, innerHeight / 1080));
   addEventListener('resize', fit);
   fit();
 
   // الجسيمات: مواضع ثابتة البذرة كما في design/main.html.
+  // وفي التطبيق تتوزع على عرض الطبقة الخلفية كله، أي اللوحة والشريطين (design/app.md 5 ج): موضعها نسبة من العرض الظاهر.
   (function particles() {
     let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const wide = document.documentElement.classList.contains('native-app'), spots = [];
+    const spread = () => {
+      const pad = wide ? Math.max(0, (innerWidth / Math.min(innerWidth / 1920, innerHeight / 1080) - 1920) / 2) : 0;
+      for (const [s, x] of spots) s.style.left = Math.round(-pad + x * (1900 + 2 * pad)) + 'px';
+    };
     for (let i = 0; i < 22; i++) {
       const s = document.createElement('span');
-      s.style.left = Math.round(rnd() * 1900) + 'px';
+      spots.push([s, rnd()]);
       s.style.top = Math.round(500 + rnd() * 600) + 'px';
       s.style.animationDuration = (14 + rnd() * 10).toFixed(1) + 's';
       s.style.animationDelay = (-rnd() * 20).toFixed(1) + 's';
       const k = 6 + Math.round(rnd() * 8); s.style.width = s.style.height = k + 'px';
       $('particles').appendChild(s);
     }
+    spread();
+    if (wide) addEventListener('resize', spread);
   })();
 
   const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -239,7 +267,7 @@
     if (t === side) return;
     side = t;
     canvas.classList.toggle('turn-1', t === 1); canvas.classList.toggle('turn-2', t === 2);
-    if (still()) replay(canvas, 'swap'); else replay($('edge'), 'sweep');
+    if (still()) { replay(canvas, 'swap'); if ($('backdrop')) replay($('backdrop'), 'swap'); } else replay($('edge'), 'sweep');
   };
   // الحزم: حركة واحدة متصلة، وسرعتها بالحالة دون قفز: القراءة 1 · العدّاد 2.2 · آخر 3 ثوانٍ 3.5 · لحظة الحكم 6 لنصف ثانية.
   const beams = still() ? [] : [...document.querySelectorAll('.beam')].map((b, i) => {
@@ -392,8 +420,49 @@
   const name = t => view.match.teams[t] || (t === 1 ? 'الفريق الأول' : 'الفريق الثاني');
   const tn = t => `<b class="tn t${t}">${esc(name(t))}</b>`;
 
+  // المباريات قبل التكرار (الوثيقة 1.18، 8، design/s8d.md 1.2): في شاشة البداية وحدها، أعلى اليسار تحت «ملء الشاشة» بـ 24 (152)،
+  // أو على 64 إن غاب. سطر لكل نمط بترتيب الأنماط ثم «شريط البونص»، والعدد من المقدّم (view.left، js/play.js freshLeft)، و0 «تتكرر الآن».
+  // وفي التطبيق (design/app.md 6.1): القائمة خلف أيقونة 96 عند (127، 64)، تفتح لوحاً أبيض عند (127، 184) بعمودين بلا «·»،
+  // وتُغلق بنقرة ثانية عليها أو بنقرة في أي مكان آخر أو بالانتقال من شاشة البداية (rpOpen، والنقر في document click).
+  const APP = document.documentElement.classList.contains('native-app');
+  let rpOpen = false;
+  function renderLeft(rows) {
+    $('rp')?.remove();
+    if (!rows?.length) { rpOpen = false; $('rpIco')?.remove(); return; }
+    const el = document.createElement('div');
+    el.id = 'rp'; el.className = 'rp' + (APP && rpOpen ? ' open' : ''); el.dataset.free = '';
+    // في التطبيق لا تُفحص القائمة مغلقةً (مخفية)، ومفتوحةً هي لوح فوق ما تحته، فتُفحص (data-hud).
+    if (!APP || rpOpen) el.dataset.hud = 'المباريات قبل التكرار';
+    el.innerHTML = '<p class="h">المباريات قبل التكرار</p>'
+      + rows.map(r => `<p><span class="nm">${esc(r.name)}</span>${APP ? '' : ' · '}<b>${r.left > 0 ? num(String(r.left)) : 'تتكرر الآن'}</b></p>`).join('');
+    canvas.append(el);
+    if (APP) {
+      // الأيقونة لا تُستبدل ما بقيت: ضغطة بين نزول الإصبع ورفعه على زر استُبدل لا تصل (ش8-أ/54).
+      let ico = $('rpIco');
+      if (!ico) {
+        ico = document.createElement('button');
+        ico.id = 'rpIco'; ico.className = 'cbtn ico rp-ico'; ico.dataset.cmd = 'rp'; ico.dataset.tip = ico.ariaLabel = 'المباريات قبل التكرار'; ico.dataset.hud = 'أيقونة المباريات قبل التكرار';
+        ico.innerHTML = '<svg viewBox="0 0 52 52" aria-hidden="true"><path d="M6 12h28M6 26h28M6 40h28"/><circle cx="44" cy="12" r="3"/><circle cx="44" cy="26" r="3"/><circle cx="44" cy="40" r="3"/></svg>';
+        canvas.append(ico);
+      }
+      ico.classList.toggle('open', rpOpen);
+    }
+    placeLeft();
+  }
+  const placeLeft = () => { const el = $('rp'); if (el && !APP) el.style.top = [...document.querySelectorAll('.ctl-corner .cbtn')].some(b => b.offsetParent) ? '152px' : '64px'; };
+
+  // ش8-أ/79 (design/app.md 2.1): في الإطار (الموقع والتطبيق) لا يُرى من اللوحة شيء قبل أول رسم بحالة معروفة: كانت تظهر بطاقة
+  // «بانتظار المقدّم» (شاشة السؤال) لحظةً عند الفتح. ألوان المسرح وحدها تظهر. وبعد أول رسم تُخفى شاشة الإطلاق في التطبيق.
+  if (!embed) canvas.classList.remove('unready');
+  function shown() {
+    if (!canvas.classList.contains('unready')) return;
+    canvas.classList.remove('unready');
+    try { parent.__hideSplash?.(); } catch {}
+  }
   function render() {
     if (!view || busy) return;
+    queueMicrotask(shown);
+    renderLeft(view.match.step === 'setup' ? view.left : null);
     if (view.match.step === 'play' && view.play) return renderPlay(view.play);
     canvas.classList.remove('qr');
     if (view.match.step === 'final') return renderFinal(view);
@@ -844,7 +913,24 @@
     }).join('') + (a.listClock ? `<p class="clock" id="rclock"><span>بقي للقائمة</span><b>${a.listEnds ? '' : format(a.listSeconds)}</b></p>` : '');
     listEnds = a.listEnds ?? null;
     if (listEnds) $('rclock').querySelector('b').textContent = listText();
+    markArmed();
   }
+  // خانات اللوحة في التطبيق (design/app.md 4.6، المالك 9 نوفمبر 2026): نقرتان. الأولى تحدّد الخانة (إطار حول شارة رقمها) ولا تكشفها،
+  // والثانية على الخانة نفسها تكشفها. والنقر على خانة أخرى ينقل التحديد إليها. ويزول بعد 4 ثوانٍ بلا نقرة، أو بأي زر آخر («خطأ»…)،
+  // أو حين لا تبقى الخانة زراً (انتهى الوقت، أو انتهى التحكيم). والموقع بنقرة واحدة كما كان. armed: أمر الخانة المحددة (act:item:N).
+  const TWO_TAPS = document.documentElement.classList.contains('native-app'), ARM_MS = 4000;
+  let armed = null, armTimer = null;
+  function disarm() { armed = null; clearTimeout(armTimer); document.querySelectorAll('#board .sl.armed').forEach(s => s.classList.remove('armed')); }
+  function markArmed() {
+    if (!armed) return;
+    const el = [...document.querySelectorAll('#board .sl[data-cmd]')].find(s => s.dataset.cmd === armed);
+    if (!el) return disarm();
+    document.querySelectorAll('#board .sl.armed').forEach(s => s !== el && s.classList.remove('armed'));
+    el.classList.add('armed');
+  }
+  // اهتزاز خفيف مع التحديد إن وُجد إضافة Haptics في الغلاف (Capacitor)، في هذه النافذة أو في الصفحة الأم. وبدونها لا شيء.
+  function haptic() { try { for (const w of [window, parent]) { const h = w.Capacitor?.Plugins?.Haptics; if (h?.impact) return void h.impact({ style: 'LIGHT' }); } } catch {} }
+  function arm(cmd) { armed = cmd; clearTimeout(armTimer); armTimer = setTimeout(disarm, ARM_MS); markArmed(); haptic(); }
   // مربع الإعلان في الترتيب: الحكم بالمربع («[الاسم] · +7» و«المركز 7»)، و«لا نقاط» و«لم تُكشف خانة».
   // ونهاية القائمة بلا مربع: «كُشف 7 من 10» (design/ranking.md 7.6).
   function rankBox(a) {
@@ -899,6 +985,7 @@
     canvas.classList.toggle('more-open', moreOpen);
     // النافذة الواحدة: صفّا أزرار الزاويتين مكان الشعار (1.3).
     canvas.classList.toggle('has-a', ['cornerA', 'cornerB', 'cornerC'].some(id => $(id).children.length));
+    placeLeft();
     placeBadges();   // الشارة المرسومة تصغر بنافذة واحدة (has-a)، فيتغير موضع ما بعدها
     $('count').innerHTML = c?.count ? '<span class="lbl">عدد الأنماط</span>' + [['short', 2], ['full', 4]].map(([m, k]) =>
       `<button class="ctile${c.count.value === m ? ' sel' : ''}${k === 4 && !c.count.four ? ' off' : ''}" data-cmd="count:${m}"><span class="ltr">${k}</span></button>`).join('') : '';
@@ -908,6 +995,7 @@
     // التحكيم المباشر في الترتيب (design/s8.md 3.2): في الإجابة رقم كل خانة لم تنكشف زرٌّ يحكم بها.
     $('rnk').classList.toggle('judge', !!c?.judge);
     $('board').querySelectorAll('.sl[data-r]').forEach(el => { if (c?.judge && !el.classList.contains('t1') && !el.classList.contains('t2')) el.dataset.cmd = 'act:item:' + el.dataset.r; else delete el.dataset.cmd; });
+    markArmed();
     $('mcards').querySelectorAll('.mc').forEach(t => { if (c?.pick && t.classList.contains('avail')) t.dataset.cmd = 'pick:' + t.dataset.mode; else delete t.dataset.cmd; });
     $('tiles').querySelectorAll('.tile').forEach(t => { if (c?.pick && !t.classList.contains('by1') && !t.classList.contains('by2') && !t.classList.contains('auto') && !t.classList.contains('left')) t.dataset.cmd = 'pick:' + t.dataset.mode; else delete t.dataset.cmd; });
     for (const k of [1, 2]) {
@@ -935,7 +1023,12 @@
       renderCtl();
     });
     document.addEventListener('click', e => {
+      // تأكيد «مباراة جديدة» ظاهر: «مباراة جديدة» تُرسلها مؤكدة، وأي نقرة غيرها = إلغاء (design/app.md 5.5).
+      if (!$('askNew').hidden) { const yes = !!e.target.closest('#askNew [data-ask="yes"]'); $('askNew').hidden = true; if (yes) send('new:sure'); return; }
       const b = e.target.closest('[data-cmd]');
+      // قائمة «المباريات قبل التكرار» في التطبيق (design/app.md 6.1): الأيقونة تفتحها وتغلقها، وأي نقرة أخرى تغلقها ثم تمضي.
+      if (b?.dataset.cmd === 'rp') { rpOpen = !rpOpen; render(); return; }
+      if (rpOpen) { rpOpen = false; render(); }
       // لوحة «⋯» تُفتح وتُغلق هنا، وتُغلق باختيار زر فيها أو بنقرة خارجها (design/s8b.md 7.1).
       if (b?.dataset.cmd === 'more') { moreOpen = !moreOpen; renderCtl(); return; }
       if (moreOpen && (!e.target.closest('#moreMenu') || b)) { moreOpen = false; renderCtl(); }
@@ -943,6 +1036,10 @@
       if (!b && e.target.closest('#cxList')) { flipPage(); return; }
       if (!b && e.target.closest('#cxDots i')) { flipPage(Number(e.target.closest('#cxDots i').dataset.page)); return; }
       if (!b || b.classList.contains('off') || !ctl) return;
+      // التطبيق: خانة اللوحة بنقرتين (design/app.md 4.6)، وأي زر آخر يزيل التحديد.
+      if (TWO_TAPS && b.matches('#board .sl')) { if (armed !== b.dataset.cmd) return arm(b.dataset.cmd); disarm(); } else if (armed) disarm();
+      // التطبيق: «مباراة جديدة» بعد الإعداد تسأل بلوحة من اللعبة، لا بـ confirm الذي يظهر بالإنجليزية على التلفاز.
+      if (TWO_TAPS && b.dataset.cmd === 'new' && view?.match?.step !== 'setup') { $('askNew').hidden = false; return; }
       send(b.dataset.cmd);
     });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && moreOpen) { moreOpen = false; renderCtl(); } });
@@ -963,9 +1060,27 @@
         tip.style.left = (r.left - c.left) / k + 'px'; tip.style.top = (r.bottom - c.top) / k + 24 + 'px';
       }
     };
-    document.addEventListener('mouseover', e => showTip(e.target));
-    document.addEventListener('mousemove', e => { pointer = { x: e.clientX, y: e.clientY }; });
-    document.documentElement.addEventListener('mouseleave', () => { pointer = null; });
+    if (!TWO_TAPS) {
+      document.addEventListener('mouseover', e => showTip(e.target));
+      document.addEventListener('mousemove', e => { pointer = { x: e.clientX, y: e.clientY }; });
+      document.documentElement.addEventListener('mouseleave', () => { pointer = null; });
+    } else {
+      // التطبيق (design/app.md 5.6): اللمس يطلق mouseover، فلا اسم بالمرور. النقرة تنفّذ الأمر بلا اسم، والضغط المطوّل 500ms
+      // على أيقونة يُظهر اسمها ويخفيه الرفع، ولا يُنفَّذ الأمر حينها.
+      let press = null, held = false;
+      const drop = () => { clearTimeout(press); press = null; };
+      document.addEventListener('pointerdown', e => {
+        drop(); held = false;
+        const b = e.target.closest('.cbtn.ico[data-tip]');
+        // وموضع الإصبع يُحفظ ما دام مضغوطاً: إعادة رسم الأزرار في أثناء الضغط تمحو الاسم، فيُعاد لما تحته (السطر بعد renderCtl).
+        const at = { x: e.clientX, y: e.clientY };
+        if (b) press = setTimeout(() => { press = null; held = true; pointer = at; showTip(b); }, 500);
+      });
+      const up = () => { drop(); pointer = null; if (held) $('ctlTip')?.remove(); };
+      document.addEventListener('pointerup', up);
+      document.addEventListener('pointercancel', () => { up(); held = false; });
+      document.addEventListener('click', e => { if (held) { held = false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+    }
     // الاسمان يُكتبان في اللوحتين. Enter في الأول ينقل إلى الثاني، وفي الثاني = «ابدأ القرعة».
     for (const k of [1, 2]) {
       // الأرقام الهندية تصير إنجليزية في الحقل نفسه وهو يُكتب (القاعدة: أرقام إنجليزية في كل شاشة).
@@ -974,7 +1089,44 @@
         if (v !== el.value) { const at = el.selectionStart; el.value = v; el.setSelectionRange(at, at); }
         send('teams', { a: $('i1').value, b: $('i2').value });
       });
-      $('i' + k).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); k === 1 ? $('i2').focus() : send('draw'); } });
+      // وفي التطبيق «تم» في الثاني تغلق لوحة المفاتيح (enterkeyhint="done"، design/app.md 5.7)، لا تبدأ شيئاً.
+      $('i' + k).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); k === 1 ? $('i2').focus() : TWO_TAPS ? e.target.blur() : send('draw'); } });
+    }
+    // التطبيق (design/app.md 5.7): لوحة المفاتيح بالأفقي تغطي نحو نصف الشاشة، والصفحة لا تمرَّر. فإن غطّت الخانة التي فيها
+    // التركيز رُفعت اللوحة كلها بمقدار ما غطّت + 24، من visualViewport في النافذة العليا (التي تضيق للوحة المفاتيح)، وتعود بزوال التركيز.
+    if (TWO_TAPS) {
+      let top = window; try { if (parent.visualViewport) top = parent; } catch {}
+      const vv = top.visualViewport, screenEl = document.querySelector('.screen');
+      // ش8-أ/78 (المالك على آيفون 15 Pro، v92 ثم v93): كتابة حرف في الخانة السفلى تُغلق لوحة المفاتيح. والرفع عند التركيز لم يُغلقها،
+      // وإنما ما يقع بعد أول حرف: على iOS يتغيّر visualViewport (شريط الاقتراحات يظهر)، فيتحرك الرفع، فتتحرك الخانة المركّزة
+      // وiOS يمرّرها، فيُغلقها. وفي v93 بقي يتحرك (بلا عودة). فالآن يُرفع مرة واحدة لكل تركيز: عند أول تغيّر في visualViewport
+      // بعده (لوحة المفاتيح ظهرت)، أو بعد 0.7 ثانية إن كانت ظاهرة من قبل (من الأولى إلى الثانية). ومعه هامش لشريط الاقتراحات (56)،
+      // فلا يلزم تحريك بعده. ثم لا يُكتب شيء حتى يزول التركيز عن الخانتين، فتعود اللوحة.
+      let shift = 0, armed = false, waitKb = 0;
+      const BAR = 56;
+      const setShift = v => { v = Math.max(0, Math.round(v)); if (v === shift) return; shift = v; screenEl.style.transform = v ? `translateY(${-v}px)` : ''; };
+      const typing = () => { const el = document.activeElement; return el === $('i1') || el === $('i2') ? el : null; };
+      const place = () => {
+        clearTimeout(waitKb); if (!armed) return; armed = false;
+        const el = typing();
+        if (!vv || !el) return;
+        const fe = window.frameElement, fr = fe?.getBoundingClientRect(), k = fr ? fr.height / innerHeight : 1;
+        const bottom = (fr?.top ?? 0) + rect(el).bottom * k, gap = 24 * k * Math.min(innerWidth / 1920, innerHeight / 1080) + BAR;
+        setShift(shift + (bottom + gap - (vv.offsetTop + vv.height)) / k);
+      };
+      vv?.addEventListener('resize', place);
+      for (const k of [1, 2]) {
+        $('i' + k).addEventListener('focus', () => { armed = true; clearTimeout(waitKb); waitKb = setTimeout(place, 700); });
+        $('i' + k).addEventListener('blur', () => setTimeout(() => { if (!typing()) { armed = false; clearTimeout(waitKb); setShift(0); } }, 50));
+      }
+    }
+    // والنص الإرشادي في التطبيق أقصر ليسع الخانتين بعرض 440 (design/app.md 6.4).
+    if (APP) { $('i1').placeholder = 'اسم الفريق الأول'; $('i2').placeholder = 'اسم الفريق الثاني'; }
+    // تطبيق آبل (design/app.md 4.3.2): مساحة لمس الخانة صف اللوحة كله (136)، فالنقر فيه خارج الخانة يركّز عليها.
+    if (document.documentElement.classList.contains('native-app')) for (const k of [1, 2]) {
+      $('p' + k).querySelector('.row').addEventListener('click', e => {
+        if (canvas.classList.contains('editing') && e.target !== $('i' + k)) $('i' + k).focus();
+      });
     }
     parent.postMessage({ bc: 'need-ctl' }, location.origin);
   }

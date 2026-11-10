@@ -37,15 +37,30 @@
   #gate form { background: var(--card); color: var(--ink); padding: 1.5rem; width: min(18rem, 100%); display: grid; gap: 0.75rem; text-align: center; box-shadow: 0.375rem 0.375rem 0 var(--stage-3); }
   #gate h1 { font-size: 1.25rem; }
   #pin { font: inherit; font-size: 1.25rem; text-align: center; letter-spacing: 0.375rem; padding: 0.25rem; border: 3px solid var(--ink); border-radius: 0; direction: ltr; width: 100%; }
+  /* تطبيق آبل: لا شاشة رقم أصلاً (الوثيقة 1.17، 4.3)، فلا تومض قبل فتح اللعبة */
+  html.native-app #gate { display: none; }
   #gate .alert { margin: 0; color: var(--team-1); background: var(--card); padding: 0.25rem 0.5rem; border: 2px solid var(--team-1); }
 
   /* الشاشة المشتركة (design/shared.md 2): لوحة الجمهور 1920×1080 تملأ النافذة، وأزرارها فيها. لا شريط تحتها */
   #single { position: fixed; inset: 0; z-index: 6; overflow: clip; background: #050E2E; }
   .frame { position: absolute; top: 50%; left: 50%; width: 1920px; height: 1080px; transform: translate(-50%, -50%) scale(var(--scale, 1)); }
   .frame iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; display: block; }
+  /* تطبيق آبل (design/app.md 3.3): الإطار بنسبة الشاشة لا 16:9، فتملأ نافذة الجمهور الأشرطة، واللوحة 1920×1080 في وسطها. والتكبير كما هو */
+  .native-app #single { background: linear-gradient(135deg, #1A4BD1 0%, #1238A8 55%, #0E2C86 100%); }
+  .native-app .frame, .native-app .frame iframe { width: var(--frame-w, 1920px); height: var(--frame-h, 1080px); }
   body.one { overflow: hidden; }
 
 </style>
+<script>
+  // ش8-أ/79 (design/app.md 2.1): شاشة الإطلاق في التطبيق لا تختفي وحدها (launchAutoHide: false)، فتُخفى بعد أول رسم صحيح
+  // لشاشة الجمهور (audience.html يستدعي __hideSplash)، أو بعد 3 ثوانٍ مهما حدث، ولو رمى ما بعدها خطأ. مرة واحدة. ولا شيء في الموقع.
+  window.__hideSplash = (() => { let done = false; return () => { if (done) return; done = true;
+    try { window.Capacitor?.Plugins?.SplashScreen?.hide?.({ fadeOutDuration: 200 }); } catch {} }; })();
+  setTimeout(window.__hideSplash, 3000);
+</script>
+<script>if (window.Capacitor?.isNativePlatform?.() === true) { document.documentElement.classList.add('native-app');
+  // design/app.md 5.3: لا تكبير بنقرتين ولا بإصبعين في التطبيق.
+  const v = document.querySelector('meta[name="viewport"]'); if (v) v.content += ', maximum-scale=1, user-scalable=no'; }</script>
 </head>
 <body>
 <section id="gate">
@@ -77,7 +92,7 @@
 <script type="module">
   import './js/offline.js';
   import { createLink } from './js/frame-link.js';
-  import { fetchPinRecord, checkPin, watchPin } from './js/pin.js';
+  import { fetchPinRecord, checkPin, watchPin, isNativeApp } from './js/pin.js';
   import { loadPacks, loadWheel } from './js/content.js';
   import WHEEL, { spinMs, CHALLENGE_POINTS as WHEEL_POINTS } from './js/wheel.js';
   import TIEBREAK from './js/tiebreak.js';
@@ -87,14 +102,20 @@
   import { matchModes, pickableModes, MODES as BUILT, DRAFTS } from './js/modes/index.js';
   import * as M from './js/match.js';
   import * as P from './js/play.js';
+  import * as R from './js/round.js';
 
   const $ = id => document.getElementById(id);
   const SAVE_KEY = 'big-challenge.match';
+  // ش8-أ/73 (المالك 9 نوفمبر 2026): المباراة المحفوظة تُستأنف ما لم يمضِ على آخر فعل فيها أكثر من STALE_MS، وإلا فُتحت اللعبة
+  // على شاشة البداية بمباراة جديدة. وقت آخر حفظ في مفتاح وحده (SAVED_AT_KEY)، فلا يتغير شكل المباراة المحفوظة.
+  const STALE_MS = 60 * 60 * 1000;   // ساعة
+  const SAVED_AT_KEY = 'big-challenge.savedAt';
   const SEEN_KEY = 'big-challenge.seen';   // ذاكرة الأسئلة المستعملة على هذا الجهاز (docs/decisions.md)
   const MUTE_KEY = 'big-challenge.muted';
   const DRAW_MS = 2690; // مدة حركة القرعة على شاشة الجمهور (design/start.md، القسم 6)
   const query = new URLSearchParams(location.search);
   let link = null, watcher = null, packs = [], wheel = null, match = null, drawing = 0, pin = '', faceError = '';
+  const NATIVE = isNativeApp();
   let muted = false;
   try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch {}
 
@@ -133,7 +154,8 @@
     link.send('unlock');
     link.send('view', view());
     watcher?.stop();
-    watcher = watchPin(pin, lock);
+    // في تطبيق آبل لا تحقق مستمر، فلا يُغلق أبداً بتغيّر الرقم.
+    watcher = NATIVE ? null : watchPin(pin, lock);
     render(reset ? { text: 'عادت المباراة إلى البداية.' } : undefined);
   }
 
@@ -152,13 +174,33 @@
   window.verifyPinNow = () => watcher?.checkNow();
 
   // ===== حفظ المباراة: إن أُعيد تحميل المتصفح عادت من حيث توقفت (docs/decisions.md) =====
+  // ومباراة تركت أكثر من ساعة (stale) لا تُستأنف: مباراة جديدة بطريقتها في شاشة البداية. وذاكرة الأسئلة لا تُمسّ، فما ظهر فيها لا يعود.
+  // ومباراة محفوظة قبل v87 بلا وقت تُستأنف كما كانت، ووقتها من أول حفظ بعدها.
+  function savedAt() { try { return Number(localStorage.getItem(SAVED_AT_KEY)) || 0; } catch { return 0; } }
+  const stale = (now = Date.now()) => { const at = savedAt(); return at > 0 && now - at > STALE_MS; };
   function restore() {
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch {}
+    if (M.isMatch(saved) && saved.step !== 'setup' && stale()) {
+      const fresh = M.newMatch({ pack: packs.some(p => p.id === saved.pack) ? saved.pack : packs[0]?.id ?? null, method: saved.method });
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(fresh)); localStorage.setItem(SAVED_AT_KEY, String(Date.now())); } catch {}
+      return fresh;
+    }
     if (M.isMatch(saved) && (!saved.pack || packs.some(p => p.id === saved.pack))) return saved.pack ? saved : { ...saved, pack: packs[0]?.id ?? null };
     return M.newMatch({ pack: packs[0]?.id ?? null });
   }
-  const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(match)); } catch {} };
+  // ش8-أ/75: وقت آخر فعل لا يجدّده إلا فعل المقدّم (نقرة أو أمر، byHand). والحفظ من المؤقتات (انتهاء عدّاد، وقت القائمة، العجلة،
+  // دور الترتيب) يحفظ الحالة ويُبقي الوقت كما هو: فإن انطلقت متأخرة في الخلفية قبل visibilitychange لم تبدُ فعلاً جديداً.
+  let byHand = false;
+  const hand = fn => function (...a) { byHand = true; try { return fn.apply(this, a); } finally { byHand = false; } };
+  const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(match)); if (byHand) localStorage.setItem(SAVED_AT_KEY, String(Date.now())); } catch {} };
+  // والتطبيق أو الصفحة يعودان من الخلفية دون إعادة تحميل (visibilitychange، ويطلقه WKWebView في تطبيق آبل عند العودة):
+  // القاعدة نفسها، فإن تُركت المباراة أكثر من ساعة صارت اللعبة على شاشة البداية بمباراة جديدة، بلا سؤال.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !match || match.step === 'setup' || !$('gate').hidden || !stale()) return;
+    clearTimeout(drawing); drawing = 0;
+    update(M.newMatch({ pack: match.pack, method: match.method }));
+  });
 
   // الحزمة تُختار تلقائياً ولا تظهر (الوثيقة 1.1، 4.5): الحزمة الأولى في الفهرس.
   const pack = () => packs.find(p => p.id === match.pack);
@@ -195,9 +237,17 @@
   // الجولة نفسها (وفيها الإجابات) لا تُرسل أبداً.
   const view = (moments = []) => {
     const { history, round, ...pub } = match;
-    return { match: pub, modes: modes().map(({ id, name }) => ({ id, name })), play: playView(), muted, moments };
+    return { match: pub, modes: modes().map(({ id, name }) => ({ id, name })), play: playView(), muted, moments, left: leftRows() };
   };
   const roundMode = () => match.round && P.modeOf(units(), match.round.mode);
+  // المباريات قبل التكرار (الوثيقة 1.18، 8، design/s8d.md): في شاشة البداية وحدها، لكل نمط يُختار منه ثم «شريط البونص».
+  function leftRows() {
+    if (match.step !== 'setup' || !pack()) return null;
+    // modes() أسماء ومعرّفات وحدها (pickableModes)، فالوحدات نفسها من units().
+    const list = [...modes().map(m => P.modeOf(units(), m.id)).filter(Boolean), ...(wheel ? [WHEEL] : [])];
+    const left = P.freshLeft(match, { modes: list, content: { ...pack().files, [WHEEL.contentKey]: wheel }, seen: seen() });
+    return list.filter(u => u.id in left).map(u => ({ id: u.id, name: u.name, left: left[u.id] }));
+  }
   // باركود الإجابات (7.1، design/s8.md 2): في سؤال المزاد وقائمة الترتيب. يظهر تلقائياً في بدايته (قبل المزايدة، وقبل «ابدأ»)،
   // ويخفيه المقدّم بضغطة، ولا يعود إلا بطلبه («الباركود»). والحال في المباراة (match.qr: مفتاح السؤال وظاهر أو لا)، فيبقى بعد إعادة التحميل،
   // ولا يدخل التراجع. key: الجولة والسؤال · open: السؤال جارٍ (يُعاد فيه بطلب) · auto: بدايته.
@@ -257,7 +307,7 @@
     // الجولة الفاصلة تنتهي إلى النتيجة النهائية بخانتها (final.tb، بحركة دخول المسار)، أو يعيدها التراجع إليها قبل أول سؤال:
     // خطوة جديدة لا فعل في جولة. وأسئلتها التي ظهرت تدخل ذاكرة الأسئلة عند انتهائها.
     if (next.step === 'final' && match.step === 'play') {
-      if (next.final.tb) try { localStorage.setItem(SEEN_KEY, JSON.stringify([...new Set([...seen(), ...TIEBREAK.used(match.round.state)])])); } catch {}
+      if (next.final.tb) remember(TIEBREAK, pack().files[TIEBREAK.contentKey], TIEBREAK.used(match.round.state));
       hold();
       return update(next, next.final.tb ? 'fin' : undefined);
     }
@@ -309,12 +359,15 @@
 
   // ذاكرة الأسئلة: ما ظهر لا يتكرر حتى يُستنفد البنك.
   const seen = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY)) ?? []; } catch { return []; } };
+  // وما أخذته الجولة يدخلها، ودورة جديدة لبنكها إن لم يبقَ منه ما يكفي جولة (ش8-أ/69، js/round.js). والجولة الفاصلة مرة في المباراة.
+  const remember = (unit, file, taken) => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(R.remember(seen(), unit, file, taken))); } catch {} };
   function startNext() {
     if (held()) return;
-    const next = P.startNext(match, { modes: units(), content: { ...pack().files, [WHEEL.contentKey]: wheel }, seen: seen() });
+    const content = { ...pack().files, [WHEEL.contentKey]: wheel };
+    const next = P.startNext(match, { modes: units(), content, seen: seen() });
     if (next === match) return;
-    const mode = P.modeOf(units(), next.round.mode);
-    try { localStorage.setItem(SEEN_KEY, JSON.stringify([...new Set([...seen(), ...mode.used(next.round.state)])])); } catch {}
+    // وما أخذه بنكها في المباراة كلها (ش8-أ/71).
+    try { localStorage.setItem(SEEN_KEY, JSON.stringify(P.remember(seen(), next, { modes: units(), content }))); } catch {}
     roundUpdate(next);
   }
   // نقرتان على «تخطَّ…» لا تتخطيان عنصرين.
@@ -340,7 +393,8 @@
     // التحقق من الرقم السري عند بدء كل مباراة جديدة (4.3): إن تأكد تغيّره أُغلقت اللعبة.
     const result = await watcher?.checkNow();
     if (result === 'changed') return;
-    update(M.toDraw(match));
+    // ش8-أ/76: ما بعد await يجري بعد أن ينزل byHand (finally في hand)، فيُعاد رفعه للحفظ: «اختيار الأنماط» فعل المقدّم.
+    hand(() => update(M.toDraw(match)))();
   }
 
   // «قرعة البداية» في صفحة الاختيار (design/s8b.md 3).
@@ -361,8 +415,9 @@
     startNext();
   }
 
-  function newMatch() {
-    if (match.step !== 'setup' && !confirm('تبدأ مباراة جديدة ويُمحى ما سبق. أتتابع؟')) return;
+  // sure: أكّدها المقدّم بلوحة اللعبة في التطبيق (design/app.md 5.5)، فلا confirm. وفي الموقع confirm كما كان.
+  function newMatch(sure) {
+    if (match.step !== 'setup' && !(NATIVE && sure) && !confirm('تبدأ مباراة جديدة ويُمحى ما سبق. أتتابع؟')) return;
     clearTimeout(drawing); drawing = 0;
     update(M.newMatch({ pack: match.pack, method: match.method }));
   }
@@ -399,7 +454,12 @@
     fitStage();
     if (on) sendCtl(error);
   }
-  const fitStage = () => document.documentElement.style.setProperty('--scale', Math.min(innerWidth / 1920, innerHeight / 1080));
+  const fitStage = () => {
+    const root = document.documentElement.style, k = Math.min(innerWidth / 1920, innerHeight / 1080);
+    root.setProperty('--scale', k);
+    // في التطبيق: الإطار يغطي الشاشة كلها بالتكبير نفسه (أعرض: 1080 × vw/vh · أطول: 1920 × vh/vw).
+    if (NATIVE) { root.setProperty('--frame-w', Math.ceil(innerWidth / k) + 'px'); root.setProperty('--frame-h', Math.ceil(innerHeight / k) + 'px'); }
+  };
   addEventListener('resize', fitStage);
   document.addEventListener('fullscreenchange', () => render());
 
@@ -553,7 +613,7 @@
   };
 
   // نقرات الشاشة المشتركة: تصل من شاشة الجمهور التي في هذه النافذة وحدها.
-  addEventListener('message', e => {
+  addEventListener('message', hand(e => {
     const frame = $('frame').querySelector('iframe');
     if (!frame || e.source !== frame.contentWindow || e.origin !== location.origin || !match) return;
     if (e.data?.bc === 'need-ctl') return sendCtl();
@@ -572,11 +632,14 @@
     if (cmd === 'raise') raise(Number(arg));
     if (cmd === 'next') actions[nextButton().act]?.();
     if (cmd === 'mute') toggleMute();
-    if (cmd === 'new') newMatch();
+    if (cmd === 'new') newMatch(arg === 'sure');
     if (cmd === 'qr') setQr(arg === 'show');
     if (cmd === 'fullscreen') document.documentElement.requestFullscreen?.().catch(() => {});
     if (['toPick', 'undoPick', 'toFace', 'replay', 'undo', 'scores', 'announce', 'tiebreak'].includes(cmd)) actions[cmd]();
-  });
+  }));
+
+  // تطبيق آبل: تُفتح اللعبة مباشرة بلا رقم (الوثيقة 1.17، 4.3).
+  if (NATIVE) unlock('');
 
   function startLink() {
     link = createLink('presenter', (type, data) => {
@@ -588,15 +651,15 @@
 
   $('closeScores').onclick = () => { $('scores').hidden = true; };
   // أثناء الجولة يُعدَّل الرصيد عبر مشغّل الجولة، فيُتراجع عنه كأي حكم (عقد الوحدة 5).
-  $('scores').onclick = e => {
+  $('scores').onclick = hand(e => {
     const b = e.target.closest('[data-team]');
     if (!b) return;
     const team = +b.dataset.team;
     if (match.step === 'play') roundUpdate(P.setScore(match, team, match.scores[team] + +b.dataset.d));
     else update(M.adjustScore(match, team, +b.dataset.d));
-  };
+  });
   // «تراجع» في طبقة الرصيد لا تقع عليه نقرة من زر آخر، فلا يُمهل.
-  $('undoScore').onclick = () => (match.step === 'play' ? roundUpdate(P.undo(match, units())) : update(M.undoScore(match)));
+  $('undoScore').onclick = hand(() => (match.step === 'play' ? roundUpdate(P.undo(match, units())) : update(M.undoScore(match))));
 
 </script>
 </body>

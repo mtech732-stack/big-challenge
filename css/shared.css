@@ -88,7 +88,7 @@
 
 /* «⋯» (design/s8b.md 7.1): زر 64×64 بلا نص، ثلاث نقاط بيضاء مائلة 14°، وأبيض أساسي ما دامت لوحته مفتوحة */
 .cbtn.opt { width: 64px; padding: 0; position: relative; }
-.cbtn.opt::before { content: ""; position: absolute; left: 50%; top: 50%; width: 32px; height: 8px; translate: -50% -50%;
+.cbtn.opt::before { content: ""; position: absolute; left: 50%; top: 50%; width: 36px; height: 8px; translate: -50% -50%;
   background: radial-gradient(circle, currentColor 0 4px, transparent 4.5px) 0 0 / 12px 8px repeat-x; transform: skewX(calc(-1 * var(--lean))); }
 .ctl-corner .cbtn.opt.alt { color: var(--on-stage); }
 .ctl-corner .cbtn.opt.open { background: var(--card); color: var(--ink); box-shadow: none; }
@@ -111,3 +111,55 @@
   font-size: 32px; font-weight: 700; white-space: nowrap; pointer-events: none; }
 /* داخل لوحة «⋯» لوح داكن بنص أبيض (ش8-أ/56، design/s8b.md 7.3): لا يزيد الأبيض لحظة الفتح. وفي الزاوية أبيض كما هو */
 .ctl-more .ctl-tip { background: var(--stage-3); color: var(--on-stage); }
+
+/* ===== تطبيق آبل: مساحات اللمس 44 نقطة (design/app.md 4، النموذج design/app/touch-proto.css) =====
+   44 نقطة على الآيفون ≈ 120 بكسلاً من اللوحة. مساحة شفافة حول كل زر لا تُرى (::after)، ارتفاعها 120 أياً كان ارتفاع الزر
+   (min(0px, 50% − 60px) من الأعلى والأسفل: 72 ← −24، 64 ← −28، 88 ← −16، 96 ← −12)، و12 يميناً ويساراً،
+   فتلتقي مساحتا زرين بينهما 24 ولا تتداخلان. ولا يتغير شكل زر نصي. والموقع لا يتغير: كله تحت .native-app. */
+.native-app .cbtn, .native-app .ctile { position: relative; }
+.native-app .cbtn::after, .native-app .ctile::after { content: ""; position: absolute; inset: min(0px, calc(50% - 60px)) -12px; }
+/* أيقونات الزاوية تكبر من 64 إلى 96 (الأيقونة 52 بخط 4)، والفاصل بينها 24، ومساحتها 120×120 */
+.native-app .cbtn.ico { width: 96px; height: 96px; }
+.native-app .cbtn.ico svg { width: 52px; height: 52px; stroke-width: 4; }
+/* النقاط تتكرر كل 17 (12 في الموقع)، فالعرض 3 × 17 = 51 (3 × 12 = 36) لتكتمل الثالثة (design/app.md 6.3) */
+.native-app .cbtn.opt::before { width: 51px; height: 10px; background: radial-gradient(circle, currentColor 0 5px, transparent 5.5px) 0 0 / 17px 10px repeat-x; }
+.native-app .ctl-corner .ctl:has(.cbtn.ico), .native-app .ctl-more, .native-app .ctl-more .ctl { gap: 24px; }
+/* لوحة «⋯» صفاً واحداً تحت صف الزاوية بـ 24 (64 + 96 + 24 = 184): الصوت والرصيد، ثم فاصل عمودي، ثم «مباراة جديدة».
+   و«ملء الشاشة» بلا معنى في التطبيق، فيُخفى */
+.native-app .ctl-more { top: 184px; flex-direction: row; align-items: center; min-width: 0; }
+.native-app .ctl-more hr { align-self: stretch; width: 3px; height: auto; }
+/* design/app.md 5 ج: بأربع أيقونات (مع «الباركود») الفواصل 16، فتنتهي اللوحة قبل حدّ لوحة الفريق الأول */
+.native-app .ctl-more:has(.cbtn.ico:nth-child(4)), .native-app .ctl-more:has(.cbtn.ico:nth-child(4)) .ctl { gap: 16px; }
+/* ومساحة لمس كل أيقونة فيها 112 (8 من كل جهة، نصف الفاصل) حتى لا تتداخل مساحتان (design/app.md 5، الملاحظات الصغيرة) */
+.native-app .ctl-more:has(.cbtn.ico:nth-child(4)) .cbtn.ico::after { inset: -8px; }
+.native-app [data-cmd="fullscreen"] { display: none; }
+/* خانتا الاسمين: الصف كله (136) مساحة لمسها، والنقر فيه خارج الخانة ينقل التركيز إليها (audience.html)، والخط المتقطع والنص في مكانهما */
+
+/* تأكيد «مباراة جديدة» في التطبيق (design/app.md 5.5): لوحة 880×296 عند (520، 392) فوق البطاقة، بيضاء بصفيحتها المائلة 6°،
+   فيها السؤال بحبر البطاقة 48/700 في الوسط، وتحته «مباراة جديدة» (.cbtn.no) و«إلغاء» (إطار الحبر) بفاصل 24. */
+.ask { position: absolute; left: 127px; top: 410px; width: 1666px; height: 352px; z-index: 5; }
+.canvas.qr .ask { width: 1036px; }
+.ask[hidden] { display: none; }
+.ask > * { position: absolute; }
+.ask .plate { inset: 12px -12px -12px -12px; background: var(--stage-3); transform: skewX(calc(-1 * var(--tilt))); }
+.ask .sheet { inset: 0; background: var(--card); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px; }
+.ask p { margin: 0; color: var(--ink); font-size: 48px; font-weight: 700; line-height: 1.2; }
+.ask .ctl { position: static; display: flex; gap: 24px; }
+.ask .cbtn.alt { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 4px var(--ink); }
+
+/* design/app.md 6 (ملاحظات المالك على v92، كلها في التطبيق إلا 6.3 أعلاه):
+   6.1 «المباريات قبل التكرار» خلف أيقونة 96 عند (127، 64)، بإطار أيقونات الزاوية، وتفتح لوحاً أبيض عند (127، 184) بعمودين. */
+.native-app .rp-ico { position: absolute; left: 127px; top: 64px; z-index: 3; background: transparent; color: var(--on-stage); box-shadow: inset 0 0 0 3px var(--card); }
+.native-app .rp-ico.open { background: var(--card); color: var(--ink); box-shadow: none; }
+.native-app .rp-ico circle { fill: currentColor; stroke: none; }
+.native-app #rp { display: none; }
+.native-app #rp.open { display: grid; grid-template-columns: auto auto; column-gap: 48px; align-items: baseline; top: 184px; left: 127px;
+  background: var(--card); color: var(--ink); opacity: 1; padding: 24px 40px; font-size: 36px; line-height: 56px; box-shadow: 10px 10px 0 0 #0B1033; }
+.native-app #rp.open .h { grid-column: 1 / -1; margin-bottom: 8px; }
+.native-app #rp.open p:not(.h) { display: contents; }
+.native-app #rp.open .nm { justify-self: start; }
+.native-app #rp.open b { justify-self: end; }
+/* 6.5 أثناء الجولة: الشارة في وسط صف الزاوية (80)، والأزرار بعدها بـ 40 (229). والجسيمات تُخفى. */
+.native-app .has-a:not(.pre) .logo { top: 80px; }
+.native-app .has-a:not(.pre) .ctl-corner.a { left: 229px; }
+.native-app #particles { display: none; }
