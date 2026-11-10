@@ -581,7 +581,24 @@
         + (p ? `<div class="key done"><span>${num('الجولة ' + (at + 1))}</span></div>` : `<div class="key"><span><b class="ltr">${i + 1}</b>اختر</span></div>`) + '</div>'
         + (p ? `<i class="stamp ltr">${at + 1}</i><p class="by" data-hud="سطر من اختار" data-free data-name="${p.by ? esc(name(p.by)) : ''}">${p.by ? 'اختيار ' + esc(name(p.by)) : 'النمط المتبقي'}</p>` : '') + '</div>';
     }).join('');
-    if (html !== cardsKey) { cardsKey = html; $('mcards').innerHTML = html; }
+    // ش8-أ/86 (المالك على آيفون 15 Pro، v97): «وميض بعد انتهاء القرعة مباشرة». عند وقوف المؤشر كانت البطاقات تُبنى من جديد
+    // (wait ← avail) فتُنشأ عناصرها وصور شاراتها من جديد، وWebKit يرسم الجديد فارغاً حتى يفكّ الصورة. فالآن البطاقة التي لم يتغيّر
+    // إلا صنفها وموضعها تبقى كما هي ويُبدَّل صنفها وحده، والتي تغيّر ما فيها تُستبدل وتُنقل إليها صورة شارتها القديمة المفكوكة.
+    if (html !== cardsKey) {
+      cardsKey = html;
+      const box = $('mcards'), next = document.createElement('div');
+      next.innerHTML = html;
+      const old = new Map([...box.querySelectorAll('.mc')].map(el => [el.dataset.mode, el]));
+      const cards = [...next.children].map(el => {
+        const was = old.get(el.dataset.mode);
+        if (!was) return el;
+        if (was.innerHTML === el.innerHTML) { was.className = el.className; was.setAttribute('style', el.getAttribute('style')); return was; }
+        const a = was.querySelector('.bdg img'), b = el.querySelector('.bdg img');
+        if (a && b && a.getAttribute('src') === b.getAttribute('src')) { a.className = b.className; a.setAttribute('style', b.getAttribute('style')); b.replaceWith(a); }
+        return el;
+      });
+      if (cards.length !== box.children.length || cards.some((c, i) => box.children[i] !== c)) box.replaceChildren(...cards);
+    }
     // «اختيار {الفريق}» باسم طويل تحت بطاقة طرفية يُزاح إلى داخل الهامش الآمن (96–1824).
     const c = rect(canvas), s = c.width / 1920 || 1;
     $('mcards').querySelectorAll('.by').forEach(el => {
