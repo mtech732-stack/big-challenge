@@ -131,6 +131,41 @@ const { usePin, reporter, stageFrame } = require('./helpers.cjs');
     }
     await c2.close();
   }
+  // ===== ش8-أ/82 و83 (المعاين ومسؤول الرفع، v95، iPhone 16 Pro 874×402) =====
+  // 82: لوحة المفاتيح تُنقص الصفحة، والإطار بحجمه (80) كان في وسط الصفحة المنقوصة، فيرتفع نصف لوحة المفاتيح وتخرج الخانة العليا
+  // من أعلى الشاشة (−89)، وما يُكتب فيها لا يُرى، ولا العودة إليها من السفلى بسهم «أعلى». والآن يبقى الإطار مكانه.
+  // 83: بين حدّ اللوحة المرفوعة ولوحة المفاتيح شريط داكن (26 بهامش 56)، وصار 14 بهامش 44 (شريط الاقتراحات).
+  {
+    const [W, HH, KB] = [874, 402, 147];
+    const c3 = await browser.newContext({ viewport: { width: W, height: HH }, hasTouch: true });
+    c3.on('page', p => { p.on('pageerror', e => errors.push(e.message)); });
+    await usePin(c3);
+    await c3.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true }; });
+    const p3 = await c3.newPage();
+    await p3.goto(base); await p3.evaluate(() => localStorage.clear()); await p3.reload();
+    const g = await stageFrame(p3); await wait(1500);
+    const at = () => p3.evaluate(() => {
+      const fr = document.querySelector('#single iframe'), fb = fr.getBoundingClientRect(), w = fr.contentWindow, s = fb.height / w.innerHeight;
+      const o = { page: innerHeight, edge: Math.round(fb.top + w.document.querySelector('.screen').getBoundingClientRect().bottom * s), active: w.document.activeElement?.id };
+      for (const k of [1, 2]) { const el = w.document.getElementById('i' + k), r = el.getBoundingClientRect(); o[k] = { top: Math.round(fb.top + r.top * s), bottom: Math.round(fb.top + r.bottom * s), value: el.value }; }
+      return o; });
+    const seen = (o, k) => o[k].top >= 0 && o[k].bottom <= o.page;
+    await g.tap('#i1'); await wait(100); await p3.setViewportSize({ width: W, height: KB }); await wait(1000);
+    await p3.keyboard.type('Eagles'); await wait(300);
+    let o = await at();
+    check(`ش8-أ/82: الخانة العليا ظاهرة ولوحة المفاتيح مفتوحة (${o[1].top}–${o[1].bottom} من ${o.page})، وفيها ما كُتب (${o[1].value})`, o.active === 'i1' && seen(o, 1) && o[1].value === 'Eagles');
+    await g.evaluate(() => document.activeElement.blur()); await p3.setViewportSize({ width: W, height: HH }); await wait(1500);
+    await g.tap('#i2'); await wait(100); await p3.setViewportSize({ width: W, height: KB }); await wait(1000);
+    await p3.keyboard.type('Stars'); await wait(300);
+    o = await at();
+    check(`ش8-أ/83: الخانة السفلى فوق لوحة المفاتيح (${o[2].bottom} من ${o.page})، والشريط تحت اللوحة ${o.page - o.edge} لا أكثر من 14`, o.active === 'i2' && seen(o, 2) && o.page - o.edge <= 14 && o[2].value === 'Stars');
+    // سهم «أعلى» فوق لوحة المفاتيح ينقل التركيز إلى العليا وهي خارج الشاشة (السفلى مرفوعة): تنزل اللوحة فتظهر، وما يُكتب يُرى فيها.
+    await g.evaluate(() => document.getElementById('i1').value = ''); await g.focus('#i1'); await wait(300);
+    await p3.keyboard.type('Hawk'); await wait(300);
+    o = await at();
+    check(`ش8-أ/82: من السفلى إلى العليا بالسهم: العليا ظاهرة (${o[1].top}–${o[1].bottom})، وفيها الحروف الأربعة (${o[1].value})، والسفلى كما هي (${o[2].value})`, o.active === 'i1' && seen(o, 1) && o[1].value === 'Hawk' && o[2].value === 'Stars');
+    await c3.close();
+  }
   check(`الاسمان في المباراة (${teams[1]}، ${teams[2]})`, teams[1] === names[1] && teams[2] === names[2]);
   await browser.close();
   finish(errors);
