@@ -386,7 +386,8 @@
     // التحقق من الرقم السري عند بدء كل مباراة جديدة (4.3): إن تأكد تغيّره أُغلقت اللعبة.
     const result = await watcher?.checkNow();
     if (result === 'changed') return;
-    update(M.toDraw(match));
+    // ش8-أ/76: ما بعد await يجري بعد أن ينزل byHand (finally في hand)، فيُعاد رفعه للحفظ: «اختيار الأنماط» فعل المقدّم.
+    hand(() => update(M.toDraw(match)))();
   }
 
   // «قرعة البداية» في صفحة الاختيار (design/s8b.md 3).
