@@ -166,6 +166,53 @@ const { usePin, reporter, stageFrame } = require('./helpers.cjs');
     check(`ش8-أ/82: من السفلى إلى العليا بالسهم: العليا ظاهرة (${o[1].top}–${o[1].bottom})، وفيها الحروف الأربعة (${o[1].value})، والسفلى كما هي (${o[2].value})`, o.active === 'i1' && seen(o, 1) && o[1].value === 'Hawk' && o[2].value === 'Stars');
     await c3.close();
   }
+  // ===== ش8-أ/84 (مسؤول الرفع، محاكي iPhone 16 Pro، v96): «التالي» من العليا إلى السفلى، ثم «تم» =====
+  // في v96 كانت اللوحة تُرفع عند التركيز والسفلى حينها تحت لوحة المفاتيح، وiOS يكشف الخانة من موضعها لحظة التركيز فيزيح الشاشة
+  // فوق الرفع: زرقاء فارغة 2–3 ثوانٍ. وChromium لا يزيح، فيُفحص ما يراه iOS: موضع الخانة لحظة وصول التركيز (قبل أي معالج له)،
+  // ثم المسرح في كل إطار 3 ثوانٍ. وبعد «تم»: تنزل اللوحة في الإطار نفسه تقريباً، ولا يصغُر المسرح ولوحة المفاتيح تنغلق.
+  {
+    const [W, HH, KB] = [874, 402, 177];
+    const c4 = await browser.newContext({ viewport: { width: W, height: HH }, hasTouch: true });
+    c4.on('page', p => { p.on('pageerror', e => errors.push(e.message)); });
+    await usePin(c4);
+    await c4.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true }; });
+    const p4 = await c4.newPage();
+    await p4.goto(base); await p4.evaluate(() => localStorage.clear()); await p4.reload();
+    const g = await stageFrame(p4); await wait(1500);
+    // كل إطار: [الوقت، أعلى المسرح، أسفله، عرضه، أسفل السفلى، ارتفاع الصفحة، الرفع]، بإحداثيات الصفحة.
+    await p4.evaluate(() => {
+      const fr = () => document.querySelector('#single iframe');
+      const pos = el => { const f = fr(), fb = f.getBoundingClientRect(), s = fb.height / f.contentWindow.innerHeight, r = el.getBoundingClientRect();
+        return { top: fb.top + r.top * s, bottom: fb.top + r.bottom * s, width: r.width * s }; };
+      window.__pos = pos;
+      // ما يراه iOS لحظة وصول التركيز: مستمع التقاط على نافذة الإطار، قبل معالجات الخانة.
+      fr().contentWindow.addEventListener('focus', e => { if (e.target.id === 'i2') window.__atFocus = { ...pos(e.target), page: innerHeight }; }, true);
+      window.__run = ms => { window.__log = []; const t0 = performance.now(); const d = fr().contentWindow.document;
+        const tick = () => { const c = pos(d.getElementById('canvas')), i = pos(d.getElementById('i2'));
+          window.__log.push({ t: Math.round(performance.now() - t0), top: Math.round(c.top), bottom: Math.round(c.bottom), width: Math.round(c.width), i2: Math.round(i.bottom), page: innerHeight, tr: d.querySelector('.screen').style.transform, active: d.activeElement?.id });
+          if (performance.now() - t0 < ms) requestAnimationFrame(tick); };
+        tick(); };
+    });
+    const w0 = (await p4.evaluate(() => __pos(document.querySelector('#single iframe').contentWindow.document.getElementById('canvas')))).width;
+    await g.tap('#i1'); await wait(100); await p4.setViewportSize({ width: W, height: KB }); await wait(1000);
+    await p4.keyboard.type('Eagles');
+    await p4.evaluate(() => __run(3000)); await p4.keyboard.press('Enter'); await wait(3200);
+    const at = await p4.evaluate(() => window.__atFocus), log = await p4.evaluate(() => window.__log);
+    check(`ش8-أ/84: «التالي»: السفلى ظاهرة فوق لوحة المفاتيح لحظة وصول التركيز، فلا يبقى لـ iOS ما يكشفه (${at ? Math.round(at.top) + '–' + Math.round(at.bottom) + ' من ' + at.page : 'لا تركيز'})`,
+      !!at && at.top >= 0 && at.bottom <= at.page);
+    const off = log.filter(x => x.bottom <= 0 || x.top >= x.page || (x.active === 'i2' && (x.i2 > x.page || x.i2 < 0)));
+    check(`ش8-أ/84: «التالي»: المسرح والسفلى ظاهران في كل إطار 3 ثوانٍ (${log.length} إطاراً، ${off.length} بلا مسرح${off.length ? ': ' + JSON.stringify(off[0]) : ''})`, log.length > 30 && off.length === 0);
+    const last = log[log.length - 1];
+    check(`ش8-أ/84 و83: بعد «التالي» الشريط تحت اللوحة ${last.page - last.bottom} لا أكثر من 14`, last.page - last.bottom <= 14 && last.page - last.bottom >= 0);
+    await p4.keyboard.type('Stars');
+    // «تم»: يزول التركيز، ولوحة المفاتيح تنغلق بعد 0.3 ثانية.
+    await p4.evaluate(() => __run(1500)); await p4.keyboard.press('Enter'); await wait(300); await p4.setViewportSize({ width: W, height: HH }); await wait(1400);
+    const log2 = await p4.evaluate(() => window.__log);
+    const lifted = log2.filter(x => x.tr && x.t > 20), small = log2.filter(x => x.width < w0 - 1);
+    check(`ش8-أ/84 و80: بعد «تم» تنزل اللوحة فوراً (${lifted.length ? 'مرفوعة حتى ' + lifted[lifted.length - 1].t + 'ms' : 'نعم'})، ولا يصغُر المسرح ولوحة المفاتيح تنغلق (${small.length ? 'عرضه ' + small[0].width + ' من ' + Math.round(w0) + ' عند ' + small[0].t + 'ms' : 'كما هو'})`,
+      lifted.length === 0 && small.length === 0 && Math.abs(log2[log2.length - 1].width - w0) < 1 && log2[log2.length - 1].top >= -1);
+    await c4.close();
+  }
   check(`الاسمان في المباراة (${teams[1]}، ${teams[2]})`, teams[1] === names[1] && teams[2] === names[2]);
   await browser.close();
   finish(errors);

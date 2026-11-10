@@ -1084,6 +1084,8 @@
       document.addEventListener('click', e => { if (held) { held = false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
     }
     // الاسمان يُكتبان في اللوحتين. Enter في الأول ينقل إلى الثاني، وفي الثاني = «ابدأ القرعة».
+    // ش8-أ/84: يُعرَّف في كتلة الرفع أدناه (التطبيق وحده).
+    let preLift = null;
     for (const k of [1, 2]) {
       // الأرقام الهندية تصير إنجليزية في الحقل نفسه وهو يُكتب (القاعدة: أرقام إنجليزية في كل شاشة).
       $('i' + k).addEventListener('input', e => {
@@ -1092,7 +1094,7 @@
         send('teams', { a: $('i1').value, b: $('i2').value });
       });
       // وفي التطبيق «تم» في الثاني تغلق لوحة المفاتيح (enterkeyhint="done"، design/app.md 5.7)، لا تبدأ شيئاً.
-      $('i' + k).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); k === 1 ? $('i2').focus() : TWO_TAPS ? e.target.blur() : send('draw'); } });
+      $('i' + k).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); k === 1 ? (preLift?.($('i2')), $('i2').focus()) : TWO_TAPS ? e.target.blur() : send('draw'); } });
     }
     // التطبيق (design/app.md 5.7): لوحة المفاتيح بالأفقي تغطي نحو نصف الشاشة، والصفحة لا تمرَّر. فإن غطّت الخانة التي فيها
     // التركيز رُفعت اللوحة كلها بمقدار ما غطّت + 24، من visualViewport في النافذة العليا (التي تضيق للوحة المفاتيح)، وتعود بزوال التركيز.
@@ -1113,21 +1115,28 @@
       const BAR = 44;
       const setShift = v => { v = Math.max(0, Math.round(v)); if (v === shift) return; shift = v; screenEl.style.transform = v ? `translateY(${-v}px)` : ''; };
       const typing = () => { const el = document.activeElement; return el === $('i1') || el === $('i2') ? el : null; };
-      const place = () => {
+      const place = (el = typing()) => {
         clearTimeout(waitKb); if (!armed) return; armed = false;
-        const el = typing();
         if (!vv || !el) return;
         const fe = window.frameElement, fr = fe?.getBoundingClientRect(), k = fr ? fr.height / innerHeight : 1;
         const bottom = (fr?.top ?? 0) + rect(el).bottom * k, gap = 24 * k * Math.min(innerWidth / 1920, innerHeight / 1080) + BAR;
         setShift(shift + (bottom + gap - (vv.offsetTop + vv.height)) / k);
       };
+      // ش8-أ/84 (محاكي iPhone 16 Pro، v96): «التالي» من العليا إلى السفلى كان يرفع اللوحة عند التركيز، والسفلى حينها تحت لوحة
+      // المفاتيح. وiOS يحسب كشف الخانة المركّزة من موضعها قبل الرفع، فيزيح الشاشة فوق الرفع، فتخرج اللوحة كلها من أعلى الشاشة
+      // (زرقاء فارغة 2–3 ثوانٍ)، ثم تبقى أعلى مما يلزم بـ 25 (الشريط 39). فالآن تُرفع قبل أن يُنقل التركيز، فتكون الخانة ظاهرة
+      // حين يصلها، ولا يبقى لـ iOS ما يكشفه. ويُقرأ موضعها بعد الرفع فيُرسم قبل التركيز.
+      preLift = el => { if (!vv || vv.height >= full * 0.85) return; armed = true; place(el); rect(el); };
       vv?.addEventListener('resize', () => { if (!typing()) full = Math.max(full, vv.height); place(); });
       for (const k of [1, 2]) {
         $('i' + k).addEventListener('focus', () => { armed = true; clearTimeout(waitKb);
           if (vv && vv.height < full * 0.85) place(); else waitKb = setTimeout(place, 700); });
         // وبزوال التركيز يُعاد حساب حجم المسرح في الصفحة الأم (ش8-أ/80)، مرات حتى تنغلق لوحة المفاتيح.
-        $('i' + k).addEventListener('blur', () => setTimeout(() => { if (!typing()) { armed = false; clearTimeout(waitKb); setShift(0);
-          for (const ms of [0, 400, 1000]) setTimeout(() => { if (!typing()) try { parent.__refit?.(); } catch {} }, ms); } }, 50));
+        // ش8-أ/84: وبعد «تم» كانت اللوحة تبقى مرفوعة 50 جزءاً من الثانية وتحتها أزرق ولوحة المفاتيح تنزل. فإن لم يذهب التركيز إلى
+        // الخانة الأخرى (relatedTarget) تنزل في المهمة التالية، وإلا فبعد 50 كما كانت.
+        const down = () => { if (!typing()) { armed = false; clearTimeout(waitKb); setShift(0);
+          for (const ms of [0, 400, 1000]) setTimeout(() => { if (!typing()) try { parent.__refit?.(ms === 1000); } catch {} }, ms); } };
+        $('i' + k).addEventListener('blur', e => { setTimeout(down, e.relatedTarget?.classList?.contains('name-in') ? 50 : 0); });
       }
     }
     // والنص الإرشادي في التطبيق أقصر ليسع الخانتين بعرض 440 (design/app.md 6.4).
