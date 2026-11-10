@@ -457,7 +457,9 @@
   function shown() {
     if (!canvas.classList.contains('unready')) return;
     canvas.classList.remove('unready');
-    try { parent.__hideSplash?.(); } catch {}
+    // شاشة الإطلاق تُخفى بعد أن تُرسم البداية فعلاً: الخطوط محمّلة، ثم إطاران (وإلا ظهر بينهما المسرح فارغاً، محاكي v94).
+    const hide = () => requestAnimationFrame(() => requestAnimationFrame(() => { try { parent.__hideSplash?.(); } catch {} }));
+    Promise.resolve(document.fonts?.ready).then(hide, hide);
   }
   function render() {
     if (!view || busy) return;
@@ -1102,8 +1104,13 @@
       // وiOS يمرّرها، فيُغلقها. وفي v93 بقي يتحرك (بلا عودة). فالآن يُرفع مرة واحدة لكل تركيز: عند أول تغيّر في visualViewport
       // بعده (لوحة المفاتيح ظهرت)، أو بعد 0.7 ثانية إن كانت ظاهرة من قبل (من الأولى إلى الثانية). ومعه هامش لشريط الاقتراحات (56)،
       // فلا يلزم تحريك بعده. ثم لا يُكتب شيء حتى يزول التركيز عن الخانتين، فتعود اللوحة.
-      let shift = 0, armed = false, waitKb = 0;
-      const BAR = 56;
+      // ش8-أ/81 (المدقّق): و«التالي» من خانة إلى أخرى ولوحة المفاتيح ظاهرة لا يغيّر visualViewport، فكان الرفع ينتظر 0.7 ثانية
+      // والكتابة جارية، فيتحرك في أثنائها والخانة تحت لوحة المفاتيح. فإن كانت ظاهرة عند التركيز (المتاح أقصر بوضوح من أعلى ما رُئي
+      // بلا كتابة، full) يُرفع فوراً.
+      let shift = 0, armed = false, waitKb = 0, full = vv?.height ?? 0;
+      // ش8-أ/83 (محاكي iPhone 16 Pro، v95): كان الهامش 56 فظهر تحت اللوحة المرفوعة شريط داكن فوق لوحة المفاتيح. فصار ارتفاع شريط
+      // الاقتراحات نفسه (44): أقل منه يُغطّي الخانةَ إن ظهر بعد أول حرف، فيلزم تحريكها في الكتابة، وهو ما كان يُغلق لوحة المفاتيح (78).
+      const BAR = 44;
       const setShift = v => { v = Math.max(0, Math.round(v)); if (v === shift) return; shift = v; screenEl.style.transform = v ? `translateY(${-v}px)` : ''; };
       const typing = () => { const el = document.activeElement; return el === $('i1') || el === $('i2') ? el : null; };
       const place = () => {
@@ -1114,10 +1121,13 @@
         const bottom = (fr?.top ?? 0) + rect(el).bottom * k, gap = 24 * k * Math.min(innerWidth / 1920, innerHeight / 1080) + BAR;
         setShift(shift + (bottom + gap - (vv.offsetTop + vv.height)) / k);
       };
-      vv?.addEventListener('resize', place);
+      vv?.addEventListener('resize', () => { if (!typing()) full = Math.max(full, vv.height); place(); });
       for (const k of [1, 2]) {
-        $('i' + k).addEventListener('focus', () => { armed = true; clearTimeout(waitKb); waitKb = setTimeout(place, 700); });
-        $('i' + k).addEventListener('blur', () => setTimeout(() => { if (!typing()) { armed = false; clearTimeout(waitKb); setShift(0); } }, 50));
+        $('i' + k).addEventListener('focus', () => { armed = true; clearTimeout(waitKb);
+          if (vv && vv.height < full * 0.85) place(); else waitKb = setTimeout(place, 700); });
+        // وبزوال التركيز يُعاد حساب حجم المسرح في الصفحة الأم (ش8-أ/80)، مرات حتى تنغلق لوحة المفاتيح.
+        $('i' + k).addEventListener('blur', () => setTimeout(() => { if (!typing()) { armed = false; clearTimeout(waitKb); setShift(0);
+          for (const ms of [0, 400, 1000]) setTimeout(() => { if (!typing()) try { parent.__refit?.(); } catch {} }, ms); } }, 50));
       }
     }
     // والنص الإرشادي في التطبيق أقصر ليسع الخانتين بعرض 440 (design/app.md 6.4).
