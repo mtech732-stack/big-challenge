@@ -147,3 +147,7 @@
 .check-layer .safe { left: 96px; top: 54px; width: 1728px; height: 972px; outline: 2px dashed rgba(255,255,255,.7); }
 .check-layer .box { outline: 2px solid #3ddc84; }
 .check-layer .box.bad { outline: 4px solid #ff2d55; background: rgba(255,45,85,.15); }
+
+/* ش8-أ/79 (design/app.md 2.1): قبل أول رسم بحالة معروفة لا يُرى من اللوحة إلا ألوان المسرح (audience.html shown). */
+.canvas.unready { visibility: hidden; }
+.canvas.unready > .stagebg { visibility: visible; }
