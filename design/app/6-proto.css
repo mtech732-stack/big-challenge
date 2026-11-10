@@ -9,3 +9,4 @@
 #protoIco.open { background: var(--card); color: var(--ink); }
 .native-app [data-hero="start"] .start-go { top: 906px; }
 .native-app [data-hero="start"] .start-side { bottom: calc(1080px - 990px); }
+.native-app [data-hero="start"] .team .name-in { flex-basis: 440px; }
