@@ -64,11 +64,15 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     check(`مباراة محفوظة بلا وقت (قبل الإصدار): تُستأنف (${r.step})`, r.step === 'play');
     // ويأخذ وقتاً من أول فعل بعدها (اقتراح المدقّق، «رابع وأربعون»).
     const none = (await state(page)).at;
-    // «تراجع» قد يُهمل في مهلة 0.7 ثانية بعد تغيّر الحالة (HOLD_MS)، أو يتأخّر تحت الحمل: يُنتظر حتى يُكتب الوقت (8 ثوانٍ)،
-    // ويُعاد الأمر إن لم يُكتب، ثلاث مرات على الأكثر. والشرط كما هو.
+    // «تراجع» قد يُهمل في مهلة 0.7 ثانية بعد تغيّر الحالة (HOLD_MS)، أو يتأخّر تحت الحمل. فيُنتظر (8 ثوانٍ) أن يُكتب الوقت
+    // أو تتغيّر المباراة المحفوظة. ويُعاد الأمر (ثلاث مرات على الأكثر) ما دامت المباراة كما هي، أي أُهمل.
+    // فإن تغيّرت ولا وقت، فهذا التراجع لم يكتبه: يُخفق سطر الشرط ولا يُعاد (ش8-أ/77، المدقّق #452).
     for (let i = 0; i < 3; i++) {
-      await cmd(r.frame, 'undo');
-      if (await page.waitForFunction(() => Number(localStorage.getItem('big-challenge.savedAt')) > 0, null, { timeout: 8000 }).catch(() => null)) break;
+      const before = (await state(page)).match;
+      if (!(await cmd(r.frame, 'undo').then(() => true, () => false))) break;
+      await page.waitForFunction(m => Number(localStorage.getItem('big-challenge.savedAt')) > 0 || localStorage.getItem('big-challenge.match') !== m, before, { timeout: 8000 }).catch(() => null);
+      const now = await state(page);
+      if (now.at > 0 || now.match !== before) break;
     }
     const stamped = (await state(page)).at;
     // لا وقت قبل الفعل ولو حفظ عدّاد يجري (ش8-أ/75: المؤقتات لا تجدّد الوقت؛ وكان هذا الفحص يُخفق تحت الحمل بهذا الخلل نفسه).
