@@ -182,7 +182,11 @@
     if (M.isMatch(saved) && (!saved.pack || packs.some(p => p.id === saved.pack))) return saved.pack ? saved : { ...saved, pack: packs[0]?.id ?? null };
     return M.newMatch({ pack: packs[0]?.id ?? null });
   }
-  const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(match)); localStorage.setItem(SAVED_AT_KEY, String(Date.now())); } catch {} };
+  // ش8-أ/75: وقت آخر فعل لا يجدّده إلا فعل المقدّم (نقرة أو أمر، byHand). والحفظ من المؤقتات (انتهاء عدّاد، وقت القائمة، العجلة،
+  // دور الترتيب) يحفظ الحالة ويُبقي الوقت كما هو: فإن انطلقت متأخرة في الخلفية قبل visibilitychange لم تبدُ فعلاً جديداً.
+  let byHand = false;
+  const hand = fn => function (...a) { byHand = true; try { return fn.apply(this, a); } finally { byHand = false; } };
+  const save = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(match)); if (byHand) localStorage.setItem(SAVED_AT_KEY, String(Date.now())); } catch {} };
   // والتطبيق أو الصفحة يعودان من الخلفية دون إعادة تحميل (visibilitychange، ويطلقه WKWebView في تطبيق آبل عند العودة):
   // القاعدة نفسها، فإن تُركت المباراة أكثر من ساعة صارت اللعبة على شاشة البداية بمباراة جديدة، بلا سؤال.
   document.addEventListener('visibilitychange', () => {
@@ -382,7 +386,8 @@
     // التحقق من الرقم السري عند بدء كل مباراة جديدة (4.3): إن تأكد تغيّره أُغلقت اللعبة.
     const result = await watcher?.checkNow();
     if (result === 'changed') return;
-    update(M.toDraw(match));
+    // ش8-أ/76: ما بعد await يجري بعد أن ينزل byHand (finally في hand)، فيُعاد رفعه للحفظ: «اختيار الأنماط» فعل المقدّم.
+    hand(() => update(M.toDraw(match)))();
   }
 
   // «قرعة البداية» في صفحة الاختيار (design/s8b.md 3).
@@ -601,7 +606,7 @@
   };
 
   // نقرات الشاشة المشتركة: تصل من شاشة الجمهور التي في هذه النافذة وحدها.
-  addEventListener('message', e => {
+  addEventListener('message', hand(e => {
     const frame = $('frame').querySelector('iframe');
     if (!frame || e.source !== frame.contentWindow || e.origin !== location.origin || !match) return;
     if (e.data?.bc === 'need-ctl') return sendCtl();
@@ -624,7 +629,7 @@
     if (cmd === 'qr') setQr(arg === 'show');
     if (cmd === 'fullscreen') document.documentElement.requestFullscreen?.().catch(() => {});
     if (['toPick', 'undoPick', 'toFace', 'replay', 'undo', 'scores', 'announce', 'tiebreak'].includes(cmd)) actions[cmd]();
-  });
+  }));
 
   // تطبيق آبل: تُفتح اللعبة مباشرة بلا رقم (الوثيقة 1.17، 4.3).
   if (NATIVE) unlock('');
@@ -639,15 +644,15 @@
 
   $('closeScores').onclick = () => { $('scores').hidden = true; };
   // أثناء الجولة يُعدَّل الرصيد عبر مشغّل الجولة، فيُتراجع عنه كأي حكم (عقد الوحدة 5).
-  $('scores').onclick = e => {
+  $('scores').onclick = hand(e => {
     const b = e.target.closest('[data-team]');
     if (!b) return;
     const team = +b.dataset.team;
     if (match.step === 'play') roundUpdate(P.setScore(match, team, match.scores[team] + +b.dataset.d));
     else update(M.adjustScore(match, team, +b.dataset.d));
-  };
+  });
   // «تراجع» في طبقة الرصيد لا تقع عليه نقرة من زر آخر، فلا يُمهل.
-  $('undoScore').onclick = () => (match.step === 'play' ? roundUpdate(P.undo(match, units())) : update(M.undoScore(match)));
+  $('undoScore').onclick = hand(() => (match.step === 'play' ? roundUpdate(P.undo(match, units())) : update(M.undoScore(match))));
 
 </script>
 </body>
