@@ -188,9 +188,13 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
     await context.close();
   }
   {
-    // التطبيق: «ملء الشاشة» مخفي (design/app.md 4.3)، فالسطر على 64، ويُصوَّر مع الأشرطة الجانبية.
+    // التطبيق (design/app.md 6.1): القائمة نفسها خلف أيقونة على 64 («ملء الشاشة» مخفي، 4.3)، وتفتح بالنقر لوحاً على 184.
+    // ويُصوَّر مع الأشرطة الجانبية.
     const { context, page, frame } = await open({ native: true, size: { width: 956, height: 440 } });
-    check(`التطبيق: السطر نفسه على 64 لأن «ملء الشاشة» مخفي (${await top(frame)})`, (await lines(frame)).length === 6 && (await top(frame)) === '64px');
+    const hidden = await frame.$eval('#rp', e => getComputedStyle(e).display === 'none'), icoTop = await frame.$eval('#rpIco', e => getComputedStyle(e).top);
+    await frame.click('#rpIco'); await new Promise(r => setTimeout(r, 300));
+    check(`التطبيق: السطور نفسها خلف أيقونة على 64 (${icoTop})، وتفتح بالنقر على 184 (${await top(frame)})`,
+      hidden && icoTop === '64px' && (await lines(frame)).length === 6 && (await top(frame)) === '184px');
     const r = await frame.evaluate(() => window.__stageCheck());
     check(`التطبيق: check.js سليم (${r.ok ? '' : r.problems.join('، ')})`, r.ok);
     await page.screenshot({ path: `${shots}/s8d-start-app.png` });

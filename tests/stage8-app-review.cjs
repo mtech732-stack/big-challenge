@@ -41,8 +41,10 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     const b = await box(f, '#startGo .cbtn'), text = await f.$eval('#startGo .cbtn', e => { const r = document.createRange(); r.selectNodeContents(e); const t = r.getBoundingClientRect(), o = e.getBoundingClientRect(); return [t.left - o.left, o.right - t.right].map(Math.round); });
     // 5.10 (2): حشوة 44 من 768، فوسطه وسط الشعار 960. ولوحة الفريق الثاني بعرض خانتها (126–724).
     const p2 = await box(f, '#p2');
-    check(`${tag} 5.8: «اختيار الأنماط» بنصه داخل إطاره بـ 44 من كل جانب، من 768 ووسطه 960، ولوحة الفريق الثاني تنتهي عند 724 (${b.l}–${b.l + b.w} · ${text} · ${p2.l}–${p2.l + p2.w})`,
-      b.l === 768 && Math.abs(b.l + b.w / 2 - 960) <= 2 && text.every(x => x >= 43) && p2.l === 126 && p2.l + p2.w === 724);
+    // وفي التطبيق الخانة 440 (design/app.md 6.4)، فاللوحة تنتهي عند 614.
+    const p2end = native ? 614 : 724;
+    check(`${tag} 5.8: «اختيار الأنماط» بنصه داخل إطاره بـ 44 من كل جانب، من 768 ووسطه 960، ولوحة الفريق الثاني تنتهي عند ${p2end} (${b.l}–${b.l + b.w} · ${text} · ${p2.l}–${p2.l + p2.w})`,
+      b.l === 768 && Math.abs(b.l + b.w / 2 - 960) <= 2 && text.every(x => x >= 43) && p2.l === 126 && p2.l + p2.w === p2end);
     const sc = await stageOk(f);
     check(`${tag}: فحص التداخل والشبكة سليم في البداية (${sc.ok ? '' : sc.problems.join('، ')})`, sc.ok);
     if (!native) {

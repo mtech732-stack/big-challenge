@@ -132,3 +132,9 @@
    وسطر التعريف سطران متوازنان إن لم يتسع، لا أصغر من 32 (حد النص في الشاشة) */
 .mc .by { position: absolute; left: 50%; transform: translateX(-50%); bottom: -50px; margin: 0; text-align: center; font-size: 36px; font-weight: 900; line-height: 1.2; color: #fff; white-space: nowrap; }
 .mc .by.tight { font-size: 32px; }
+
+/* design/app.md 6.2 و6.4 (التطبيق): الصف السفلي على خط 948 (الزر والعدد 906–990)، وخانتا الاسمين بعرض 440
+   بعيداً عن الشعار والزر (الأولى 1306–1746، والثانية 174–614، و#p2 يتبعها). */
+.native-app [data-hero="start"] .start-go { top: 906px; }
+.native-app [data-hero="start"] .start-side { bottom: calc(1080px - 990px); }
+.native-app [data-hero="start"] .team .name-in { flex-basis: 440px; }
