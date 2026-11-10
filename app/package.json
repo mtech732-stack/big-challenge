@@ -7,10 +7,13 @@
     "sync": "node copy-web.mjs && cap sync ios",
     "open": "cap open ios"
   },
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@capacitor/core": "8.6.0",
-    "@capacitor/ios": "8.6.0"
+    "@capacitor/ios": "8.6.0",
+    "@capacitor/splash-screen": "8.0.2"
   },
   "devDependencies": {
     "@capacitor/cli": "8.6.0"
