@@ -54,8 +54,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
         const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
         const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
         return pts.map(([x, y]) => [...g.getImageData(x, y, 1, 1).data.slice(0, 3)]);
-      }, [png.toString('base64'), [[2, H / 2], [W - 3, H / 2], [W / 2, 2], [W / 2, H - 3], [Math.max(2, r.stage[0] - 20), H / 2]]]);
-      check(`${tag}: الحواف الأربع حمراء على حافة الشاشة (${px.slice(0, 4).map(p => p.join('/')).join(' · ')})، والشريط خارج المسرح كذلك (المسرح ${r.stage.join('–')})`, px.every(red));
+      }, [png.toString('base64'), [[2, H / 2], [W - 3, H / 2], [W / 2, 2], [W / 2, H - 3]]]);
+      // واليمنى واليسرى في الشريطين خارج المسرح على الآيفون (المسرح يبدأ بعد 87).
+      check(`${tag}: الحواف الأربع حمراء على حافة الشاشة (${px.map(p => p.join('/')).join(' · ')})، واليمنى واليسرى ${r.stage[0] > 2 ? 'في الشريطين خارج المسرح' : 'على حافة المسرح'} (المسرح ${r.stage.join('–')})`, px.every(red));
     } else {
       await page.screenshot({ path: `${shots}/site-danger-${W}x${H}.png` });
       check(`${tag}: كما هو، النبض حول المسرح (${r.inner})، ولا طبقة على النافذة (${r.vp ? r.vp.join(',') : 'لا'}، ${r.anim ?? 'بلا حركة'})`, on && r.inner === 'pulse' && !r.anim);

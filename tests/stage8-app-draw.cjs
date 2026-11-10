@@ -56,7 +56,8 @@ const { usePin, reporter, stageFrame } = require('./helpers.cjs');
   // واسم حركة البطاقة المتاحة كان pulse كنبض حواف الوقت (stage.css)، وhero.css بعده فكان يحلّ محلّه: الحواف الحمراء في آخر الوقت
   // (design/system.md، «حواف الشاشة كلها حمراء … ينبضان») لا تنبض. الآن لكلٍّ اسمه.
   const kf = await f.evaluate(() => { document.getElementById('canvas').classList.add('meta-danger');
-    const a = document.querySelector('.danger').getAnimations()[0], k = a?.effect?.getKeyframes() ?? [];
+    // وفي التطبيق النبض على طبقة الشاشة #dangerVp (design/app.md 6.6)، والتي في المسرح مخفية.
+    const a = document.getElementById('dangerVp').getAnimations()[0], k = a?.effect?.getKeyframes() ?? [];
     document.getElementById('canvas').classList.remove('meta-danger'); return { name: a?.animationName, shadow: k.some(x => /230, 57, 70/.test(x.boxShadow ?? '')) }; });
   check(`حواف الوقت الحمراء تنبض بحركتها (${kf.name}، ظل أحمر: ${kf.shadow})`, kf.name === 'pulse' && kf.shadow);
   const card = await f.evaluate(() => getComputedStyle(document.querySelector('#mcards .mc.avail') ?? document.body, '::before').animationName);
