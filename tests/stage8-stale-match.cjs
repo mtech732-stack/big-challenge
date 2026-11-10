@@ -133,6 +133,29 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
       again && s1.match !== s0.match && s1.at === s0.at && (await step()) === 'setup');
     await context.close();
   }
+  // ش8-أ/76 (المدقّق #446): «اختيار الأنماط» (goDraw) فعل المقدّم وفيه await قبل الحفظ. من كتب الاسمين وانتظر أكثر من ساعة،
+  // ثم ضغطه وخرج قبل أن يختار نمطاً: يعود إلى «اختيار النمط» باسميه، لا إلى البداية. في الموقع (فيه تحقق الرقم) والتطبيق.
+  for (const native of [false, true]) {
+    const tag = native ? 'التطبيق' : 'الموقع';
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, serviceWorkers: 'block' });
+    context.on('page', p => { p.on('pageerror', e => errors.push(e.message)); });
+    await usePin(context);
+    if (native) await context.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true }; });
+    const page = await context.newPage();
+    await page.goto(base); await page.evaluate(() => localStorage.clear()); await page.reload();
+    if (!native) await unlock(page);
+    const frame = await stageFrame(page);
+    await frame.fill('#i1', 'الصقور'); await frame.fill('#i2', 'النجوم'); await cmd(frame, 'count:short'); await wait(500);
+    await age(page, 61 * MIN);
+    await cmd(frame, 'draw');
+    await frame.waitForSelector('[data-hero="pick"] #pickCtl [data-cmd="draw"]', { timeout: 8000 }); await wait(300);
+    const at = (await state(page)).at;
+    const r = await reopen(page, native);
+    const m = await page.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')));
+    check(`${tag}، ش8-أ/76: «اختيار الأنماط» بعد 61 دقيقة يكتب الوقت (${Math.round((Date.now() - at) / 1000)} ثانية)، وإعادة الفتح على «اختيار النمط» باسميه (${r.step} · ${m.teams?.[1]}،${m.teams?.[2]})`,
+      Date.now() - at < 30000 && r.step === 'pick' && m.teams?.[1] === 'الصقور' && m.teams?.[2] === 'النجوم');
+    await context.close();
+  }
   await browser.close();
   finish(errors);
 })();
