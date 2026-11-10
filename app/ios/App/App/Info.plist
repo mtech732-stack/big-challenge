@@ -43,6 +43,10 @@
       </array>
     </dict>
 	</dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>يسمع التطبيق إجابة المقدّم في المزاد ليقترح العنصر المطابق من القائمة.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>يحوّل التطبيق صوت المقدّم إلى نص على الجهاز ليطابقه بقائمة المزاد.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

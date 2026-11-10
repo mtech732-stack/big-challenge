@@ -12,4 +12,6 @@ const FILES = ['index.html', 'audience.html', 'pin.json', 'sw.js', 'css', 'js', 
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out);
 for (const f of FILES) cpSync(join(root, f), join(out, f), { recursive: true });
+// صفحة تجربة المساعد الصوتي (ت3): من app/lab لا من اللعبة، وتُفتح من التطبيق بثلاث أصابع.
+cpSync(join(here, 'lab'), join(out, 'lab'), { recursive: true });
 console.log(`نُسخت ملفات اللعبة إلى ${out}`);
