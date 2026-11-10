@@ -1108,7 +1108,9 @@
       // والكتابة جارية، فيتحرك في أثنائها والخانة تحت لوحة المفاتيح. فإن كانت ظاهرة عند التركيز (المتاح أقصر بوضوح من أعلى ما رُئي
       // بلا كتابة، full) يُرفع فوراً.
       let shift = 0, armed = false, waitKb = 0, full = vv?.height ?? 0;
-      const BAR = 56;
+      // ش8-أ/83 (محاكي iPhone 16 Pro، v95): كان الهامش 56 فظهر تحت اللوحة المرفوعة شريط داكن فوق لوحة المفاتيح. فصار ارتفاع شريط
+      // الاقتراحات نفسه (44): أقل منه يُغطّي الخانةَ إن ظهر بعد أول حرف، فيلزم تحريكها في الكتابة، وهو ما كان يُغلق لوحة المفاتيح (78).
+      const BAR = 44;
       const setShift = v => { v = Math.max(0, Math.round(v)); if (v === shift) return; shift = v; screenEl.style.transform = v ? `translateY(${-v}px)` : ''; };
       const typing = () => { const el = document.activeElement; return el === $('i1') || el === $('i2') ? el : null; };
       const place = () => {
