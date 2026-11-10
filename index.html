@@ -51,6 +51,13 @@
   body.one { overflow: hidden; }
 
 </style>
+<script>
+  // ش8-أ/79 (design/app.md 2.1): شاشة الإطلاق في التطبيق لا تختفي وحدها (launchAutoHide: false)، فتُخفى بعد أول رسم صحيح
+  // لشاشة الجمهور (audience.html يستدعي __hideSplash)، أو بعد 3 ثوانٍ مهما حدث، ولو رمى ما بعدها خطأ. مرة واحدة. ولا شيء في الموقع.
+  window.__hideSplash = (() => { let done = false; return () => { if (done) return; done = true;
+    try { window.Capacitor?.Plugins?.SplashScreen?.hide?.({ fadeOutDuration: 200 }); } catch {} }; })();
+  setTimeout(window.__hideSplash, 3000);
+</script>
 <script>if (window.Capacitor?.isNativePlatform?.() === true) { document.documentElement.classList.add('native-app');
   // design/app.md 5.3: لا تكبير بنقرتين ولا بإصبعين في التطبيق.
   const v = document.querySelector('meta[name="viewport"]'); if (v) v.content += ', maximum-scale=1, user-scalable=no'; }</script>

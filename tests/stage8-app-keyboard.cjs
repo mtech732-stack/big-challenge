@@ -58,10 +58,16 @@ const { usePin, reporter, stageFrame } = require('./helpers.cjs');
   }, k);
 
   const names = { 1: 'الصقور الذهبية', 2: 'النجوم الزرق' };
-  for (const k of [1, 2]) {
-    await f.evaluate(() => { window.__writes = []; });
-    await f.tap('#i' + k); await wait(100);
-    await kb(220); await wait(300);   // تفتح لوحة المفاتيح فتترك 220
+  // ح: كيف تصل الخانة. «نقر» تفتح لوحة المفاتيح (visualViewport يضيق). «Enter» من الأولى إلى الثانية ولوحة المفاتيح ظاهرة (لا يتغير).
+  const ways = [[1, 'نقر'], [2, 'نقر'], [2, 'Enter']];
+  for (const [k, how] of ways) {
+    const tag = `الخانة ${k === 1 ? 'العليا' : 'السفلى'} (${how})`;
+    if (how === 'نقر') { await f.evaluate(k => { document.getElementById('i' + k).value = ''; window.__writes = []; }, k); await f.tap('#i' + k); await wait(100); await kb(220); await wait(300); }
+    else {
+      await f.tap('#i1'); await wait(100); await kb(220); await wait(900);
+      await f.evaluate(() => { document.getElementById('i2').value = ''; window.__writes = []; });
+      await page.keyboard.press('Enter'); await wait(1000);   // يُرفع بعد 0.7 ثانية، فلا تغيّر في visualViewport يأتي
+    }
     const bad = [];
     let i = 0;
     for (const ch of names[k]) {
@@ -74,16 +80,16 @@ const { usePin, reporter, stageFrame } = require('./helpers.cjs');
       else if (w.bottom > w.kb + 0.5) bad.push(`${i}: الخانة تحت لوحة المفاتيح (${Math.round(w.bottom)} > ${Math.round(w.kb)})`);
     }
     const w = await where(k), writes = await f.evaluate(() => window.__writes);
-    const reset = writes.filter(x => x.focus === 'i' + k && !/translateY/.test(x.t)), lifted = writes.filter(x => /translateY/.test(x.t)).length;
-    check(`الخانة ${k === 1 ? 'العليا' : 'السفلى'}: اسم كامل حرفاً حرفاً، والعنصر نفسه مركّز بعد كل حرف وفوق لوحة المفاتيح (${bad.slice(0, 3).join(' | ')})`, bad.length === 0 && w.value === names[k]);
-    check(`الخانة ${k === 1 ? 'العليا' : 'السفلى'}: لا تعود اللوحة إلى مكانها والتركيز فيها (${reset.length} مرة من ${writes.length} كتابة، ${lifted} رفعاً)`,
-      reset.length === 0 && (k === 1 || lifted > 0));
-    await page.screenshot({ path: `${shots}/app-keyboard-${k}.png` });
+    check(`${tag}: اسم كامل حرفاً حرفاً، والعنصر نفسه مركّز بعد كل حرف وفوق لوحة المفاتيح ولو ظهر شريط الاقتراحات (${bad.slice(0, 3).join(' | ')})`, bad.length === 0 && w.value === names[k]);
+    // لا تتحرك اللوحة والتركيز في الخانة إلا مرة: الرفع عند وصولها (السفلى)، ولا شيء في الكتابة.
+    check(`${tag}: تتحرك اللوحة ${k === 1 ? 'صفر مرة' : 'مرة واحدة'} ولا تتحرك في الكتابة (${writes.length} كتابة: ${writes.map(x => x.t || 'لا شيء').join(' ، ')})`,
+      writes.length === (k === 1 ? 0 : 1) && (k === 1 || /translateY/.test(writes[0].t)));
+    await page.screenshot({ path: `${shots}/app-keyboard-${k}-${how === 'نقر' ? 'tap' : 'enter'}.png` });
     await f.evaluate(k => document.getElementById('i' + k).blur(), k); await kb(H); await wait(200);
+    check(`${tag}: وبزوال التركيز تعود اللوحة إلى مكانها`, await f.evaluate(() => !document.querySelector('.screen').style.transform));
   }
   const m = await page.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).teams);
   check(`الاسمان في المباراة (${m[1]}، ${m[2]})`, m[1] === names[1] && m[2] === names[2]);
-  check('وبزوال التركيز تعود اللوحة إلى مكانها', await f.evaluate(() => !document.querySelector('.screen').style.transform));
   await browser.close();
   finish(errors);
 })();
