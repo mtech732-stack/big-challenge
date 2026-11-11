@@ -245,6 +245,53 @@ const { usePin, reporter, stageFrame } = require('./helpers.cjs');
     check(`ش8-أ/88: وبعد أول حرف لا تتحرك اللوحة ولو ضاق المتاح (${tr0} ← ${o2.tr})`, o2.tr === tr0);
     await c5.close();
   }
+  // ===== ش8-أ/89 (مسؤول الرفع، محاكي iPhone 16 Pro، v99): سهما الشريط فوق لوحة المفاتيح، بلا كتابة =====
+  // السهمان ينقلان التركيز من iOS نفسه (لا keydown)، ولوحة المفاتيح ظاهرة، وiOS يكشف الخانة بإزاحته فيتغيّر visualViewport لحظةً.
+  // في v99 كان الرفع يزيد مع كل resize ما لم يُكتب حرف، فيزيد فوق الإزاحة وتخرج اللوحة من الشاشة، فتبقى زرقاء فارغة حتى Done.
+  // هنا: «أسفل» ثم «أعلى» ثم «أسفل»، ومع كل انتقال يضيق المتاح لحظةً إلى 60 ثم يعود، ثم الكتابة. وفي كل إطار: الخانة المركّزة
+  // ظاهرة كلها فوق لوحة المفاتيح، والمسرح ظاهر.
+  {
+    const c6 = await browser.newContext({ viewport: { width: 956, height: H }, hasTouch: true });
+    c6.on('page', p => { p.on('pageerror', e => errors.push(e.message)); });
+    await usePin(c6);
+    await c6.addInitScript(H => {
+      window.Capacitor = { isNativePlatform: () => true };
+      if (window !== window.top) return;
+      const vv = new EventTarget();
+      Object.assign(vv, { height: H, width: innerWidth, offsetTop: 0, offsetLeft: 0, scale: 1 });
+      Object.defineProperty(window, 'visualViewport', { configurable: true, get: () => vv });
+      window.__kb = (h, top = 0) => { vv.height = h; vv.offsetTop = top; vv.dispatchEvent(new Event('resize')); };
+    }, H);
+    const p6 = await c6.newPage();
+    await p6.goto(base); await p6.evaluate(() => localStorage.clear()); await p6.reload();
+    const g = await stageFrame(p6); await wait(1500);
+    const kb6 = h => p6.evaluate(h => window.__kb(h), h);
+    await p6.evaluate(() => {
+      window.__run = ms => { window.__log = []; const t0 = performance.now(); const fr = document.querySelector('#single iframe'), w = fr.contentWindow, d = w.document;
+        const tick = () => { const fb = fr.getBoundingClientRect(), s = fb.height / w.innerHeight, el = d.activeElement, c = d.getElementById('canvas').getBoundingClientRect();
+          const r = el?.classList.contains('name-in') ? el.getBoundingClientRect() : null;
+          window.__log.push({ t: Math.round(performance.now() - t0), id: el?.id, top: r ? Math.round(fb.top + r.top * s) : null, bottom: r ? Math.round(fb.top + r.bottom * s) : null,
+            kb: visualViewport.height, stage: Math.round(fb.top + c.bottom * s) });
+          if (performance.now() - t0 < ms) requestAnimationFrame(tick); };
+        tick(); };
+    });
+    await g.tap('#i1'); await wait(100); await kb6(220); await wait(900);
+    const bad = [];
+    for (const to of ['i2', 'i1', 'i2']) {
+      await p6.evaluate(() => __run(1500));
+      await g.focus('#' + to); await wait(30); await kb6(60); await wait(60); await kb6(220); await wait(1500);
+      const log = await p6.evaluate(() => window.__log);
+      // بعد عودة المتاح (أول إطار والمتاح 220 بعد الانتقال): الخانة ظاهرة كلها فوقه، والمسرح ظاهر.
+      const settled = log.filter((x, i) => x.id === to && x.kb === 220 && log.slice(0, i).some(y => y.kb === 60));
+      const off = settled.filter(x => x.top < 0 || x.bottom > x.kb || x.stage <= 0);
+      if (!settled.length || off.length) bad.push(`${to}: ${settled.length ? JSON.stringify(off[0]) : 'لا إطار'}`);
+    }
+    check(`ش8-أ/89: سهما الشريط «أسفل» ثم «أعلى» ثم «أسفل» بلا كتابة، والمتاح يضيق لحظةً مع كل انتقال: الخانة المركّزة ظاهرة كلها فوق لوحة المفاتيح في كل إطار بعده (${bad.join(' | ')})`, bad.length === 0);
+    await p6.keyboard.type('Stars'); await wait(300);
+    const v = await g.evaluate(() => ({ id: document.activeElement.id, v: document.activeElement.value }));
+    check(`ش8-أ/89: ثم الكتابة في السفلى (${v.id}: ${v.v})`, v.id === 'i2' && v.v === 'Stars');
+    await c6.close();
+  }
   check(`الاسمان في المباراة (${teams[1]}، ${teams[2]})`, teams[1] === names[1] && teams[2] === names[2]);
   await browser.close();
   finish(errors);
