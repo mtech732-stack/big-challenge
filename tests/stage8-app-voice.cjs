@@ -68,6 +68,17 @@ const { check: _c, finish: _f } = { check: null, finish: null };
   const chips = f => f.$$eval('#voxLit .chip', els => els.map(e => e.textContent));
   const tally = f => f.$eval('#tn', e => Number(e.textContent));
   const words = f => f.$$eval('#voxWords span', els => els.map(e => `${e.textContent}${e.className ? '.' + e.className : ''}`).join(' '));
+  // نقرة يصل بين نزول إصبعها ورفعه نصٌّ جديد (ش8-أ/97، والحارس الذي طلبه المدقّق #503 للشارات).
+  const pressDuring = async (page, f, sel, text, during = () => heard(page, text)) => {
+    const box = await f.$eval(sel, e => { const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+    const fr = await (await page.$('#single iframe')).boundingBox(), k = await page.evaluate(() => { const i = document.querySelector('#single iframe'); return i.getBoundingClientRect().width / i.clientWidth; });
+    await page.mouse.move(fr.x + box.x * k, fr.y + box.y * k);
+    await page.mouse.down();
+    await during();
+    await wait(400);
+    await page.mouse.up();
+    await wait(300);
+  };
   const closeMore = async f => { if (await f.$('[data-cmd="more"].open')) { await f.click('[data-cmd="more"]'); await wait(200); } };
 
   try {
@@ -121,14 +132,7 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     check(`فحص التداخل والشبكة مع التحديد و«اعتمد» (${sc.ok ? '' : sc.problems.join('، ')})`, sc.ok);
     // ش8-أ/97 (تجربة المالك: لم يمكنه التصحيح): نقرة يصل بين نزول إصبعها ورفعه نصٌّ جديد تبقى نقرة على الكلمة نفسها.
     {
-      const box = await f.$eval('#voxWords [data-cmd="vox:w:2"]', e => { const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
-      const fr = await (await page.$('#single iframe')).boundingBox(), k = await page.evaluate(() => { const i = document.querySelector('#single iframe'); return i.getBoundingClientRect().width / i.clientWidth; });
-      await page.mouse.move(fr.x + box.x * k, fr.y + box.y * k);
-      await page.mouse.down();
-      await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني');
-      await wait(400);
-      await page.mouse.up();
-      await wait(300);
+      await pressDuring(page, f, '#voxWords [data-cmd="vox:w:2"]', 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني');
       check(`نقرة على كلمة يصل أثناءها نص جديد تحددها (${await words(f)})`, (await words(f)).includes('شنو.sel'));
       await f.click('#voxWords [data-cmd="vox:w:2"]'); await wait(300);
     }
@@ -139,9 +143,16 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني والطائره بعد');
     await wait(400);
     check(`«والطائره» تطابق «طائرة» (${await chips(f)})`, (await chips(f)).includes('طائرة') && await tally(f) === 7);
-    // الحذف بنقرتين.
-    await f.click('#voxLit .chip:nth-child(3)'); await wait(250);
-    check('النقرة الأولى تحدد الشارة بإطار ولا تحذف', await f.$eval('#voxLit .chip:nth-child(3)', e => e.classList.contains('armed')) && await tally(f) === 7);
+    // الحذف بنقرتين. والنقرة الأولى يصل أثناءها نص جديد: الشارات تبقى في مكانها فلا تضيع (حارس المدقّق #503).
+    // ش8-أ/102: والنقرة على شارة أخرى لحظة يزول أصفر «طائرة» (0.7 ث بعد إضاءتها) تُصيبها كذلك.
+    const yellow = () => f.$eval('#voxLit .chip:last-child', e => e.classList.contains('new'));
+    const fade = [await yellow()];
+    await pressDuring(page, f, '#voxLit .chip:nth-child(3)', 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني والطائره بعد', async () => {
+      await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني والطائره بعد');
+      await wait(400); fade.push(await yellow());
+    });
+    check(`والنقرة امتدت على زوال الأصفر (${fade})`, fade[0] === true && fade[1] === false);
+    check('النقرة الأولى، ويصل أثناءها نص ويزول الأصفر، تحدد الشارة بإطار ولا تحذف', await f.$eval('#voxLit .chip:nth-child(3)', e => e.classList.contains('armed')) && await tally(f) === 7);
     await page.screenshot({ path: `${shots}/app-voice-armed.png` });
     sc = await f.evaluate(() => window.__stageCheck());
     check(`فحص التداخل والشبكة والشارة محددة (${sc.ok ? '' : sc.problems.join('، ')})`, sc.ok);
@@ -254,6 +265,20 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     await wait(500);
     check(`والثالث يسمع ويضيء (${await chips(f)})`, JSON.stringify(await chips(f)) === JSON.stringify([items3[0].name]));
     check(`وبدأ السماع مرة لكل موضوع، لا مرتين (${await page.evaluate(() => window.__voice.ids.join())})`, (await page.evaluate(() => window.__voice.ids.length)) === 3);
+    // حارسا المدقّق #503:
+    // الحسم عند الإيقاف: آخر ما قيل ينتظر ما بعده (94)، وإيقاف المساعد من «⋯» يحسمه وإن لم تصل نهاية الجلسة.
+    await heard(page, `${items3[0].name} يعني ${items3[2].name}`);
+    await wait(400);
+    check(`آخر ما قيل ينتظر (${await chips(f)})`, !(await st()).said.some(x => x.i === 2));
+    await cmd(f, 'vox:toggle'); await wait(500);
+    check(`وإيقاف المساعد من «⋯» يحسمه فيُعدّ، دون نهاية الجلسة (${JSON.stringify((await st()).said.map(x => x.i))})`, !(await page.evaluate(() => window.__voice.live))
+      && (await st()).said.some(x => x.i === 2));
+    // ووفاء الجلسة (keyOf): نهاية جلسة الموضوع الثاني تصل والسماع موقوف في الثالث، فلا تُعدّ فيه.
+    // وفي أولها حشو، فتقع أسماؤها في كلمات لم تؤخذ (لو قُبلت لأضاءت).
+    const n3 = (await st()).said.length;
+    await page.evaluate(([id, t]) => window.__voice.emit('final', { id, text: t }), [second, `يعني شنو كمان بعد ثاني والله ${items3[1].name} و ${items3[3].name} يعني`]);
+    await wait(500);
+    check(`ونهاية جلسة الثاني والسماع موقوف في الثالث لا تُعدّ فيه (${JSON.stringify((await st()).said.map(x => x.i))})`, (await st()).said.length === n3);
     await context.close();
   } catch (e) { errors.push(String(e).split('\n')[0]); }
   // الموقع: لا أيقونة ولا صفوف.

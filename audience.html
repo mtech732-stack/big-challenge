@@ -890,23 +890,28 @@
     let soon = Infinity;
     // ولا تُستبدل الشارات إن لم يتغير ما فيها (ش8-أ/97، تجربة المالك: لم يمكنه التصحيح). النص المسموع يصل مرات في الثانية،
     // وكل رسم كان يستبدل الشارات والكلمات، فالنقرة بين نزول الإصبع ورفعه تقع على عنصر زال فلا تصل (كعدّ المزاد السريع، ش8-أ/54).
+    // والأصفر (new) لا يدخل في المقارنة: زواله يُحدَّث في شارته وحدها (ش8-أ/102: كان يُعيد رسم الشارات كلها فتضيع نقرة لحظتها).
+    const fresh = [];
     const html = list.map(x => {
       const id = (x.own ? 'o:' : 'i:') + x.name;
       if (!litSeen.has(id)) litSeen.set(id, still() ? -LIT_MS : now);
       const left = litSeen.get(id) + LIT_MS - now;
       if (left > 0) soon = Math.min(soon, left);
-      return `<span class="chip t${team}${x.own ? ' own' : ''}${left > 0 ? ' new' : ''}" data-cmd="act:unsay:${x.at}"><i></i><span>${esc(x.name)}</span></span>`;
+      fresh.push(left > 0);
+      return `<span class="chip t${team}${x.own ? ' own' : ''}" data-cmd="act:unsay:${x.at}"><i></i><span>${esc(x.name)}</span></span>`;
     }).join('');
     if (soon < Infinity) litLater = setTimeout(() => renderVox(view?.play?.a ?? a), soon + 20);
+    const fill = () => [...$('voxLit').children].forEach((c, k) => c.classList.toggle('new', !!fresh[k]));
     if (html !== litHtml) {
       litHtml = html;
       $('voxLit').innerHTML = html;
+      fill();
       // ما زاد عن العرض: تبقى الأحدث ظاهرة، وتغيب الأقدم من اليمين، وحافة باهتة 48 تدل عليها. والعدد كاملاً في العدّ.
       const row = $('voxLit'), all = [...row.children];
       let gone = 0;
       while (row.scrollWidth > row.clientWidth + 1 && gone < all.length - 1) all[gone++].hidden = true;
       row.classList.toggle('over', gone > 0);
-    }
+    } else fill();
     markArmed();
     renderWords(a, v);
   }
