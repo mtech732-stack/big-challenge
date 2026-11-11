@@ -68,3 +68,52 @@
 .cx-it { height: 48px; display: flex; align-items: center; gap: 12px; font-size: 32px; font-weight: 700; color: var(--text); white-space: nowrap; }
 .cx-it::before { content: ""; width: 12px; height: 12px; transform: skewX(calc(-1 * var(--lean))); background: var(--cx-team); }
 .anim .cx-pg.in { animation: in .2s ease-out both; }
+
+/* 8. المساعد الصوتي في تطبيق آبل (الوثيقة 5.5.1، design/app.md 7، النموذج design/app/7-proto.css). تحت .native-app وحالة المساعد (.vox)،
+   ولا شيء منه في الموقع. ثلاثة صفوف في البطاقة: الرأس 88 · ما أضاء 64 · النص المسموع 96، والفاصل 20 */
+.vox-lit, .vox-heard { display: none; }
+.native-app .auc.vox { gap: 20px; }
+.native-app .auc.vox .bids { display: none; }
+.native-app .auc.vox .ahead { min-height: 88px; }
+.native-app .auc.vox .tally .n { font-size: 88px; line-height: 88px; }
+/* ما أضاء: شارات مائلة 64 بلون الملتزم، أولها يميناً. وما زاد عن العرض تُقصّ أقدمه من اليمين بحافة باهتة 48 */
+.native-app .auc.vox .vox-lit { flex: none; min-width: 0; max-width: 100%; display: flex; gap: 16px; height: 64px; overflow: clip; padding: 0 12px; }
+.vox-lit .chip[hidden] { display: none; }
+.native-app .auc.vox .vox-lit.over { mask-image: linear-gradient(to left, transparent, #000 48px); }
+.vox-lit .chip { position: relative; flex: none; height: 64px; padding: 0 28px; display: flex; align-items: center; color: var(--on-stage); font-size: 36px; font-weight: 800; white-space: nowrap; cursor: pointer; }
+.vox-lit .chip > i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); background: var(--vox-team, var(--team-1)); transition: background-color .2s; }
+.vox-lit .chip > span { position: relative; }
+/* لحظة الإضاءة: بالأصفر ونص الحبر 600ms، ثم لون الفريق */
+.vox-lit .chip.new > i { background: var(--hl); }
+.vox-lit .chip.new { color: var(--ink); }
+/* ما اعتمده المقدّم من خارج القائمة: خط متقطع 4 تحت نصه */
+.vox-lit .chip.own > span { border-bottom: 4px dashed currentColor; }
+/* الحذف بنقرتين: الأولى تُحيط الشارة بإطار حبر 4 مائل على بعد 8 */
+.vox-lit .chip.armed::before { content: ""; position: absolute; inset: -8px; border: 4px solid var(--ink); transform: skewX(calc(-1 * var(--lean))); }
+/* مساحة نقر 120 (44 نقطة) فوق الشارة وتحتها، لا تتداخل مع صف النص المسموع: يُقسم الفاصل 20 بينهما */
+.vox-lit .chip::after { content: ""; position: absolute; inset: -28px -8px; }
+.native-app .auc.vox .vox-lit { overflow: clip; overflow-clip-margin: 28px; }
+/* النص المسموع: الميكروفون 48 يميناً، ثم الكلمات 34 في سطرين، الأحدث في آخره وما زاد يصعد ويُقصّ من الأعلى */
+.native-app .auc.vox .vox-heard { flex: none; min-width: 0; max-width: 100%; display: flex; align-items: flex-start; gap: 20px; height: 96px; }
+.vox-heard .mic { flex: none; width: 48px; height: 48px; display: grid; place-items: center; position: relative; color: var(--text); opacity: .55; }
+.vox-heard .mic svg { width: 40px; height: 40px; fill: none; stroke: currentColor; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+.vox-heard .mic.live { color: var(--vox-team, var(--team-1)); opacity: 1; }
+.vox-heard .mic.live::before { content: ""; position: absolute; inset: -6px; border: 3px solid currentColor; border-radius: 50%; animation: voxpulse 1.2s ease-out infinite; }
+@keyframes voxpulse { from { transform: scale(.85); opacity: .7; } to { transform: scale(1.25); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .vox-heard .mic.live::before { animation: none; opacity: .35; } }
+.vox-heard .words { position: relative; flex: 1; min-width: 0; height: 96px; overflow: clip; }
+.vox-heard .words > div { position: absolute; inset-inline: 0; top: 0; font-size: 34px; line-height: 48px; font-weight: 600; color: var(--text); }
+.vox-heard .words > div.up { top: auto; bottom: 0; }
+.vox-heard .words span { position: relative; display: inline-block; opacity: .55; cursor: pointer; }
+.vox-heard .words span::after { content: ""; position: absolute; inset: -36px -7px; }
+.vox-heard .words span.hit { opacity: 1; box-shadow: inset 0 -4px 0 var(--vox-team, var(--team-1)); cursor: default; }
+.vox-heard .words span.used { opacity: 1; box-shadow: inset 0 -4px 0 var(--text); cursor: default; }
+.vox-heard .words span.sel { opacity: 1; background: var(--ink); color: var(--card); padding: 0 8px; }
+/* بعد «كشف القائمة» (7.3): ما أضاء مبرز بلون الملتزم ونص أبيض بحشوة 10، وما اعتُمد من خارجها في آخرها بخط متقطع */
+.cx-it.said b { background: var(--cx-team); color: var(--card); padding: 0 10px; font-weight: inherit; line-height: 44px; }
+.cx-it.own b { text-decoration: underline dashed 3px; text-underline-offset: 8px; }
+/* «اعتمد» يسار «كشف القائمة» بشكل أزرار الحكم: أبيض بنص الحبر */
+.ctl-ans .cbtn.vox-ok { background: var(--card); color: var(--ink); }
+/* أيقونة «المساعد الصوتي» في لوحة «⋯» (7.4): مُشغَّل أبيض والرسم بالحبر · موقوف بإطار وخط مائل · يُنزَّل يمتلئ بالأبيض من اليمين */
+.ctl-more .cbtn.vox-on { background: var(--card); color: var(--ink); }
+.ctl-more .cbtn.vox-dl { background: linear-gradient(to left, var(--card) var(--pct, 0%), transparent var(--pct, 0%)); }
