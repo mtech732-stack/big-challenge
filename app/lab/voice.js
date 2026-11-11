@@ -102,35 +102,31 @@ function drawRun() {
   drawList();
   const left = run.ended ? 0 : Math.max(0, RUN_SECONDS - Math.floor((performance.now() - run.t0) / 1000));
   $('pick').innerHTML = `ذُكر <span class="hl">${picks.length + run.extras.length}</span> من ${topic.items.length}`;
-  $('why').textContent = run.ended ? 'انتهى. أزل الخطأ بنقرة، وأضف ما فات من القائمة، أو انقر كلمات «سمع» لتعتمد ما ليس فيها (المتجاورة إجابة واحدة)، ثم «اعتمد»' : `أسمع… باقي ${left} ثانية`;
+  $('why').textContent = run.ended ? 'انتهى. أزل الخطأ بنقرة، وأضف ما فات من القائمة، أو انقر كلمات «سمع» لتعتمد ما ليس فيها (كلمات الإجابة الواحدة ثم «اعتمد»، ثم التالية)، ثم «اعتمد»' : `أسمع… باقي ${left} ثانية`;
   // بعد الانتهاء: كل كلمة مسموعة تُنقر، والمتجاورة المختارة عبارة واحدة تُعتمد خارج القائمة (المالك، 11 نوفمبر).
   const ws = run.text ? run.text.split(/\s+/) : [];
-  $('heard').innerHTML = `سمع: «<bdi>${ws.length ? ws.map((w, k) => `<span class="w${run.sel.has(k) ? ' sel' : ''}" data-w="${k}">${w}</span>`).join(' ') : '—'}</bdi>»`;
-  const phrases = selPhrases();
-  $('addx').hidden = !phrases.length;
-  $('addx').textContent = phrases.length === 1 ? `اعتمد «${phrases[0]}» خارج القائمة`
-    : phrases.length ? `اعتمد ${phrases.length} إجابات خارج القائمة: ${phrases.map(x => `«${x}»`).join(' ')}` : '';
+  $('heard').innerHTML = `سمع: «<bdi>${ws.length ? ws.map((w, k) => `<span class="w${run.sel.has(k) ? ' sel' : ''}${run.used.has(k) ? ' used' : ''}" data-w="${k}">${w}</span>`).join(' ') : '—'}</bdi>»`;
+  const phrase = selPhrase();
+  $('addx').hidden = !phrase;
+  $('addx').textContent = phrase ? `اعتمد «${phrase}» إجابة واحدة` : '';
   $('top').innerHTML = picks.map(c => `<button data-i="${c.i}" class="${c.man ? 'man' : ''}">${c.name} ✕</button>`).join('')
     + run.extras.map((x, k) => `<button data-x="${k}" class="extra">${x} ✕</button>`).join('');
   $('ok').disabled = !run.ended;
 }
-// الكلمات المختارة تُقسم مجموعات متجاورة: كل مجموعة إجابة مستقلة، والمركّبة («ريشة طائرة») تبقى معاً.
-function selPhrases() {
+// الإجابة الواحدة ما ينقره المقدّم من كلمات قبل «اعتمد»، متجاورة أو لا. ثم يبدأ الإجابة التالية.
+// فالتجاور لا يقرر شيئاً (المالك، 11 نوفمبر): «ريشة طائرة» إجابة، و«بنت فراشة» قد تكون إجابتين تُعتمد كل واحدة وحدها.
+function selPhrase() {
   const ws = run.text ? run.text.split(/\s+/) : [];
-  const ks = [...run.sel].sort((a, b) => a - b);
-  const groups = [];
-  for (const k of ks) {
-    const g = groups[groups.length - 1];
-    if (g && k === g[g.length - 1] + 1) g.push(k); else groups.push([k]);
-  }
-  return groups.map(g => g.map(k => ws[k]).filter(Boolean).join(' ')).filter(Boolean);
+  return [...run.sel].sort((a, b) => a - b).map(k => ws[k]).filter(Boolean).join(' ');
 }
 function addExtra() {
-  for (const phrase of selPhrases()) {
+  const phrase = selPhrase();
+  if (phrase) {
     // إن طابقت العبارة عنصراً في القائمة فهي ذلك العنصر، فلا تُعدّ مرتين.
     const r = matchAll([phrase], prepared);
     if (r.sure) { run.removed.delete(r.pick.i); run.added.add(r.pick.i); }
     else if (!run.extras.includes(phrase)) run.extras.push(phrase);
+    run.sel.forEach(k => run.used.add(k));
   }
   run.sel = new Set();
   drawRun();
@@ -138,7 +134,7 @@ function addExtra() {
 async function startRun() {
   if (!topic) return;
   said = new Set();
-  run = { text: '', removed: new Set(), added: new Set(), sel: new Set(), extras: [], t0: performance.now(), ended: false, timer: 0 };
+  run = { text: '', removed: new Set(), added: new Set(), sel: new Set(), used: new Set(), extras: [], t0: performance.now(), ended: false, timer: 0 };
   $('live').textContent = '';
   const hints = topic.items.flatMap(it => [it.name, ...(it.alts ?? [])]);
   try {
