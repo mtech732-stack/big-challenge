@@ -125,7 +125,7 @@
   const VOX_KEY = 'big-challenge.voice';
   const cap = globalThis.Capacitor;
   const vox = { ok: false, on: false, dl: null, tip: '', key: '', text: '', base: '', sel: new Set(), emitted: new Set(), items: null,
-    live: false, starting: false, sent: 0, later: 0 };
+    live: false, starting: false, sent: 0, later: 0, sid: '', sids: 0, keyOf: {} };
   const voxCall = (method, opts = {}) => cap.nativePromise('Voice', method, opts);
   let muted = false;
   try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch {}
@@ -672,8 +672,12 @@
     try { s = await voxCall('status'); } catch { return; }
     if (!s?.available) return;
     vox.ok = true;
-    cap.addListener('Voice', 'partial', d => voxHeard(d?.text));
-    cap.addListener('Voice', 'final', d => { voxHeard(d?.text, true); vox.live = false; vox.starting = false; voxSend(true); });
+    cap.addListener('Voice', 'partial', d => { if (voxMine(d)) voxHeard(d?.text); });
+    cap.addListener('Voice', 'final', d => {
+      if (voxMine(d)) voxHeard(d?.text, true);
+      if (d?.id === undefined || d.id === vox.sid) { vox.live = false; vox.starting = false; }
+      voxSend(true);
+    });
     cap.addListener('Voice', 'progress', d => { if (vox.dl !== null) { vox.dl = Math.max(0, Math.min(100, Math.round(Number(d?.pct) || 0))); render(); } });
     try { vox.on = localStorage.getItem(VOX_KEY) === '1' && !!s.installed && s.mic === 'granted'; } catch {}
     if (match) render();
@@ -712,12 +716,22 @@
     if (want && !vox.live && !vox.starting) voxStart(st);
     if (!want && (vox.live || vox.starting)) voxStop();
   }
+  // لكل جلسة سماع رقم (sid) ووفاؤها (keyOf). ونهاية جلسة سابقة قد تصل بعد بدء التالية (ش8-أ/98 و99، تجربة المالك على هاتفه:
+  // في الموضوع التالي بقي نص الأول، ووقف السماع). فلا يُقبل حدث إلا من جلسة وفائه الجاري، الجارية أو الموقوفة إن لم تبدأ بعدها أخرى.
+  // والغلاف الذي لا يرسل رقماً (قبل 88b204e) يُقبل منه ما دام السماع جارياً.
+  function voxMine(d) {
+    if (d?.id === undefined) return vox.live || vox.starting;
+    return vox.keyOf[d.id] === vox.key && (d.id === vox.sid || (!vox.live && !vox.starting));
+  }
   async function voxStart(st) {
     vox.starting = true;
+    const id = String(++vox.sids);
+    vox.sid = id; vox.keyOf[id] = vox.key;
     // ما سُمع قبل توقف سابق في الوفاء نفسه («تراجع» عن الكشف) يبقى، ويُكمل بعده.
     vox.base = vox.text;
     const hints = st.topics[st.index].items.flatMap(x => [x.name, ...(x.alts ?? [])]);
-    try { await voxCall('start', { hints }); vox.live = true; } catch { vox.live = false; }
+    try { await voxCall('start', { id, hints }); vox.live = vox.sid === id; } catch { if (vox.sid === id) vox.live = false; }
+    if (vox.sid !== id) return;
     vox.starting = false;
     // قد يتغير ما يُراد أثناء البدء (كُشفت القائمة).
     if (!voxShown() || voxFulfil()?.over || !match.round.timer) voxStop();
@@ -725,7 +739,9 @@
   }
   function voxStop() {
     if (!vox.live && !vox.starting) return;
-    vox.live = false;
+    // ما سُمع يُحسم قبل التوقف (كالكشف، 96)، فنهاية الجلسة إن تأخرت لا يضيع بها شيء.
+    vox.live = false; vox.starting = false;
+    if (voxFulfil()) voxHeard(null, true);
     voxCall('stop').catch(() => {});
     voxSend(true);
   }
@@ -773,10 +789,10 @@
       const lit = new Set((st.said ?? []).filter(x => Array.isArray(x.w)).map(x => x.i));
       const m = matchOne(phrase, vox.items);
       vox.sel = new Set();
-      // يطابق عنصراً لم يُذكر: يضيء. ولا يطابق: إجابة من خارج القائمة بنصها. ويطابق ما أضاء: لا يُعدّ مرتين.
+      // يطابق عنصراً لم يُذكر: يضيء. وإلا فإجابة اعتمدها المقدّم بنصها، ولو شابهت ما أضاء: «اعتمد» حكمه، فلا يمضي بلا أثر
+      // (كان يمضي بلا شيء إن شابهت الكلمات عنصراً أضاء، فيظن المقدّم أن «اعتمد» لا يعمل).
       if (m && !lit.has(m.i)) { vox.emitted.add(m.i); roundAct(`say:${m.i}:${ks.join(',')}`, true); }
-      else if (!m) roundAct(`say::${ks.join(',')}:${phrase}`, true);
-      else render();
+      else roundAct(`say::${ks.join(',')}:${phrase}`, true);
       voxSend(true);
     }
   }

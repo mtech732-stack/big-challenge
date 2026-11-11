@@ -42,7 +42,7 @@ const { check: _c, finish: _f } = { check: null, finish: null };
           if (m === 'status') return { available: true, installed: v.installed, mic: v.mic };
           if (m === 'install') { for (const pct of [10, 40, 80]) { v.emit('progress', { pct }); await new Promise(r => setTimeout(r, 300)); } v.installed = true; return {}; }
           if (m === 'requestAccess') { v.mic = 'granted'; return { mic: 'granted' }; }
-          if (m === 'start') { v.live = true; v.hints = o.hints; return {}; }
+          if (m === 'start') { v.live = true; v.hints = o.hints; v.id = o.id; (v.ids ??= []).push(o.id); return {}; }
           if (m === 'stop') { v.live = false; return {}; }
           return {};
         },
@@ -63,7 +63,8 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     return { context, page, f, st };
   }
   const go = async (f, c) => { await cmd(f, c); await wait(800); };
-  const heard = (page, text) => page.evaluate(t => window.__voice.emit('partial', { text: t }), text);
+  // النص المسموع من الجلسة الجارية (برقمها، كالغلاف بعد 88b204e).
+  const heard = (page, text) => page.evaluate(t => window.__voice.emit('partial', { id: window.__voice.id, text: t }), text);
   const chips = f => f.$$eval('#voxLit .chip', els => els.map(e => e.textContent));
   const tally = f => f.$eval('#tn', e => Number(e.textContent));
   const words = f => f.$$eval('#voxWords span', els => els.map(e => `${e.textContent}${e.className ? '.' + e.className : ''}`).join(' '));
@@ -118,6 +119,19 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     await page.screenshot({ path: `${shots}/app-voice-select.png` });
     let sc = await f.evaluate(() => window.__stageCheck());
     check(`فحص التداخل والشبكة مع التحديد و«اعتمد» (${sc.ok ? '' : sc.problems.join('، ')})`, sc.ok);
+    // ش8-أ/97 (تجربة المالك: لم يمكنه التصحيح): نقرة يصل بين نزول إصبعها ورفعه نصٌّ جديد تبقى نقرة على الكلمة نفسها.
+    {
+      const box = await f.$eval('#voxWords [data-cmd="vox:w:2"]', e => { const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+      const fr = await (await page.$('#single iframe')).boundingBox(), k = await page.evaluate(() => { const i = document.querySelector('#single iframe'); return i.getBoundingClientRect().width / i.clientWidth; });
+      await page.mouse.move(fr.x + box.x * k, fr.y + box.y * k);
+      await page.mouse.down();
+      await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني');
+      await wait(400);
+      await page.mouse.up();
+      await wait(300);
+      check(`نقرة على كلمة يصل أثناءها نص جديد تحددها (${await words(f)})`, (await words(f)).includes('شنو.sel'));
+      await f.click('#voxWords [data-cmd="vox:w:2"]'); await wait(300);
+    }
     await go(f, 'vox:ok');
     check(`«اعتمد» من خارج القائمة: شارة بخط متقطع، والعدّ 6 (${await chips(f)})`, (await chips(f)).at(-1) === 'كرسي متحرك' && await f.$eval('#voxLit .chip:last-child', e => e.classList.contains('own')) && await tally(f) === 6
       && (await words(f)).includes('كرسي.used متحرك.used') && !(await f.$('[data-cmd="vox:ok"]')));
@@ -192,6 +206,54 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     const n = await tally(f);
     await cmd(f, 'vox:toggle'); await wait(500);
     check('إيقافه من «⋯» يوقف السماع ويُغيب الصفوف، والعدّ باقٍ', !(await page.evaluate(() => window.__voice.live)) && !(await f.$eval('#auc', e => e.classList.contains('vox'))) && await tally(f) === n);
+    await context.close();
+  } catch (e) { errors.push(String(e).split('\n')[0]); }
+  // ش8-أ/98 و99 (تجربة المالك على هاتفه): موضوعان متتاليان. نهاية جلسة الأول (final برقمها) تصل بعد بدء الثاني،
+  // فلا يظهر نصها في الثاني ولا يقف به السماع، والثاني يسمع ويضيء.
+  try {
+    const { context, page, f, st } = await open(true, { installed: true });
+    await page.evaluate(() => { window.__voice.mic = 'granted'; });
+    await go(f, 'raise:1');
+    await cmd(f, 'vox:toggle'); await wait(500);
+    await closeMore(f);
+    await go(f, 'act:start');
+    await heard(page, 'سيارة باص يعني');
+    await wait(400);
+    check(`الموضوع الأول: أضاء ما قيل (${await chips(f)})`, JSON.stringify(await chips(f)) === '["سيارة","حافلة"]');
+    // ش8-أ/97: «اعتمد» على كلمة تشبه ما أضاء (تكرار) يُحسب إجابة بنصها، ولا يضيع بلا أثر.
+    await heard(page, 'سيارة باص يعني سياره ثم');
+    await wait(400);
+    await f.click('#voxWords [data-cmd="vox:w:3"]'); await wait(300);
+    await go(f, 'vox:ok');
+    check(`«اعتمد» على ما يشبه ما أضاء يُحسب بشارة ويزيد العدّ (${await chips(f)}، ${await tally(f)})`, JSON.stringify(await chips(f)) === '["سيارة","حافلة","سياره"]' && await tally(f) === 3);
+    const first = await page.evaluate(() => window.__voice.id);
+    await go(f, 'act:reveal'); await go(f, 'act:ok'); await go(f, 'act:next');
+    await hideQr(f);
+    await go(f, 'raise:2'); await go(f, 'act:start');
+    const second = await page.evaluate(() => window.__voice.id);
+    check(`الموضوع الثاني: جلسة سماع جديدة برقم آخر (${first} ← ${second})`, second && second !== first && await page.evaluate(() => window.__voice.live));
+    await page.evaluate(id => window.__voice.emit('final', { id, text: 'سيارة باص يعني قطار' }), first);
+    await wait(500);
+    check(`ونهاية جلسة الأول بعد بدء الثاني لا تُظهر نصها فيه (${await words(f)})`, (await words(f)) === '' && (await chips(f)).length === 0 && (await st()).said.length === 0);
+    check('ولا توقف سماعه: الميكروفون ما زال يسمع', await f.$eval('#voxMic', e => e.classList.contains('live')));
+    const items = (await st()).topics[(await st()).index].items;
+    await heard(page, `${items[0].name} و ${items[1].name} يعني`);
+    await wait(500);
+    check(`والثاني يسمع ويضيء (${await chips(f)})`, (await chips(f)).length >= 1 && (await st()).said.length >= 1);
+    // والثالث كذلك، ونهاية جلسة الثاني تصل بعد بدئه.
+    await go(f, 'act:reveal'); await go(f, 'act:ok'); await go(f, 'act:next');
+    await hideQr(f);
+    await go(f, 'raise:1'); await go(f, 'act:start');
+    const third = await page.evaluate(() => window.__voice.id);
+    await page.evaluate(id => window.__voice.emit('final', { id, text: 'كلام الموضوع الثاني' }), second);
+    await wait(500);
+    const items3 = (await st()).topics[(await st()).index].items;
+    check(`الموضوع الثالث: جلسة ثالثة، ونهاية الثاني لا تظهر فيه ولا توقف سماعه (${third}، ${await words(f)})`, third && third !== second && (await words(f)) === ''
+      && await f.$eval('#voxMic', e => e.classList.contains('live')) && (await st()).index === 2);
+    await heard(page, `${items3[0].name} يعني`);
+    await wait(500);
+    check(`والثالث يسمع ويضيء (${await chips(f)})`, JSON.stringify(await chips(f)) === JSON.stringify([items3[0].name]));
+    check(`وبدأ السماع مرة لكل موضوع، لا مرتين (${await page.evaluate(() => window.__voice.ids.join())})`, (await page.evaluate(() => window.__voice.ids.length)) === 3);
     await context.close();
   } catch (e) { errors.push(String(e).split('\n')[0]); }
   // الموقع: لا أيقونة ولا صفوف.
