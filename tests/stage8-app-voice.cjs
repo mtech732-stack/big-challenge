@@ -89,13 +89,18 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     await go(f, 'act:start');
     check('مع «ابدأ» يبدأ السماع بتلميحات القائمة، وتظهر الصفوف الثلاثة', await page.evaluate(() => window.__voice.live && window.__voice.hints.includes('باص'))
       && await f.$eval('#auc', e => e.classList.contains('vox')) && await f.$eval('#voxMic', e => e.classList.contains('live')));
+    // ملاحظة المعاين 94: الكلمة الأخيرة في النص المتغيّر قد تكون نصف كلمة، فلا يضيء ما فيها حتى تأتي بعدها كلمة.
     await heard(page, 'سيارة باص');
     await wait(150);
+    check(`الكلمة الأخيرة تنتظر ما بعدها: «باص» لا تضيء بعد (${await chips(f)})`, JSON.stringify(await chips(f)) === '["سيارة"]');
+    await heard(page, 'سيارة باص يعني غواص');
+    await wait(150);
+    check(`ونصف الكلمة «غواص» في آخر النص لا تُضيء «غواصة» (${await chips(f)})`, JSON.stringify(await chips(f)) === '["سيارة","حافلة"]');
     const first = await f.$$eval('#voxLit .chip', els => els.map(e => [e.textContent, e.className, getComputedStyle(e.querySelector('i')).backgroundColor]));
-    check(`ما يطابق يضيء بالأصفر لحظته (${JSON.stringify(first)})`, first.length === 2 && first[0][0] === 'سيارة' && first[1][0] === 'حافلة' && first.every(c => c[1].includes('new')));
+    check(`ما يطابق يضيء بالأصفر لحظته (${JSON.stringify(first)})`, first.length === 2 && first[0][0] === 'سيارة' && first[1][0] === 'حافلة' && first[1][1].includes('new'));
     await wait(700);
     const after = await f.$$eval('#voxLit .chip', els => els.map(e => [e.className, getComputedStyle(e.querySelector('i')).backgroundColor]));
-    check(`ثم يأخذ لون الملتزم، والعدّ 2 (${JSON.stringify(after)})`, after.every(c => !c[0].includes('new') && c[1] !== first[0][2]) && await tally(f) === 2);
+    check(`ثم يأخذ لون الملتزم، والعدّ 2 (${JSON.stringify(after)})`, after.every(c => !c[0].includes('new') && c[1] !== first[1][2]) && await tally(f) === 2);
     await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني');
     await wait(400);
     check(`النص المسموع يكمل، وكل عنصر مرة واحدة (${await chips(f)})`, JSON.stringify(await chips(f)) === '["سيارة","حافلة","قطار","دراجة نارية"]' && await tally(f) === 4);
@@ -117,7 +122,7 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     check(`«اعتمد» من خارج القائمة: شارة بخط متقطع، والعدّ 6 (${await chips(f)})`, (await chips(f)).at(-1) === 'كرسي متحرك' && await f.$eval('#voxLit .chip:last-child', e => e.classList.contains('own')) && await tally(f) === 6
       && (await words(f)).includes('كرسي.used متحرك.used') && !(await f.$('[data-cmd="vox:ok"]')));
     // تحديد كلمة من القائمة لم تُطابق آلياً («قطارة» مثلاً): تضيء عنصرها.
-    await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني والطائره');
+    await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني والطائره بعد');
     await wait(400);
     check(`«والطائره» تطابق «طائرة» (${await chips(f)})`, (await chips(f)).includes('طائرة') && await tally(f) === 7);
     // الحذف بنقرتين.
@@ -128,7 +133,7 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     check(`فحص التداخل والشبكة والشارة محددة (${sc.ok ? '' : sc.problems.join('، ')})`, sc.ok);
     await f.click('#voxLit .chip:nth-child(3)'); await wait(800);
     check(`والثانية تحذفها وينقص العدّ، وتعود كلمتها باهتة (${await chips(f)})`, !(await chips(f)).includes('قطار') && await tally(f) === 6 && (await words(f)).includes(' قطار '));
-    await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني والطائره قطار');
+    await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني والطائره بعد قطار يعني');
     await wait(400);
     check('وما حُذف لا يضيء ثانية آلياً', !(await chips(f)).includes('قطار'));
     // «تراجع» بالترتيب: يرجع الحذف، ثم آخر ما أضاء.
@@ -139,25 +144,46 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     await page.screenshot({ path: `${shots}/app-voice-listening.png` });
     sc = await f.evaluate(() => window.__stageCheck());
     check(`فحص التداخل والشبكة أثناء السماع (${sc.ok ? '' : sc.problems.join('، ')})`, sc.ok);
-    // الكشف يوقف السماع، وما قيل مُبرز في القائمة.
+    // الكشف يوقف السماع، وما قيل مُبرز في القائمة. وآخر ما قيل في آخر النص (ينتظر ما بعده، 94) يُحسم قبل الكشف (ملاحظة المدقّق 96).
+    await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني والطائره بعد قطار يعني شاحنة');
+    await wait(400);
+    check(`قبل الكشف: «شاحنة» في آخر النص تنتظر (${await chips(f)})`, !(await chips(f)).includes('شاحنة'));
+    const before = await tally(f);
     await go(f, 'act:reveal');
     const said = await f.$$eval('#cxList .cx-it.said', els => els.map(e => e.textContent + (e.classList.contains('own') ? '*' : '')));
     check(`«كشف القائمة» يوقف السماع (${await page.evaluate(() => window.__voice.calls.join())})`, !(await page.evaluate(() => window.__voice.live)) && !(await f.$eval('#auc', e => e.classList.contains('vox'))));
-    check(`وما قيل مُبرز في القائمة، وما اعتُمد في آخرها (${said})`, JSON.stringify(said) === '["سيارة","حافلة","قطار","دراجة نارية","كرسي متحرك*"]');
+    check(`وما قيل مُبرز في القائمة، وما اعتُمد في آخرها (${said})`, JSON.stringify(said) === '["سيارة","حافلة","قطار","دراجة نارية","شاحنة","كرسي متحرك*"]'
+      && (await st()).said.length === before + 1);
     await page.screenshot({ path: `${shots}/app-voice-reveal.png` });
     sc = await f.evaluate(() => window.__stageCheck());
     check(`فحص التداخل والشبكة بعد الكشف (${sc.ok ? '' : sc.problems.join('، ')})`, sc.ok);
     // التراجع عن الكشف يعيد السماع ويُبقي ما سُمع.
     await go(f, 'undo');
     check(`التراجع عن الكشف يعيد السماع والنص (${await words(f)})`, await page.evaluate(() => window.__voice.live) && (await words(f)).startsWith('سيارة.hit'));
-    await heard(page, 'سفينة');
+    await heard(page, 'سفينة يعني');
     await wait(400);
-    check(`وما بعده يُلحق بالنص (${await chips(f)})`, (await chips(f)).includes('سفينة') && (await words(f)).endsWith('سفينة.hit'));
+    check(`وما بعده يُلحق بالنص (${await chips(f)})`, (await chips(f)).includes('سفينة') && (await words(f)).endsWith('سفينة.hit يعني'));
     // نص طويل وشارات كثيرة: الأحدث ظاهرة، والأقدم تُقصّ من اليمين بحافة باهتة، والنص يصعد سطرين.
     await heard(page, 'سفينة شاحنة ومترو وبعد ترام قارب يعني دراجة هوائية غواصة شنو كمان شي ثاني ما ادري والله خلاص طائرة');
     await wait(900);
     const fit = await f.evaluate(() => ({ over: document.getElementById('voxLit').classList.contains('over'), up: document.getElementById('voxWords').classList.contains('up'),
       last: (() => { const r = document.getElementById('voxLit'), c = r.lastElementChild.getBoundingClientRect(), b = r.getBoundingClientRect(); return c.left >= b.left - 1 && r.firstElementChild.hidden; })() }));
+    // ملاحظة المدقّق 92: نقرة قرب أسفل كلمة في السطر الأول تحدد تلك الكلمة لا ما تحتها في الثاني، وقرب أعلى كلمة في الثاني كذلك.
+    const lines = await f.evaluate(() => { const sp = [...document.querySelectorAll('#voxWords span[data-cmd]')], box = document.querySelector('.vox-heard .words').getBoundingClientRect();
+      const vis = sp.filter(e => { const r = e.getBoundingClientRect(); return r.top >= box.top - 1 && r.bottom <= box.bottom + 1; });
+      const tops = [...new Set(vis.map(e => Math.round(e.getBoundingClientRect().top)))].sort((a, b) => a - b);
+      const pick = t => { const e = vis.find(x => Math.round(x.getBoundingClientRect().top) === t); const r = e.getBoundingClientRect(); return { cmd: e.dataset.cmd, x: r.left + r.width / 2, top: r.top, bottom: r.bottom }; };
+      return tops.length >= 2 ? [pick(tops[0]), pick(tops[1])] : null; });
+    const hitAt = (x, y) => f.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('[data-cmd]')?.dataset.cmd ?? null, [x, y]);
+    check(`كلمة السطر الأول تُنقر قرب أسفلها، وكلمة الثاني قرب أعلاها (${JSON.stringify(lines?.map(l => l.cmd))})`, lines
+      && await hitAt(lines[0].x, lines[0].bottom - 2) === lines[0].cmd && await hitAt(lines[1].x, lines[1].top + 2) === lines[1].cmd);
+    // والفحص الذي طلبه المدقّق: نقاط عند 15% و50% و85% من ارتفاع كل كلمة ظاهرة تُصيب الكلمة نفسها.
+    const miss = await f.evaluate(() => { const box = document.querySelector('.vox-heard .words').getBoundingClientRect(), out = [];
+      // والكلمات كلها، المُعلَّمة أيضاً: نقرة على كلمة أضاءت لا تحدد كلمة تحتها («شاحنة» كانت تُصيب «خلاص»).
+      for (const e of document.querySelectorAll('#voxWords span')) { const r = e.getBoundingClientRect(); if (r.top < box.top - 1 || r.bottom > box.bottom + 1) continue;
+        for (const k of [.15, .5, .85]) { const got = document.elementFromPoint(r.left + r.width / 2, r.top + r.height * k)?.closest('#voxWords span'); if (got !== e) out.push(`${e.textContent}@${k}→${got?.textContent}`); } }
+      return out; });
+    check(`كل كلمة ظاهرة تُصاب عند 15% و50% و85% من ارتفاعها (${miss.join('، ')})`, miss.length === 0);
     check(`شارات كثيرة: الأحدث ظاهرة والأقدم مقصوصة، والنص يصعد (${JSON.stringify(fit)}، ${(await chips(f)).length})`, fit.over && fit.up && fit.last);
     await page.screenshot({ path: `${shots}/app-voice-full.png` });
     sc = await f.evaluate(() => window.__stageCheck());

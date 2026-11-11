@@ -9,8 +9,10 @@ const DIGITS = s => s.replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x660));
 // كلمات يقولها المقدّم حول الإجابة ولا تدخل فيها.
 const FILLER = new Set(['يقول', 'يقولون', 'قال', 'قالوا', 'الجواب', 'جواب', 'اجابه', 'جوابهم', 'هو', 'هي', 'يعني', 'طيب', 'اوكي', 'و']);
 
+// plain: التطبيع وحده دون طيّ الحروف المتقاربة، يُفاضل به بين عنصرين يطويهما الطيّ نصاً واحداً («قيمة» و«كيمة»، «ضب» و«دب»).
+const plain = s => norm(DIGITS(String(s)).toLowerCase()).replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim();
 export const fold = s => {
-  let t = norm(DIGITS(String(s)).toLowerCase()).replace(/[^\p{L}\p{N} ]/gu, ' ');
+  let t = plain(s);
   for (const [re, to] of LOOSE) t = t.replace(re, to);
   return t.replace(/\s+/g, ' ').trim();
 };
@@ -19,9 +21,13 @@ const unwaw = w => (w.length >= 4 && w[0] === 'و' ? w.slice(1) : w);
 // كلمات النص المسموع كما تظهر على الشاشة: مفصولة بمسافة.
 export const split = text => String(text ?? '').split(/\s+/).filter(Boolean);
 // الكلمات التي تُطابَق، وكلٌّ برقمه في split(text). والكلمة التي يطويها التطبيع كلمتين تأخذ الرقم نفسه.
+// وp الكلمة بالتطبيع وحده (plain) للمفاضلة. والطيّ لا يغيّر عدد الكلمات، فالكلمتان بالترتيب نفسه.
 function heardOf(text) {
   const out = [];
-  split(text).forEach((raw, k) => { for (const w of fold(unwaw(raw)).split(' ')) if (w && !FILLER.has(w)) out.push({ w, k }); });
+  split(text).forEach((raw, k) => {
+    const f = fold(unwaw(raw)).split(' '), q = plain(unwaw(raw)).split(' ');
+    f.forEach((w, n) => { if (w && !FILLER.has(w)) out.push({ w, p: q[n] ?? w, k }); });
+  });
   return out;
 }
 
@@ -41,7 +47,11 @@ export function sim(a, b) {
 }
 
 // يُبنى مرة لكل موضوع: كل عنصر بصيغه (الاسم والبدائل) مطويةً.
-export const prepare = items => items.map((it, i) => ({ i, name: it.name, forms: [it.name, ...(it.alts ?? [])].map(fold).filter(Boolean) }));
+// وكل صيغة معها نصها بالتطبيع وحده (plains) للمفاضلة بين متساويين بعد الطيّ.
+export const prepare = items => items.map((it, i) => {
+  const all = [it.name, ...(it.alts ?? [])].filter(x => fold(x));
+  return { i, name: it.name, forms: all.map(fold), plains: all.map(plain) };
+});
 
 export const SURE = 0.8;   // مطابقة تُضيء العنصر وحدها
 
@@ -61,25 +71,28 @@ export function matchOne(text, prepared, min = SURE) {
 }
 
 // السماع المتواصل: كل العناصر التي قيلت في نص واحد طويل، بترتيب قولها، وكلٌّ بأرقام كلماته (w).
-// كل صيغة تُطابَق بنوافذ متصلة بطولها (±1 كلمة)، ثم تُقبل الأعلى تشابهاً فالأطول، ولا تتداخل كلمتان، ولا يتكرر عنصر.
+// كل صيغة تُطابَق بنوافذ متصلة بطولها (±1 كلمة)، ثم تُقبل الأعلى تشابهاً فالأطول، ولا تتداخل كلمتان، ولا يتكرر عنصر،
+// والعنصر المكرر يأخذ كلماته ولا يُعدّ.
 // فـ«الريشة الطائرة» تأخذ كلمتيها قبل أن تأخذ «الطائرة» (بديل الكرة الطائرة) إحداهما.
 export function matchMany(text, prepared, min = SURE) {
   const heard = heardOf(text);
   const cands = [];
-  for (const p of prepared) for (const f of p.forms) {
+  for (const p of prepared) p.forms.forEach((f, fi) => {
     const n = f.split(' ').length;
     for (let len = Math.max(1, n - 1); len <= n + 1; len++)
       for (let at = 0; at + len <= heard.length; at++) {
-        const score = sim(heard.slice(at, at + len).map(h => h.w).join(' '), f);
-        if (score >= min) cands.push({ i: p.i, score, at, span: len, len: f.replace(/ /g, '').length });
+        const win = heard.slice(at, at + len), score = sim(win.map(h => h.w).join(' '), f);
+        if (score >= min) cands.push({ i: p.i, score, exact: sim(win.map(h => h.p).join(' '), p.plains?.[fi] ?? f), at, span: len, len: f.replace(/ /g, '').length });
       }
-  }
-  cands.sort((a, b) => b.score - a.score || b.len - a.len);
+  });
+  // الأعلى شبهاً، ثم الأقرب بلا طيّ، ثم الأطول.
+  cands.sort((a, b) => b.score - a.score || b.exact - a.exact || b.len - a.len);
   const used = new Set(), seen = new Set(), out = [];
   for (const c of cands) {
-    if (seen.has(c.i)) continue;
     const pos = Array.from({ length: c.span }, (_, k) => c.at + k);
     if (pos.some(x => used.has(x))) continue;
+    // عنصر قيل ثانية (ملاحظة المعاين 95): كلماته له وإن لم يُعدّ مرتين، فلا يأخذها عنصر أضعف شبهاً («محمد» مرتين لا تُضيء «محمود»).
+    if (seen.has(c.i)) { pos.forEach(x => used.add(x)); continue; }
     pos.forEach(x => used.add(x));
     seen.add(c.i);
     out.push({ i: c.i, score: c.score, at: c.at, w: [...new Set(pos.map(x => heard[x].k))] });
