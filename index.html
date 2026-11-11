@@ -673,7 +673,7 @@
     if (!s?.available) return;
     vox.ok = true;
     cap.addListener('Voice', 'partial', d => voxHeard(d?.text));
-    cap.addListener('Voice', 'final', d => { voxHeard(d?.text); vox.live = false; vox.starting = false; voxSend(true); });
+    cap.addListener('Voice', 'final', d => { voxHeard(d?.text, true); vox.live = false; vox.starting = false; voxSend(true); });
     cap.addListener('Voice', 'progress', d => { if (vox.dl !== null) { vox.dl = Math.max(0, Math.min(100, Math.round(Number(d?.pct) || 0))); render(); } });
     try { vox.on = localStorage.getItem(VOX_KEY) === '1' && !!s.installed && s.mic === 'granted'; } catch {}
     if (match) render();
@@ -730,13 +730,17 @@
     voxSend(true);
   }
   // النص المسموع: ما سُمع منذ بدء السماع، بعد ما سبقه في الوفاء نفسه. وكل عنصر طابق ولم يُذكر يضيء (say)، مرة واحدة.
-  function voxHeard(text) {
+  // done: النص الأخير بعد التوقف. وقبله الكلمة الأخيرة قد تكون نصف كلمة يُكملها ما بعدها (ملاحظة المعاين 94: «مطر…» أضاءت «شريط قياس»
+  // ببديلها «متر» قبل أن تصير «مطرقة»)، فلا يضيء ما فيها حتى تأتي بعدها كلمة، أو يتوقف السماع.
+  function voxHeard(text, done = false) {
     const st = voxFulfil();
     if (!st || !vox.key || typeof text !== 'string') return;
     vox.text = [vox.base, text.trim()].filter(Boolean).join(' ');
     const said = (st.said ?? []).filter(x => Array.isArray(x.w));
     const lit = new Set(said.map(x => x.i)), taken = new Set(said.flatMap(x => x.w));
+    const last = voxSplit(vox.text).length - 1;
     for (const m of matchMany(vox.text, vox.items)) {
+      if (!done && m.w.includes(last)) continue;
       if (vox.emitted.has(m.i) || lit.has(m.i) || m.w.some(k => taken.has(k) || vox.sel.has(k))) continue;
       vox.emitted.add(m.i);
       roundAct(`say:${m.i}:${m.w.join(',')}`, true);
