@@ -70,19 +70,24 @@ public class VoicePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    // start({ hints: [أسماء القائمة وبدائلها] }): يسمع حتى stop، ويرسل partial { text } بالنص كله منذ البدء، ثم final { text } مرة.
+    // start({ id, hints: [أسماء القائمة وبدائلها] }): يسمع حتى stop، ويرسل partial { id, text } بالنص كله منذ البدء، ثم final { id, text } مرة.
+    // id رقم الجلسة من الصفحة: نهاية جلسة سابقة (final) قد تصل بعد بدء التالية، فتعرف الصفحة أنها ليست لها (ش8-أ/98 و99).
     @objc func start(_ call: CAPPluginCall) {
         guard #available(iOS 26.0, *) else { call.reject("يلزم iOS 26"); return }
         if let old = engine as? VoiceEngine { old.onFinal = { _, _ in }; Task { await old.finish() } }
         stopAudio()
         let hints = Array((call.getArray("hints", String.self) ?? []).prefix(100))
+        let id = call.getString("id") ?? ""
         let e = VoiceEngine()
-        e.onPartial = { [weak self] t in self?.notifyListeners("partial", data: ["text": t]) }
-        e.onFinal = { [weak self] t, err in
-            var d: [String: Any] = ["text": t]
+        e.onPartial = { [weak self] t in self?.notifyListeners("partial", data: ["id": id, "text": t]) }
+        e.onFinal = { [weak self, weak e] t, err in
+            guard let self = self else { return }
+            var d: [String: Any] = ["id": id, "text": t]
             if let err = err { d["error"] = err }
-            self?.notifyListeners("final", data: d)
-            self?.restore()
+            self.notifyListeners("final", data: d)
+            // تعود فئة الصوت كما كانت إن لم تبدأ بعدها جلسة أخرى. وإلا قطعت الجلسةَ الجديدة فلا يُسمع شيء (ش8-أ/99:
+            // في الموضوع التالي كانت نهاية الأول تصل بعد بدء الثاني فتعيد الفئة وتوقف تسجيله).
+            if self.engine == nil || self.engine === e { self.restore() }
         }
         engine = e
         Task {
