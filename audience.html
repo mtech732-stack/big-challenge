@@ -875,11 +875,11 @@
   // a.voice: ما أضاء وما اعتُمد بترتيب قوله (من الحالة) · view.play.vox: النص المسموع (words)، وما حدده المقدّم (sel)، والسماع جارٍ (live).
   // الشارة الجديدة تدخل بالأصفر 600ms ثم تأخذ لون الملتزم. ونقرتها الأولى تحددها والثانية تحذفها (TWO_TAPS).
   const LIT_MS = 600;
-  let litSeen = new Map(), litKey = '', litLater = 0;
+  let litSeen = new Map(), litKey = '', litLater = 0, litHtml = '';
   function renderVox(a) {
     const v = view?.play?.vox, on = !!v && !a.reveal && a.phase === 'fulfil';
     $('auc').classList.toggle('vox', on);
-    if (!on) { $('voxLit').innerHTML = ''; $('voxWords').innerHTML = ''; return; }
+    if (!on) { $('voxLit').innerHTML = ''; litHtml = ''; $('voxWords').innerHTML = ''; return; }
     const team = a.commit?.team === 2 ? 2 : 1, list = a.voice ?? [];
     $('auc').style.setProperty('--vox-team', `var(--team-${team === 2 ? '2-ink' : '1'})`);
     // الأصفر لحظة الإضاءة وحدها: وقت أول ظهور لكل شارة في الموضوع نفسه.
@@ -888,7 +888,9 @@
     const now = performance.now();
     clearTimeout(litLater);
     let soon = Infinity;
-    $('voxLit').innerHTML = list.map(x => {
+    // ولا تُستبدل الشارات إن لم يتغير ما فيها (ش8-أ/97، تجربة المالك: لم يمكنه التصحيح). النص المسموع يصل مرات في الثانية،
+    // وكل رسم كان يستبدل الشارات والكلمات، فالنقرة بين نزول الإصبع ورفعه تقع على عنصر زال فلا تصل (كعدّ المزاد السريع، ش8-أ/54).
+    const html = list.map(x => {
       const id = (x.own ? 'o:' : 'i:') + x.name;
       if (!litSeen.has(id)) litSeen.set(id, still() ? -LIT_MS : now);
       const left = litSeen.get(id) + LIT_MS - now;
@@ -896,27 +898,39 @@
       return `<span class="chip t${team}${x.own ? ' own' : ''}${left > 0 ? ' new' : ''}" data-cmd="act:unsay:${x.at}"><i></i><span>${esc(x.name)}</span></span>`;
     }).join('');
     if (soon < Infinity) litLater = setTimeout(() => renderVox(view?.play?.a ?? a), soon + 20);
-    // ما زاد عن العرض: تبقى الأحدث ظاهرة، وتغيب الأقدم من اليمين، وحافة باهتة 48 تدل عليها. والعدد كاملاً في العدّ.
-    const row = $('voxLit'), all = [...row.children];
-    let gone = 0;
-    while (row.scrollWidth > row.clientWidth + 1 && gone < all.length - 1) all[gone++].hidden = true;
-    row.classList.toggle('over', gone > 0);
+    if (html !== litHtml) {
+      litHtml = html;
+      $('voxLit').innerHTML = html;
+      // ما زاد عن العرض: تبقى الأحدث ظاهرة، وتغيب الأقدم من اليمين، وحافة باهتة 48 تدل عليها. والعدد كاملاً في العدّ.
+      const row = $('voxLit'), all = [...row.children];
+      let gone = 0;
+      while (row.scrollWidth > row.clientWidth + 1 && gone < all.length - 1) all[gone++].hidden = true;
+      row.classList.toggle('over', gone > 0);
+    }
     markArmed();
     renderWords(a, v);
   }
   function renderWords(a, v) {
     const hit = new Set((a.voice ?? []).filter(x => !x.own).flatMap(x => x.w)), used = new Set((a.voice ?? []).filter(x => x.own).flatMap(x => x.w));
     const sel = new Set(v.sel ?? []);
-    $('voxWords').innerHTML = (v.words ?? []).map((w, k) => {
+    // الكلمات تُحدَّث في مكانها ولا تُستبدل (ش8-أ/97): ما لم يتغير يبقى العنصر نفسه، فلا تضيع نقرة عليه وكلمات جديدة تصل.
+    const box = $('voxWords'), words = v.words ?? [], spans = [...box.children];
+    words.forEach((w, k) => {
+      let el = spans[k];
+      if (!el) { if (k) box.append(' '); el = document.createElement('span'); box.append(el); }
+      if (el.textContent !== w) el.textContent = w;
       const cls = hit.has(k) ? 'hit' : used.has(k) ? 'used' : sel.has(k) ? 'sel' : '';
-      return `<span${cls ? ` class="${cls}"` : ''}${hit.has(k) || used.has(k) ? '' : ` data-cmd="vox:w:${k}"`}>${esc(w)}</span>`;
-    }).join(' ');
+      if (el.className !== cls) el.className = cls;
+      if (hit.has(k) || used.has(k)) { if (el.dataset.cmd) delete el.dataset.cmd; } else if (el.dataset.cmd !== `vox:w:${k}`) el.dataset.cmd = `vox:w:${k}`;
+    });
+    for (const el of spans.slice(words.length)) { if (el.previousSibling?.nodeType === 3) el.previousSibling.remove(); el.remove(); }
+    if (!words.length) box.textContent = '';
     // يبدأ من السطر الأول بجانب الميكروفون، فإن زاد عن سطرين صعد وقُصّ من الأعلى والأحدث في آخره.
-    const box = $('voxWords');
     box.classList.remove('up');
     box.classList.toggle('up', box.offsetHeight > box.parentElement.clientHeight + 1);
     $('voxMic').classList.toggle('live', !!v.live);
-    $('voxMic').querySelector('svg').innerHTML = ICON.mic;
+    const mic = $('voxMic').querySelector('svg');
+    if (!mic.innerHTML) mic.innerHTML = ICON.mic;
   }
   let shownSaid = 0;
   // القائمة المكشوفة (design/s8c.md 1.1 القسم 2، والمالك 31 أكتوبر 2026: «اقلبها يدوياً، نقاط أسفل القائمة توضح التعدد»):
