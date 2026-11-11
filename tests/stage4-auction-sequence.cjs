@@ -53,10 +53,14 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auction
     // وبعد «كشف القائمة» (الوثيقة 1.14) القائمة كلها على الشاشة، فلا يُبحث فيها عمّا لم يُذكر.
     const listed = ['revealed', 'decided'].includes(s.phase);
     const shown = (listed ? items.map((_, i) => i) : [...said]).flatMap(i => [items[i].name, ...(items[i].alts ?? [])]).sort((a, b) => b.length - a.length);
-    const body = await audience.evaluate(ns => { let t = document.querySelector('.canvas').innerText;
+    const [body, bodyNoClock] = await audience.evaluate(ns => { let t = document.querySelector('.canvas').innerText;
       for (const b of document.querySelectorAll('.cbtn')) t = t.replace(b.innerText, '');
       t = t.replace(document.getElementById('topic').innerText, '');
-      for (const n of ns) t = t.split(n).join(''); return t; }, [...LONG, ...shown]);
+      for (const n of ns) t = t.split(n).join('');
+      // عدّاد الوفاء (45 نازلاً) في لوحة صاحب الدور يوافق أحياناً طول قائمة من 40 إلى 44 (المعاين #504). فلفحص الطول يُحذف
+      // رقم العدّاد مرة واحدة لكل لوحة، فإن ظهر الطول في موضع آخر بقي.
+      let u = t; for (const id of ['c1', 'c2']) { const c = document.getElementById(id)?.innerText.trim(); if (c) u = u.replace(c, ''); }
+      return [t, u]; }, [...LONG, ...shown]);
     if (/سرقة|سهل|متوسط|صعب|انسحب|في القائمة|عنصر/.test(body)) { leak = true; fails.push(`${label}: نص ممنوع على الجمهور`); }
     const unsaid = items.filter((x, i) => !said.has(i)).flatMap(x => [x.name, ...(x.alts ?? [])]);
     // اسم من حرف أو حرفين («ت» أو «7») يقع في أي نص، فلا يُبحث عنه في نص الشاشة: الشارات وحدها تحمل ما ذُكر.
@@ -64,7 +68,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auction
     if (!listed && unsaid.some(named)) { leak = true; fails.push(`${label}: عنصر لم يُذكر على الجمهور (${unsaid.find(named)})`); }
     // ولا طول للقائمة على الجمهور أبداً (4.0).
     if (await audience.$('#tsize, .auc .size')) { leak = true; fails.push(`${label}: «في القائمة» على الجمهور`); }
-    if (body.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
+    if (bodyNoClock.includes(String(items.length)) && s.commit?.n !== items.length && !(s.bids ?? []).some(b => b.n === items.length)) { leak = true; fails.push(`${label}: طول القائمة على الجمهور`); }
   };
   const both = async label => { await wait(700); await audienceCheck(label); };
   // ش8-أ/61: الأسماء التي لا يجوز ظهورها، بنص الشاشة كلها (helpers.cjs auctionNamesShown).
