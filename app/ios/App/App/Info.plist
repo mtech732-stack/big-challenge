@@ -8,6 +8,10 @@
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
         <string>التحدي الكبير</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>يسمع المساعد الصوتي ما يسرده الفريق في المزاد، فيُضيء ما ذُكر من القائمة. ولا يُسجَّل شيء ولا يخرج من الهاتف.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>يحوّل المساعد الصوتي ما يُقال في المزاد نصاً على الهاتف نفسه دون إنترنت، ليطابقه بالقائمة.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
