@@ -52,6 +52,11 @@
   .run #list div { cursor: pointer; }
   .run #list .done { opacity: 1; text-decoration: none; background: var(--hl); color: var(--ink); border-radius: 6px; padding: 2px 6px; }
   #top button.man { outline: 2px dashed var(--ink); }
+  #top button.extra { background: var(--hl); }
+  #heard .w { border-radius: 4px; padding: 0 2px; }
+  .run #heard .w { cursor: pointer; }
+  #heard .w.sel { background: var(--hl); }
+  #addx { margin-top: 8px; background: var(--ink); color: #fff; border: 0; border-radius: 8px; padding: 8px 12px; font-size: 15px; }
     #stats { font-size: 13px; line-height: 1.6; }
   #stats b { font-size: 22px; }
   #log { overflow: auto; max-height: 72px; font-size: 12px; background: var(--stage-2); border-radius: 10px; padding: 6px 8px; }
@@ -85,6 +90,7 @@
         <div id="pick">اختر موضوعاً ثم اضغط «اسمع»</div>
         <div id="why"></div>
         <div id="heard"></div>
+        <button id="addx" hidden></button>
         <div id="top"></div>
       </div>
       <div class="judge">

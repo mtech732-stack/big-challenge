@@ -85,7 +85,7 @@ function stats() {
     `علّم خطأً: ${wrong} · في ${runs.length} جولة متواصلة`);
   $('stats').innerHTML = parts.join('<br>') || 'لا محاولات بعد';
   $('log').innerHTML = log.slice().reverse().map(e => e.mode === 'run'
-    ? `<div>⟳ ${e.topic}: علّم ${e.auto.length - e.removed.length}${e.removed.length ? `، أزلتَ ${e.removed.length}` : ''}${e.added.length ? `، أضفتَ ${e.added.length}` : ''}</div>`
+    ? `<div>⟳ ${e.topic}: علّم ${e.auto.length - e.removed.length}${e.removed.length ? `، أزلتَ ${e.removed.length}` : ''}${e.added.length ? `، أضفتَ ${e.added.length}` : ''}${e.extras?.length ? `، خارج القائمة ${e.extras.length}` : ''}</div>`
     : `<div>${e.ok ? '✓' : '✗'} «<bdi>${e.text || '—'}</bdi>» ← ${e.pick ?? 'ليست في القائمة'}${e.fix ? ` · الصحيح: ${e.fix}` : ''} · ${Math.round(e.score * 100)}%</div>`).join('');
 }
 
@@ -101,16 +101,32 @@ function drawRun() {
   said = new Set(picks.map(c => c.i));
   drawList();
   const left = run.ended ? 0 : Math.max(0, RUN_SECONDS - Math.floor((performance.now() - run.t0) / 1000));
-  $('pick').innerHTML = `ذُكر <span class="hl">${picks.length}</span> من ${topic.items.length}`;
-  $('why').textContent = run.ended ? 'انتهى. أزل الخطأ بنقرة، وأضف ما فات من القائمة، ثم «اعتمد»' : `أسمع… باقي ${left} ثانية`;
-  $('heard').innerHTML = `سمع: «<bdi>${run.text || '—'}</bdi>»`;
-  $('top').innerHTML = picks.map(c => `<button data-i="${c.i}" class="${c.man ? 'man' : ''}">${c.name} ✕</button>`).join('');
+  $('pick').innerHTML = `ذُكر <span class="hl">${picks.length + run.extras.length}</span> من ${topic.items.length}`;
+  $('why').textContent = run.ended ? 'انتهى. أزل الخطأ بنقرة، وأضف ما فات من القائمة، أو انقر كلمات «سمع» لتعتمد ما ليس فيها، ثم «اعتمد»' : `أسمع… باقي ${left} ثانية`;
+  // بعد الانتهاء: كل كلمة مسموعة تُنقر، والمتجاورة المختارة عبارة واحدة تُعتمد خارج القائمة (المالك، 11 نوفمبر).
+  const ws = run.text ? run.text.split(/\s+/) : [];
+  $('heard').innerHTML = `سمع: «<bdi>${ws.length ? ws.map((w, k) => `<span class="w${run.sel.has(k) ? ' sel' : ''}" data-w="${k}">${w}</span>`).join(' ') : '—'}</bdi>»`;
+  const phrase = selPhrase();
+  $('addx').hidden = !phrase;
+  $('addx').textContent = phrase ? `اعتمد «${phrase}» خارج القائمة` : '';
+  $('top').innerHTML = picks.map(c => `<button data-i="${c.i}" class="${c.man ? 'man' : ''}">${c.name} ✕</button>`).join('')
+    + run.extras.map((x, k) => `<button data-x="${k}" class="extra">${x} ✕</button>`).join('');
   $('ok').disabled = !run.ended;
+}
+function selPhrase() {
+  const ws = run.text ? run.text.split(/\s+/) : [];
+  return [...run.sel].sort((a, b) => a - b).map(k => ws[k]).filter(Boolean).join(' ');
+}
+function addExtra() {
+  const phrase = selPhrase();
+  if (phrase && !run.extras.includes(phrase)) run.extras.push(phrase);
+  run.sel = new Set();
+  drawRun();
 }
 async function startRun() {
   if (!topic) return;
   said = new Set();
-  run = { text: '', removed: new Set(), added: new Set(), t0: performance.now(), ended: false, timer: 0 };
+  run = { text: '', removed: new Set(), added: new Set(), sel: new Set(), extras: [], t0: performance.now(), ended: false, timer: 0 };
   $('live').textContent = '';
   const hints = topic.items.flatMap(it => [it.name, ...(it.alts ?? [])]);
   try {
@@ -137,7 +153,7 @@ function commitRun() {
   log.push({
     mode: 'run', at: new Date().toISOString(), topic: topic.topic, text: run.text,
     auto: auto.map(name), removed: [...run.removed].filter(i => auto.includes(i)).map(name),
-    added: [...run.added].filter(i => !auto.includes(i)).map(name),
+    added: [...run.added].filter(i => !auto.includes(i)).map(name), extras: run.extras,
     seconds: Math.round((performance.now() - run.t0) / 1000), locale: $('locale').value, engine: $('engine').value,
   });
   store.set(log);
@@ -317,6 +333,14 @@ $('mode').addEventListener('click', () => {
   drawList();
   show(null);
 });
+$('heard').addEventListener('click', e => {
+  const w = e.target.closest('.w');
+  if (!w || !run?.ended) return;
+  const k = +w.dataset.w;
+  if (run.sel.has(k)) run.sel.delete(k); else run.sel.add(k);
+  drawRun();
+});
+$('addx').addEventListener('click', addExtra);
 $('list').addEventListener('click', e => {
   if (!run) return;
   const d = e.target.closest('#list > div');
@@ -325,6 +349,8 @@ $('list').addEventListener('click', e => {
 $('no').addEventListener('click', () => judge(false));
 $('top').addEventListener('click', e => {
   const b = e.target.closest('button[data-i]');
+  const x = e.target.closest('button[data-x]');
+  if (x && run) { run.extras.splice(+x.dataset.x, 1); drawRun(); return; }
   if (b && run) { toggleRunItem(+b.dataset.i); return; }
   if (!b || !pending) return;
   const i = +b.dataset.i;
