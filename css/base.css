@@ -23,6 +23,8 @@ button:disabled { opacity: .45; cursor: default; }
   transform: translate(-50%, -50%) scale(var(--scale, 1)); transform-origin: center;
 }
 /* تطبيق آبل (design/app.md 3.3): الأشرطة حول اللوحة بتدرّج المسرح الأساسي لا بشبه الأسود، وطبقة المسرح (.backdrop) بلا قصّ. */
+/* ش8-أ/91: في التطبيق اللوحة طبقة مستقلة مرسومة كلها، فما يرتفع أو ينزل منها برفع لوحة المفاتيح مرسوم من قبل، لا خلفية فارغة */
+.native-app .screen { will-change: transform; }
 .native-app .screen { background: linear-gradient(135deg, #1A4BD1 0%, #1238A8 55%, #0E2C86 100%); }
 .backdrop { overflow: visible; pointer-events: none; }
 /* design/app.md 5.1–5.3: التطبيق لا يتصرف كموقع. لا تحديد نص ولا قائمة «نسخ» بالضغط المطوّل (وحقلا الاسمين يُكتب فيهما)،
