@@ -271,12 +271,12 @@ const { usePin, reporter, stageFrame } = require('./helpers.cjs');
         const tick = () => { const fb = fr.getBoundingClientRect(), s = fb.height / w.innerHeight, el = d.activeElement, c = d.getElementById('canvas').getBoundingClientRect();
           const r = el?.classList.contains('name-in') ? el.getBoundingClientRect() : null;
           window.__log.push({ t: Math.round(performance.now() - t0), id: el?.id, top: r ? Math.round(fb.top + r.top * s) : null, bottom: r ? Math.round(fb.top + r.bottom * s) : null,
-            kb: visualViewport.height, stage: Math.round(fb.top + c.bottom * s) });
+            kb: visualViewport.height, stage: Math.round(fb.top + c.bottom * s), tr: d.querySelector('.screen').style.transform });
           if (performance.now() - t0 < ms) requestAnimationFrame(tick); };
         tick(); };
     });
     await g.tap('#i1'); await wait(100); await kb6(220); await wait(900);
-    const bad = [];
+    const bad = [], moved = [];
     for (const to of ['i2', 'i1', 'i2']) {
       await p6.evaluate(() => __run(1500));
       await g.focus('#' + to); await wait(30); await kb6(60); await wait(60); await kb6(220); await wait(1500);
@@ -285,11 +285,22 @@ const { usePin, reporter, stageFrame } = require('./helpers.cjs');
       const settled = log.filter((x, i) => x.id === to && x.kb === 220 && log.slice(0, i).some(y => y.kb === 60));
       const off = settled.filter(x => x.top < 0 || x.bottom > x.kb || x.stage <= 0);
       if (!settled.length || off.length) bad.push(`${to}: ${settled.length ? JSON.stringify(off[0]) : 'لا إطار'}`);
+      // حارس مستقل لقصر الزيادة على انفتاح لوحة المفاتيح: من الإطار الذي قبل الضيق (بعد رفع التركيز) إلى آخر السجل، الرفع ثابت لا يزيد.
+      const from = log.findIndex(x => x.kb === 60), trs = [...new Set(log.slice(from - 1).filter(x => x.id === to).map(x => x.tr))];
+      if (from < 1 || trs.length !== 1) moved.push(`${to}: ${from < 0 ? 'لا ضيق' : trs.join(' ← ')}`);
     }
+    check(`ش8-أ/89: وفي السهمين رفعٌ واحد: الضيق اللحظي بعد الانتقال لا يزيد الرفع (${moved.join(' | ')})`, moved.length === 0);
     check(`ش8-أ/89: سهما الشريط «أسفل» ثم «أعلى» ثم «أسفل» بلا كتابة، والمتاح يضيق لحظةً مع كل انتقال: الخانة المركّزة ظاهرة كلها فوق لوحة المفاتيح في كل إطار بعده (${bad.join(' | ')})`, bad.length === 0);
     await p6.keyboard.type('Stars'); await wait(300);
     const v = await g.evaluate(() => ({ id: document.activeElement.id, v: document.activeElement.value }));
     check(`ش8-أ/89: ثم الكتابة في السفلى (${v.id}: ${v.v})`, v.id === 'i2' && v.v === 'Stars');
+    // حارس مستقل لحدّ الزيادة: لوحة المفاتيح تنفتح على خطوات والزيادة مسموحة، والخطوة الأخيرة تضيّق المتاح إلى 40، أقل من أن
+    // تتسع للخانة فوقها. فالزيادة تقف عند ما يُبقي أعلى الخانة ظاهراً، ولا تُخرجها من أعلى الشاشة.
+    await g.evaluate(() => document.activeElement.blur()); await kb6(H); await wait(1200);
+    await p6.evaluate(() => __run(1500));
+    await g.tap('#i2'); await wait(100); await kb6(360); await wait(80); await kb6(290); await wait(80); await kb6(40); await wait(1300);
+    const log7 = await p6.evaluate(() => window.__log), last = log7.filter(x => x.id === 'i2' && x.kb === 40).pop();
+    check(`ش8-أ/89: حدّ الزيادة: لوحة المفاتيح على خطوات حتى يبقى 40، والسفلى ما زالت أعلاها ظاهراً (${JSON.stringify(last)})`, !!last && last.top >= 0 && last.stage > 0);
     await c6.close();
   }
   check(`الاسمان في المباراة (${teams[1]}، ${teams[2]})`, teams[1] === names[1] && teams[2] === names[2]);
