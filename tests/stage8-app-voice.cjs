@@ -144,11 +144,16 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     await page.screenshot({ path: `${shots}/app-voice-listening.png` });
     sc = await f.evaluate(() => window.__stageCheck());
     check(`فحص التداخل والشبكة أثناء السماع (${sc.ok ? '' : sc.problems.join('، ')})`, sc.ok);
-    // الكشف يوقف السماع، وما قيل مُبرز في القائمة.
+    // الكشف يوقف السماع، وما قيل مُبرز في القائمة. وآخر ما قيل في آخر النص (ينتظر ما بعده، 94) يُحسم قبل الكشف (ملاحظة المدقّق 96).
+    await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني والطائره بعد قطار يعني شاحنة');
+    await wait(400);
+    check(`قبل الكشف: «شاحنة» في آخر النص تنتظر (${await chips(f)})`, !(await chips(f)).includes('شاحنة'));
+    const before = await tally(f);
     await go(f, 'act:reveal');
     const said = await f.$$eval('#cxList .cx-it.said', els => els.map(e => e.textContent + (e.classList.contains('own') ? '*' : '')));
     check(`«كشف القائمة» يوقف السماع (${await page.evaluate(() => window.__voice.calls.join())})`, !(await page.evaluate(() => window.__voice.live)) && !(await f.$eval('#auc', e => e.classList.contains('vox'))));
-    check(`وما قيل مُبرز في القائمة، وما اعتُمد في آخرها (${said})`, JSON.stringify(said) === '["سيارة","حافلة","قطار","دراجة نارية","كرسي متحرك*"]');
+    check(`وما قيل مُبرز في القائمة، وما اعتُمد في آخرها (${said})`, JSON.stringify(said) === '["سيارة","حافلة","قطار","دراجة نارية","شاحنة","كرسي متحرك*"]'
+      && (await st()).said.length === before + 1);
     await page.screenshot({ path: `${shots}/app-voice-reveal.png` });
     sc = await f.evaluate(() => window.__stageCheck());
     check(`فحص التداخل والشبكة بعد الكشف (${sc.ok ? '' : sc.problems.join('، ')})`, sc.ok);
