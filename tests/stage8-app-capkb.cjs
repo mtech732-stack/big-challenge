@@ -4,7 +4,7 @@
 // وvisualViewport لا يتغيّر (كما مع none)، والحدثان يُطلقان بارتفاع ثابت. وفي كل إطار من كل مسار: المسرح ظاهر (لا خلفية وحدها)،
 // والخانة المركّزة فوق لوحة المفاتيح بعد وصول الحدث:
 // · نقر على السفلى ثم الكتابة: يُرفع مرة ولا يتحرك في الكتابة (78).
-// · «التالي» من العليا: السفلى فوق لوحة المفاتيح لحظة وصول التركيز (84).
+// · «التالي» من العليا: السفلى فوق لوحة المفاتيح لحظة وصول التركيز (84)، والشريط بينهما كما بالنقر (83).
 // · سهما الشريط «أسفل» و«أعلى» بلا كتابة وبعد حرف (89).
 // · «تم»: تنزل اللوحة مع keyboardWillHide، ولا يتغيّر حجم المسرح (80).
 // وأن الصفحة طلبت من الإضافة resize none وإيقاف الإزاحة.
@@ -64,6 +64,7 @@ const { usePin, reporter, stageFrame } = require('./helpers.cjs');
   await wait(900);
   let log = await page.evaluate(() => window.__log);
   judge(log.filter(x => x.kb < H), 'نقر على السفلى ثم الكتابة');
+  const bandTap = (H - KB) - log.filter(x => x.id === 'i2').pop().bottom;
   const moves = [...new Set(log.map(x => x.tr))];
   check(`ويُرفع مرة واحدة ولا يتحرك في الكتابة (${moves.join(' ← ')})`, moves.length === 2 && moves[0] === '' && /translateY/.test(moves[1]));
   // «تم».
@@ -81,6 +82,10 @@ const { usePin, reporter, stageFrame } = require('./helpers.cjs');
   const at = await page.evaluate(() => window.__at);
   judge(await page.evaluate(() => window.__log), '«التالي» من العليا');
   check(`«التالي»: السفلى فوق لوحة المفاتيح لحظة وصول التركيز (${at} من ${H - KB})`, at <= H - KB);
+  // ش8-أ/83 (شكلي، v97): الشريط بين السفلى ولوحة المفاتيح كان 39 عبر «التالي» و14 بالنقر، لأن iOS كان يكشف الخانة بإزاحته فوق
+  // الرفع. ومع setScroll لا إزاحة، والرفع من ارتفاع لوحة المفاتيح نفسه في المسارين، فالشريط واحد.
+  const bandNext = (H - KB) - (await page.evaluate(() => window.__log)).filter(x => x.id === 'i2').pop().bottom;
+  check(`ش8-أ/83: الشريط فوق لوحة المفاتيح واحد بالنقر وبـ «التالي» (${bandTap} و${bandNext})`, Math.abs(bandTap - bandNext) <= 1 && bandTap > 0);
   // سهما الشريط: «أعلى» ثم «أسفل» ثم «أعلى»، بعد حرف وبلا حرف.
   for (const [to, type] of [['i1', false], ['i2', true], ['i1', false], ['i2', false]]) {
     await page.evaluate(() => __run(1000)); await f.focus('#' + to); await wait(1000);

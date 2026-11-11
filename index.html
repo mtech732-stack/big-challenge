@@ -107,6 +107,7 @@
   import * as M from './js/match.js';
   import * as P from './js/play.js';
   import * as R from './js/round.js';
+  import { prepare as voxPrepare, matchMany, matchOne, split as voxSplit } from './js/voice-match.js';
 
   const $ = id => document.getElementById(id);
   const SAVE_KEY = 'big-challenge.match';
@@ -120,6 +121,12 @@
   const query = new URLSearchParams(location.search);
   let link = null, watcher = null, packs = [], wheel = null, match = null, drawing = 0, pin = '', faceError = '';
   const NATIVE = isNativeApp();
+  // المساعد الصوتي في المزاد (حاله، وتفصيله في «المساعد الصوتي» أدناه).
+  const VOX_KEY = 'big-challenge.voice';
+  const cap = globalThis.Capacitor;
+  const vox = { ok: false, on: false, dl: null, tip: '', key: '', text: '', base: '', sel: new Set(), emitted: new Set(), items: null,
+    live: false, starting: false, sent: 0, later: 0 };
+  const voxCall = (method, opts = {}) => cap.nativePromise('Voice', method, opts);
   let muted = false;
   try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch {}
 
@@ -296,6 +303,8 @@
       fresh: a.screen === 'intro' && match.played === 1,
       // نص الإجابات للباركود ما دام ظاهراً، يرسمه العرض رمزاً لا نصاً.
       qr: (q => (q ? answersText(q.mode.id, q.mode.presenter(q.st)) : null))(qrShown()),
+      // المساعد الصوتي في الوفاء (design/app.md 7): النص المسموع وما حدده المقدّم منه. ولا شيء منه في الموقع.
+      ...(voxShown() ? { vox: voxView() } : {}),
     };
   }
   function update(next, anim) {
@@ -442,6 +451,7 @@
     }
     $('undoScore').disabled = match.step === 'play' ? !match.round?.history.length : !match.history.length;
     renderStage(error);
+    voxSync();
   }
 
   // زرّا الفريقين في المزايدة (design/auction.md 3.0): لا يأتي زر آخر مكانهما، فلا يُمهل ما بعدهما.
@@ -529,7 +539,7 @@
       c.a = [[...(undoOff === null ? [] : [{ cmd: 'undo', label: 'تراجع', kind: 'alt', icon: true, off: undoOff }]), { cmd: 'more', label: 'المزيد', kind: 'alt opt' }]];
       c.b = []; c.c = [];
       c.more = [{ cmd: 'mute', label: muted ? 'مكتوم' : 'الصوت', icon: true },
-        ...fs.map(b => ({ ...b, kind: '', icon: true })), { cmd: 'scores', label: 'الرصيد', icon: true }, { ...fresh, kind: '', icon: true }];
+        ...fs.map(b => ({ ...b, kind: '', icon: true })), { cmd: 'scores', label: 'الرصيد', icon: true }, ...voxIcon(), { ...fresh, kind: '', icon: true }];
     };
     const mode = step === 'play' && roundMode();
     if (mode) {
@@ -559,6 +569,8 @@
       if (screen === 'topic' && !b) {
         const ph = st.phase, t = st.team, n = st.commit?.n;
         if (ph === 'ready' || ph === 'fulfil') { c.near = [...(ph === 'ready' ? act('start', 'ابدأ') : []), ...act('count')]; c.ans = act('reveal', null, 'alt'); }
+        // والمساعد الصوتي (design/app.md 7.2): «اعتمد» يسار «كشف القائمة» ما دام في النص المسموع كلمات محددة.
+        if (ph === 'fulfil' && voxShown() && vox.sel.size) c.ans.push({ cmd: 'vox:ok', label: 'اعتمد', kind: 'vox-ok' });
         if (ph === 'revealed') c.near = [{ cmd: 'act:ok', label: `وفى · +${n}`, kind: 'who t' + t, off: wait }, { cmd: 'act:fail', label: `لم يفِ · +${AUCTION_FAIL}`, kind: 'who t' + (t === 1 ? 2 : 1), off: wait }];
         if (ph === 'complete') c.near = act('stop', 'توقّف', 'no');
         if (ph === 'decided') c.near = act('next');
@@ -633,6 +645,137 @@
     scores: () => { $('scores').hidden = !$('scores').hidden; },
   };
 
+
+  // ===== المساعد الصوتي في المزاد (الوثيقة 5.5.1، design/app.md 7): في تطبيق آبل وحده =====
+  // الغلاف يضيف إضافة «Voice» (app/ios/App/App/Voice.swift): status · install (وحدث progress) · requestAccess · start · stop،
+  // وحدثا partial وfinal بالنص المسموع كله منذ start. فإن لم توجد (الموقع، أو iOS أقدم من 26) لا يظهر شيء، ويُلعب المزاد كما هو.
+  // on: شغّله المقدّم (يُحفظ على الجهاز) · dl: نسبة تنزيل النموذج، أو null · tip: تلميح الأيقونة بعد تعذّر.
+  // key: وفاءٌ واحد (الجولة والموضوع ووقت «ابدأ»)، وله النص المسموع (text)، وما حدده المقدّم من كلماته (sel)،
+  // وما أضاء منه آلياً مرة (emitted) فلا يُضيء ثانية بعد حذفه أو «تراجع».
+  // الوفاء الجاري في المزاد، أو null.
+  function voxFulfil() {
+    const mode = match?.step === 'play' && roundMode();
+    const st = mode?.id === 'auction' ? match.round.state : null;
+    return st?.phase === 'fulfil' ? st : null;
+  }
+  function voxShown() { return vox.ok && vox.on && !!vox.key && !!voxFulfil(); }
+  function voxView() { return { words: voxSplit(vox.text), sel: [...vox.sel], live: vox.live }; }
+  // أيقونة «المساعد الصوتي» في لوحة «⋯» (7.4): مُشغَّل · موقوف · يُنزَّل بنسبته. ولا تظهر إن لم يتوفر.
+  function voxIcon() {
+    if (!vox.ok) return [];
+    if (vox.dl !== null) return [{ cmd: 'vox:toggle', label: `يُنزَّل المساعد الصوتي · ${vox.dl}%`, svg: 'mic', icon: true, kind: 'vox vox-dl', pct: vox.dl }];
+    return [{ cmd: 'vox:toggle', label: vox.tip || 'المساعد الصوتي', svg: vox.on ? 'mic' : 'mic-off', icon: true, kind: 'vox ' + (vox.on ? 'vox-on' : 'vox-off') }];
+  }
+  async function voxInit() {
+    if (!NATIVE || !cap?.nativePromise) return;
+    let s = null;
+    try { s = await voxCall('status'); } catch { return; }
+    if (!s?.available) return;
+    vox.ok = true;
+    cap.addListener('Voice', 'partial', d => voxHeard(d?.text));
+    cap.addListener('Voice', 'final', d => { voxHeard(d?.text); vox.live = false; vox.starting = false; voxSend(true); });
+    cap.addListener('Voice', 'progress', d => { if (vox.dl !== null) { vox.dl = Math.max(0, Math.min(100, Math.round(Number(d?.pct) || 0))); render(); } });
+    try { vox.on = localStorage.getItem(VOX_KEY) === '1' && !!s.installed && s.mic === 'granted'; } catch {}
+    if (match) render();
+  }
+  const voxRemember = on => { vox.on = on; try { localStorage.setItem(VOX_KEY, on ? '1' : '0'); } catch {} };
+  // تشغيل المساعد وإيقافه من «⋯». أول تشغيل ينزّل النموذج إن لم يكن منزّلاً، ثم يطلب إذن الميكروفون.
+  async function voxToggle() {
+    if (!vox.ok || vox.dl !== null) return;
+    vox.tip = '';
+    if (vox.on) { voxRemember(false); voxSync(); render(); link?.send('view', view()); return; }
+    try {
+      const s = await voxCall('status');
+      if (!s.installed) {
+        vox.dl = 0; render();
+        try { await voxCall('install'); } catch { vox.dl = null; vox.tip = 'يحتاج إلى الإنترنت مرة واحدة'; render(); return; }
+        vox.dl = null;
+      }
+      const a = await voxCall('requestAccess');
+      if (a?.mic !== 'granted') { vox.tip = 'اسمح بالميكروفون من الإعدادات'; render(); return; }
+    } catch { vox.dl = null; render(); return; }
+    voxRemember(true);
+    render();
+    link?.send('view', view());
+  }
+  // يبدأ السماع مع الوفاء ويتوقف بانقضاء وقته أو بـ«كشف القائمة» (5.5.1). يُستدعى بعد كل رسم.
+  function voxSync() {
+    if (!vox.ok || !match) return;
+    const st = voxFulfil();
+    // والوفاء يُعرف بعدّاده (root يبقى مع «تراجع» يستأنف الوقت)، وبعد انقضاء الوقت لا عدّاد فيبقى ما كان.
+    const at = st ? `${match.round.n}:${st.index}:` : '', root = match.round?.timer?.root;
+    const key = !st ? '' : root !== undefined ? at + root : vox.key.startsWith(at) ? vox.key : at + 'x';
+    if (key && key !== vox.key) {
+      Object.assign(vox, { key, text: '', base: '', sel: new Set(), emitted: new Set(), items: voxPrepare(st.topics[st.index].items) });
+    }
+    const want = vox.on && !!st && !st.over && !!match.round.timer;
+    if (want && !vox.live && !vox.starting) voxStart(st);
+    if (!want && (vox.live || vox.starting)) voxStop();
+  }
+  async function voxStart(st) {
+    vox.starting = true;
+    // ما سُمع قبل توقف سابق في الوفاء نفسه («تراجع» عن الكشف) يبقى، ويُكمل بعده.
+    vox.base = vox.text;
+    const hints = st.topics[st.index].items.flatMap(x => [x.name, ...(x.alts ?? [])]);
+    try { await voxCall('start', { hints }); vox.live = true; } catch { vox.live = false; }
+    vox.starting = false;
+    // قد يتغير ما يُراد أثناء البدء (كُشفت القائمة).
+    if (!voxShown() || voxFulfil()?.over || !match.round.timer) voxStop();
+    voxSend(true);
+  }
+  function voxStop() {
+    if (!vox.live && !vox.starting) return;
+    vox.live = false;
+    voxCall('stop').catch(() => {});
+    voxSend(true);
+  }
+  // النص المسموع: ما سُمع منذ بدء السماع، بعد ما سبقه في الوفاء نفسه. وكل عنصر طابق ولم يُذكر يضيء (say)، مرة واحدة.
+  function voxHeard(text) {
+    const st = voxFulfil();
+    if (!st || !vox.key || typeof text !== 'string') return;
+    vox.text = [vox.base, text.trim()].filter(Boolean).join(' ');
+    const said = (st.said ?? []).filter(x => Array.isArray(x.w));
+    const lit = new Set(said.map(x => x.i)), taken = new Set(said.flatMap(x => x.w));
+    for (const m of matchMany(vox.text, vox.items)) {
+      if (vox.emitted.has(m.i) || lit.has(m.i) || m.w.some(k => taken.has(k) || vox.sel.has(k))) continue;
+      vox.emitted.add(m.i);
+      roundAct(`say:${m.i}:${m.w.join(',')}`, true);
+    }
+    voxSend();
+  }
+  // النص المسموع إلى الشاشة: رسالة خفيفة («vox») لا الحالة كلها، بأربع مرات في الثانية على الأكثر.
+  function voxSend(now) {
+    clearTimeout(vox.later);
+    const wait = 250 - (performance.now() - vox.sent);
+    if (!now && wait > 0) { vox.later = setTimeout(() => voxSend(true), wait); return; }
+    vox.sent = performance.now();
+    link?.send('vox', voxShown() ? voxView() : null);
+  }
+  // نقرات النص المسموع و«اعتمد» و«⋯» (design/app.md 7.2، 7.4).
+  function voxCmd(arg) {
+    if (arg === 'toggle') return void voxToggle();
+    const st = voxFulfil();
+    if (!st || !voxShown()) return;
+    const marked = new Set((st.said ?? []).filter(x => Array.isArray(x.w)).flatMap(x => x.w));
+    if (arg.startsWith('w:')) {
+      const k = Number(arg.slice(2));
+      if (!Number.isInteger(k) || k < 0 || k >= voxSplit(vox.text).length || marked.has(k)) return;
+      vox.sel.has(k) ? vox.sel.delete(k) : vox.sel.add(k);
+      voxSend(true); render(); return;
+    }
+    if (arg === 'ok' && vox.sel.size) {
+      const ws = voxSplit(vox.text), ks = [...vox.sel].sort((a, b) => a - b), phrase = ks.map(k => ws[k]).join(' ');
+      const lit = new Set((st.said ?? []).filter(x => Array.isArray(x.w)).map(x => x.i));
+      const m = matchOne(phrase, vox.items);
+      vox.sel = new Set();
+      // يطابق عنصراً لم يُذكر: يضيء. ولا يطابق: إجابة من خارج القائمة بنصها. ويطابق ما أضاء: لا يُعدّ مرتين.
+      if (m && !lit.has(m.i)) { vox.emitted.add(m.i); roundAct(`say:${m.i}:${ks.join(',')}`, true); }
+      else if (!m) roundAct(`say::${ks.join(',')}:${phrase}`, true);
+      else render();
+      voxSend(true);
+    }
+  }
+
   // نقرات الشاشة المشتركة: تصل من شاشة الجمهور التي في هذه النافذة وحدها.
   addEventListener('message', hand(e => {
     const frame = $('frame').querySelector('iframe');
@@ -649,18 +792,21 @@
     if (cmd === 'begin') begin();
     // عدّ المزاد (ش8-أ/54، المالك في لعب حقيقي): «عُدّ · +1» لا يأتي بعده زر آخر مكانه، فكل ضغطة تُحسب فوراً بلا مهلة 0.7 ثانية،
     // كزرّي المزايدة. ولا يحكم العدّ بعد الوثيقة 1.14، فالحكم بعد «كشف القائمة».
-    if (cmd === 'act') roundAct(arg, roundMode()?.id === 'auction' && arg === 'count');
+    // وكذلك حذف ما أضاء من المساعد الصوتي (unsay، design/app.md 7.2): لا يأتي بعده زر مكانه.
+    if (cmd === 'act') roundAct(arg, roundMode()?.id === 'auction' && (arg === 'count' || arg.startsWith('unsay:')));
     if (cmd === 'raise') raise(Number(arg));
     if (cmd === 'next') actions[nextButton().act]?.();
     if (cmd === 'mute') toggleMute();
     if (cmd === 'new') newMatch(arg === 'sure');
     if (cmd === 'qr') setQr(arg === 'show');
+    if (cmd === 'vox') voxCmd(arg);
     if (cmd === 'fullscreen') document.documentElement.requestFullscreen?.().catch(() => {});
     if (['toPick', 'undoPick', 'toFace', 'replay', 'undo', 'scores', 'announce', 'tiebreak'].includes(cmd)) actions[cmd]();
   }));
 
   // تطبيق آبل: تُفتح اللعبة مباشرة بلا رقم (الوثيقة 1.17، 4.3).
   if (NATIVE) unlock('');
+  voxInit();
 
   function startLink() {
     link = createLink('presenter', (type, data) => {

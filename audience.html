@@ -83,6 +83,9 @@
             <div class="ctl" id="aucCtl"></div>
           </div>
           <div class="bids" id="bids"></div>
+          <!-- المساعد الصوتي في تطبيق آبل (الوثيقة 5.5.1، design/app.md 7): ما أضاء، ثم النص المسموع. ولا شيء منهما بلا مساعد -->
+          <div class="vox-lit" id="voxLit"></div>
+          <div class="vox-heard" id="voxHeard"><span class="mic" id="voxMic"><svg viewBox="0 0 36 36" aria-hidden="true"></svg></span><div class="words"><div id="voxWords"></div></div></div>
           <!-- بعد «كشف القائمة» (الوثيقة 1.14، design/s8c.md 2): القائمة المرجعية صفحاتٍ تُقلب بالنقر، ونقاط تحتها بعدد الصفحات -->
           <div class="cx-list" id="cxList" hidden></div>
           <div class="cx-dots" id="cxDots" hidden></div>
@@ -865,7 +868,55 @@
     const counted = t?.n ?? 0, fresh = !reveal && counted > shownSaid;
     shownSaid = counted;
     if (fresh) replay($('tally'), 'bump');
+    renderVox(a);
     renderList(a);
+  }
+  // ===== المساعد الصوتي (design/app.md 7.1–7.2): ثلاثة صفوف في البطاقة أثناء الوفاء =====
+  // a.voice: ما أضاء وما اعتُمد بترتيب قوله (من الحالة) · view.play.vox: النص المسموع (words)، وما حدده المقدّم (sel)، والسماع جارٍ (live).
+  // الشارة الجديدة تدخل بالأصفر 600ms ثم تأخذ لون الملتزم. ونقرتها الأولى تحددها والثانية تحذفها (TWO_TAPS).
+  const LIT_MS = 600;
+  let litSeen = new Map(), litKey = '', litLater = 0;
+  function renderVox(a) {
+    const v = view?.play?.vox, on = !!v && !a.reveal && a.phase === 'fulfil';
+    $('auc').classList.toggle('vox', on);
+    if (!on) { $('voxLit').innerHTML = ''; $('voxWords').innerHTML = ''; return; }
+    const team = a.commit?.team === 2 ? 2 : 1, list = a.voice ?? [];
+    $('auc').style.setProperty('--vox-team', `var(--team-${team === 2 ? '2-ink' : '1'})`);
+    // الأصفر لحظة الإضاءة وحدها: وقت أول ظهور لكل شارة في الموضوع نفسه.
+    const key = `${view.play.n}|${a.n}`;
+    if (key !== litKey) { litKey = key; litSeen = new Map(); }
+    const now = performance.now();
+    clearTimeout(litLater);
+    let soon = Infinity;
+    $('voxLit').innerHTML = list.map(x => {
+      const id = (x.own ? 'o:' : 'i:') + x.name;
+      if (!litSeen.has(id)) litSeen.set(id, still() ? -LIT_MS : now);
+      const left = litSeen.get(id) + LIT_MS - now;
+      if (left > 0) soon = Math.min(soon, left);
+      return `<span class="chip t${team}${x.own ? ' own' : ''}${left > 0 ? ' new' : ''}" data-cmd="act:unsay:${x.at}"><i></i><span>${esc(x.name)}</span></span>`;
+    }).join('');
+    if (soon < Infinity) litLater = setTimeout(() => renderVox(view?.play?.a ?? a), soon + 20);
+    // ما زاد عن العرض: تبقى الأحدث ظاهرة، وتغيب الأقدم من اليمين، وحافة باهتة 48 تدل عليها. والعدد كاملاً في العدّ.
+    const row = $('voxLit'), all = [...row.children];
+    let gone = 0;
+    while (row.scrollWidth > row.clientWidth + 1 && gone < all.length - 1) all[gone++].hidden = true;
+    row.classList.toggle('over', gone > 0);
+    markArmed();
+    renderWords(a, v);
+  }
+  function renderWords(a, v) {
+    const hit = new Set((a.voice ?? []).filter(x => !x.own).flatMap(x => x.w)), used = new Set((a.voice ?? []).filter(x => x.own).flatMap(x => x.w));
+    const sel = new Set(v.sel ?? []);
+    $('voxWords').innerHTML = (v.words ?? []).map((w, k) => {
+      const cls = hit.has(k) ? 'hit' : used.has(k) ? 'used' : sel.has(k) ? 'sel' : '';
+      return `<span${cls ? ` class="${cls}"` : ''}${hit.has(k) || used.has(k) ? '' : ` data-cmd="vox:w:${k}"`}>${esc(w)}</span>`;
+    }).join(' ');
+    // يبدأ من السطر الأول بجانب الميكروفون، فإن زاد عن سطرين صعد وقُصّ من الأعلى والأحدث في آخره.
+    const box = $('voxWords');
+    box.classList.remove('up');
+    box.classList.toggle('up', box.offsetHeight > box.parentElement.clientHeight + 1);
+    $('voxMic').classList.toggle('live', !!v.live);
+    $('voxMic').querySelector('svg').innerHTML = ICON.mic;
   }
   let shownSaid = 0;
   // القائمة المكشوفة (design/s8c.md 1.1 القسم 2، والمالك 31 أكتوبر 2026: «اقلبها يدوياً، نقاط أسفل القائمة توضح التعدد»):
@@ -882,7 +933,9 @@
     listView = list ? a : null;
     if (!list) { listKey = ''; box.innerHTML = ''; dots.hidden = true; dots.innerHTML = ''; return; }
     $('auc').style.setProperty('--cx-team', `var(--team-${a.commit?.team === 2 ? '2-ink' : '1'})`);
-    const key = `${a.n}|${a.topic}|${list.length}|${box.clientWidth}x${box.clientHeight}`;
+    // وما قيل بالمساعد الصوتي (design/app.md 7.3): ما أضاء مبرز بلون الملتزم، وما اعتُمد من خارجها في آخرها مبرزاً بخط متقطع.
+    const lit = new Set(a.lit ?? []), extra = a.extra ?? [];
+    const key = `${a.n}|${a.topic}|${list.length}|${box.clientWidth}x${box.clientHeight}|${[...lit]}|${extra.join('،')}`;
     if (key !== listKey) {
       if (!listKey || listKey.split('|')[0] !== String(a.n) || listKey.split('|')[1] !== a.topic) listPage = 0;
       listKey = key;
@@ -891,8 +944,11 @@
       let pg = null;
       const fresh = () => { pg = document.createElement('div'); pg.className = 'cx-pg'; box.append(pg); pages.push(pg); };
       fresh();
-      for (const nm of list) {
-        const it = document.createElement('span'); it.className = 'cx-it'; it.textContent = nm; pg.append(it);
+      const all = [...list.map((nm, i) => ({ nm, said: lit.has(i) })), ...extra.map(nm => ({ nm, said: true, own: true }))];
+      for (const { nm, said, own } of all) {
+        const it = document.createElement('span'); it.className = 'cx-it' + (said ? ' said' : '') + (own ? ' own' : '');
+        if (said) { const b = document.createElement('b'); b.textContent = nm; it.append(b); } else it.textContent = nm;
+        pg.append(it);
         if (it.offsetTop + it.offsetHeight > box.clientHeight + 1 && pg.children.length > 1) { it.remove(); fresh(); pg.append(it); }
       }
       listPages = pages.length;
@@ -941,12 +997,14 @@
   // أو حين لا تبقى الخانة زراً (انتهى الوقت، أو انتهى التحكيم). والموقع بنقرة واحدة كما كان. armed: أمر الخانة المحددة (act:item:N).
   const TWO_TAPS = document.documentElement.classList.contains('native-app'), ARM_MS = 4000;
   let armed = null, armTimer = null;
-  function disarm() { armed = null; clearTimeout(armTimer); document.querySelectorAll('#board .sl.armed').forEach(s => s.classList.remove('armed')); }
+  // وشارات ما أضاء في المساعد الصوتي كذلك: الأولى تحدد والثانية تحذف (design/app.md 7.2).
+  const TWO = '#board .sl, #voxLit .chip';
+  function disarm() { armed = null; clearTimeout(armTimer); document.querySelectorAll('#board .sl.armed, #voxLit .chip.armed').forEach(s => s.classList.remove('armed')); }
   function markArmed() {
     if (!armed) return;
-    const el = [...document.querySelectorAll('#board .sl[data-cmd]')].find(s => s.dataset.cmd === armed);
+    const el = [...document.querySelectorAll('#board .sl[data-cmd], #voxLit .chip[data-cmd]')].find(s => s.dataset.cmd === armed);
     if (!el) return disarm();
-    document.querySelectorAll('#board .sl.armed').forEach(s => s !== el && s.classList.remove('armed'));
+    document.querySelectorAll('#board .sl.armed, #voxLit .chip.armed').forEach(s => s !== el && s.classList.remove('armed'));
     el.classList.add('armed');
   }
   // اهتزاز خفيف مع التحديد إن وُجد إضافة Haptics في الغلاف (Capacitor)، في هذه النافذة أو في الصفحة الأم. وبدونها لا شيء.
@@ -974,11 +1032,16 @@
     'الباركود': '<rect x="5" y="5" width="10" height="10"/><rect x="21" y="5" width="10" height="10"/><rect x="5" y="21" width="10" height="10"/><path d="M21 21h4v4h-4zM29 29h2M25 29v2M29 21v4"/>',
     'الرصيد': '<path d="M8 30V18M18 30V8M28 30V14"/>',
     'مباراة جديدة': '<path d="M18 7v22M7 18h22"/>',
+    // المساعد الصوتي (design/app.md 7.4): ميكروفون، وموقوفاً بخط مائل فوقه.
+    mic: '<rect x="13" y="4" width="10" height="18" rx="5"/><path d="M8 17a10 10 0 0 0 20 0M18 27v5M12 32h12"/>',
+    'mic-off': '<rect x="13" y="4" width="10" height="18" rx="5"/><path d="M8 17a10 10 0 0 0 20 0M18 27v5M12 32h12M5 5l26 26"/>',
   };
   let showTip = () => {}, pointer = null;
   const iconic = b => b.icon || b.cmd === 'more';
+  // svg: أيقونة باسمها إن اختلف الاسم الظاهر عنها (المساعد الصوتي وتلميحاته)، وpct نسبة تنزيله تملأ إطاره.
   const button = b => `<button class="cbtn${b.kind ? ' ' + b.kind : ''}${iconic(b) ? ' ico' : ''}${b.cmd === 'more' && moreOpen ? ' open' : ''}${b.off ? ' off' : ''}" data-cmd="${esc(b.cmd)}"`
-    + (iconic(b) ? ` aria-label="${esc(b.label)}" data-tip="${esc(b.label)}">${b.icon ? `<svg viewBox="0 0 36 36" aria-hidden="true">${ICON[b.label] ?? ''}</svg>` : ''}` : `>${b.html ?? num(b.label)}`) + '</button>';
+    + (b.pct !== undefined ? ` style="--pct:${Number(b.pct) || 0}%"` : '')
+    + (iconic(b) ? ` aria-label="${esc(b.label)}" data-tip="${esc(b.label)}">${b.icon ? `<svg viewBox="0 0 36 36" aria-hidden="true">${ICON[b.svg ?? b.label] ?? ''}</svg>` : ''}` : `>${b.html ?? num(b.label)}`) + '</button>';
   const rows = list => (list ?? []).map(r => `<div class="ctl">${r.map(button).join('')}</div>`).join('');
   // الأزرار لا تُستبدل إن لم يتغير ما فيها: ضغطة تقع بين نزول الإصبع ورفعه على زر استُبدل لا تصل (ش8-أ/54، عدّ المزاد السريع).
   const drawn = new WeakMap();
@@ -1058,7 +1121,7 @@
       if (!b && e.target.closest('#cxDots i')) { flipPage(Number(e.target.closest('#cxDots i').dataset.page)); return; }
       if (!b || b.classList.contains('off') || !ctl) return;
       // التطبيق: خانة اللوحة بنقرتين (design/app.md 4.6)، وأي زر آخر يزيل التحديد.
-      if (TWO_TAPS && b.matches('#board .sl')) { if (armed !== b.dataset.cmd) return arm(b.dataset.cmd); disarm(); } else if (armed) disarm();
+      if (TWO_TAPS && b.matches(TWO)) { if (armed !== b.dataset.cmd) return arm(b.dataset.cmd); disarm(); } else if (armed) disarm();
       // التطبيق: «مباراة جديدة» بعد الإعداد تسأل بلوحة من اللعبة، لا بـ confirm الذي يظهر بالإنجليزية على التلفاز.
       if (TWO_TAPS && b.dataset.cmd === 'new' && view?.match?.step !== 'setup') { $('askNew').hidden = false; return; }
       send(b.dataset.cmd);
@@ -1366,6 +1429,11 @@
       if (data.play && data.match.step === 'play') { timers.forEach(clearTimeout); timers = []; busy = false; canvas.classList.remove('enter'); }
       setLocked(false); render();
       if (data.play && data.match.step === 'play') roundMoments(data.moments ?? [], prev);
+    }
+    // النص المسموع وحده (المساعد الصوتي): يُرسم في صفّيه دون إعادة رسم الشاشة.
+    if (type === 'vox' && view?.play) {
+      if (data) view.play.vox = data; else delete view.play.vox;
+      if (view.play.a?.screen === 'topic' && $('auc').classList.contains('show')) renderVox(view.play.a);
     }
     if (type === 'anim') { if (data.view) view = data.view; if (!count?.test) { setLocked(false); animate(data.name); } }
     // أُغلقت اللعبة لتغيّر الرقم السري: لا يبقى على شاشة الجمهور شيء من اللعب.

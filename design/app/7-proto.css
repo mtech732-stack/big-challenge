@@ -1,0 +1,22 @@
+/* نموذج ت5 */
+.auc.vox { gap: 20px; }
+.auc.vox .ahead { min-height: 88px; }
+.auc.vox .tally .n { font-size: 88px; line-height: 88px; }
+.vox-lit { display: flex; gap: 16px; height: 64px; overflow: clip; padding: 0 12px; }
+.vox-lit .chip { position: relative; flex: none; height: 64px; padding: 0 28px; display: flex; align-items: center; color: var(--on-stage); font-size: 36px; font-weight: 800; white-space: nowrap; }
+.vox-lit .chip > i { position: absolute; inset: 0; transform: skewX(calc(-1 * var(--lean))); background: var(--team-1); }
+.vox-lit .chip.t2 > i { background: var(--team-2-ink); }
+.vox-lit .chip.new > i { background: var(--hl); }
+.vox-lit .chip.new { color: var(--ink); }
+.vox-lit .chip.own > span { border-bottom: 4px dashed currentColor; }
+.vox-lit .chip > span { position: relative; }
+.vox-lit .chip.armed::after { content: ""; position: absolute; inset: -8px; border: 4px solid var(--ink); transform: skewX(calc(-1 * var(--lean))); }
+.vox-heard { display: flex; align-items: flex-start; gap: 20px; height: 96px; }
+.vox-heard .mic { flex: none; width: 48px; height: 48px; display: grid; place-items: center; color: var(--team-1); position: relative; }
+.vox-heard .mic::before { content: ""; position: absolute; inset: -6px; border: 3px solid currentColor; border-radius: 50%; opacity: .35; }
+.vox-heard .words { flex: 1; min-width: 0; display: flex; flex-wrap: wrap-reverse; align-content: flex-end; column-gap: 14px; height: 96px; overflow: clip; font-size: 34px; line-height: 48px; font-weight: 600; color: var(--text); }
+.vox-heard .words span { opacity: .55; }
+.vox-heard .words span.hit { opacity: 1; box-shadow: inset 0 -4px 0 var(--team-1); }
+.vox-heard .words span.used { opacity: 1; box-shadow: inset 0 -4px 0 var(--text); }
+.vox-heard .words span.sel { opacity: 1; background: var(--ink); color: var(--card); padding: 0 8px; }
+.cx-list .said { background: var(--team-1); color: var(--card); padding: 0 10px; }
