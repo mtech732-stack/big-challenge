@@ -90,8 +90,8 @@
 .vox-lit .chip.own > span { border-bottom: 4px dashed currentColor; }
 /* الحذف بنقرتين: الأولى تُحيط الشارة بإطار حبر 4 مائل على بعد 8 */
 .vox-lit .chip.armed::before { content: ""; position: absolute; inset: -8px; border: 4px solid var(--ink); transform: skewX(calc(-1 * var(--lean))); }
-/* مساحة نقر 120 (44 نقطة) فوق الشارة وتحتها، لا تتداخل مع صف النص المسموع: يُقسم الفاصل 20 بينهما */
-.vox-lit .chip::after { content: ""; position: absolute; inset: -28px -8px; }
+/* مساحة نقر فوق الشارة وتحتها، لا تتداخل مع صف النص المسموع: يُقسم الفاصل 20 بينهما (10 لكلٍّ) */
+.vox-lit .chip::after { content: ""; position: absolute; inset: -28px -8px -10px; }
 .native-app .auc.vox .vox-lit { overflow: clip; overflow-clip-margin: 28px; }
 /* النص المسموع: الميكروفون 48 يميناً، ثم الكلمات 34 في سطرين، الأحدث في آخره وما زاد يصعد ويُقصّ من الأعلى */
 .native-app .auc.vox .vox-heard { flex: none; min-width: 0; max-width: 100%; display: flex; align-items: flex-start; gap: 20px; height: 96px; }
@@ -104,8 +104,12 @@
 .vox-heard .words { position: relative; flex: 1; min-width: 0; height: 96px; overflow: clip; }
 .vox-heard .words > div { position: absolute; inset-inline: 0; top: 0; font-size: 34px; line-height: 48px; font-weight: 600; color: var(--text); }
 .vox-heard .words > div.up { top: auto; bottom: 0; }
-.vox-heard .words span { position: relative; display: inline-block; opacity: .55; cursor: pointer; }
-.vox-heard .words span::after { content: ""; position: absolute; inset: -36px -7px; }
+.vox-heard .words span { position: relative; display: inline-block; height: 48px; vertical-align: top; opacity: .55; cursor: pointer; }
+/* مساحة نقر الكلمة: بارتفاع سطرها 48 لا أكثر، فلا تتداخل مع كلمات السطر الآخر (ملاحظة المدقّق 92: نقرة على كلمة في السطر الأول كانت
+   تحدد كلمة تحتها في الثاني). وبعرضها ونصف الفراغ بين الكلمتين (14) من كل جانب. والنقر على المساحة وحدها لا على النص،
+   لأن حروف الخط ترتفع فوق سطرها نحو 8 فتُصيب نقرةُ أسفل السطر الأول كلمةَ الثاني */
+.vox-heard .words span { pointer-events: none; }
+.vox-heard .words span::after { content: ""; position: absolute; inset: 0 -7px; pointer-events: auto; }
 .vox-heard .words span.hit { opacity: 1; box-shadow: inset 0 -4px 0 var(--vox-team, var(--team-1)); cursor: default; }
 .vox-heard .words span.used { opacity: 1; box-shadow: inset 0 -4px 0 var(--text); cursor: default; }
 .vox-heard .words span.sel { opacity: 1; background: var(--ink); color: var(--card); padding: 0 8px; }
