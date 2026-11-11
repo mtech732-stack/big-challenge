@@ -25,6 +25,8 @@ let silence = 0;
 let hardStop = 0;
 let onDevice = true;
 let said = new Set(); // عناصر حُكم عليها بالصحة في الموضوع الحالي
+let oldLocales = [];  // لغات المحرّك القديم من status
+let fresh = null;     // ما يدعمه المحرّك الجديد (iOS 26+) من probe
 
 // ———— القائمة ————
 async function loadTopics() {
@@ -80,7 +82,7 @@ function judge(ok, fix = null) {
   const r = pending;
   log.push({
     at: new Date().toISOString(), topic: topic.topic, text: r.text, alts: r.alts, pick: r.pick?.name ?? null,
-    score: +r.score.toFixed(3), sure: r.sure, ok, fix, ms: r.ms, onDevice: r.onDevice, locale: $('locale').value,
+    score: +r.score.toFixed(3), sure: r.sure, ok, fix, ms: r.ms, onDevice: r.onDevice, locale: $('locale').value, engine: $('engine').value,
   });
   store.set(log);
   const hit = ok ? r.pick?.i : fix != null ? topic.items.findIndex(it => it.name === fix) : -1;
@@ -102,7 +104,8 @@ async function startListening() {
   $('live').textContent = '';
   const hints = topic.items.flatMap(it => [it.name, ...(it.alts ?? [])]);
   try {
-    await call('start', { locale: $('locale').value, onDevice, hints });
+    const engine = $('engine').value;
+    await call('start', { engine, locale: $('locale').value, onDevice: engine === 'old' ? onDevice : true, hints });
     setMic(true);
     hardStop = setTimeout(stopListening, 8000);
   } catch (e) {
@@ -160,11 +163,52 @@ async function setup() {
   const okPerm = s.speech === 'granted' && s.mic === 'granted';
   $('perm').textContent = okPerm ? `iOS ${s.ios} · الإذن مُعطى` : 'لم يُعطَ إذن الميكروفون أو التعرّف';
   $('perm').classList.toggle('bad', !okPerm);
-  const locs = s.locales ?? [];
-  const first = locs.find(l => l.id === 'ar-KW' && l.onDevice) ?? locs.find(l => l.id === 'ar-SA' && l.onDevice) ?? locs.find(l => l.onDevice) ?? locs[0];
-  $('locale').innerHTML = locs.map(l => `<option value="${l.id}" ${l === first ? 'selected' : ''}>${l.id} ${l.onDevice ? '· على الجهاز' : '· بالإنترنت فقط'}</option>`).join('')
-    || '<option value="ar-SA">لا عربية في الهاتف</option>';
+  oldLocales = s.locales ?? [];
+  try { fresh = await call('probe'); } catch { fresh = null; }
+  const engines = [['old', 'المحرّك القديم']];
+  if (fresh?.available && fresh.dictation?.length) engines.push(['dictation', 'الجديد: الإملاء']);
+  if (fresh?.available && fresh.transcriber?.length) engines.push(['transcriber', 'الجديد: النسخ']);
+  $('engine').innerHTML = engines.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+  // يبدأ بالجديد إن دعم العربية، لأنه يعمل على الجهاز دون إنترنت.
+  if (engines.length > 1) $('engine').value = engines[1][0];
+  const note = fresh?.available
+    ? `الجديد: الإملاء ${fresh.dictation?.length ? fresh.dictation.join(' ') : 'بلا عربية'} · النسخ ${fresh.transcriber?.length ? fresh.transcriber.join(' ') : 'بلا عربية'}`
+    : 'المحرّك الجديد غير متاح';
+  $('perm').title = note;
+  $('live').textContent = note;
+  drawLocales();
+}
+function drawLocales() {
+  const engine = $('engine').value;
+  if (engine === 'old') {
+    const first = oldLocales.find(l => l.id === 'ar-KW' && l.onDevice) ?? oldLocales.find(l => l.id === 'ar-SA' && l.onDevice) ?? oldLocales.find(l => l.onDevice) ?? oldLocales[0];
+    $('locale').innerHTML = oldLocales.map(l => `<option value="${l.id}" ${l === first ? 'selected' : ''}>${l.id} ${l.onDevice ? '· على الجهاز' : '· بالإنترنت فقط'}</option>`).join('')
+      || '<option value="ar-SA">لا عربية في الهاتف</option>';
+    $('offline').hidden = false;
+    $('dl').hidden = true;
+  } else {
+    const list = fresh?.[engine] ?? [];
+    const have = fresh?.[`${engine}Installed`] ?? [];
+    $('locale').innerHTML = list.map(id => `<option value="${id}">${id} ${have.includes(id) ? '· منزّل' : '· غير منزّل'}</option>`).join('');
+    const pref = list.find(id => id.includes('KW')) ?? list.find(id => id.includes('SA')) ?? list[0];
+    if (pref) $('locale').value = pref;
+    $('offline').hidden = true;
+    $('dl').hidden = have.includes($('locale').value);
+  }
   syncOffline();
+}
+async function download() {
+  $('dl').disabled = true;
+  $('dl').textContent = 'يُنزَّل…';
+  try {
+    fresh = await call('install', { engine: $('engine').value, locale: $('locale').value });
+    $('live').textContent = 'نُزّل النموذج، فالمحرّك الجديد يعمل دون إنترنت.';
+  } catch (e) {
+    $('live').textContent = e?.message || String(e);
+  }
+  $('dl').disabled = false;
+  $('dl').textContent = 'نزّل النموذج العربي';
+  drawLocales();
 }
 function syncOffline() {
   $('offline').textContent = `دون إنترنت: ${onDevice ? 'نعم' : 'لا'}`;
@@ -172,6 +216,12 @@ function syncOffline() {
 }
 
 $('topic').addEventListener('change', e => pickTopic(+e.target.value));
+$('engine').addEventListener('change', drawLocales);
+$('locale').addEventListener('change', () => {
+  const engine = $('engine').value;
+  if (engine !== 'old') $('dl').hidden = (fresh?.[`${engine}Installed`] ?? []).includes($('locale').value);
+});
+$('dl').addEventListener('click', download);
 $('mic').addEventListener('click', () => (listening ? stopListening() : startListening()));
 $('ok').addEventListener('click', () => judge(true));
 $('no').addEventListener('click', () => judge(false));

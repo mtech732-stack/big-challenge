@@ -38,8 +38,34 @@ public class VoiceLabPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "requestAccess", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "cancel", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "cancel", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "probe", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "install", returnType: CAPPluginReturnPromise)
     ]
+
+    // المحرّك الجديد (iOS 26+): SpeechAnalyzer مع DictationTranscriber أو SpeechTranscriber.
+    private var fresh: AnyObject?
+
+    // ما يدعمه المحرّك الجديد من العربية، وما نُزّل نموذجه على الهاتف.
+    @objc func probe(_ call: CAPPluginCall) {
+        guard #available(iOS 26.0, *) else { call.resolve(["available": false]); return }
+        Task { call.resolve(await FreshEngine.arabic()) }
+    }
+
+    // install({ engine: "dictation" | "transcriber", locale: "ar-SA" }): ينزّل النموذج العربي ليعمل دون إنترنت.
+    @objc func install(_ call: CAPPluginCall) {
+        guard #available(iOS 26.0, *) else { call.reject("يلزم iOS 26"); return }
+        let kind = call.getString("engine") ?? "dictation"
+        let id = call.getString("locale") ?? "ar-SA"
+        Task {
+            do {
+                try await FreshEngine.install(kind: kind, locale: Locale(identifier: id))
+                call.resolve(await FreshEngine.arabic())
+            } catch {
+                call.reject("تعذّر تنزيل النموذج: \(error.localizedDescription)")
+            }
+        }
+    }
 
     private let engine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
@@ -84,6 +110,11 @@ public class VoiceLabPlugin: CAPPlugin, CAPBridgedPlugin {
         task?.cancel()
         cleanup()
         let id = call.getString("locale") ?? "ar-SA"
+        let kind = call.getString("engine") ?? "old"
+        if kind != "old" {
+            guard #available(iOS 26.0, *) else { call.reject("المحرّك الجديد يلزمه iOS 26"); return }
+            startFresh(call, kind: kind, id: id); return
+        }
         guard let rec = SFSpeechRecognizer(locale: Locale(identifier: id)) else {
             call.reject("لا يدعم الهاتف اللغة \(id)"); return
         }
@@ -134,15 +165,51 @@ public class VoiceLabPlugin: CAPPlugin, CAPBridgedPlugin {
 
     // يوقف السماع ويطلب النتيجة النهائية (تصل بالحدث final).
     @objc func stop(_ call: CAPPluginCall) {
+        if #available(iOS 26.0, *), let f = fresh as? FreshEngine {
+            stopAudio()
+            Task { await f.finish() }
+            call.resolve(); return
+        }
         stopAudio()
         request?.endAudio()
         call.resolve()
     }
 
     @objc func cancel(_ call: CAPPluginCall) {
+        if #available(iOS 26.0, *), let f = fresh as? FreshEngine { f.onFinal = { _, _ in }; Task { await f.finish() } }
+        fresh = nil
         task?.cancel()
         cleanup()
         call.resolve()
+    }
+
+    @available(iOS 26.0, *)
+    private func startFresh(_ call: CAPPluginCall, kind: String, id: String) {
+        let hints = Array((call.getArray("hints", String.self) ?? []).prefix(100))
+        let f = FreshEngine()
+        f.onPartial = { [weak self] t in self?.notifyListeners("partial", data: ["text": t]) }
+        f.onFinal = { [weak self] t, err in
+            var d: [String: Any] = ["text": t, "alts": [], "onDevice": true]
+            if let e = err { d["error"] = e }
+            self?.fresh = nil
+            self?.finish(d)
+        }
+        fresh = f
+        sentFinal = false
+        startedAt = Date()
+        Task {
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetooth])
+                try session.setActive(true, options: .notifyOthersOnDeactivation)
+                try await f.start(kind: kind, locale: Locale(identifier: id), hints: hints, engine: self.engine)
+                call.resolve(["locale": id, "onDevice": true, "engine": kind])
+            } catch {
+                self.fresh = nil
+                self.cleanup()
+                call.reject("\(error.localizedDescription)")
+            }
+        }
     }
 
     private func finish(_ data: [String: Any]) {
@@ -184,5 +251,123 @@ public class VoiceLabPlugin: CAPPlugin, CAPBridgedPlugin {
         case .denied: return "denied"
         default: return "prompt"
         }
+    }
+}
+
+// المحرّك الجديد في iOS 26: يعمل على الجهاز دائماً، بنموذج يُنزَّل مرة لكل لغة.
+@available(iOS 26.0, *)
+final class FreshEngine {
+    var onPartial: (String) -> Void = { _ in }
+    var onFinal: (String, String?) -> Void = { _, _ in }
+
+    private var analyzer: SpeechAnalyzer?
+    private var input: AsyncStream<AnalyzerInput>.Continuation?
+    private var results: Task<Void, Never>?
+    private var converter: AVAudioConverter?
+    private weak var audio: AVAudioEngine?
+    private var settled = ""   // ما ثبت من النص
+    private var volatile = ""  // ما زال يتغيّر
+    private var error: String?
+    private var ended = false
+
+    static func module(_ kind: String, _ locale: Locale) -> any SpeechModule {
+        if kind == "transcriber" {
+            return SpeechTranscriber(locale: locale, transcriptionOptions: [], reportingOptions: [.volatileResults], attributeOptions: [])
+        }
+        return DictationTranscriber(locale: locale, preset: .progressiveShortDictation)
+    }
+
+    static func arabic() async -> [String: Any] {
+        let ar: ([Locale]) -> [String] = { $0.map { $0.identifier }.filter { $0.hasPrefix("ar") }.sorted() }
+        return [
+            "available": true,
+            "dictation": ar(await DictationTranscriber.supportedLocales),
+            "dictationInstalled": ar(await DictationTranscriber.installedLocales),
+            "transcriber": ar(await SpeechTranscriber.supportedLocales),
+            "transcriberInstalled": ar(await SpeechTranscriber.installedLocales)
+        ]
+    }
+
+    static func install(kind: String, locale: Locale) async throws {
+        let m = module(kind, locale)
+        if let req = try await AssetInventory.assetInstallationRequest(supporting: [m]) {
+            try await req.downloadAndInstall()
+        }
+    }
+
+    func start(kind: String, locale: Locale, hints: [String], engine: AVAudioEngine) async throws {
+        let m = Self.module(kind, locale)
+        if try await AssetInventory.assetInstallationRequest(supporting: [m]) != nil {
+            throw NSError(domain: "VoiceLab", code: 1, userInfo: [NSLocalizedDescriptionKey: "النموذج العربي غير منزّل بعد: اضغط «نزّل النموذج»"])
+        }
+        guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [m]) else {
+            throw NSError(domain: "VoiceLab", code: 2, userInfo: [NSLocalizedDescriptionKey: "لا صيغة صوت مناسبة للمحرّك الجديد"])
+        }
+
+        // النتائج: الثابت يُضاف، والمتغيّر يُستبدل.
+        if let t = m as? DictationTranscriber {
+            results = Task { do { for try await r in t.results { self.take(String(r.text.characters), r.isFinal) } } catch { self.error = error.localizedDescription } }
+        } else if let t = m as? SpeechTranscriber {
+            results = Task { do { for try await r in t.results { self.take(String(r.text.characters), r.isFinal) } } catch { self.error = error.localizedDescription } }
+        }
+
+        let (stream, cont) = AsyncStream<AnalyzerInput>.makeStream()
+        input = cont
+        let an = SpeechAnalyzer(modules: [m])
+        analyzer = an
+        if !hints.isEmpty {
+            let ctx = AnalysisContext()
+            ctx.contextualStrings[.general] = hints
+            try? await an.setContext(ctx)
+        }
+        try await an.start(inputSequence: stream)
+
+        audio = engine
+        let node = engine.inputNode
+        node.installTap(onBus: 0, bufferSize: 4096, format: node.outputFormat(forBus: 0)) { [weak self] buf, _ in
+            guard let self = self, let out = self.convert(buf, to: format) else { return }
+            cont.yield(AnalyzerInput(buffer: out))
+        }
+        engine.prepare()
+        try engine.start()
+    }
+
+    private func take(_ text: String, _ isFinal: Bool) {
+        if isFinal { settled += (settled.isEmpty ? "" : " ") + text; volatile = "" } else { volatile = text }
+        let now = [settled, volatile].filter { !$0.isEmpty }.joined(separator: " ")
+        DispatchQueue.main.async { self.onPartial(now) }
+    }
+
+    func finish() async {
+        guard !ended else { return }
+        ended = true
+        input?.finish()
+        if let an = analyzer {
+            do { try await an.finalizeAndFinishThroughEndOfInput() } catch { self.error = error.localizedDescription }
+        }
+        await results?.value
+        let text = [settled, volatile].filter { !$0.isEmpty }.joined(separator: " ")
+        let err = text.isEmpty ? error : nil
+        DispatchQueue.main.async { self.onFinal(text, err) }
+    }
+
+    private func convert(_ buf: AVAudioPCMBuffer, to format: AVAudioFormat) -> AVAudioPCMBuffer? {
+        if buf.format == format { return buf }
+        if converter == nil || converter?.inputFormat != buf.format {
+            converter = AVAudioConverter(from: buf.format, to: format)
+            converter?.primeMethod = .none
+        }
+        guard let conv = converter else { return nil }
+        let cap = AVAudioFrameCount(Double(buf.frameLength) * format.sampleRate / buf.format.sampleRate + 1)
+        guard let out = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: cap) else { return nil }
+        var fed = false
+        var err: NSError?
+        conv.convert(to: out, error: &err) { _, status in
+            if fed { status.pointee = .noDataNow; return nil }
+            fed = true
+            status.pointee = .haveData
+            return buf
+        }
+        return err == nil ? out : nil
     }
 }
