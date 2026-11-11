@@ -1143,10 +1143,10 @@
         if (!vv || !el) return;
         const fe = window.frameElement, fr = fe?.getBoundingClientRect(), k = fr ? fr.height / innerHeight : 1;
         const bottom = (fr?.top ?? 0) + rect(el).bottom * k, gap = 24 * k * Math.min(innerWidth / 1920, innerHeight / 1080) + BAR;
-        // ش8-أ/89 (محاكي iPhone 16 Pro، v99): ولا يُرفع أكثر مما يُبقي أعلى الخانة نفسها في المرئي، فلا تخرج من أعلى الشاشة مهما
-        // أخطأ visualViewport لحظةً.
-        const top = (fr?.top ?? 0) + rect(el).top * k;
-        const to = shift + Math.min(bottom + gap - (vv.offsetTop + vv.height), top - vv.offsetTop) / k;
+        // ش8-أ/89 (محاكي iPhone 16 Pro، v99): والزيادة (up) لا تتجاوز ما يُبقي أعلى الخانة نفسها في المرئي، فلا تخرج من أعلى الشاشة
+        // مهما أخطأ visualViewport لحظةً. والوضع الأول كما كان في v97.
+        const top = (fr?.top ?? 0) + rect(el).top * k, need = bottom + gap - (vv.offsetTop + vv.height);
+        const to = shift + (up ? Math.min(need, top - vv.offsetTop) : need) / k;
         if (up && Math.round(to) <= shift) return;
         setShift(to);
       };
