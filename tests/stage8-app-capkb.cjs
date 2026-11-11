@@ -30,6 +30,7 @@ const { usePin, reporter, stageFrame } = require('./helpers.cjs');
       addListener: (n, cb) => { (ls[n] ??= []).push(cb); return { remove() {} }; },
       setResizeMode: o => { calls.push('resize:' + o.mode); return Promise.resolve(); },
       setScroll: o => { calls.push('scroll:' + o.isDisabled); return Promise.resolve(); },
+      setAccessoryBarVisible: o => { calls.push('bar:' + o.isVisible); return Promise.resolve(); },
     } } };
     window.__kbShow = h => (ls.keyboardWillShow ?? []).forEach(cb => cb({ keyboardHeight: h }));
     window.__kbHide = () => (ls.keyboardWillHide ?? []).forEach(cb => cb());
@@ -37,7 +38,7 @@ const { usePin, reporter, stageFrame } = require('./helpers.cjs');
   const page = await context.newPage();
   await page.goto(base); await page.evaluate(() => localStorage.clear()); await page.reload();
   const f = await stageFrame(page); await wait(1500);
-  check(`الصفحة طلبت من الإضافة: ${(await page.evaluate(() => window.__kbCalls)).join('، ')}`, (await page.evaluate(() => window.__kbCalls.join())) === 'resize:none,scroll:true');
+  check(`الصفحة طلبت من الإضافة: ${(await page.evaluate(() => window.__kbCalls)).join('، ')}`, (await page.evaluate(() => window.__kbCalls.join())) === 'resize:none,scroll:true,bar:true');
   const show = () => page.evaluate(h => __kbShow(h), KB), hide = () => page.evaluate(() => __kbHide());
   await page.evaluate(([KB]) => {
     window.__kbNow = 0;
@@ -70,6 +71,8 @@ const { usePin, reporter, stageFrame } = require('./helpers.cjs');
   log = await page.evaluate(() => window.__log);
   const late = log.filter(x => x.tr && x.t > 40), small = log.filter(x => Math.abs(x.cw - w0) > 1);
   check(`«تم»: تنزل اللوحة فوراً (${late.length ? 'مرفوعة حتى ' + late[late.length - 1].t + 'ms' : 'نعم'})، ولا يتغيّر حجم المسرح (${small.length ? small[0].cw + ' من ' + w0 : 'كما هو'})، والمسرح ظاهر في كل إطار`, !late.length && !small.length && log.every(x => x.cbottom > 0));
+  const layer = await f.evaluate(() => { const st = getComputedStyle(document.querySelector('.screen')); return { will: st.willChange, tr: document.querySelector('.screen').style.transition }; });
+  check(`ش8-أ/91: اللوحة طبقة مرسومة كلها (${layer.will})، والنزول بعد «تم» حركة مع لوحة المفاتيح (${layer.tr})`, layer.will === 'transform' && /transform 0?\.25s/.test(layer.tr));
   // «التالي» من العليا.
   await f.tap('#i1'); await wait(50); await show(); await wait(300); await page.keyboard.type('Eagles');
   await page.evaluate(() => { const fr = document.querySelector('#single iframe'), w = fr.contentWindow, s = fr.getBoundingClientRect().height / w.innerHeight;

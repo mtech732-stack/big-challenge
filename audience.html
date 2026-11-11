@@ -1132,7 +1132,13 @@
       // ش8-أ/83 (محاكي iPhone 16 Pro، v95): كان الهامش 56 فظهر تحت اللوحة المرفوعة شريط داكن فوق لوحة المفاتيح. فصار ارتفاع شريط
       // الاقتراحات نفسه (44): أقل منه يُغطّي الخانةَ إن ظهر بعد أول حرف، فيلزم تحريكها في الكتابة، وهو ما كان يُغلق لوحة المفاتيح (78).
       const BAR = 44;
-      const setShift = v => { v = Math.max(0, Math.round(v)); if (v === shift) return; shift = v; screenEl.style.transform = v ? `translateY(${-v}px)` : ''; };
+      // ش8-أ/91 (المالك على هاتفه، v100 بـ resize none): بقيت ومضة «تم». فالمسرح المرفوع كان ينزل دفعة واحدة، فينكشف أعلاه الذي بقي
+      // خارج الشاشة أثناء الكتابة، وWebKit لم يرسمه بعد (يرسم المرئي وحده)، فتظهر الخلفية حتى يُرسم. فالآن: اللوحة طبقة مرسومة كلها
+      // (will-change في css/base.css)، والنزول بزوال التركيز حركة 250ms بمنحنى لوحة المفاتيح، فتنزلان معاً. والرفع والانتقال
+      // بين الخانتين فوريان كما هما (84).
+      const setShift = v => { v = Math.max(0, Math.round(v)); if (v === shift) return;
+        const ease = v === 0 && !typing() ? 'transition: transform .25s cubic-bezier(.17,.59,.4,.77);' : '';
+        shift = v; screenEl.setAttribute('style', ease + (v ? ` transform: translateY(${-v}px);` : '')); };
       const typing = () => { const el = document.activeElement; return el === $('i1') || el === $('i2') ? el : null; };
       // ش8-أ/88 (المدقّق، خطر): إن انفتحت لوحة المفاتيح على خطوات (أكثر من resize) كان الرفع عند الأولى فيبقى ناقصاً. فبعد الوضع
       // يُسمح بالزيادة وحدها (up) ما لم يُكتب حرف بعد التركيز (grow). وأول حرف يوقفها: الحركة بعد الكتابة هي ما كان يُغلق لوحة
@@ -1169,7 +1175,8 @@
       vv?.addEventListener('resize', () => { if (kbH >= 0) return; if (!typing()) full = Math.max(full, vv.height); if (armed) { grow = true; place(); } else if (grow && typing()) place(typing(), true); });
       if (capKb?.addListener) {
         kbH = 0;
-        try { capKb.setResizeMode?.({ mode: 'none' }); capKb.setScroll?.({ isDisabled: true }); } catch {}
+        // والشريط فوق لوحة المفاتيح ظاهر، ففيه «تم» (المالك 11 نوفمبر: «اعد تم بعد كل ادخال للاسماء»)، ومعه السهمان. والإضافة تخفيه.
+        try { capKb.setResizeMode?.({ mode: 'none' }); capKb.setScroll?.({ isDisabled: true }); capKb.setAccessoryBarVisible?.({ isVisible: true }); } catch {}
         capKb.addListener('keyboardWillShow', info => { if (kbH === 0 && top.innerHeight >= baseH - 1) baseH = top.innerHeight; kbH = Math.max(0, Number(info?.keyboardHeight) || 0); if (typing() && armed) place(); });
         capKb.addListener('keyboardWillHide', () => { kbH = 0; if (!typing()) setShift(0); });
         top.addEventListener('resize', () => { if (kbH === 0) baseH = top.innerHeight; });
