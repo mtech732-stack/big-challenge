@@ -1138,15 +1138,26 @@
       // يُسمح بالزيادة وحدها (up) ما لم يُكتب حرف بعد التركيز (grow). وأول حرف يوقفها: الحركة بعد الكتابة هي ما كان يُغلق لوحة
       // المفاتيح (78)، فلا حركة بعده.
       let grow = false;
+      // ش8-أ/90 (المالك: «جد حلا جذريا يضمن عدم تكرار الامر»، الومضة الزرقاء): كان الـ WebView يُصغَّر مع لوحة المفاتيح ويُكبَّر
+      // بعدها، وiOS يزيح الصفحة ليكشف الخانة. وكلاهما يُظهر الخلفية وحدها لحظةً (Done، وسهما الشريط، وربما العودة من الخلفية).
+      // فإن كان إضافة لوحة المفاتيح في الغلاف (@capacitor/keyboard): لا يتغيّر حجم الـ WebView أصلاً (setResizeMode none)، ولا
+      // يزيح iOS الصفحة (setScroll)، ويُقرأ ارتفاع لوحة المفاتيح من حدثها keyboardWillShow قبل أن تتحرك، مرة واحدة بقيمتها النهائية،
+      // فيُرفع مرة (78) وينزل مع keyboardWillHide. وبلا الإضافة يبقى visualViewport كما كان.
+      let kbH = -1, baseH = top.innerHeight;
+      const capKb = (() => { try { return (parent.Capacitor ?? window.Capacitor)?.Plugins?.Keyboard ?? null; } catch { return window.Capacitor?.Plugins?.Keyboard ?? null; } })();
+      // أسفل المرئي بإحداثيات النافذة العليا. ومع الإضافة: إن صغُرت الصفحة رغم ذلك (resize غير none) فهي المرئي نفسه.
+      const seenBottom = () => kbH < 0 ? vv.offsetTop + vv.height : top.innerHeight < baseH - 1 ? top.innerHeight : baseH - kbH;
+      const seenTop = () => kbH < 0 ? vv.offsetTop : 0;
+      const kbShown = () => kbH < 0 ? !!vv && vv.height < full * 0.85 : kbH > 0;
       const place = (el = typing(), up = false) => {
         if (!up) { clearTimeout(waitKb); if (!armed) return; armed = false; }
-        if (!vv || !el) return;
+        if ((!vv && kbH < 0) || !el) return;
         const fe = window.frameElement, fr = fe?.getBoundingClientRect(), k = fr ? fr.height / innerHeight : 1;
         const bottom = (fr?.top ?? 0) + rect(el).bottom * k, gap = 24 * k * Math.min(innerWidth / 1920, innerHeight / 1080) + BAR;
         // ش8-أ/89 (محاكي iPhone 16 Pro، v99): والزيادة (up) لا تتجاوز ما يُبقي أعلى الخانة نفسها في المرئي، فلا تخرج من أعلى الشاشة
         // مهما أخطأ visualViewport لحظةً. والوضع الأول كما كان في v97.
-        const top = (fr?.top ?? 0) + rect(el).top * k, need = bottom + gap - (vv.offsetTop + vv.height);
-        const to = shift + (up ? Math.min(need, top - vv.offsetTop) : need) / k;
+        const fieldTop = (fr?.top ?? 0) + rect(el).top * k, need = bottom + gap - seenBottom();
+        const to = shift + (up ? Math.min(need, fieldTop - seenTop()) : need) / k;
         if (up && Math.round(to) <= shift) return;
         setShift(to);
       };
@@ -1154,15 +1165,22 @@
       // المفاتيح. وiOS يحسب كشف الخانة المركّزة من موضعها قبل الرفع، فيزيح الشاشة فوق الرفع، فتخرج اللوحة كلها من أعلى الشاشة
       // (زرقاء فارغة 2–3 ثوانٍ)، ثم تبقى أعلى مما يلزم بـ 25 (الشريط 39). فالآن تُرفع قبل أن يُنقل التركيز، فتكون الخانة ظاهرة
       // حين يصلها، ولا يبقى لـ iOS ما يكشفه. ويُقرأ موضعها بعد الرفع فيُرسم قبل التركيز.
-      preLift = el => { if (!vv || vv.height >= full * 0.85) return; armed = true; place(el); rect(el); };
-      vv?.addEventListener('resize', () => { if (!typing()) full = Math.max(full, vv.height); if (armed) { grow = true; place(); } else if (grow && typing()) place(typing(), true); });
+      preLift = el => { if (!kbShown()) return; armed = true; place(el); rect(el); };
+      vv?.addEventListener('resize', () => { if (kbH >= 0) return; if (!typing()) full = Math.max(full, vv.height); if (armed) { grow = true; place(); } else if (grow && typing()) place(typing(), true); });
+      if (capKb?.addListener) {
+        kbH = 0;
+        try { capKb.setResizeMode?.({ mode: 'none' }); capKb.setScroll?.({ isDisabled: true }); } catch {}
+        capKb.addListener('keyboardWillShow', info => { if (kbH === 0 && top.innerHeight >= baseH - 1) baseH = top.innerHeight; kbH = Math.max(0, Number(info?.keyboardHeight) || 0); if (typing() && armed) place(); });
+        capKb.addListener('keyboardWillHide', () => { kbH = 0; if (!typing()) setShift(0); });
+        top.addEventListener('resize', () => { if (kbH === 0) baseH = top.innerHeight; });
+      }
       for (const k of [1, 2]) {
         $('i' + k).addEventListener('input', () => { grow = false; });
         // والزيادة مع الخطوات (88) لانفتاح لوحة المفاتيح وحده، أي تركيز وهي مغلقة (نقر). أما التركيز وهي ظاهرة (سهما الشريط من iOS،
         // و«التالي») فيُرفع مرة ولا يزيد: ش8-أ/89، سهم «أسفل» كان يُفرغ الشاشة حتى Done، لأن iOS يكشف الخانة بإزاحته وتغيّرات
         // visualViewport في أثنائها كانت تزيد الرفع فوقها.
         $('i' + k).addEventListener('focus', () => { armed = true; grow = false; clearTimeout(waitKb);
-          if (vv && vv.height < full * 0.85) place(); else waitKb = setTimeout(place, 700); });
+          if (kbShown()) place(); else if (kbH < 0) waitKb = setTimeout(place, 700); });
         // وبزوال التركيز يُعاد حساب حجم المسرح في الصفحة الأم (ش8-أ/80)، مرات حتى تنغلق لوحة المفاتيح.
         // ش8-أ/84: وبعد «تم» كانت اللوحة تبقى مرفوعة 50 جزءاً من الثانية وتحتها أزرق ولوحة المفاتيح تنزل. فإن لم يذهب التركيز إلى
         // الخانة الأخرى (relatedTarget) تنزل في المهمة التالية، وإلا فبعد 50 كما كانت.
