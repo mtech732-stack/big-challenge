@@ -89,13 +89,18 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     await go(f, 'act:start');
     check('مع «ابدأ» يبدأ السماع بتلميحات القائمة، وتظهر الصفوف الثلاثة', await page.evaluate(() => window.__voice.live && window.__voice.hints.includes('باص'))
       && await f.$eval('#auc', e => e.classList.contains('vox')) && await f.$eval('#voxMic', e => e.classList.contains('live')));
+    // ملاحظة المعاين 94: الكلمة الأخيرة في النص المتغيّر قد تكون نصف كلمة، فلا يضيء ما فيها حتى تأتي بعدها كلمة.
     await heard(page, 'سيارة باص');
     await wait(150);
+    check(`الكلمة الأخيرة تنتظر ما بعدها: «باص» لا تضيء بعد (${await chips(f)})`, JSON.stringify(await chips(f)) === '["سيارة"]');
+    await heard(page, 'سيارة باص يعني غواص');
+    await wait(150);
+    check(`ونصف الكلمة «غواص» في آخر النص لا تُضيء «غواصة» (${await chips(f)})`, JSON.stringify(await chips(f)) === '["سيارة","حافلة"]');
     const first = await f.$$eval('#voxLit .chip', els => els.map(e => [e.textContent, e.className, getComputedStyle(e.querySelector('i')).backgroundColor]));
-    check(`ما يطابق يضيء بالأصفر لحظته (${JSON.stringify(first)})`, first.length === 2 && first[0][0] === 'سيارة' && first[1][0] === 'حافلة' && first.every(c => c[1].includes('new')));
+    check(`ما يطابق يضيء بالأصفر لحظته (${JSON.stringify(first)})`, first.length === 2 && first[0][0] === 'سيارة' && first[1][0] === 'حافلة' && first[1][1].includes('new'));
     await wait(700);
     const after = await f.$$eval('#voxLit .chip', els => els.map(e => [e.className, getComputedStyle(e.querySelector('i')).backgroundColor]));
-    check(`ثم يأخذ لون الملتزم، والعدّ 2 (${JSON.stringify(after)})`, after.every(c => !c[0].includes('new') && c[1] !== first[0][2]) && await tally(f) === 2);
+    check(`ثم يأخذ لون الملتزم، والعدّ 2 (${JSON.stringify(after)})`, after.every(c => !c[0].includes('new') && c[1] !== first[1][2]) && await tally(f) === 2);
     await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني');
     await wait(400);
     check(`النص المسموع يكمل، وكل عنصر مرة واحدة (${await chips(f)})`, JSON.stringify(await chips(f)) === '["سيارة","حافلة","قطار","دراجة نارية"]' && await tally(f) === 4);
@@ -117,7 +122,7 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     check(`«اعتمد» من خارج القائمة: شارة بخط متقطع، والعدّ 6 (${await chips(f)})`, (await chips(f)).at(-1) === 'كرسي متحرك' && await f.$eval('#voxLit .chip:last-child', e => e.classList.contains('own')) && await tally(f) === 6
       && (await words(f)).includes('كرسي.used متحرك.used') && !(await f.$('[data-cmd="vox:ok"]')));
     // تحديد كلمة من القائمة لم تُطابق آلياً («قطارة» مثلاً): تضيء عنصرها.
-    await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني والطائره');
+    await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني والطائره بعد');
     await wait(400);
     check(`«والطائره» تطابق «طائرة» (${await chips(f)})`, (await chips(f)).includes('طائرة') && await tally(f) === 7);
     // الحذف بنقرتين.
@@ -128,7 +133,7 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     check(`فحص التداخل والشبكة والشارة محددة (${sc.ok ? '' : sc.problems.join('، ')})`, sc.ok);
     await f.click('#voxLit .chip:nth-child(3)'); await wait(800);
     check(`والثانية تحذفها وينقص العدّ، وتعود كلمتها باهتة (${await chips(f)})`, !(await chips(f)).includes('قطار') && await tally(f) === 6 && (await words(f)).includes(' قطار '));
-    await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني والطائره قطار');
+    await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني والطائره بعد قطار يعني');
     await wait(400);
     check('وما حُذف لا يضيء ثانية آلياً', !(await chips(f)).includes('قطار'));
     // «تراجع» بالترتيب: يرجع الحذف، ثم آخر ما أضاء.
@@ -150,9 +155,9 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     // التراجع عن الكشف يعيد السماع ويُبقي ما سُمع.
     await go(f, 'undo');
     check(`التراجع عن الكشف يعيد السماع والنص (${await words(f)})`, await page.evaluate(() => window.__voice.live) && (await words(f)).startsWith('سيارة.hit'));
-    await heard(page, 'سفينة');
+    await heard(page, 'سفينة يعني');
     await wait(400);
-    check(`وما بعده يُلحق بالنص (${await chips(f)})`, (await chips(f)).includes('سفينة') && (await words(f)).endsWith('سفينة.hit'));
+    check(`وما بعده يُلحق بالنص (${await chips(f)})`, (await chips(f)).includes('سفينة') && (await words(f)).endsWith('سفينة.hit يعني'));
     // نص طويل وشارات كثيرة: الأحدث ظاهرة، والأقدم تُقصّ من اليمين بحافة باهتة، والنص يصعد سطرين.
     await heard(page, 'سفينة شاحنة ومترو وبعد ترام قارب يعني دراجة هوائية غواصة شنو كمان شي ثاني ما ادري والله خلاص طائرة');
     await wait(900);
