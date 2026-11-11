@@ -734,8 +734,9 @@
   // ببديلها «متر» قبل أن تصير «مطرقة»)، فلا يضيء ما فيها حتى تأتي بعدها كلمة، أو يتوقف السماع.
   function voxHeard(text, done = false) {
     const st = voxFulfil();
-    if (!st || !vox.key || typeof text !== 'string') return;
-    vox.text = [vox.base, text.trim()].filter(Boolean).join(' ');
+    if (!st || !vox.key || (text !== null && typeof text !== 'string')) return;
+    // null: النص الذي سُمع كما هو، يُحسم قبل «كشف القائمة» (voxCmd، ملاحظة المدقّق 96).
+    if (text !== null) vox.text = [vox.base, text.trim()].filter(Boolean).join(' ');
     const said = (st.said ?? []).filter(x => Array.isArray(x.w));
     const lit = new Set(said.map(x => x.i)), taken = new Set(said.flatMap(x => x.w));
     const last = voxSplit(vox.text).length - 1;
@@ -797,6 +798,9 @@
     // عدّ المزاد (ش8-أ/54، المالك في لعب حقيقي): «عُدّ · +1» لا يأتي بعده زر آخر مكانه، فكل ضغطة تُحسب فوراً بلا مهلة 0.7 ثانية،
     // كزرّي المزايدة. ولا يحكم العدّ بعد الوثيقة 1.14، فالحكم بعد «كشف القائمة».
     // وكذلك حذف ما أضاء من المساعد الصوتي (unsay، design/app.md 7.2): لا يأتي بعده زر مكانه.
+    // «كشف القائمة» في الوفاء بالمساعد (ملاحظة المدقّق 96): الكلمة الأخيرة كانت تنتظر ما بعدها (94)، والكشف يوقف السماع قبل أن يصل
+    // النص الأخير، فيضيع آخر ما قيل. فيُحسم ما سُمع أولاً، ثم يُكشف. وما أضاء لا يضيء ثانية (emitted).
+    if (cmd === 'act' && arg === 'reveal' && voxShown()) voxHeard(null, true);
     if (cmd === 'act') roundAct(arg, roundMode()?.id === 'auction' && (arg === 'count' || arg.startsWith('unsay:')));
     if (cmd === 'raise') raise(Number(arg));
     if (cmd === 'next') actions[nextButton().act]?.();
