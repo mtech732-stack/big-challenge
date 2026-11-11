@@ -13,7 +13,9 @@ export const fold = s => {
   for (const [re, to] of LOOSE) t = t.replace(re, to);
   return t.replace(/\s+/g, ' ').trim();
 };
-const words = s => fold(s).split(' ').filter(w => w && !FILLER.has(w));
+// واو العطف تلتصق بالكلمة في المسموع («والريشة»، «وكرة»)، فتُفصل قبل التطبيع. لا تُمسّ صيغ القائمة.
+const unwaw = s => String(s).split(/\s+/).map(w => (w.length >= 4 && w[0] === 'و' ? w.slice(1) : w)).join(' ');
+const words = s => fold(unwaw(s)).split(' ').filter(w => w && !FILLER.has(w));
 
 // تشابه بين نصين 0..1 بمسافة التحرير على الحروف، بلا مسافات (فـ«بينغ بونغ» = «بينغبونغ»).
 export function sim(a, b) {
@@ -66,4 +68,33 @@ export function match(text, prepared) {
 export function matchAll(texts, prepared) {
   return texts.filter(Boolean).map(t => ({ text: t, ...match(t, prepared) }))
     .sort((a, b) => b.score - a.score)[0] ?? { text: '', pick: null, score: 0, sure: false, top: [] };
+}
+
+// السماع المتواصل: كل العناصر التي قيلت في نص واحد طويل، بترتيب قولها.
+// كل صيغة تُطابَق بنوافذ متصلة بطولها (±1 كلمة)، ثم تُقبل الأعلى تشابهاً فالأطول، ولا تتداخل كلمتان.
+// فـ«الريشة الطائرة» تأخذ كلمتيها قبل أن تأخذ «الطائرة» (بديل الكرة الطائرة) إحداهما.
+export function matchMany(text, prepared, min = SURE) {
+  const heard = words(text);
+  const cands = [];
+  for (const p of prepared) for (const f of p.forms) {
+    const n = f.split(' ').length;
+    for (let len = Math.max(1, n - 1); len <= n + 1; len++)
+      for (let at = 0; at + len <= heard.length; at++) {
+        const score = sim(heard.slice(at, at + len).join(' '), f);
+        if (score >= min) cands.push({ i: p.i, name: p.name, score, at, len: f.replace(/ /g, '').length, span: len });
+      }
+  }
+  cands.sort((a, b) => b.score - a.score || b.len - a.len);
+  const used = new Set();
+  const seen = new Set();
+  const out = [];
+  for (const c of cands) {
+    if (seen.has(c.i)) continue;
+    const pos = Array.from({ length: c.span }, (_, k) => c.at + k);
+    if (pos.some(x => used.has(x))) continue;
+    pos.forEach(x => used.add(x));
+    seen.add(c.i);
+    out.push(c);
+  }
+  return out.sort((a, b) => a.at - b.at);
 }

@@ -1,6 +1,6 @@
 // تجربة جدوى المساعد الصوتي في المزاد (ت3). يسمع المقدّم يعيد الإجابة، فيطابقها بقائمة الموضوع،
 // ويحكم المقدّم على الاقتراح بـ«صحيح» أو «خطأ»، فتُحسب نسبة الاقتراحات الصحيحة وزمنها.
-import { prepare, matchAll } from './match.js';
+import { prepare, matchAll, matchMany } from './match.js';
 
 const $ = id => document.getElementById(id);
 const cap = window.Capacitor;
@@ -27,6 +27,10 @@ let onDevice = true;
 let said = new Set(); // عناصر حُكم عليها بالصحة في الموضوع الحالي
 let oldLocales = [];  // لغات المحرّك القديم من status
 let fresh = null;     // ما يدعمه المحرّك الجديد (iOS 26+) من probe
+// السماع المتواصل: يسمع طوال وقت الوفاء ويعلّم كل عنصر لحظة قوله، والمقدّم يصحّح بالنقر.
+const RUN_SECONDS = 45; // وقت الوفاء في المزاد (PROJECT.md)
+let continuous = false;
+let run = null;         // { text, removed: Set, added: Set, t0, ended, timer }
 
 // ———— القائمة ————
 async function loadTopics() {
@@ -52,7 +56,7 @@ function show(r) {
   pending = r;
   $('ok').disabled = $('no').disabled = !r;
   $('top').innerHTML = '';
-  if (!r) { $('pick').textContent = topic ? 'اضغط «اسمع» وأعد الإجابة بصوتك' : ''; $('why').textContent = ''; $('heard').textContent = ''; return; }
+  if (!r) { $('pick').textContent = !topic ? '' : continuous ? 'اضغط «ابدأ الوفاء» وردّد العناصر متتابعة' : 'اضغط «اسمع» وأعد الإجابة بصوتك'; $('why').textContent = ''; $('heard').textContent = ''; return; }
   const pct = Math.round(r.score * 100);
   $('pick').innerHTML = r.pick
     ? `<span class="hl">${r.pick.name}</span>${r.sure ? '' : ' <small>ربما</small>'}`
@@ -63,18 +67,91 @@ function show(r) {
 }
 
 function stats() {
-  const n = log.length;
-  const ok = log.filter(e => e.ok).length;
-  const sure = log.filter(e => e.sure);
+  const runs = log.filter(e => e.mode === 'run');
+  const singles = log.filter(e => e.mode !== 'run');
+  const n = singles.length;
+  const ok = singles.filter(e => e.ok).length;
+  const sure = singles.filter(e => e.sure);
   const sureOk = sure.filter(e => e.ok).length;
-  const ms = n ? Math.round(log.reduce((a, e) => a + (e.ms || 0), 0) / n) : 0;
-  $('stats').innerHTML = n
-    ? `<b>${Math.round(100 * ok / n)}%</b> اقتراحات صحيحة (${ok} من ${n})<br>`
-      + `الواثقة: ${sure.length ? Math.round(100 * sureOk / sure.length) : 0}% (${sureOk} من ${sure.length})<br>`
-      + `متوسط الزمن بعد السكوت: ${ms} ms`
-    : 'لا محاولات بعد';
-  $('log').innerHTML = log.slice().reverse().map(e =>
-    `<div>${e.ok ? '✓' : '✗'} «<bdi>${e.text || '—'}</bdi>» ← ${e.pick ?? 'ليست في القائمة'}${e.fix ? ` · الصحيح: ${e.fix}` : ''} · ${Math.round(e.score * 100)}%</div>`).join('');
+  const ms = n ? Math.round(singles.reduce((a, e) => a + (e.ms || 0), 0) / n) : 0;
+  // في المتواصل: ما علّمه الهاتف وأبقاه المقدّم صحيح، وما أزاله خطأ، وما أضافه بيده فاتَ الهاتف.
+  const hit = runs.reduce((a, e) => a + e.auto.length - e.removed.length, 0);
+  const wrong = runs.reduce((a, e) => a + e.removed.length, 0);
+  const missed = runs.reduce((a, e) => a + e.added.length, 0);
+  const parts = [];
+  if (n) parts.push(`<b>${Math.round(100 * ok / n)}%</b> اقتراحات صحيحة (${ok} من ${n})`,
+    `الواثقة: ${sure.length ? Math.round(100 * sureOk / sure.length) : 0}% (${sureOk} من ${sure.length})`, `متوسط الزمن بعد السكوت: ${ms} ms`);
+  if (runs.length) parts.push(`<b>${hit + missed ? Math.round(100 * hit / (hit + missed)) : 0}%</b> مما قيل علّمه الهاتف (${hit} من ${hit + missed})`,
+    `علّم خطأً: ${wrong} · في ${runs.length} جولة متواصلة`);
+  $('stats').innerHTML = parts.join('<br>') || 'لا محاولات بعد';
+  $('log').innerHTML = log.slice().reverse().map(e => e.mode === 'run'
+    ? `<div>⟳ ${e.topic}: علّم ${e.auto.length - e.removed.length}${e.removed.length ? `، أزلتَ ${e.removed.length}` : ''}${e.added.length ? `، أضفتَ ${e.added.length}` : ''}</div>`
+    : `<div>${e.ok ? '✓' : '✗'} «<bdi>${e.text || '—'}</bdi>» ← ${e.pick ?? 'ليست في القائمة'}${e.fix ? ` · الصحيح: ${e.fix}` : ''} · ${Math.round(e.score * 100)}%</div>`).join('');
+}
+
+// ———— السماع المتواصل ————
+function runPicks() {
+  const auto = matchMany(run.text, prepared).filter(c => !run.removed.has(c.i));
+  const ids = new Set(auto.map(c => c.i));
+  const extra = [...run.added].filter(i => !ids.has(i)).map(i => ({ i, name: topic.items[i].name, man: true }));
+  return [...auto, ...extra];
+}
+function drawRun() {
+  const picks = runPicks();
+  said = new Set(picks.map(c => c.i));
+  drawList();
+  const left = run.ended ? 0 : Math.max(0, RUN_SECONDS - Math.floor((performance.now() - run.t0) / 1000));
+  $('pick').innerHTML = `ذُكر <span class="hl">${picks.length}</span> من ${topic.items.length}`;
+  $('why').textContent = run.ended ? 'انتهى. أزل الخطأ بنقرة، وأضف ما فات من القائمة، ثم «اعتمد»' : `أسمع… باقي ${left} ثانية`;
+  $('heard').innerHTML = `سمع: «<bdi>${run.text || '—'}</bdi>»`;
+  $('top').innerHTML = picks.map(c => `<button data-i="${c.i}" class="${c.man ? 'man' : ''}">${c.name} ✕</button>`).join('');
+  $('ok').disabled = !run.ended;
+}
+async function startRun() {
+  if (!topic) return;
+  said = new Set();
+  run = { text: '', removed: new Set(), added: new Set(), t0: performance.now(), ended: false, timer: 0 };
+  $('live').textContent = '';
+  const hints = topic.items.flatMap(it => [it.name, ...(it.alts ?? [])]);
+  try {
+    const engine = $('engine').value;
+    await call('start', { engine, locale: $('locale').value, onDevice: engine === 'old' ? onDevice : true, hints });
+    setMic(true);
+    run.timer = setInterval(() => { if (performance.now() - run.t0 >= RUN_SECONDS * 1000) stopListening(); else drawRun(); }, 500);
+    drawRun();
+  } catch (e) {
+    run = null;
+    $('live').textContent = e?.message || String(e);
+  }
+}
+function endRun(d) {
+  clearInterval(run.timer);
+  if (d?.text) run.text = d.text;
+  run.ended = true;
+  if (d?.error && !run.text) $('live').textContent = d.error;
+  drawRun();
+}
+function commitRun() {
+  const auto = matchMany(run.text, prepared).map(c => c.i);
+  const name = i => topic.items[i].name;
+  log.push({
+    mode: 'run', at: new Date().toISOString(), topic: topic.topic, text: run.text,
+    auto: auto.map(name), removed: [...run.removed].filter(i => auto.includes(i)).map(name),
+    added: [...run.added].filter(i => !auto.includes(i)).map(name),
+    seconds: Math.round((performance.now() - run.t0) / 1000), locale: $('locale').value, engine: $('engine').value,
+  });
+  store.set(log);
+  run = null;
+  said = new Set();
+  drawList();
+  show(null);
+  stats();
+}
+function toggleRunItem(i) {
+  if (!run) return;
+  const on = runPicks().some(c => c.i === i);
+  if (on) { run.added.delete(i); run.removed.add(i); } else { run.removed.delete(i); run.added.add(i); }
+  drawRun();
 }
 
 function judge(ok, fix = null) {
@@ -96,7 +173,7 @@ function judge(ok, fix = null) {
 function setMic(on) {
   listening = on;
   $('mic').classList.toggle('on', on);
-  $('mic').textContent = on ? 'أسمع… (اضغط للإيقاف)' : 'اسمع';
+  $('mic').textContent = on ? 'أسمع… (اضغط للإيقاف)' : continuous ? 'ابدأ الوفاء' : 'اسمع';
 }
 async function startListening() {
   if (!topic) return;
@@ -120,6 +197,7 @@ function stopListening() {
   call('stop');
 }
 function onPartial(d) {
+  if (run) { run.text = d?.text ?? run.text; drawRun(); return; }
   $('live').textContent = d?.text ?? '';
   clearTimeout(silence);
   silence = setTimeout(stopListening, 1200); // سكوت 1.2 ثانية ينهي السماع
@@ -127,6 +205,7 @@ function onPartial(d) {
 function onFinal(d) {
   clearTimeout(silence); clearTimeout(hardStop);
   setMic(false);
+  if (run) { endRun(d); return; }
   $('live').textContent = '';
   const texts = [d?.text, ...(d?.alts ?? [])];
   const r = matchAll(texts, prepared);
@@ -222,11 +301,31 @@ $('locale').addEventListener('change', () => {
   if (engine !== 'old') $('dl').hidden = (fresh?.[`${engine}Installed`] ?? []).includes($('locale').value);
 });
 $('dl').addEventListener('click', download);
-$('mic').addEventListener('click', () => (listening ? stopListening() : startListening()));
-$('ok').addEventListener('click', () => judge(true));
+$('mic').addEventListener('click', () => (listening ? stopListening() : continuous ? startRun() : startListening()));
+$('ok').addEventListener('click', () => (run ? commitRun() : judge(true)));
+$('mode').addEventListener('click', () => {
+  if (listening) return;
+  continuous = !continuous;
+  run = null;
+  document.body.classList.toggle('run', continuous);
+  $('mode').textContent = continuous ? 'سماع متواصل' : 'ضغطة لكل إجابة';
+  $('mode').setAttribute('aria-pressed', String(continuous));
+  $('ok').textContent = continuous ? '✓ اعتمد العدّ' : '✓ الاقتراح صحيح';
+  $('no').hidden = continuous;
+  setMic(false);
+  said = new Set();
+  drawList();
+  show(null);
+});
+$('list').addEventListener('click', e => {
+  if (!run) return;
+  const d = e.target.closest('#list > div');
+  if (d) toggleRunItem([...$('list').children].indexOf(d));
+});
 $('no').addEventListener('click', () => judge(false));
 $('top').addEventListener('click', e => {
   const b = e.target.closest('button[data-i]');
+  if (b && run) { toggleRunItem(+b.dataset.i); return; }
   if (!b || !pending) return;
   const i = +b.dataset.i;
   // اختيار عنصر غير المقترح تصحيح يدوي: الاقتراح خطأ والصحيح هذا. واختيار المقترح نفسه «صحيح».
