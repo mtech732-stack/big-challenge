@@ -6,8 +6,14 @@ import { norm } from './modes/auction.js';
 // حروف متقاربة النطق تُطوى حرفاً واحداً، والأرقام العربية الهندية تُكتب إنجليزية.
 const LOOSE = [[/[ظذ]/g, 'ز'], [/ض/g, 'د'], [/ث/g, 'س'], [/ص/g, 'س'], [/ط/g, 'ت'], [/ق/g, 'ك'], [/[ؤئء]/g, '']];
 const DIGITS = s => s.replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x660));
-// كلمات يقولها المقدّم حول الإجابة ولا تدخل فيها.
-const FILLER = new Set(['يقول', 'يقولون', 'قال', 'قالوا', 'الجواب', 'جواب', 'اجابه', 'جوابهم', 'هو', 'هي', 'يعني', 'طيب', 'اوكي', 'و']);
+// كلمات يقولها المقدّم أو الفريق حول الإجابات ولا تدخل فيها: الحشو، وكلمات الحديث الشائعة، والأعداد
+// (ملاحظة المعاين 100: «خلاص» أضاءت «الإخلاص»، و«ثلاثة» أضاءت «ثلاجة»). وليس فيها اسم من بنك المزاد (stage8-voice-match يفحص).
+// وتُطوى كما تُطوى كلمات المسموع، فتُقارن بها بعد الطيّ.
+export const FILLER_WORDS = ['يقول', 'يقولون', 'قال', 'قالوا', 'الجواب', 'جواب', 'اجابه', 'جوابهم', 'هو', 'هي', 'يعني', 'اوكي', 'و',
+  'خلاص', 'بعد', 'شنو', 'ايش', 'وش', 'شو', 'كمان', 'بعدين', 'ثاني', 'ثانيه', 'والله', 'زين', 'نعم', 'ايوه', 'اللي', 'هذا', 'هذي',
+  'هذه', 'ذاك', 'عن', 'مع', 'ثم', 'بس', 'يا', 'احنا', 'نحن', 'انت', 'هم', 'كذا', 'يمكن', 'اظن',
+  'صح', 'غلط', 'باقي', 'اسرع', 'يلا', 'ياللا', 'ممكن', 'لحظه', 'اخر', 'القاعه', 'قاعه', 'كل', 'عندنا', 'عندي', 'ادري', 'اعرف',
+  'واحد', 'اثنين', 'ثلاث', 'ثلاثه', 'اربع', 'خمس', 'خمسه', 'ست', 'سته', 'سبع', 'سبعه', 'ثمانيه', 'تسع', 'تسعه', 'عشر', 'عشره'];
 
 // plain: التطبيع وحده دون طيّ الحروف المتقاربة، يُفاضل به بين عنصرين يطويهما الطيّ نصاً واحداً («قيمة» و«كيمة»، «ضب» و«دب»).
 const plain = s => norm(DIGITS(String(s)).toLowerCase()).replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim();
@@ -16,8 +22,12 @@ export const fold = s => {
   for (const [re, to] of LOOSE) t = t.replace(re, to);
   return t.replace(/\s+/g, ' ').trim();
 };
+const FILLER = new Set(FILLER_WORDS.map(fold));
 // واو العطف تلتصق بالكلمة في المسموع («والريشة»)، فتُفصل قبل التطبيع. لا تُمسّ صيغ القائمة.
 const unwaw = w => (w.length >= 4 && w[0] === 'و' ? w.slice(1) : w);
+// والكلمة بالواو قد تكون كلمة بواوها («ورد»، «وسادة»)، والقصيرة قد تكون واو عطف («وقط»، «ودب»، ملاحظة المعاين 101):
+// فلكل كلمة أولها واو وجه آخر (بفصلها إن لم تُفصل، وبإبقائها إن فُصلت)، ويؤخذ أعلى الوجهين.
+const other = w => (w.length >= 2 && w[0] === 'و' ? (w.length >= 4 ? w : w.slice(1)) : null);
 // كلمات النص المسموع كما تظهر على الشاشة: مفصولة بمسافة.
 export const split = text => String(text ?? '').split(/\s+/).filter(Boolean);
 // الكلمات التي تُطابَق، وكلٌّ برقمه في split(text). والكلمة التي يطويها التطبيع كلمتين تأخذ الرقم نفسه.
@@ -25,8 +35,9 @@ export const split = text => String(text ?? '').split(/\s+/).filter(Boolean);
 function heardOf(text) {
   const out = [];
   split(text).forEach((raw, k) => {
-    const f = fold(unwaw(raw)).split(' '), q = plain(unwaw(raw)).split(' ');
-    f.forEach((w, n) => { if (w && !FILLER.has(w)) out.push({ w, p: q[n] ?? w, k }); });
+    const f = fold(unwaw(raw)).split(' '), q = plain(unwaw(raw)).split(' '), o = f.length === 1 ? other(plain(raw)) : null;
+    // u وp2: الوجه الآخر للكلمة بالواو، وإلا هي نفسها.
+    f.forEach((w, n) => { if (w && !FILLER.has(w)) out.push({ w, p: q[n] ?? w, u: o ? fold(o) : w, p2: o ?? q[n] ?? w, k }); });
   });
   return out;
 }
@@ -55,16 +66,19 @@ export const prepare = items => items.map((it, i) => {
 
 export const SURE = 0.8;   // مطابقة تُضيء العنصر وحدها
 
+// شبه نافذة من المسموع بصيغة: بالكلمات كما سُمعت، وبالوجه الآخر للقصيرة بالواو (u)، والأعلى منهما.
+const simWin = (win, f, k = 'w', k2 = 'u') => Math.max(sim(win.map(h => h[k]).join(' '), f), sim(win.map(h => h[k2]).join(' '), f));
+
 // أفضل عنصر لعبارة واحدة يحددها المقدّم («اعتمد»): النافذة بطول الصيغة ±1 كلمة. يعيد { i, score } أو null دون SURE.
 export function matchOne(text, prepared, min = SURE) {
-  const heard = heardOf(text).map(h => h.w);
+  const heard = heardOf(text);
   if (!heard.length) return null;
   let top = null;
   for (const p of prepared) for (const f of p.forms) {
     const n = f.split(' ').length;
-    let s = sim(heard.join(' '), f);
+    let s = simWin(heard, f);
     for (let len = Math.max(1, n - 1); len <= n + 1; len++)
-      for (let at = 0; at + len <= heard.length; at++) s = Math.max(s, sim(heard.slice(at, at + len).join(' '), f));
+      for (let at = 0; at + len <= heard.length; at++) s = Math.max(s, simWin(heard.slice(at, at + len), f));
     if (s >= min && (!top || s > top.score)) top = { i: p.i, score: s };
   }
   return top;
@@ -81,8 +95,8 @@ export function matchMany(text, prepared, min = SURE) {
     const n = f.split(' ').length;
     for (let len = Math.max(1, n - 1); len <= n + 1; len++)
       for (let at = 0; at + len <= heard.length; at++) {
-        const win = heard.slice(at, at + len), score = sim(win.map(h => h.w).join(' '), f);
-        if (score >= min) cands.push({ i: p.i, score, exact: sim(win.map(h => h.p).join(' '), p.plains?.[fi] ?? f), at, span: len, len: f.replace(/ /g, '').length });
+        const win = heard.slice(at, at + len), score = simWin(win, f);
+        if (score >= min) cands.push({ i: p.i, score, exact: simWin(win, p.plains?.[fi] ?? f, 'p', 'p2'), at, span: len, len: f.replace(/ /g, '').length });
       }
   });
   // الأعلى شبهاً، ثم الأقرب بلا طيّ، ثم الأطول.
