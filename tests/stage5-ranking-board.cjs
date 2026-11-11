@@ -45,6 +45,15 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     await unlock(stage);
     let audience = await stageFrame(stage);
     const text = (page, sel) => page.textContent(sel).then(t => t.replace(/\s+/g, ' ').trim());
+    // انتظار نص مربع الإعلان المتوقع بدل انتظار ثابت (أخفق مرتين في 18 تحت الحمل، المدقّق #497). لا يحكم بشيء: إن لم يظهر النص
+    // في 4 ثوانٍ يمضي، والفحص بعده يقرأ ما كان يقرؤه فيُخفق.
+    // لحظة الإعلان تنقضي بساعة الصفحة (Date.now)، فتُوقف قبل النقر وتُعاد بعد القراءة، فلا تنقضي تحت الحمل قبل أن تُقرأ.
+    const freeze = () => stage.evaluate(() => { const real = Date.now, t = real(); window.__realNow = real; Date.now = () => t; });
+    const thaw = () => stage.evaluate(() => { if (window.__realNow) Date.now = window.__realNow; });
+    const untilText = (page, sel, want) => page.waitForFunction(([sel, want]) => document.querySelector(sel)?.textContent.replace(/\s+/g, ' ').trim() === want, [sel, want], { timeout: 4000 }).catch(() => {})
+      // ثم تنتهي حركة ظهور المربع (المنتهية وحدها)، فالصورة تُقرأ بعد استقرار الرسم كما كانت بعد الانتظار الثابت.
+      .then(() => page.evaluate(() => Promise.race([Promise.all(document.getElementById('box').getAnimations({ subtree: true })
+        .filter(a => a.effect?.getComputedTiming().endTime !== Infinity).map(a => a.finished.catch(() => {}))), new Promise(r => setTimeout(r, 2000))])));
     const st = () => stage.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).round.state);
     const scores = () => stage.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).round.scores);
 
@@ -136,14 +145,14 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
 
     // 5. ما قاله الفريق: المركز 7 بنقر خانته. لحظة الإصابة، ثم الدور للخصم وحده بعدّاده.
     const before = await scores();
-    await hit(7); await wait(300);
+    await freeze(); await hit(7); await untilText(audience, '#vtext', `${NAMES[starter - 1]} · +7`);
     sl = await slots();
     check(tag + `الجمهور: الخانة 7 تنكشف بلون صاحب الدور واسمها «${items[6].name}»`, sl[6].cls.includes('t' + starter) && sl[6].name === items[6].name && sl[6].cls.includes('new'));
     check(tag + 'الرصيد +7', (await scores())[starter] === before[starter] + 7);
     check(tag + 'مربع الإعلان: «[الاسم] · +7» و«المركز 7»، والحدّ عند من أصاب، ولا أزرار', (await text(audience, '#vtext')) === `${NAMES[starter - 1]} · +7` && (await text(audience, '#say')) === 'المركز 7'
       && (await side()) === starter && (await ctl()) === '');
     await stage.screenshot({ path: `${shots}/s5-${LONGRUN ? 'long-' : ''}hit.png` });
-    await wait(1600);
+    await thaw(); await wait(1600);
     check(tag + 'بعد اللحظة: دور الخصم بعدّاده، تلقائياً', (await st()).phase === 'ask' && (await st()).team === opp && (await side()) === opp
       && await audience.$eval('#canvas', c => c.classList.contains('running')));
     check(tag + 'المكشوف لا يُنقر ثانية', !(await audience.$eval('#board .sl[data-r="7"]', e => 'cmd' in e.dataset)));
@@ -180,7 +189,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
       const was = (await scores())[starter];
       // تُوقف ساعة الصفحة (هي التي ترسل «turn» بعد 1.2 ثانية)، فتبقى لحظة الفخ حتى تُفحص إشارة الخصم وتُصوَّر.
       await stage.evaluate(() => { const real = Date.now, t = real(); window.__realNow = real; Date.now = () => t; });
-      await hit(12); await wait(300);
+      await hit(12); await untilText(audience, '#vtext', `${NAMES[starter - 1]} · −${was}`);
       sl = await slots();
       check('الفخ: خانة 12 بلون من وقع فيه واسمها وخصمها «−12»، والفخان الآخران بأرقامهما بلا اسم', sl[11].cls.includes('t' + starter) && sl[11].name === items[11].name && sl[11].b === '−12'
         && !sl[10].name && !sl[12].name && sl[10].b === '11' && sl[11].cls.includes('new'));
@@ -246,9 +255,9 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
       // أطول محتوى: انتهاء وقت الإجابة ينقل الدور، ثم فخ باسمه الأطول، ثم تنكشف العشرة كلها بالتناوب (أسوأ حالة للون).
       await wait(15800);
       check('الأطول · انتهى الوقت: الدور لصاحب البداية بعدّاده', (await st()).phase === 'ask' && (await st()).team === starter && await audience.$eval('#canvas', c => c.classList.contains('running')) && (await side()) === starter);
-      await hit(11); await wait(300);
+      await freeze(); await hit(11); await untilText(audience, '#say', 'فخّ المركز 11');
       check('الأطول · الفخ: خانة 11 ظاهرة باسمها، و«فخّ المركز 11» في مربع الإعلان', (await slots())[10].name === items[10].name && (await text(audience, '#say')) === 'فخّ المركز 11');
-      await both('فخ'); await shot('trap');
+      await both('فخ'); await shot('trap'); await thaw();
       for (const r of [1, 2, 3, 4, 5, 6, 8, 9, 10]) { await wait(1500); await hit(r); await wait(300); if (r === 9) await both('تسع خانات'); }
       await wait(1600);
       check('الأطول · انكشفت العشرة: نهاية القائمة بنفسها، و«كُشف 10 من 10»', (await st()).phase === 'listend' && (await text(audience, '#next')) === 'كُشف 10 من 10');
