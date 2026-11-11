@@ -158,6 +158,22 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     await wait(900);
     const fit = await f.evaluate(() => ({ over: document.getElementById('voxLit').classList.contains('over'), up: document.getElementById('voxWords').classList.contains('up'),
       last: (() => { const r = document.getElementById('voxLit'), c = r.lastElementChild.getBoundingClientRect(), b = r.getBoundingClientRect(); return c.left >= b.left - 1 && r.firstElementChild.hidden; })() }));
+    // ملاحظة المدقّق 92: نقرة قرب أسفل كلمة في السطر الأول تحدد تلك الكلمة لا ما تحتها في الثاني، وقرب أعلى كلمة في الثاني كذلك.
+    const lines = await f.evaluate(() => { const sp = [...document.querySelectorAll('#voxWords span[data-cmd]')], box = document.querySelector('.vox-heard .words').getBoundingClientRect();
+      const vis = sp.filter(e => { const r = e.getBoundingClientRect(); return r.top >= box.top - 1 && r.bottom <= box.bottom + 1; });
+      const tops = [...new Set(vis.map(e => Math.round(e.getBoundingClientRect().top)))].sort((a, b) => a - b);
+      const pick = t => { const e = vis.find(x => Math.round(x.getBoundingClientRect().top) === t); const r = e.getBoundingClientRect(); return { cmd: e.dataset.cmd, x: r.left + r.width / 2, top: r.top, bottom: r.bottom }; };
+      return tops.length >= 2 ? [pick(tops[0]), pick(tops[1])] : null; });
+    const hitAt = (x, y) => f.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('[data-cmd]')?.dataset.cmd ?? null, [x, y]);
+    check(`كلمة السطر الأول تُنقر قرب أسفلها، وكلمة الثاني قرب أعلاها (${JSON.stringify(lines?.map(l => l.cmd))})`, lines
+      && await hitAt(lines[0].x, lines[0].bottom - 2) === lines[0].cmd && await hitAt(lines[1].x, lines[1].top + 2) === lines[1].cmd);
+    // والفحص الذي طلبه المدقّق: نقاط عند 15% و50% و85% من ارتفاع كل كلمة ظاهرة تُصيب الكلمة نفسها.
+    const miss = await f.evaluate(() => { const box = document.querySelector('.vox-heard .words').getBoundingClientRect(), out = [];
+      // والكلمات كلها، المُعلَّمة أيضاً: نقرة على كلمة أضاءت لا تحدد كلمة تحتها («شاحنة» كانت تُصيب «خلاص»).
+      for (const e of document.querySelectorAll('#voxWords span')) { const r = e.getBoundingClientRect(); if (r.top < box.top - 1 || r.bottom > box.bottom + 1) continue;
+        for (const k of [.15, .5, .85]) { const got = document.elementFromPoint(r.left + r.width / 2, r.top + r.height * k)?.closest('#voxWords span'); if (got !== e) out.push(`${e.textContent}@${k}→${got?.textContent}`); } }
+      return out; });
+    check(`كل كلمة ظاهرة تُصاب عند 15% و50% و85% من ارتفاعها (${miss.join('، ')})`, miss.length === 0);
     check(`شارات كثيرة: الأحدث ظاهرة والأقدم مقصوصة، والنص يصعد (${JSON.stringify(fit)}، ${(await chips(f)).length})`, fit.over && fit.up && fit.last);
     await page.screenshot({ path: `${shots}/app-voice-full.png` });
     sc = await f.evaluate(() => window.__stageCheck());
