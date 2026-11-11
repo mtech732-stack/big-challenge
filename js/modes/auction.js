@@ -29,6 +29,9 @@ const other = team => (team === 1 ? 2 : 1);
 // · commit: { team, n } من رسا عليه المزاد ورقمه
 // · said: عدّات «عُدّ · +1» بالترتيب { i: null, team }، بلا اسم ولا نص: ما قيل لا يُذكر باسمه ولا يظهر على التلفاز
 //   (الوثيقة 1.14، المالك 31 أكتوبر 2026). وi باقٍ لحالات محفوظة من نسخ ذكرت العنصر باسمه.
+//   وفي تطبيق آبل يزيد المساعد الصوتي (5.5.1، design/app.md 7) عدّات بكلماتها: { i, team, w } عنصر أضاء أو اعتمده المقدّم
+//   (w أرقام كلماته في النص المسموع)، أو { i: null, team, t, w } إجابة اعتمدها من خارج القائمة بنصها t.
+//   فالعدّ واحد: ما أضاء وما اعتُمد وعدّات «عُدّ · +1»، و«تراجع» يرجع آخرها كأي فعل.
 // · results[i]: { team, points } من أخذ نقاط الموضوع i (team 0 إن لم يأخذها أحد)، أو null ما لم ينتهِ.
 // avoid: مواضيع تتقاطع مع قائمة ترتيب اختيرت في المباراة (تدقيق ش5 «ثالثاً»).
 function setup({ content, first, seen = [], avoid = [], rng = Math.random }) {
@@ -52,6 +55,25 @@ const cap = s => (current(s).open ? OPEN_MAX : size(s));
 const raised = (s, team) => { const [a, b] = numsOf(s); const own = team === 1 ? a : b, opp = team === 1 ? b : a; return Math.max(own, opp) + 1; };
 const leader = s => { const [a, b] = numsOf(s); return a === b ? 0 : a > b ? 1 : 2; };
 const topNum = s => Math.max(...numsOf(s));
+// عدّات المساعد الصوتي: ما له كلمات (w).
+const voiced = x => Array.isArray(x?.w);
+// نص الإجابة من خارج القائمة: لا يزيد عن حدّ البدائل (6.4).
+export const OWN_MAX = 50;
+// «say:<رقم العنصر>:<أرقام الكلمات>» عنصر من القائمة، أو «say::<أرقام الكلمات>:<النص>» إجابة من خارجها.
+function sayOf(s, arg) {
+  const [k, ws = '', ...rest] = String(arg ?? '').split(':');
+  const w = ws ? ws.split(',').map(Number) : [];
+  if (w.some(x => !Number.isInteger(x) || x < 0)) return null;
+  const said = saidOf(s);
+  if (k !== '') {
+    const i = Number(k);
+    if (!Number.isInteger(i) || !current(s).items[i] || said.some(x => voiced(x) && x.i === i)) return null;
+    return { i, team: s.team, w };
+  }
+  const t = rest.join(':').replace(/\s+/g, ' ').trim().slice(0, OWN_MAX);
+  if (!t || said.some(x => voiced(x) && x.i === null && norm(x.t) === norm(t))) return null;
+  return { i: null, team: s.team, t, w };
+}
 
 function actions(s) {
   if (s.phase === 'intro') return [{ id: 'show', label: `اعرض الموضوع ${s.index + 1}` }];
@@ -67,7 +89,8 @@ function actions(s) {
   // ثم بعد الكشف «وفى» أو «لم يفِ»، ولا حكم قبله. (و ready وcomplete من نسخ سابقة تُكملان: «ابدأ العدّاد»، و«توقّف».)
   const narrate = [{ id: 'count', label: 'عُدّ · +1' }, { id: 'reveal', label: 'كشف القائمة' }];
   if (s.phase === 'ready') return [{ id: 'start', label: 'ابدأ العدّاد' }, ...narrate];
-  if (s.phase === 'fulfil') return narrate;
+  // والمساعد الصوتي في تطبيق آبل (5.5.1): «say» ما أضاء أو اعتُمد، و«unsay» حذفه بنقرتين. لا أزرار لهما في صف الشارات.
+  if (s.phase === 'fulfil') return [...narrate, { id: 'say', label: 'اعتمد' }, { id: 'unsay', label: 'احذف' }];
   if (s.phase === 'revealed') return [{ id: 'ok', label: 'وفى' }, { id: 'fail', label: 'لم يفِ' }];
   if (s.phase === 'complete') return [{ id: 'stop', label: 'توقّف' }];
   if (s.phase === 'decided') return [{ id: 'next', label: s.index === s.topics.length - 1 ? 'إنهاء الجولة' : 'الموضوع التالي' }];
@@ -105,6 +128,18 @@ function act(s, action) {
   // «عُدّ · +1»: عدّة دون اسم، والعدّاد يبقى يعدّ. ولا يحكم ولو بلغ ما التزم به (1.14). وبعد انقضاء الوقت يُعدّ ولا عدّاد.
   if (id === 'count' && ['ready', 'fulfil'].includes(s.phase)) {
     return { state: { ...s, said: [...saidOf(s), { i: null, team: s.team }] }, events: [{ type: 'keep-timer' }, { type: 'moment', name: 'said', team: s.team }] };
+  }
+  // المساعد الصوتي (5.5.1): عنصر أضاء أو إجابة اعتمدها المقدّم تُعدّ، والعدّاد يبقى يعدّ. ولا يتكرر عنصر ولا نص.
+  if (id === 'say' && s.phase === 'fulfil') {
+    const x = sayOf(s, arg);
+    if (!x) return { state: s, events: [] };
+    return { state: { ...s, said: [...saidOf(s), x] }, events: [{ type: 'keep-timer' }, { type: 'moment', name: 'said', team: s.team }] };
+  }
+  // حذف ما أضاء خطأً أو ما اعتُمد («unsay:<موضعه في said>»): ينقص العدّ، ولا يُحذف به عدّ «عُدّ · +1».
+  if (id === 'unsay' && s.phase === 'fulfil') {
+    const at = Number(arg), said = saidOf(s);
+    if (!Number.isInteger(at) || !voiced(said[at])) return { state: s, events: [] };
+    return { state: { ...s, said: said.filter((_, k) => k !== at) }, events: [{ type: 'keep-timer' }] };
   }
   // انقضى وقت الملتزم: يقف الوقت ولا حكم، فيبقى العدّ والكشف (1.14).
   if (id === 'timeout' && s.phase === 'fulfil') return { state: { ...s, over: true }, events: [] };
@@ -167,6 +202,12 @@ function audience(s) {
     verdict: result ? { ...result } : null,
     // بعد «كشف القائمة»: القائمة المرجعية بأسمائها وترتيبها، صفحاتٍ على البطاقة. ولا الأسماء المذكورة (1.14).
     ...(open ? { list: t.items.map(x => x.name) } : {}),
+    // المساعد الصوتي في تطبيق آبل (5.5.1، الوثيقة 1.23، design/app.md 7): أثناء الوفاء ما أضاء وما اعتُمد بترتيب قوله
+    // (at موضعه في العدّ للحذف، own من خارج القائمة، w كلماته). وبعد الكشف lit أرقام ما أضاء من القائمة، وextra ما اعتُمد من خارجها.
+    // ولا شيء منها بلا مساعد، فالموقع كما في 1.14.
+    ...(saidOf(s).some(voiced) ? (open
+      ? { lit: saidOf(s).filter(x => voiced(x) && x.i !== null).map(x => x.i), extra: saidOf(s).filter(x => voiced(x) && x.i === null).map(x => x.t) }
+      : { voice: saidOf(s).map((x, at) => (voiced(x) ? { at, name: x.i === null ? x.t : t.items[x.i]?.name ?? '', own: x.i === null, w: [...x.w] } : null)).filter(Boolean) }) : {}),
     reveal: open,
   };
 }

@@ -1,7 +1,7 @@
 // العمل دون إنترنت: يحفظ ملفات اللعبة في المتصفح، فتُفتح من جديد وتعمل إن انقطع الإنترنت.
 // الشبكة أولاً دائماً (فيصل كل تحديث فور نشره)، والنسخة المحفوظة عند تعذّر الشبكة فقط.
 // ملف الرقم السري لا يمر من هنا أبداً، كي يعرف التحقق المستمر أن الإنترنت منقطع فلا يُغلق اللعبة.
-const CACHE = 'big-challenge-v100';
+const CACHE = 'big-challenge-v101';
 const NETWORK_TIMEOUT_MS = 4000;
 const APP_FILES = [
   './', 'index.html', 'audience.html', 'tools/pin.html',
@@ -10,7 +10,7 @@ const APP_FILES = [
   'js/offline.js', 'js/frame-link.js', 'js/pin.js', 'js/content-check.js', 'js/layout-check.js',
   'css/start.css', 'css/shared.css', 'js/match.js', 'js/content.js', 'js/modes/index.js', 'js/stage-check.js',
   'css/letter.css', 'js/modes/letter.js', 'js/round.js', 'js/play.js', 'js/sound.js',
-  'js/modes/word.js', 'js/modes/last-two.js', 'css/auction.css', 'js/modes/auction.js',
+  'js/modes/word.js', 'js/modes/last-two.js', 'css/auction.css', 'js/modes/auction.js', 'js/voice-match.js',
   'css/ranking.css', 'js/modes/ranking.js',
   'css/wheel.css', 'js/wheel.js',
   'css/final.css', 'js/tiebreak.js', 'js/judge.js',

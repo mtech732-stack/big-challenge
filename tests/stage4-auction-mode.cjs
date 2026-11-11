@@ -110,7 +110,7 @@ const { reporter } = require('./helpers.cjs');
   check('«ابدأ»: رسا على الثاني بـ 11، والحدّ له، ولا «في القائمة» ولا أرقام', a.phase === 'fulfil' && a.commit.team === 2 && a.commit.n === 11 && a.turn === 2 && a.size === undefined && a.bids.length === 0);
   check(`ويبدأ عدّاد الوفاء فوراً (${FULFIL_SECONDS} ثانية)`, rs.timer?.seconds === FULFIL_SECONDS && FULFIL_SECONDS === 45 && rs.events.some(e => e.type === 'timer' && e.seconds === FULFIL_SECONDS));
   check('العدّ «0 من 11» بلون الملتزم', a.tally.n === 0 && a.tally.of === 11 && a.tally.team === 2 && a.clock === FULFIL_SECONDS);
-  check('الوفاء (1.14): «عُدّ · +1» و«كشف القائمة»، ولا أزرار مزايدة', ids(auction.actions(rs.state)) === 'count,reveal' && auction.actions(rs.state)[0].label === 'عُدّ · +1' && R.act(auction, rs, 'raise:1').state === rs.state);
+  check('الوفاء (1.14): «عُدّ · +1» و«كشف القائمة» (ومعهما فعلا المساعد الصوتي say وunsay بلا أزرار)، ولا أزرار مزايدة', ids(auction.actions(rs.state)) === 'count,reveal,say,unsay' && auction.actions(rs.state)[0].label === 'عُدّ · +1' && R.act(auction, rs, 'raise:1').state === rs.state);
   check('التراجع عن «ابدأ»: تعود المزايدة بلا عدّاد', R.undo(rs).state.phase === 'bid' && R.undo(rs).timer === null);
 
   // القائمة فوق 20: العدد مخفي، والسقف طولها.
@@ -225,7 +225,7 @@ const { reporter } = require('./helpers.cjs');
   check('بعد الحكم: «الموضوع التالي» وحده، والقائمة كلها ولا عدّ', ids(auction.actions(gs.state)) === 'next' && a.tally === null && a.reveal && a.list.length === gs.state.topics[0].items.length);
   const gt = R.act(auction, g, 'timeout', g.timer.id, T + 45000);
   a = auction.audience(gt.state);
-  check('انتهى وقت الملتزم: يقف الوقت ولا حكم، ويبقى العدّ والكشف (1.14)', gt.state.phase === 'fulfil' && gt.timer === null && gt.scores[1] === 0 && gt.scores[2] === 0 && a.over && a.tally.n === 2 && ids(auction.actions(gt.state)) === 'count,reveal');
+  check('انتهى وقت الملتزم: يقف الوقت ولا حكم، ويبقى العدّ والكشف (1.14)', gt.state.phase === 'fulfil' && gt.timer === null && gt.scores[1] === 0 && gt.scores[2] === 0 && a.over && a.tally.n === 2 && ids(auction.actions(gt.state)) === 'count,reveal,say,unsay');
   check('وبعد انقضائه: العدّ يُحسب، والكشف ثم الحكم', (() => { const x = R.act(auction, R.act(auction, gt, 'count'), 'reveal'); return auction.audience(x.state).list.length > 0 && R.act(auction, x, 'ok').scores[2] === 5; })());
   check('«انتهى الوقت» من عدّاد قديم يُهمل', R.act(auction, g, 'timeout', g.timer.id + 1).state === g.state);
   check('نتيجة الموضوع للخصم', gs.state.results[0].team === 1);
@@ -298,6 +298,27 @@ const { reporter } = require('./helpers.cjs');
   // حالة محفوظة من «المزايدة» (بلا said) تكمل بعد التحديث.
   const old = commitAt(2); const { said, ...rest } = old.state;
   check('حالة محفوظة بلا said: العدّ 0 ويُعدّ عنصر', auction.audience(rest).tally.n === 0 && auction.audience(R.act(auction, { ...old, state: rest }, 'count').state).tally.n === 1);
+
+  // المساعد الصوتي في تطبيق آبل (5.5.1، design/app.md 7): say يُضيء عنصراً أو يعتمد نصاً من خارج القائمة، وunsay يحذفه. وكلاهما يُبقي العدّاد.
+  {
+    const v0 = commitAt(2), n0 = auction.audience(v0.state).tally.n;
+    const v1 = R.act(auction, v0, 'say:0:0,1');
+    const v2 = R.act(auction, v1, 'say::3:لعبة: جديدة');
+    const v3 = R.act(auction, v2, 'count');
+    const a3 = auction.audience(v3.state), first = v0.state.topics[v0.state.index].items[0].name;
+    check('say: العنصر يضيء ويُعدّ، والنص من خارجها كذلك، والعدّاد يبقى', a3.tally.n === n0 + 3 && v1.timer === v0.timer && v2.timer === v0.timer
+      && JSON.stringify(a3.voice) === JSON.stringify([{ at: 0, name: first, own: false, w: [0, 1] }, { at: 1, name: 'لعبة: جديدة', own: true, w: [3] }]));
+    check('ولا يتكرر عنصر ولا نص، ولا عنصر خارج القائمة', R.act(auction, v3, 'say:0:5').state === v3.state && R.act(auction, v3, 'say::7:لعبه:  جديده').state === v3.state);
+    check('ولا عنصر برقم خارج القائمة ولا نص فارغ', R.act(auction, v3, 'say:999:1').state === v3.state && R.act(auction, v3, 'say::1: ').state === v3.state);
+    const v4 = R.act(auction, v3, 'unsay:0');
+    check('unsay: يحذف ما أضاء وينقص العدّ، ولا يحذف عدّة «عُدّ · +1»', auction.audience(v4.state).tally.n === n0 + 2 && auction.audience(v4.state).voice.length === 1
+      && R.act(auction, v4, 'unsay:' + (v4.state.said.length - 1)).state === v4.state);
+    check('و«تراجع» يرجع الحذف', R.undo(v4).state === v3.state);
+    const v5 = R.act(auction, v3, 'reveal'), a5 = auction.audience(v5.state);
+    check('بعد الكشف: lit أرقام ما أضاء وextra ما اعتُمد، ولا voice', JSON.stringify(a5.lit) === '[0]' && JSON.stringify(a5.extra) === '["لعبة: جديدة"]' && !a5.voice);
+    check('وبلا مساعد لا شيء من هذا (الموقع كما في 1.14)', (a => !('voice' in a) && !('lit' in a))(auction.audience(R.act(auction, v0, 'count').state)));
+    check('ولا say قبل الوفاء ولا بعد الكشف', R.act(auction, v5, 'say:1:2').state === v5.state);
+  }
 
   // حدّا المحتوى (design/auction.md 3): الموضوع 32 حرفاً واسم العنصر 20، تنبيهان لا خطآن.
   const { checkContent } = await import(path.join(root, 'js/content-check.js'));
