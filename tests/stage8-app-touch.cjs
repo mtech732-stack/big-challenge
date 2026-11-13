@@ -1,4 +1,4 @@
-// اختبار آلي: مساحات اللمس 44 نقطة في تطبيق آبل (design/app.md 4). والموقع لا يتغير.
+// اختبار آلي: مساحات اللمس 44 نقطة في تطبيق آبل (design/app.md 4)، وفي الموقع منذ ش8-أ/106 (8.2) مع «ملء الشاشة».
 // يُلعب في التطبيق (جسر Capacitor محقون كما يحقنه الغلاف) على شاشة آيفون 956×440، آلياً من الإعداد إلى النهاية
 // بأنماط: الحرف المعيّن والمزاد (ومعهما الشريط والنهاية)، ثم الترتيب وآخر حرفين. وفي كل شاشة جديدة، ولوحة «⋯» مفتوحة فيها:
 // · لا تتداخل مساحتا لمس، ولا تتجاوز مساحةٌ زرّاً آخر (tests/touch-audit.cjs).
@@ -39,19 +39,34 @@ const { touchAudit } = require('./touch-audit.cjs');
     await cmd(f, 'begin'); await f.waitForSelector('.scr.show[data-s="intro"]');
   };
 
-  // ===== الموقع: لا تغيير =====
+  // ===== الموقع منذ 106 (design/app.md 8.2): القيم نفسها، و«ملء الشاشة» أيقونة في صف الزاوية (لوحة «⋯» بها كانت تمس صف الشارات)، والاسم بالمرور بالفأرة =====
   {
-    const { context, frame: f } = await open(false);
+    const { context, page, frame: f } = await open(false);
     const name = await f.evaluate(() => getComputedStyle(document.querySelector('#i1')).height);
+    const rowH = await f.$eval('#p1 .row', e => e.offsetHeight);
     await toRound(f);
     const more = await box(f, '[data-cmd="more"]');
     const after = await f.$eval('[data-cmd="more"]', e => getComputedStyle(e, '::after').content);
+    check(`الموقع: أيقونة «⋯» 96×96 بمساحة لمس (${more.w}×${more.h}، ${after})`, more.w === 96 && more.h === 96 && after === '""');
+    check(`الموقع: خانة الاسم 56 وصفها 136 (${name}، ${rowH})`, name === '56px' && rowH === 136);
+    // بالفأرة (hover: hover) يظهر الاسم بالمرور تحت الأيقونة بـ 24 كما كان.
+    const mb = await (await f.$('#cornerA [data-cmd="more"]')).boundingBox();
+    await page.mouse.move(mb.x + mb.width / 2, mb.y + mb.height / 2); await wait(400);
+    const tip = await box(f, '#ctlTip').catch(() => null);
+    check(`الموقع: الاسم بالمرور بالفأرة تحت الأيقونة بـ 24 (${tip ? tip.t : 'لا اسم'})`, !!tip && tip.t === more.t + more.h + 24);
+    await page.mouse.move(1, 1);
+    await cmd(f, 'act:show'); await f.waitForSelector('.scr.show[data-s="q"]'); await wait(800);
     await f.click('[data-cmd="more"]'); await wait(400);
     const panel = await box(f, '#moreMenu');
-    const fs = await f.$('#moreMenu [data-cmd="fullscreen"]').then(e => e?.isVisible());
-    check('الموقع: أيقونة «⋯» 64×64 بلا مساحة لمس إضافية', more.w === 64 && more.h === 64 && after === 'none');
-    check(`الموقع: لوحة «⋯» كما هي عند (127، 152) و«ملء الشاشة» فيها (${JSON.stringify(panel)})`, panel.l === 127 && panel.t === 152 && fs);
-    check('الموقع: خانة الاسم 56 كما هي', name === '56px');
+    const row1 = await f.$$eval('#moreMenu .cbtn', els => els.filter(e => e.offsetParent).map(e => [e.dataset.cmd, Math.round(e.getBoundingClientRect().top)]));
+    const near = await box(f, '#near');
+    const corner = await f.$$eval('#cornerA .cbtn', els => els.map(e => [e.dataset.cmd, e.offsetWidth, e.offsetHeight].join(':'))), cA = await box(f, '#cornerA');
+    check(`الموقع: لوحة «⋯» صف واحد عند (127، 184) وتنتهي عند (538، 328) كالتطبيق (${JSON.stringify(panel)})`, panel.l === 127 && panel.t === 184 && panel.l + panel.w === 538 && panel.t + panel.h === 328
+      && new Set(row1.map(x => x[1])).size === 1 && row1.map(x => x[0]).join() === 'mute,scores,new');
+    check(`الموقع: «ملء الشاشة» أيقونة 96 في صف الزاوية بعد «تراجع»، والصف 229–565 (${corner.join('، ')} · ${cA.l}–${cA.l + cA.w})`,
+      corner.join() === 'fullscreen:96:96,undo:96:96,more:96:96' && cA.l === 229 && cA.l + cA.w === 565);
+    check(`الموقع: ولا تمس صف الشارات (تنتهي عند ${panel.l + panel.w}، وأقرب زر عند ${near.l})`, panel.l + panel.w + 24 <= near.l);
+    await page.screenshot({ path: `${shots}/web-touch-more.png` });
     await context.close();
   }
 
