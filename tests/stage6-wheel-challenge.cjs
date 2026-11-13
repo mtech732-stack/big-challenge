@@ -123,7 +123,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     check(`${tag}«لم ينجح»: «لا نقاط» و«لم ينجح التحدي» بلا مربع، والحدّ في المنتصف، والرصيد كما هو`, await text(audience, '#vtext') === 'لا نقاط' && await text(audience, '#say') === 'لم ينجح التحدي'
       && await audience.evaluate(() => document.getElementById('box').classList.contains('bare')) && !(await cls(audience, 'turn-1')) && !(await cls(audience, 'turn-2'))
       && (await saved(stage)).round.scores[spinner] === 0);
-    check(`${tag}«لم ينجح»: «التالي · الدورة 2»`, await near() === 'التالي · الدورة 2');
+    check(`${tag}«لم ينجح»: «التالي · الدورة 2»`, await near() === 'الدورة التالية');
     await audienceCheck(audience, `${tag}لم ينجح`);
     if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-failed.png') });
     await go('undo');
@@ -133,7 +133,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     check(`${tag}«نجح»: +10 لمن أدارها، و«[الاسم] · +10» و«نجح التحدي» بلا مربع، والحدّ عنده`, wonM.round.scores[spinner] === 10 && await text(audience, '#vtext') === `${who} · +10`
       && await text(audience, '#say') === 'نجح التحدي' && await audience.evaluate(() => document.getElementById('box').classList.contains('bare')) && await cls(audience, 'turn-' + spinner)
       && await text(audience, '#s' + spinner) === '10');
-    check(`${tag}«نجح»: «التالي · الدورة 2»، والمسار في الحالة يكتبه`, await near() === 'التالي · الدورة 2' && wonM.round.state.results[0].team === spinner);
+    check(`${tag}«نجح»: «التالي · الدورة 2»، والمسار في الحالة يكتبه`, await near() === 'الدورة التالية' && wonM.round.state.results[0].team === spinner);
     await audienceCheck(audience, `${tag}نجح`);
     if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-won.png') });
     await go('undo');
@@ -149,7 +149,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     await go('act:failed');
     await go('act:finish');
     check(`${tag}نهاية العجلة: «+10» لمن نجح و«+0» للآخر، وفي البطاقة «ابدأ الجولة 2»`, await text(audience, '#r' + spinner) === '+10' && await text(audience, '#r' + (3 - spinner)) === '+0'
-      && await text(audience, '.scr.end.show .ctl') === 'ابدأ الجولة 2');
+      && /^إلى الجولة 2: ./.test(await text(audience, '.scr.end.show .ctl')));
     await audienceCheck(audience, `${tag}نهاية العجلة`);
     await context.close();
   }

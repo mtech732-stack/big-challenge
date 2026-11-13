@@ -154,7 +154,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auction
   check('النهاية: «انتهت الجولة 1»، و+5 للأول و+2 للآخر', await audience.isVisible('.scr.show[data-s="end"]') && (await text(audience, '#b1')) === 'انتهت الجولة 1'
     && (await text(audience, '#r' + first)) === '+5' && (await text(audience, '#r' + other(first))) === '+2');
   check('النهاية: «التالي: …» على الشاشة، والحدّ في المنتصف', /^التالي:/.test(await text(audience, '#next')) && await audience.$eval('#canvas', c => !c.classList.contains('turn-1') && !c.classList.contains('turn-2')));
-  check(`النهاية: «شريط البونص» في البطاقة (${await card()})`, (await card()) === 'شريط البونص');
+  check(`النهاية: «شريط البونص» في البطاقة (${await card()})`, (await card()) === 'إلى شريط البونص');
   await both('نهاية الجولة');
   await stage.screenshot({ path: `${shots}/s4-end.png` });
   await cmd(audience, 'undo'); await wait(1000);

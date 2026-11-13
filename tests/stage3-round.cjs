@@ -187,10 +187,10 @@ const { usePin, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passW
   await both('النهاية');
 
   // 8. ما بعدها: شريط البونص (في الرابطين منذ اكتمال ش6)، ثم جولة «الحرف المعيّن» بوقتها 15 وحرف بلا تطويل
-  check('«شريط البونص» في البطاقة بلا «تخطَّ»', (await card()) === 'شريط البونص');
+  check('«شريط البونص» في البطاقة بلا «تخطَّ»', (await card()) === 'إلى شريط البونص');
   await passWheelOne(stage, audience);
   await wait(800);
-  check('بعد شريط البونص: «ابدأ الجولة 2»', (await card()) === 'ابدأ الجولة 2');
+  check('بعد شريط البونص: «ابدأ الجولة 2»', /^إلى الجولة 2: ./.test((await card())));
   await cmd(audience, 'next');
   await audience.waitForSelector('.scr.show[data-s="intro"]');
   check('الجولة 2: «أجب بكلمة تبدأ بالحرف المعيّن»', (await text(audience, '#rule')) === 'أجب بكلمة تبدأ بالحرف المعيّن');
@@ -253,7 +253,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passW
   check('الوصل لا ينقطع في الأسئلة الستة', widest?.joined);
   check('الأزرار لا تعرض الإجابة', !leak);
   await frame.waitForSelector('.scr.show[data-s="end"]', { timeout: 6000 });
-  check('نهاية الجولة بنافذة واحدة: «شريط البونص» في البطاقة', (await near()) === 'شريط البونص');
+  check('نهاية الجولة بنافذة واحدة: «شريط البونص» في البطاقة', (await near()) === 'إلى شريط البونص');
   check('نهاية الجولة بنافذة واحدة: «التالي» نص أبيض بلا مربع (15.4)', await frame.$eval('#box', b => b.classList.contains('bare') && !b.querySelector(':scope > i').getClientRects().length && getComputedStyle(b.querySelector('#next')).color === 'rgb(255, 255, 255)'));
   await wait(900);
   await stage.screenshot({ path: `${shots}/s3-single-end.png` });
