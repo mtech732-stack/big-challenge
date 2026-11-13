@@ -227,6 +227,13 @@ const { reporter } = require('./helpers.cjs');
   a = auction.audience(gt.state);
   check('انتهى وقت الملتزم: يقف الوقت ولا حكم، ويبقى العدّ والكشف (1.14)', gt.state.phase === 'fulfil' && gt.timer === null && gt.scores[1] === 0 && gt.scores[2] === 0 && a.over && a.tally.n === 2 && ids(auction.actions(gt.state)) === 'count,reveal,say,unsay');
   check('وبعد انقضائه: العدّ يُحسب، والكشف ثم الحكم', (() => { const x = R.act(auction, R.act(auction, gt, 'count'), 'reveal'); return auction.audience(x.state).list.length > 0 && R.act(auction, x, 'ok').scores[2] === 5; })());
+  // ش8-أ/110: انقضاء الوقت لا يبقى في الموضوع التالي (كان يبقى فيعطّل زر الميكروفون في كل موضوع بعده)، و«تراجع» يعيده.
+  check('بعد انقضاء الوقت ثم الحكم ثم «الموضوع التالي»: over لا يبقى، و«ابدأ» يبدأ وفاءً جديداً بلا over، و«تراجع» يعيده', (() => {
+    const x = R.act(auction, R.act(auction, R.act(auction, gt, 'reveal'), 'ok'), 'next');
+    const y = R.act(auction, R.act(auction, x, 'raise:1'), 'start');
+    const z = R.undo(R.undo(x, T + 50000), T + 50000);
+    return x.state.over === false && !auction.audience(x.state).over && y.state.phase === 'fulfil' && !auction.audience(y.state).over && !!y.timer && z.state.phase === 'revealed' && z.state.over === true;
+  })());
   check('«انتهى الوقت» من عدّاد قديم يُهمل', R.act(auction, g, 'timeout', g.timer.id + 1).state === g.state);
   check('نتيجة الموضوع للخصم', gs.state.results[0].team === 1);
   const gu = R.undo(R.undo(gs, T + 25000), T + 25000);

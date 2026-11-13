@@ -299,7 +299,7 @@
       // نص الإجابات للباركود ما دام ظاهراً، يرسمه العرض رمزاً لا نصاً.
       qr: (q => (q ? answersText(q.mode.id, q.mode.presenter(q.st)) : null))(qrShown()),
       // المساعد الصوتي في الوفاء (design/app.md 7): النص المسموع وما حدده المقدّم منه. ولا شيء منه في الموقع.
-      ...(voxShown() ? { vox: voxView() } : {}),
+      ...(voxKey(), voxShown() ? { vox: voxView() } : {}),
     };
   }
   function update(next, anim) {
@@ -451,6 +451,7 @@
       $('sv' + k).textContent = match.scores[k];
     }
     $('undoScore').disabled = match.step === 'play' ? !match.round?.history.length : !match.history.length;
+    voxKey();
     renderStage(error);
     voxSync();
   }
@@ -722,7 +723,9 @@
     link?.send('view', view());
   }
   // يبدأ السماع مع الوفاء ويتوقف بانقضاء وقته أو بـ«كشف القائمة» (5.5.1). يُستدعى بعد كل رسم.
-  function voxSync() {
+  // مفتاح الوفاء الجاري، ومعه يُصفَّر النص في الموضوع الجديد. يُستدعى قبل رسم الشاشة، فلا يصل إليها نص الموضوع السابق
+  // (ش8-أ/110: في الموضوع الثاني ظهرت صفوف النص بكلمات الأول قبل أي ضغطة، لأن الرسم سبق التصفير).
+  function voxKey() {
     if (!vox.ok || !match) return;
     const st = voxFulfil();
     // والوفاء يُعرف بعدّاده (root يبقى مع «تراجع» يستأنف الوقت)، وبعد انقضاء الوقت لا عدّاد فيبقى ما كان.
@@ -730,8 +733,13 @@
     const key = !st ? '' : root !== undefined ? at + root : vox.key.startsWith(at) ? vox.key : at + 'x';
     if (key && key !== vox.key) {
       Object.assign(vox, { key, text: '', base: '', sel: new Set(), emitted: new Set(), items: voxPrepare(st.topics[st.index].items),
-        listen: false, used: false, fail: '', why: 0 });
+        listen: false, used: false, fail: '', why: (clearTimeout(vox.why), 0) });
     }
+  }
+  function voxSync() {
+    if (!vox.ok || !match) return;
+    voxKey();
+    const st = voxFulfil();
     // يتوقف بانتهاء الوقت أو بالكشف أو بـ«تراجع» إلى ما قبل «ابدأ»، ولا يُستأنف وحده (7.6).
     if (!st || st.over || !match.round.timer || !vox.on) vox.listen = false;
     const want = vox.on && vox.listen && !!st && !st.over && !!match.round.timer;
@@ -820,7 +828,7 @@
       if (!st || !vox.ok || !vox.on || st.over || !match.round.timer) return;
       // متعذّر: الضغطة تُظهر السبب 3 ثوانٍ، والتالية تحاول من جديد.
       if (vox.fail) {
-        if (!vox.why) { vox.why = setTimeout(() => { vox.why = 0; vox.fail = ''; render(); }, 3000); render(); }
+        if (!vox.why) { clearTimeout(vox.why); vox.why = setTimeout(() => { vox.why = 0; vox.fail = ''; render(); }, 3000); render(); }
         return;
       }
       vox.listen = !vox.listen;
