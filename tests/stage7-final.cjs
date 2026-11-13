@@ -7,7 +7,7 @@
 // الاستعمال: node tests/stage7-final.cjs [الرابط] [مجلد الصور]
 const path = require('path');
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, newMatch } = require('./helpers.cjs');
 const { finalMatch } = require('./final-match.cjs');
 
 (async () => {
@@ -190,9 +190,8 @@ const { finalMatch } = require('./final-match.cjs');
     // «مباراة جديدة» من الفائز تعود إلى الإعداد.
     await cmd(again, 'announce');
     await again.waitForSelector('.scr.show[data-s="win"]');
-    page.once('dialog', d => d.accept());
     await wait(800);
-    await cmd(again, 'new');
+    await newMatch(again);
     await again.waitForSelector('[data-hero="start"] .hlogo', { timeout: 8000 });
     check('«مباراة جديدة» من الفائز: الإعداد', true);
     await context.close();

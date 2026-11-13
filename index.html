@@ -45,9 +45,9 @@
   #single { position: fixed; inset: 0; z-index: 6; overflow: clip; background: #050E2E; }
   .frame { position: absolute; top: 50%; left: 50%; width: 1920px; height: 1080px; transform: translate(-50%, -50%) scale(var(--scale, 1)); }
   .frame iframe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; border: 0; display: block; }
-  /* تطبيق آبل (design/app.md 3.3): الإطار بنسبة الشاشة لا 16:9، فتملأ نافذة الجمهور الأشرطة، واللوحة 1920×1080 في وسطها. والتكبير كما هو */
-  .native-app #single { background: linear-gradient(135deg, #1A4BD1 0%, #1238A8 55%, #0E2C86 100%); }
-  .native-app .frame, .native-app .frame iframe { width: var(--frame-w, 1920px); height: var(--frame-h, 1080px); }
+  /* design/app.md 3.3 (التطبيق، وفي الموقع منذ 106): الإطار بنسبة الشاشة لا 16:9، فتملأ نافذة الجمهور الأشرطة، واللوحة 1920×1080 في وسطها. والتكبير كما هو */
+  #single { background: linear-gradient(135deg, #1A4BD1 0%, #1238A8 55%, #0E2C86 100%); }
+  .frame, .frame iframe { width: var(--frame-w, 1920px); height: var(--frame-h, 1080px); }
   /* ش8-أ/82 (المعاين، v95): وسط الإطار على نصف ارتفاع الصفحة عند آخر حساب (--fit-h)، لا على 50% منها. فإذا أنقصت لوحة المفاتيح
      الصفحة والحجم ثابت في الكتابة (80) بقي الإطار مكانه، ولم يرتفع نصف لوحة المفاتيح فتخرج الخانة العليا من أعلى الشاشة */
   .native-app .frame { top: calc(var(--fit-h, 100vh) / 2); }
@@ -253,17 +253,9 @@
   // الجولة نفسها (وفيها الإجابات) لا تُرسل أبداً.
   const view = (moments = []) => {
     const { history, round, ...pub } = match;
-    return { match: pub, modes: modes().map(({ id, name }) => ({ id, name })), play: playView(), muted, moments, left: leftRows() };
+    return { match: pub, modes: modes().map(({ id, name }) => ({ id, name })), play: playView(), muted, moments };
   };
   const roundMode = () => match.round && P.modeOf(units(), match.round.mode);
-  // المباريات قبل التكرار (الوثيقة 1.18، 8، design/s8d.md): في شاشة البداية وحدها، لكل نمط يُختار منه ثم «شريط البونص».
-  function leftRows() {
-    if (match.step !== 'setup' || !pack()) return null;
-    // modes() أسماء ومعرّفات وحدها (pickableModes)، فالوحدات نفسها من units().
-    const list = [...modes().map(m => P.modeOf(units(), m.id)).filter(Boolean), ...(wheel ? [WHEEL] : [])];
-    const left = P.freshLeft(match, { modes: list, content: { ...pack().files, [WHEEL.contentKey]: wheel }, seen: seen() });
-    return list.filter(u => u.id in left).map(u => ({ id: u.id, name: u.name, left: left[u.id] }));
-  }
   // باركود الإجابات (7.1، design/s8.md 2): في سؤال المزاد وقائمة الترتيب. يظهر تلقائياً في بدايته (قبل المزايدة، وقبل «ابدأ»)،
   // ويخفيه المقدّم بضغطة، ولا يعود إلا بطلبه («الباركود»). والحال في المباراة (match.qr: مفتاح السؤال وظاهر أو لا)، فيبقى بعد إعادة التحميل،
   // ولا يدخل التراجع. key: الجولة والسؤال · open: السؤال جارٍ (يُعاد فيه بطلب) · auto: بدايته.
@@ -433,9 +425,9 @@
     startNext();
   }
 
-  // sure: أكّدها المقدّم بلوحة اللعبة في التطبيق (design/app.md 5.5)، فلا confirm. وفي الموقع confirm كما كان.
+  // sure: أكّدها المقدّم بلوحة اللعبة (design/app.md 5.5، وفي الموقع أيضاً منذ 106، 8.2)، فلا confirm. وبلا تأكيد confirm كما كان.
   function newMatch(sure) {
-    if (match.step !== 'setup' && !(NATIVE && sure) && !confirm('تبدأ مباراة جديدة ويُمحى ما سبق. أتتابع؟')) return;
+    if (match.step !== 'setup' && !sure && !confirm('تبدأ مباراة جديدة ويُمحى ما سبق. أتتابع؟')) return;
     clearTimeout(drawing); drawing = 0;
     update(M.newMatch({ pack: match.pack, method: match.method }));
   }
@@ -486,8 +478,9 @@
     if (NATIVE && force !== true && (typing() || innerHeight < fitH * 0.85)) return;
     const root = document.documentElement.style, k = Math.min(innerWidth / 1920, innerHeight / 1080);
     root.setProperty('--scale', k);
-    // في التطبيق: الإطار يغطي الشاشة كلها بالتكبير نفسه (أعرض: 1080 × vw/vh · أطول: 1920 × vh/vw).
-    if (NATIVE) { root.setProperty('--frame-w', Math.ceil(innerWidth / k) + 'px'); root.setProperty('--frame-h', Math.ceil(innerHeight / k) + 'px'); root.setProperty('--fit-h', innerHeight + 'px'); fitH = innerHeight; }
+    // الإطار يغطي الشاشة كلها بالتكبير نفسه (أعرض: 1080 × vw/vh · أطول: 1920 × vh/vw)، في الموقع والتطبيق (106).
+    root.setProperty('--frame-w', Math.ceil(innerWidth / k) + 'px'); root.setProperty('--frame-h', Math.ceil(innerHeight / k) + 'px');
+    if (NATIVE) { root.setProperty('--fit-h', innerHeight + 'px'); fitH = innerHeight; }
   };
   // وإن بقيت الصفحة أقصر بلا كتابة ثانيةً (نافذة صغُرت في الآيباد لا لوحة مفاتيح) حُسب عليها.
   let refitLater = 0;
@@ -503,7 +496,8 @@
     if (match.step !== 'setup') lastError = null;
     const step = match.step, wait = held();
     const c = { card: [], near: [], a: [], b: [], c: [] };
-    const fs = document.fullscreenElement ? [] : [{ cmd: 'fullscreen', label: 'ملء الشاشة', kind: 'alt' }];
+    // «ملء الشاشة» في الموقع وحده (design/app.md 8.3): في التطبيق بلا معنى.
+    const fs = NATIVE || document.fullscreenElement ? [] : [{ cmd: 'fullscreen', label: 'ملء الشاشة', kind: 'alt' }];
     const fresh = { cmd: 'new', label: 'مباراة جديدة', kind: 'alt' };
     if (step === 'setup') {
       c.names = true;
@@ -536,10 +530,13 @@
     // أزرار الزاوية في الجولة والنهاية (design/s8b.md 7): أيقونتا «تراجع» و«⋯» وحدهما، وما سواهما في لوحة «⋯» (c.more) تفتحها الشاشة نفسها:
     // الصوت · ملء الشاشة · (الباركود) · الرصيد، ثم «مباراة جديدة» في سطرها. ولا «المقدّم»: النافذة الواحدة وحدها (الوثيقة 1.13). undoOff: null بلا «تراجع» (مقدمة الجولة).
     const corner = undoOff => {
-      c.a = [[...(undoOff === null ? [] : [{ cmd: 'undo', label: 'تراجع', kind: 'alt', icon: true, off: undoOff }]), { cmd: 'more', label: 'المزيد', kind: 'alt opt' }]];
+      // ش8-أ/106: «ملء الشاشة» (الموقع وحده) أيقونةً في صف الزاوية بعد «تراجع»، لا في لوحة «⋯». فاللوحة صفاً واحداً بأيقوناتها الأربع
+      // (مع «ملء الشاشة») كانت تنتهي عند 658 ونزولها إلى 328، فتمسّ صف الشارات في الجولة (أزرار العدّاد من 605 على 310): check.js −18.
+      // وبهذا لوحة «⋯» في الموقع كالتطبيق، وصف الزاوية 229–565.
+      c.a = [[...fs.map(b => ({ ...b, icon: true })), ...(undoOff === null ? [] : [{ cmd: 'undo', label: 'تراجع', kind: 'alt', icon: true, off: undoOff }]), { cmd: 'more', label: 'المزيد', kind: 'alt opt' }]];
       c.b = []; c.c = [];
       c.more = [{ cmd: 'mute', label: muted ? 'مكتوم' : 'الصوت', icon: true },
-        ...fs.map(b => ({ ...b, kind: '', icon: true })), { cmd: 'scores', label: 'الرصيد', icon: true }, ...voxIcon(), { ...fresh, kind: '', icon: true }];
+        { cmd: 'scores', label: 'الرصيد', icon: true }, ...voxIcon(), { ...fresh, kind: '', icon: true }];
     };
     const mode = step === 'play' && roundMode();
     if (mode) {

@@ -136,6 +136,6 @@
 
 /* design/app.md 6.2 و6.4 (التطبيق): الصف السفلي على خط 948 (الزر والعدد 906–990)، وخانتا الاسمين بعرض 440
    بعيداً عن الشعار والزر (الأولى 1306–1746، والثانية 174–614، و#p2 يتبعها). */
-.native-app [data-hero="start"] .start-go { top: 906px; }
-.native-app [data-hero="start"] .start-side { bottom: calc(1080px - 990px); }
-.native-app [data-hero="start"] .team .name-in { flex-basis: 440px; }
+:root [data-hero="start"] .start-go { top: 906px; }
+:root [data-hero="start"] .start-side { bottom: calc(1080px - 990px); }
+:root [data-hero="start"] .team .name-in { flex-basis: 440px; }

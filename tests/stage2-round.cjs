@@ -3,7 +3,7 @@
 // والنهاية وما بعدها، والحفظ بعد إعادة التحميل، وأزرار الشاشة المشتركة بجانب العدّاد وفي الزاويتين،
 // ولا إجابة على شاشة الجمهور قبل الحكم الأخير، وفحص التداخل والقياسات في كل حالة.
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passWheelOne } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/';
@@ -190,7 +190,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne } 
   await wait(450);
   check('الجمهور: الحكم «[اسم الفريق] · +3» بلون الفريق فوق الإجابة، والحدّ يقف على الكاسب وجهته ومضت', (await text(audience, '#vtext')) === `${LONG[starter - 1]} · +3` && await audience.$eval('#verdict', (e, s) => e.classList.contains('t' + s), starter)
     && await visible(audience, '#box #verdict') && (await none(audience, '.team .cnt')) && (await none(audience, '.ring'))
-    && await audience.$eval('#canvas', (c, o) => c.classList.contains('turn-' + o) && !c.classList.contains('turn-' + (3 - o)) && c.querySelector('.stagebg .f' + o).classList.contains('blink'), starter));
+    && await audience.$eval('#canvas', (c, o) => c.classList.contains('turn-' + o) && !c.classList.contains('turn-' + (3 - o)) && document.querySelector('.stagebg .f' + o).classList.contains('blink'), starter));
   check('الجمهور: «الإجابة: …» باقية', (await text(audience, '#reveal')) === `الإجابة: ${q1[0].answer}`);
   check('الجمهور: الرصيد 3 في الرقم الكبير بجوار الاسم، ولا «يتقدّم بفارق»', (await text(audience, `#s${starter}`)) === '3' && !(await audience.$('#d1')));
   check('بعد الاختيار: «السؤال التالي» وحده في صف الشارات', (await near()) === 'السؤال التالي');
@@ -316,8 +316,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne } 
 
   // 9. مباراة جديدة من لوحة «⋯»: تعود إلى الإعداد. وذاكرة الأسئلة: لا تُعاد أسئلة الأولى.
   const firstIds = q1.map(q => q.id);
-  stage.once('dialog', d => d.accept());
-  await cmd(audience, 'new');
+  await newMatch(audience);
   await audience.waitForSelector('[data-cmd="draw"]', { timeout: 6000 });
   await sharedToFace(audience, { names: LONG, picks: ['letter', 'last-two'] });
   await wait(2700);
@@ -372,14 +371,14 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne } 
   check('في وقت الخصم: «إيقاف مؤقت» في صف الشارات، و«كشف الإجابة» أسفل اليمين', (await near()) === 'إيقاف مؤقت' && (await ans()) === 'كشف الإجابة');
   // أزرار الزاوية أيقونات (design/s8b.md 7): «تراجع» و«⋯» على صف 64، وما سواهما في لوحة «⋯» بأسمائها عند المرور.
   const labels = sel => frame.$$eval(sel, b => b.map(x => x.getAttribute('aria-label')).join(' | '));
-  check('الزاوية صف واحد: «تراجع» و«⋯» مربعان 64، والصفان 152 و240 فارغان', (await labels('.ctl-corner .cbtn')) === 'تراجع | المزيد' && JSON.stringify(await frame.$$eval('.ctl-corner .cbtn', b => b.map(x => [x.offsetWidth, x.offsetHeight]))) === '[[64,64],[64,64]]'
+  check('الزاوية صف واحد: «ملء الشاشة» و«تراجع» و«⋯» مربعات 96 (design/app.md 4.3، والموقع منذ 106)، والصفان تحته فارغان', (await labels('.ctl-corner .cbtn')) === 'ملء الشاشة | تراجع | المزيد' && JSON.stringify(await frame.$$eval('.ctl-corner .cbtn', b => b.map(x => [x.offsetWidth, x.offsetHeight]))) === '[[96,96],[96,96],[96,96]]'
       && !(await frame.$('#cornerB .cbtn, #cornerC .cbtn')) && await frame.$eval('#cornerA', e => e.offsetTop) === 64);
   await frame.click('[data-cmd="more"]');
   await wait(200);
   const tip = () => frame.$eval('#moreMenu #ctlTip', t => t.textContent + (t.hasAttribute('data-hud') ? ' hud' : '')).catch(() => '');
   await frame.hover('#moreMenu [data-cmd="scores"]');
-  check('«⋯»: اللوحة على 152 بالأيقونات، ثم فاصل و«مباراة جديدة» وحدها، والاسم عند المرور', (await labels('#moreMenu .ctl:first-child .cbtn')) === 'الصوت | ملء الشاشة | الرصيد'
-    && (await labels('#moreMenu hr + .ctl .cbtn')) === 'مباراة جديدة' && await frame.$eval('#moreMenu', e => e.offsetTop) === 152
+  check('«⋯»: اللوحة صف واحد على 184 بالأيقونات، ثم فاصل و«مباراة جديدة» وحدها، والاسم عند المرور', (await labels('#moreMenu .ctl:first-child .cbtn')) === 'الصوت | الرصيد'
+    && (await labels('#moreMenu hr + .ctl .cbtn')) === 'مباراة جديدة' && await frame.$eval('#moreMenu', e => e.offsetTop) === 184
     && await frame.$eval('[data-cmd="more"]', b => b.classList.contains('open')) && (await tip()) === 'الرصيد');
   await frame.click('#canvas', { position: { x: 900, y: 600 } });
   await wait(200);

@@ -1,5 +1,5 @@
 // اختبار آلي: في تطبيق آبل تأخذ الأشرطة الجانبية ألوان المسرح، ولا يظهر فيها إلا المسرح (design/app.md 3).
-// والموقع لا يتغير: أشرطته #050E2E كما هي. التطبيق يُعرف بجسر Capacitor، ويُحقن هنا بـ addInitScript كما يحقنه الغلاف.
+// وفي الموقع كذلك منذ ش8-أ/106 (design/app.md 8.2): نافذة المتصفح بأي نسبة. التطبيق يُعرف بجسر Capacitor، ويُحقن هنا بـ addInitScript.
 const { chromium } = require('playwright');
 const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./helpers.cjs');
 
@@ -87,18 +87,12 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     return { results, layout, turn, k };
   }
 
-  // ===== الموقع: لا تغيير =====
-  for (const [name, viewport] of [['web-iphone', { width: 956, height: 440 }], ['web-ipad', { width: 1180, height: 820 }]]) {
-    const { results, layout } = await run(name, viewport, false);
-    check(`${name}: لا طبقة مسرح منفصلة، واللوحة مقصوصة`, !layout.back && layout.canvasClip === 'clip');
-    check(`${name}: الأشرطة #050E2E كما هي في كل الخطوات`,
-      Object.values(results).every(r => r.every(b => b.old > 0 && b.min < 60)));
-  }
-
-  // ===== التطبيق =====
+  // ===== التطبيق، والموقع منذ 106 (design/app.md 8.2) =====
   // والشاشة الأعرض (21:9) تتحقق من أن الطرفين والحدّ يبلغان الحافة حيث لا يكفي عرضهما القديم 2400.
-  for (const [name, viewport] of [['app-iphone', { width: 956, height: 440 }], ['app-ipad', { width: 1180, height: 820 }], ['app-wide', { width: 1260, height: 540 }]]) {
-    const { results, layout, turn } = await run(name, viewport, true);
+  // والموقع على متصفح الهاتف والآيباد ونافذة حاسوب أطول من 16:9.
+  for (const [name, viewport, native] of [['app-iphone', { width: 956, height: 440 }, true], ['app-ipad', { width: 1180, height: 820 }, true], ['app-wide', { width: 1260, height: 540 }, true],
+    ['web-iphone', { width: 956, height: 440 }, false], ['web-ipad', { width: 1180, height: 820 }, false], ['web-wide', { width: 1260, height: 540 }, false], ['web-laptop', { width: 1366, height: 900 }, false]]) {
+    const { results, layout, turn } = await run(name, viewport, native);
     check(`${name}: نافذة الجمهور تغطي الشاشة كلها`,
       Math.abs(layout.iw - viewport.width / Math.min(viewport.width / 1920, viewport.height / 1080)) <= 1.5 &&
       Math.abs(layout.ih - viewport.height / Math.min(viewport.width / 1920, viewport.height / 1080)) <= 1.5);
