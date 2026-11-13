@@ -1146,8 +1146,11 @@
       if (TWO_TAPS && b.matches(TWO)) { if (armed !== b.dataset.cmd) return arm(b.dataset.cmd); disarm(); } else if (armed) disarm();
       // التطبيق: «مباراة جديدة» بعد الإعداد تسأل بلوحة من اللعبة، لا بـ confirm الذي يظهر بالإنجليزية على التلفاز.
       if (TWO_TAPS && b.dataset.cmd === 'new' && view?.match?.step !== 'setup') { $('askNew').hidden = false; return; }
-      // ووقت النقر نفسه بساعة الحقبة (ش8-أ/111): المهلة بعد كل تغيّر تُقاس به، لا بلحظة وصول النقرة.
-      send(b.dataset.cmd, { at: performance.timeOrigin + e.timeStamp });
+      // ووقت النقر نفسه (ش8-أ/111): المهلة بعد كل تغيّر تُقاس به، لا بلحظة وصول النقرة. وهو بساعة الصفحة الأم الرتيبة (112):
+      // عمر النقرة هنا (performance.now − e.timeStamp) يُطرح من performance.now هناك في اللحظة نفسها، فلا ساعة جهاز فيه ولا فرق بين الساعتين.
+      let at;
+      try { at = parent.performance.now() - (performance.now() - e.timeStamp); } catch {}
+      send(b.dataset.cmd, Number.isFinite(at) ? { at } : {});
     });
     // ش8-أ/107: وEscape يُلغي تأكيد «مباراة جديدة» من اللعبة كما كان يُلغي confirm، ولا يُرسل شيئاً.
     document.addEventListener('keydown', e => {
