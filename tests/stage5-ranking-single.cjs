@@ -141,7 +141,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     await tap('act:finish');
     sl = await slots();
     check(tag + `«أنهِ القائمة»: القائمة كلها بأسمائها، و«كُشف 1 من 10»، و«القائمة 2» (${await near()})`, (await st()).phase === 'listend' && sl.every((x, i) => x.name === items[i].name && !x.cmd)
-      && (await text('#next')) === 'كُشف 1 من 10' && (await near()) === 'القائمة 2');
+      && (await text('#next')) === 'كُشف 1 من 10' && (await near()) === 'القائمة التالية');
     await look('نهاية القائمة');
     await tap('act:next');
     // القائمة 2: الباركود، ثم يبدؤها الآخر، ووقتها 5:00 يجري من «ابدأ» حتى ينقضي.

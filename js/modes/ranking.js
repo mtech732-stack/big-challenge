@@ -153,7 +153,7 @@ function audience(st) {
     judge: s.phase === 'ask',
     found: found(s),
     of: SLOTS,
-    // وقت القائمة: 2:30 ثابتاً قبل «ابدأ»، ثم يجري حتى listEnds بلا توقف، ويُخفى بعد النهاية. وtimeup: انتهت بانقضائه.
+    // وقت القائمة: 5:00 ثابتاً قبل «ابدأ» (1.25)، ثم يجري حتى listEnds بلا توقف، ويُخفى بعد النهاية. وtimeup: انتهت بانقضائه.
     listSeconds: LIST_SECONDS,
     listEnds: running(s) ? s.listEnds : null,
     listClock: s.phase === 'read' || running(s),

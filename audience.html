@@ -1048,9 +1048,25 @@
   let showTip = () => {}, pointer = null;
   const iconic = b => b.icon || b.cmd === 'more';
   // svg: أيقونة باسمها إن اختلف الاسم الظاهر عنها (المساعد الصوتي وتلميحاته)، وpct نسبة تنزيله تملأ إطاره.
+  // زر الانتقال (design/app.md 9.1): النص في عنصر واحد (فالفاصل 20 بينه وبين السهم وحده، لا بين الكلمة والرقم)، والسهم عنصر بعده لا ::after
+  // الذي لمساحة النقر. ورسمه من CSS (.ar::before)، فيبقى نص الزر اسمه وحده لقارئ الشاشة والفحوص.
+  const isGo = b => /(^| )go( |$)/.test(b.kind ?? '');
   const button = b => `<button class="cbtn${b.kind ? ' ' + b.kind : ''}${iconic(b) ? ' ico' : ''}${b.cmd === 'more' && moreOpen ? ' open' : ''}${b.off ? ' off' : ''}" data-cmd="${esc(b.cmd)}"`
     + (b.pct !== undefined ? ` style="--pct:${Number(b.pct) || 0}%"` : '')
-    + (iconic(b) ? ` aria-label="${esc(b.label)}" data-tip="${esc(b.label)}">${b.icon ? `<svg viewBox="0 0 36 36" aria-hidden="true">${ICON[b.svg ?? b.label] ?? ''}</svg>` : ''}` : b.svg ? `><svg viewBox="0 0 36 36" aria-hidden="true">${ICON[b.svg] ?? ''}</svg><span>${esc(b.label)}</span>` : `>${b.html ?? num(b.label)}`) + '</button>';
+    + (iconic(b) ? ` aria-label="${esc(b.label)}" data-tip="${esc(b.label)}">${b.icon ? `<svg viewBox="0 0 36 36" aria-hidden="true">${ICON[b.svg ?? b.label] ?? ''}</svg>` : ''}`
+      : b.svg ? `><svg viewBox="0 0 36 36" aria-hidden="true">${ICON[b.svg] ?? ''}</svg><span>${esc(b.label)}</span>`
+      : isGo(b) ? `><span class="lb">${b.html ?? num(b.label)}</span><i class="ar" aria-hidden="true"></i>` : `>${b.html ?? num(b.label)}`) + '</button>';
+  // نبضة زر الانتقال مرة عند ظهوره (9.1): لا عند أول رسم بعد التحميل، ولا للمعطّل، ولا لزر ظهر من قبل بالحال نفسها.
+  let goSeen = null;
+  const pulseGo = c => {
+    const now = new Set();
+    document.querySelectorAll('.cbtn.go').forEach(b => {
+      const key = b.dataset.cmd + '|' + b.textContent + '|' + b.classList.contains('off');
+      now.add(key);
+      if (goSeen && !goSeen.has(key) && !b.classList.contains('off')) { b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); }
+    });
+    if (c) goSeen = now;
+  };
   const rows = list => (list ?? []).map(r => `<div class="ctl">${r.map(button).join('')}</div>`).join('');
   // الأزرار لا تُستبدل إن لم يتغير ما فيها: ضغطة تقع بين نزول الإصبع ورفعه على زر استُبدل لا تصل (ش8-أ/54، عدّ المزاد السريع).
   const drawn = new WeakMap();
@@ -1071,6 +1087,7 @@
     put($('cornerA'), rows(c?.a));
     put($('cornerB'), rows(c?.b));
     put($('cornerC'), rows(c?.c));
+    pulseGo(c);
     // لوحة «⋯» (design/s8b.md 7.1): حالتها في هذه الشاشة وحدها. سطر الأيقونات، ثم فاصل، ثم «مباراة جديدة» وحدها.
     const fresh = (c?.more ?? []).filter(b => b.cmd === 'new'), rest = (c?.more ?? []).filter(b => b.cmd !== 'new');
     $('moreMenu').innerHTML = moreOpen ? `<div class="ctl">${rest.map(button).join('')}</div>` + (fresh.length ? `<hr><div class="ctl">${fresh.map(button).join('')}</div>` : '') : '';

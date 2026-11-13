@@ -150,7 +150,7 @@ const { finalMatch } = require('./final-match.cjs');
     await aud.waitForSelector('.scr.show[data-s="fin"]');
     await wait(1400);
     check('التعادل: «التالي: الجولة الفاصلة» والرقمان متساويان', clean(await aud.textContent('#next')) === 'التالي: الجولة الفاصلة' && clean(await aud.textContent('#s1')) === clean(await aud.textContent('#s2')));
-    check('البطاقة: «الجولة الفاصلة» مفعّلاً (مرحلة «كسر التعادل»، stage7-tiebreak)', (await card(aud)) === 'الجولة الفاصلة' && !(await aud.$eval('.scr.show .ctl .cbtn', b => b.classList.contains('off'))));
+    check('البطاقة: «الجولة الفاصلة» مفعّلاً (مرحلة «كسر التعادل»، stage7-tiebreak)', (await card(aud)) === 'إلى الجولة الفاصلة' && !(await aud.$eval('.scr.show .ctl .cbtn', b => b.classList.contains('off'))));
     await layout(aud, 'النتيجة: تعادل');
     await page.screenshot({ path: path.join(shots, 's7-fintie.png') });
     await context.close();
