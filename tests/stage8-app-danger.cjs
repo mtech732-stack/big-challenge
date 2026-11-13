@@ -1,5 +1,5 @@
 // اختبار آلي لـ ش8-أ/88 (المعاين، v98؛ design/app.md 6.6): في التطبيق ينبض أحمر آخر 3 ثوانٍ على حواف الشاشة الفعلية كلها،
-// ومنها الأشرطة خارج المسرح، لا حول المسرح 16:9 وحده. والموقع كما هو (حول المسرح).
+// ومنها الأشرطة خارج المسرح، لا حول المسرح 16:9 وحده. وفي الموقع كذلك منذ ش8-أ/106 (design/app.md 8.2).
 // عدّاد حقيقي (سؤال الحرف المعيّن) بساعة مزيّفة، ثم في آخر 3 ثوانٍ: الطبقة #dangerVp تغطي نافذة الصفحة كلها، وحركتها pulse
 // بظلها الأحمر، والتي في المسرح مخفية. ثم يُوقف النبض على أوله (إطار 12) وتُقرأ ألوان الحواف الأربع في وسطها: حمراء،
 // ومنها الشريطان خارج المسرح يميناً ويساراً. وتُحفظ صورة على مقاس الآيفون والآيباد.
@@ -15,7 +15,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const red = ([r, g, b]) => r > 150 && r > g * 1.6 && r > b * 1.6;
 
-  for (const [tag, W, H, native] of [['الآيفون', 956, 440, true], ['الآيباد', 1180, 820, true], ['الموقع', 1366, 768, false]]) {
+  for (const [tag, W, H, native] of [['الآيفون', 956, 440, true], ['الآيباد', 1180, 820, true], ['الموقع', 1366, 768, false], ['الموقع الأطول', 1366, 900, false]]) {
     const context = await browser.newContext({ viewport: { width: W, height: H }, hasTouch: native, serviceWorkers: 'block' });
     context.on('page', p => {
       p.on('pageerror', e => errors.push(e.message));
@@ -44,12 +44,13 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
         inner: w.getComputedStyle(inner).display !== 'none' ? inner.getAnimations()[0]?.animationName ?? 'بلا حركة' : 'مخفية',
         stage: (() => { const c = d.getElementById('canvas').getBoundingClientRect(); return [fb.left + c.left * s, fb.left + c.right * s].map(Math.round); })(), page: [innerWidth, innerHeight] };
     });
-    if (native) {
+    // والموقع منذ 106 (design/app.md 8.2، 6.6) كالتطبيق.
+    {
       check(`${tag}: في آخر 3 ثوانٍ (${on}) الطبقة على نافذة الصفحة كلها (${r.vp?.join(',')} من ${r.page.join('×')})، وحركتها ${r.anim} بظل أحمر (${r.shadow})، والتي في المسرح ${r.inner}`,
         on && !!r.vp && r.vp[0] <= 0 && r.vp[1] <= 0 && r.vp[0] + r.vp[2] >= W && r.vp[1] + r.vp[3] >= H && r.anim === 'pulse' && r.shadow && r.inner === 'مخفية');
       // يُوقف النبض على أوله (إطار 12 أحمر) وتُقرأ الحواف في وسطها، ومنها الشريطان خارج المسرح.
       await f.evaluate(() => { const a = document.getElementById('dangerVp')?.getAnimations()[0] ?? document.querySelector('#canvas .danger').getAnimations()[0]; if (a) { a.pause(); a.currentTime = 0; } });
-      const png = await page.screenshot({ path: `${shots}/app-danger-${W}x${H}.png` });
+      const png = await page.screenshot({ path: `${shots}/${native ? 'app' : 'web'}-danger-${W}x${H}.png` });
       const px = await page.evaluate(async ([b64, pts]) => {
         const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
         const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
@@ -57,9 +58,6 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
       }, [png.toString('base64'), [[2, H / 2], [W - 3, H / 2], [W / 2, 2], [W / 2, H - 3]]]);
       // واليمنى واليسرى في الشريطين خارج المسرح على الآيفون (المسرح يبدأ بعد 87).
       check(`${tag}: الحواف الأربع حمراء على حافة الشاشة (${px.map(p => p.join('/')).join(' · ')})، واليمنى واليسرى ${r.stage[0] > 2 ? 'في الشريطين خارج المسرح' : 'على حافة المسرح'} (المسرح ${r.stage.join('–')})`, px.every(red));
-    } else {
-      await page.screenshot({ path: `${shots}/site-danger-${W}x${H}.png` });
-      check(`${tag}: كما هو، النبض حول المسرح (${r.inner})، ولا طبقة على النافذة (${r.vp ? r.vp.join(',') : 'لا'}، ${r.anim ?? 'بلا حركة'})`, on && r.inner === 'pulse' && !r.anim);
     }
     await context.close();
   }
