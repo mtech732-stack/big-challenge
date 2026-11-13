@@ -105,9 +105,10 @@ function act(s, action) {
   if (id === 'next' && s.phase === 'decided') {
     const index = s.index + 1;
     if (index >= s.topics.length) return { state: { ...s, phase: 'end' }, events: [] };
-    return { state: { ...s, index, phase: 'bid', team: 0, nums: [0, 0], commit: null, said: [] }, events: [] };
+    // وover من وفاء سابق انقضى وقته لا يبقى (ش8-أ/110: كان يبقى فيعطّل زر الميكروفون في كل موضوع بعده).
+    return { state: { ...s, index, phase: 'bid', team: 0, nums: [0, 0], commit: null, said: [], over: false }, events: [] };
   }
-  if (id === 'show') return { state: { ...s, phase: 'bid', team: 0, nums: [0, 0], commit: null, said: [] }, events: [] };
+  if (id === 'show') return { state: { ...s, phase: 'bid', team: 0, nums: [0, 0], commit: null, said: [], over: false }, events: [] };
   // زر الفريق: رقمه فوق رقمه ورقم خصمه بواحد، ولا يتجاوز طول القائمة. والحدّ ثابت في المنتصف (3.0).
   if (id === 'raise' && s.phase === 'bid') {
     const team = Number(arg);
@@ -122,9 +123,9 @@ function act(s, action) {
     const team = leader(s);
     if (!team) return { state: s, events: [] };
     const n = topNum(s);
-    return { state: { ...s, phase: 'fulfil', team, commit: { team, n }, said: [] }, events: [{ type: 'timer', seconds: FULFIL_SECONDS, resume: true }] };
+    return { state: { ...s, phase: 'fulfil', team, commit: { team, n }, said: [], over: false }, events: [{ type: 'timer', seconds: FULFIL_SECONDS, resume: true }] };
   }
-  if (id === 'start' && s.phase === 'ready') return { state: { ...s, phase: 'fulfil' }, events: [{ type: 'timer', seconds: FULFIL_SECONDS, resume: true }] };
+  if (id === 'start' && s.phase === 'ready') return { state: { ...s, phase: 'fulfil', over: false }, events: [{ type: 'timer', seconds: FULFIL_SECONDS, resume: true }] };
   // «عُدّ · +1»: عدّة دون اسم، والعدّاد يبقى يعدّ. ولا يحكم ولو بلغ ما التزم به (1.14). وبعد انقضاء الوقت يُعدّ ولا عدّاد.
   if (id === 'count' && ['ready', 'fulfil'].includes(s.phase)) {
     return { state: { ...s, said: [...saidOf(s), { i: null, team: s.team }] }, events: [{ type: 'keep-timer' }, { type: 'moment', name: 'said', team: s.team }] };
