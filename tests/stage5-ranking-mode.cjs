@@ -77,7 +77,7 @@ const { reporter } = require('./helpers.cjs');
   check('الجمهور: لا اسم من القائمة ولا صيغة ولا مستوى', leaks(a).length === 0 && !('level' in a));
   check('النقر قبل «ابدأ» لا يحكم', go('item:3').state.phase === 'read');
   go('start');
-  check('«ابدأ»: عدّاد 15 ثانية لصاحب الدور، والخانات تُنقر', s.phase === 'ask' && round.timer?.seconds === ANSWER_SECONDS && a.turn === 2 && a.judge);
+  check('«ابدأ»: عدّاد 10 ثوانٍ لصاحب الدور، والخانات تُنقر', s.phase === 'ask' && round.timer?.seconds === ANSWER_SECONDS && a.turn === 2 && a.judge);
   check('في الإجابة: الخانة و«خطأ» و«أنهِ القائمة»', ranking.actions(s).map(x => x.id).join() === 'item,wrong,finish');
 
   // الإصابة: المركز 7 للثاني، ثم لحظة 1.2 ثانية والدور للأول تلقائياً.
@@ -94,7 +94,7 @@ const { reporter } = require('./helpers.cjs');
     && pr.items[1].alts.length === 1);
   check('«turn» قبل 1.2 ثانية يُهمل', at('turn', T + 100).state.phase === 'hit' && HIT_MS === 1200);
   at('turn', T + HIT_MS);
-  check('بعد اللحظة: دور الأول، وعدّاده 15 ثانية، ولا حكم', s.phase === 'ask' && s.team === 1 && round.timer?.seconds === ANSWER_SECONDS && a.verdict === null && a.turn === 1);
+  check('بعد اللحظة: دور الأول، وعدّاده 10 ثوانٍ، ولا حكم', s.phase === 'ask' && s.team === 1 && round.timer?.seconds === ANSWER_SECONDS && a.verdict === null && a.turn === 1);
   check('المكرر لا يُكشف ثانية', at('item:7', T + 2000).state.phase === 'ask' && round.scores[1] === 0);
   // الفخ ورصيد الأول صفر: لا خصم، والحكم 0، والخانة «−11» بلونه.
   at('item:11', T + 3000);
@@ -113,18 +113,27 @@ const { reporter } = require('./helpers.cjs');
   round = R.undo(round); s = round.state; a = ranking.audience(s);
   check('التراجع عن الفخ يعيد السؤال وعدّاده', s.phase === 'ask' && round.timer?.seconds === ANSWER_SECONDS && !s.got[0].some(g => g.rank === 11));
   check('رتبة خارج 1–13 أو بلا رقم تُهمل', go('item:0').state.phase === 'ask' && go('item:x').state.phase === 'ask' && go('item:14').state.phase === 'ask');
-  // «خطأ»: صفر، ويقف العدّاد، ولون الدور التالي.
+  // «خطأ» (1.25): صفر، والدور إلى الخصم مباشرة بعدّاده، بلا اختيار لون، ولحظة انتقال بسبب الخطأ (البطاقة تهتز ثم اللمعة).
+  check('صاحب الدور قبل «خطأ» الأول', s.phase === 'ask' && s.team === 1);
   go('wrong');
-  check('«خطأ»: لا نقاط و«لم تُكشف خانة»، والحدّ في المنتصف، والعدّاد يقف، وزرّا لون الدور التالي', s.phase === 'wrong' && a.verdict.team === 0 && a.turn === 0 && !round.timer
-    && ranking.actions(s).filter(x => x.id === 'turn').map(x => x.team).join() === '1,2' && round.events.some(e => e.name === 'none'));
-  check('لون خاطئ يُهمل', go('turn:3').state.phase === 'wrong' && go('turn').state.phase === 'wrong');
-  go('turn:1');
-  check('اختار المقدّم لون من أخطأ نفسه: الدور له بعدّاده', s.phase === 'ask' && s.team === 1 && round.timer?.seconds === ANSWER_SECONDS);
-  go('wrong'); go('turn:2');
-  check('أو لون الخصم: الدور للثاني', s.phase === 'ask' && s.team === 2);
+  check('«خطأ»: لا نقاط، والدور للخصم مباشرة بعدّاده 10 ث، ولحظة «انتقال» بالخطأ، ولا زرّا لون', ANSWER_SECONDS === 10 && s.phase === 'ask' && s.team === 2
+    && round.timer?.seconds === 10 && !a.verdict && a.turn === 2 && !ranking.actions(s).some(x => x.id === 'turn')
+    && round.events.some(e => e.type === 'moment' && e.name === 'steal' && e.reason === 'wrong' && e.team === 2) && !JSON.stringify(a).includes('سرق'));
+  check('لون يُرسل بعد 1.25 يُهمل', go('turn:1').state.team === 2 && go('turn').state.phase === 'ask');
+  go('wrong');
+  check('و«خطأ» من الثاني: الدور للأول', s.phase === 'ask' && s.team === 1 && round.timer?.seconds === ANSWER_SECONDS);
+  go('wrong');
+  check('ثم للثاني', s.phase === 'ask' && s.team === 2);
+  // مباراة محفوظة قبل 1.25 في حالة wrong: تكمل بلون الدور التالي كما كانت.
+  {
+    const old = { ...s, phase: 'wrong', verdict: { team: 0, points: 0, rank: 0 } };
+    const o = ranking.act(old, 'turn:1');
+    check('حالة wrong محفوظة قبل 1.25: زرّا اللون، وبهما يكمل', ranking.actions(old).filter(x => x.id === 'turn').map(x => x.team).join() === '1,2'
+      && o.state.phase === 'ask' && o.state.team === 1);
+  }
   // انتهى وقت الإجابة: إلى الخصم بعدّاده، بلا اختيار، ولحظة انتقال.
   go('timeout', round.timer.id);
-  check('انتهى الوقت: الدور للخصم بعدّاد 15 ثانية، بلا حكم ولا نقاط، ولحظة «انتقال»', s.phase === 'ask' && s.team === 1 && round.timer?.seconds === ANSWER_SECONDS && !a.verdict
+  check('انتهى الوقت: الدور للخصم بعدّاد 10 ثوانٍ، بلا حكم ولا نقاط، ولحظة «انتقال»', s.phase === 'ask' && s.team === 1 && round.timer?.seconds === ANSWER_SECONDS && !a.verdict
     && round.events.some(e => e.type === 'moment' && e.name === 'steal' && e.reason === 'timeout' && e.team === 1) && !JSON.stringify(a).includes('سرق'));
 
   // العشرة كلها: يُكشف ما بقي بالتناوب، ثم نهاية القائمة بنفسها بعد آخر لحظة.
@@ -149,7 +158,7 @@ const { reporter } = require('./helpers.cjs');
   go('next');
   check('نهاية الجولة: حصيلتا الفريقين في القائمتين', s.phase === 'end' && ranking.finished(s) && a.screen === 'end' && a.totals[1] + a.totals[2] === 65);
 
-  // وقت القائمة (5.6): دقيقتان ونصف من «ابدأ» بلا توقف، فإن انقضت انتهت القائمة. والمشغّل يمرّر ساعة الجهاز.
+  // وقت القائمة (5.6، 1.25): 5 دقائق من «ابدأ» بلا توقف، فإن انقضت انتهت القائمة. والمشغّل يمرّر ساعة الجهاز.
   {
     const { LIST_SECONDS } = await import(path.join(root, 'js/modes/ranking.js'));
     const T = 1_000_000;
@@ -157,27 +166,28 @@ const { reporter } = require('./helpers.cjs');
     const run = (x, id, at = T) => (r = R.act(ranking, r, x, id, at));
     run('show');
     let a = ranking.audience(r.state);
-    check('وقت القائمة دقيقتان ونصف، ثابت قبل «ابدأ»', LIST_SECONDS === 150 && a.listClock && !a.listEnds && a.listSeconds === 150);
+    check('وقت القائمة 5 دقائق، ثابت قبل «ابدأ»', LIST_SECONDS === 300 && a.listClock && !a.listEnds && a.listSeconds === 300);
     run('start');
     a = ranking.audience(r.state);
-    check('«ابدأ»: وقت القائمة يجري حتى دقيقتين ونصف من الآن', r.state.listEnds === T + 150000 && a.listEnds === T + 150000);
+    check('«ابدأ»: وقت القائمة يجري حتى 5 دقائق من الآن', r.state.listEnds === T + 300000 && a.listEnds === T + 300000);
     check('«انتهى وقت القائمة» قبل وقته يُهمل', run('timeup', undefined, T + 100000).state.phase === 'ask');
     run('item:4', undefined, T + 30000); run('turn', undefined, T + 32000);
-    check('ولا يقف بين الإجابتين ولا بعد الحكم', r.state.listEnds === T + 150000);
-    run('timeup', undefined, T + 150000);
+    check('ولا يقف بين الإجابتين ولا بعد الحكم', r.state.listEnds === T + 300000);
+    check('ولا ينتهي عند دقيقتين ونصف', run('timeup', undefined, T + 150000).state.phase === 'ask');
+    run('timeup', undefined, T + 300000);
     a = ranking.audience(r.state);
     check('انقضى وقت القائمة في العدّاد: تنتهي القائمة وتنكشف، ويقف العدّاد، ووقتها يُخفى', r.state.phase === 'listend' && r.state.timeup && a.timeup && !r.timer && a.slots.every(x => x.name)
       && !a.listClock && !a.listEnds && a.found === 1);
     r = R.undo(r);
     check('التراجع عن انقضاء الوقت يعيد العدّاد', r.state.phase === 'ask' && !r.state.timeup && r.timer?.seconds === ANSWER_SECONDS);
-    run('wrong', undefined, T + 149000);
-    check('وبعد «خطأ»: ينهيها انقضاء الوقت', r.state.phase === 'wrong' && run('timeup', undefined, T + 150500).state.phase === 'listend');
-    run('next', undefined, T + 160000);
+    run('wrong', undefined, T + 299000);
+    check('وبعد «خطأ»: ينهيها انقضاء الوقت', r.state.phase === 'ask' && run('timeup', undefined, T + 300500).state.phase === 'listend');
+    run('next', undefined, T + 310000);
     check('القائمة الثانية بعد انقضاء وقت الأولى: وقتها لم يبدأ، ويبدأها الآخر', r.state.index === 1 && r.state.phase === 'read' && !r.state.listEnds && !r.state.timeup && r.state.team === 2);
-    run('start', undefined, T + 170000);
-    check('وقت القائمة الثانية من «ابدأ» نفسها', r.state.listEnds === T + 320000);
-    run('item:3', undefined, T + 319000);
-    check('وفي لحظة الإصابة: ينهيها انقضاء الوقت، و«إنهاء الجولة»', run('timeup', undefined, T + 320000).state.phase === 'listend' && ranking.audience(r.state).timeup
+    run('start', undefined, T + 320000);
+    check('وقت القائمة الثانية من «ابدأ» نفسها', r.state.listEnds === T + 620000);
+    run('item:3', undefined, T + 619000);
+    check('وفي لحظة الإصابة: ينهيها انقضاء الوقت، و«إنهاء الجولة»', run('timeup', undefined, T + 620000).state.phase === 'listend' && ranking.audience(r.state).timeup
       && ranking.actions(r.state)[0].label === 'إنهاء الجولة');
   }
 
