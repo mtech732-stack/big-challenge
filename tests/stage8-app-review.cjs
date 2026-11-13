@@ -117,6 +117,14 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     await f.click('#moreMenu [data-cmd="new"]'); await wait(300);
     await page.mouse.click(10, 10); await wait(300);
     check('والنقر خارجها إلغاء', (await f.$eval('#askNew', e => e.hidden)) && (await step(page)) === 'play');
+    // ش8-أ/107: وEscape يُلغيها كما كان يُلغي confirm.
+    if (!(await f.$('#moreMenu [data-cmd="new"]'))) { await f.click('[data-cmd="more"]'); await wait(400); }
+    await f.click('#moreMenu [data-cmd="new"]'); await wait(300);
+    const escShown = !(await f.$eval('#askNew', e => e.hidden));
+    await page.keyboard.press('Escape'); await wait(400);
+    check(`107: وEscape إلغاء (${escShown})`, escShown && (await f.$eval('#askNew', e => e.hidden)) && (await step(page)) === 'play' && dialogs.length === 0);
+    // وإن بقيت (v110) أُغلقت بـ «إلغاء» ليكمل الاختبار ويُخفق هذا الفحص وحده.
+    if (!(await f.$eval('#askNew', e => e.hidden))) { await f.click('#askNew [data-ask="no"]'); await wait(400); }
     if (!(await f.$('#moreMenu [data-cmd="new"]'))) { await f.click('[data-cmd="more"]'); await wait(400); }
     await f.click('#moreMenu [data-cmd="new"]'); await wait(300);
     await f.click('#askNew [data-ask="yes"]'); await wait(800);
@@ -132,6 +140,14 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     const shown = !(await f.$eval('#askNew', e => e.hidden));
     await f.click('#askNew [data-ask="no"]'); await wait(500);
     const kept = (await step(page)) !== 'setup' && await f.$eval('#askNew', e => e.hidden);
+    // ش8-أ/107: وEscape يُلغيها كما كان يُلغي confirm في الموقع.
+    await cmd(f, 'new'); await wait(400);
+    const escShown = !(await f.$eval('#askNew', e => e.hidden));
+    await page.keyboard.press('Escape'); await wait(400);
+    const escKept = escShown && (await step(page)) !== 'setup' && await f.$eval('#askNew', e => e.hidden);
+    // وإن بقيت (v110) أُغلقت بـ «إلغاء» ليكمل الاختبار ويُخفق هذا الفحص وحده.
+    if (!(await f.$eval('#askNew', e => e.hidden))) { await f.click('#askNew [data-ask="no"]'); await wait(400); }
+    check(`107: الموقع: وEscape إلغاء (${escShown})`, escKept);
     await cmd(f, 'new'); await wait(300); await f.click('#askNew [data-ask="yes"]'); await wait(800);
     check(`الموقع: «مباراة جديدة» بلوحة اللعبة (${shown})، و«إلغاء» يبقيها (${kept})، و«مباراة جديدة» فيها تبدأها، بلا نافذة متصفح (${dialogs.length})`,
       shown && kept && (await step(page)) === 'setup' && dialogs.length === 0);
