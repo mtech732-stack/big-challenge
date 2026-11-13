@@ -41,7 +41,7 @@ function heardOf(text) {
   split(text).forEach((raw, k) => {
     const f = fold(unwaw(raw)).split(' '), q = plain(unwaw(raw)).split(' '), o = f.length === 1 ? other(plain(raw)) : null;
     // u وp2: الوجه الآخر للكلمة بالواو (strict: حرفان فأقل بعد فصل الواو)، وx: كلمة حشو بواوها أو دونها.
-    const x = FILLER.has(plain(raw));
+    const x = FILLER.has(plain(raw)) || (!!o && FILLER.has(o));
     f.forEach((w, n) => {
       if (!w) return;
       const h = { w, p: q[n] ?? w, k, x: x || FILLER.has(q[n] ?? w) };
