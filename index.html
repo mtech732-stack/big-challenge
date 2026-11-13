@@ -125,7 +125,10 @@
   const VOX_KEY = 'big-challenge.voice';
   const cap = globalThis.Capacitor;
   const vox = { ok: false, on: false, dl: null, tip: '', key: '', text: '', base: '', sel: new Set(), emitted: new Set(), items: null,
-    live: false, starting: false, sent: 0, later: 0, sid: '', sids: 0, keyOf: {} };
+    live: false, starting: false, sent: 0, later: 0, sid: '', sids: 0, keyOf: {},
+    // زر الميكروفون (design/app.md 7.6): listen ما يريده المقدّم، وused بعد أول ضغطة في الموضوع (فتظهر الصفوف)،
+    // وfail سبب التعذّر، وwhy إظهاره لحظةً، وheard: وصل صوت في الجلسة الجارية، وbeat مؤقت تنبيه «لا يصل صوت».
+    listen: false, used: false, fail: '', why: 0, heard: false, since: 0, beat: 0 };
   const voxCall = (method, opts = {}) => cap.nativePromise('Voice', method, opts);
   let muted = false;
   try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch {}
@@ -568,7 +571,7 @@
       // وبعد الكشف «وفى · +N» بلون الملتزم و«لم يفِ · +2» بلون الخصم («وفى» يميناً). وبعد الحكم «الموضوع التالي» في صف الشارات.
       if (screen === 'topic' && !b) {
         const ph = st.phase, t = st.team, n = st.commit?.n;
-        if (ph === 'ready' || ph === 'fulfil') { c.near = [...(ph === 'ready' ? act('start', 'ابدأ') : []), ...act('count')]; c.ans = act('reveal', null, 'alt'); }
+        if (ph === 'ready' || ph === 'fulfil') { c.near = [...(ph === 'ready' ? act('start', 'ابدأ') : []), ...act('count'), ...(ph === 'fulfil' ? voxMic(st) : [])]; c.ans = act('reveal', null, 'alt'); }
         // والمساعد الصوتي (design/app.md 7.2): «اعتمد» يسار «كشف القائمة» ما دام في النص المسموع كلمات محددة.
         if (ph === 'fulfil' && voxShown() && vox.sel.size) c.ans.push({ cmd: 'vox:ok', label: 'اعتمد', kind: 'vox-ok' });
         if (ph === 'revealed') c.near = [{ cmd: 'act:ok', label: `وفى · +${n}`, kind: 'who t' + t, off: wait }, { cmd: 'act:fail', label: `لم يفِ · +${AUCTION_FAIL}`, kind: 'who t' + (t === 1 ? 2 : 1), off: wait }];
@@ -658,8 +661,19 @@
     const st = mode?.id === 'auction' ? match.round.state : null;
     return st?.phase === 'fulfil' ? st : null;
   }
-  function voxShown() { return vox.ok && vox.on && !!vox.key && !!voxFulfil(); }
-  function voxView() { return { words: voxSplit(vox.text), sel: [...vox.sel], live: vox.live }; }
+  function voxShown() { return vox.ok && vox.on && vox.used && !!vox.key && !!voxFulfil(); }
+  const VOX_IDLE_MS = 6000;
+  const voxIdle = () => vox.live && !vox.heard && performance.now() - vox.since > VOX_IDLE_MS;
+  function voxView() { return { words: voxSplit(vox.text), sel: [...vox.sel], live: vox.live, idle: voxIdle() }; }
+  // زر الميكروفون في صف الشارات يسار «عُدّ · +1» (design/app.md 7.6). لا يظهر إن لم يُشغَّل المساعد من «⋯».
+  function voxMic(st) {
+    if (!vox.ok || !vox.on || vox.dl !== null || !st) return [];
+    const kind = 'vox-mic t' + (st.commit?.team === 2 ? 2 : 1);
+    if (st.over || !match.round.timer) return [{ cmd: 'vox:listen', label: 'ابدأ السماع', svg: 'mic', kind, off: true }];
+    if (vox.fail) return [{ cmd: 'vox:listen', label: vox.why ? vox.fail : 'السماع متعذّر', svg: 'mic-off', kind: kind + ' fail' }];
+    if (vox.listen) return [{ cmd: 'vox:listen', label: 'يسمع · أوقف', svg: 'mic', kind: kind + ' on' }];
+    return [{ cmd: 'vox:listen', label: 'ابدأ السماع', svg: 'mic', kind }];
+  }
   // أيقونة «المساعد الصوتي» في لوحة «⋯» (7.4): مُشغَّل · موقوف · يُنزَّل بنسبته. ولا تظهر إن لم يتوفر.
   function voxIcon() {
     if (!vox.ok) return [];
@@ -672,7 +686,7 @@
     try { s = await voxCall('status'); } catch { return; }
     if (!s?.available) return;
     vox.ok = true;
-    cap.addListener('Voice', 'partial', d => { if (voxMine(d)) voxHeard(d?.text); });
+    cap.addListener('Voice', 'partial', d => { if (voxMine(d)) { if (String(d?.text ?? '').trim()) vox.heard = true; voxHeard(d?.text); } });
     cap.addListener('Voice', 'final', d => {
       if (voxMine(d)) voxHeard(d?.text, true);
       if (d?.id === undefined || d.id === vox.sid) { vox.live = false; vox.starting = false; }
@@ -710,9 +724,12 @@
     const at = st ? `${match.round.n}:${st.index}:` : '', root = match.round?.timer?.root;
     const key = !st ? '' : root !== undefined ? at + root : vox.key.startsWith(at) ? vox.key : at + 'x';
     if (key && key !== vox.key) {
-      Object.assign(vox, { key, text: '', base: '', sel: new Set(), emitted: new Set(), items: voxPrepare(st.topics[st.index].items) });
+      Object.assign(vox, { key, text: '', base: '', sel: new Set(), emitted: new Set(), items: voxPrepare(st.topics[st.index].items),
+        listen: false, used: false, fail: '', why: 0 });
     }
-    const want = vox.on && !!st && !st.over && !!match.round.timer;
+    // يتوقف بانتهاء الوقت أو بالكشف أو بـ«تراجع» إلى ما قبل «ابدأ»، ولا يُستأنف وحده (7.6).
+    if (!st || st.over || !match.round.timer || !vox.on) vox.listen = false;
+    const want = vox.on && vox.listen && !!st && !st.over && !!match.round.timer;
     if (want && !vox.live && !vox.starting) voxStart(st);
     if (!want && (vox.live || vox.starting)) voxStop();
   }
@@ -729,13 +746,31 @@
     vox.sid = id; vox.keyOf[id] = vox.key;
     // ما سُمع قبل توقف سابق في الوفاء نفسه («تراجع» عن الكشف) يبقى، ويُكمل بعده.
     vox.base = vox.text;
+    vox.heard = false; vox.since = performance.now();
     const hints = st.topics[st.index].items.flatMap(x => [x.name, ...(x.alts ?? [])]);
-    try { await voxCall('start', { id, hints }); vox.live = vox.sid === id; } catch { if (vox.sid === id) vox.live = false; }
+    try { await voxCall('start', { id, hints }); vox.live = vox.sid === id; } catch (e) {
+      if (vox.sid === id) { vox.live = false; vox.listen = false; vox.fail = voxReason(e); }
+    }
     if (vox.sid !== id) return;
     vox.starting = false;
+    voxBeat();
+    render();
     // قد يتغير ما يُراد أثناء البدء (كُشفت القائمة).
     if (!voxShown() || voxFulfil()?.over || !match.round.timer) voxStop();
     voxSend(true);
+  }
+  // سبب التعذّر بكلام المقدّم، يظهر بضغطة على الزر (7.6).
+  function voxReason(e) {
+    const m = String(e?.message ?? e ?? '');
+    if (/غير منزّل/.test(m)) return 'النموذج غير منزّل: شغّله من «⋯»';
+    if (/denied|permission|إذن/i.test(m)) return 'اسمح بالميكروفون من الإعدادات';
+    return 'تعذّر تشغيل الميكروفون';
+  }
+  // تنبيه «لا يصل صوت»: يُرسل مرة بعد مهلته ما دام يسمع ولم يصل صوت.
+  function voxBeat() {
+    clearTimeout(vox.beat);
+    if (!vox.live || vox.heard) return;
+    vox.beat = setTimeout(() => voxSend(true), Math.max(0, VOX_IDLE_MS - (performance.now() - vox.since)) + 50);
   }
   function voxStop() {
     if (!vox.live && !vox.starting) return;
@@ -775,6 +810,21 @@
   // نقرات النص المسموع و«اعتمد» و«⋯» (design/app.md 7.2، 7.4).
   function voxCmd(arg) {
     if (arg === 'toggle') return void voxToggle();
+    if (arg === 'listen') {
+      const st = voxFulfil();
+      if (!st || !vox.ok || !vox.on || st.over || !match.round.timer) return;
+      // متعذّر: الضغطة تُظهر السبب 3 ثوانٍ، والتالية تحاول من جديد.
+      if (vox.fail) {
+        if (!vox.why) { vox.why = setTimeout(() => { vox.why = 0; vox.fail = ''; render(); }, 3000); render(); }
+        return;
+      }
+      vox.listen = !vox.listen;
+      if (vox.listen) vox.used = true;
+      render();
+      link?.send('view', view());
+      voxSend(true);
+      return;
+    }
     const st = voxFulfil();
     if (!st || !voxShown()) return;
     const marked = new Set((st.said ?? []).filter(x => Array.isArray(x.w)).flatMap(x => x.w));

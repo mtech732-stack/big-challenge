@@ -122,7 +122,7 @@
     read:    { t: 'القائمة 1: ظهور القائمة، ولا خانة مكشوفة (دور الأول)', turn: 1, got: [], clock: '5:00' },
     run:     { t: 'العدّاد يعمل (دور الثاني)، أربع خانات مكشوفة', turn: 2, run: 9, got: G4, clock: '3:42' },
     right:   { t: 'بعد الحكم: أصاب الثاني المركز 7 (+7)', two: true, turn: 2, got: [...G4, [7, 2]], isnew: 7, clock: '3:36', verdict: { team: 2, points: '+7', line: 7 } },
-    steal:   { t: 'انتقلت الإجابة إلى الثاني بعد خطأ الأول (5 ثوانٍ)', two: true, turn: 2, run: 3, total: 5, got: G4, clock: '3:30', shine: true },
+    steal:   { t: 'انتقلت الإجابة إلى الثاني بعد خطأ الأول (10 ثوانٍ)', two: true, turn: 2, run: 3, total: 10, got: G4, clock: '3:30', shine: true },
     trap:    { t: 'بعد الحكم: وقع الأول في المركز 12 (−2)', two: true, turn: 0, got: [...G4, [12, 1]], isnew: 12, clock: '3:20', verdict: { team: 1, points: '−2', line: 12 }, danger: true },
     none:    { t: 'بعد الحكم: لا نقاط (أخطأ الفريقان)', two: true, turn: 0, got: G4, clock: '3:10', verdict: { team: 0, line: 'لم تُكشف خانة' } },
     full:    { t: 'العدّاد يعمل: تسع خانات وفخّ مكشوفة', turn: 1, run: 12, got: [[1, 2], [2, 1], [3, 2], [4, 1], [5, 1], [6, 2], [8, 2], [9, 1], [10, 2], [11, 1]], clock: '0:41' },
@@ -249,8 +249,8 @@
       const svg = team.querySelector('.ring'), w = team.offsetWidth, h = team.offsetHeight, o = Math.tan(14 * Math.PI / 180) * h / 2;
       svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
       svg.querySelector('polygon').setAttribute('points', `${o},0 ${w + o},0 ${w - o},${h} ${-o},${h}`);
-      // إطار الوقت متآكل بقدر ما مضى (للصورة الثابتة): 15 ثانية للإجابة، و5 بعد الانتقال
-      const st = STATES[q.get('s')], total = st?.total ?? 15;
+      // إطار الوقت متآكل بقدر ما مضى (للصورة الثابتة): 10 ثوانٍ للإجابة وبعد الانتقال (الوثيقة 1.25)
+      const st = STATES[q.get('s')], total = st?.total ?? 10;
       svg.querySelector('polygon').style.strokeDashoffset = st?.run ? 100 * (1 - st.run / total) : 0;
     }
   }
