@@ -121,3 +121,16 @@
 /* أيقونة «المساعد الصوتي» في لوحة «⋯» (7.4): مُشغَّل أبيض والرسم بالحبر · موقوف بإطار وخط مائل · يُنزَّل يمتلئ بالأبيض من اليمين */
 .ctl-more .cbtn.vox-on { background: var(--card); color: var(--ink); }
 .ctl-more .cbtn.vox-dl { background: linear-gradient(to left, var(--card) var(--pct, 0%), transparent var(--pct, 0%)); }
+/* زر الميكروفون (design/app.md 7.6): في صف الشارات يسار «عُدّ · +1». موقوف أبيض بإطار 4 بلون الملتزم · يسمع ممتلئ بلونه بحلقة بيضاء تنبض ·
+   يتعذّر بشفافية 0.45 وخط مائل فوق الأيقونة · وبعد انتهاء الوقت معطّل بشفافية 0.45 بلا خط */
+.ctl-near .cbtn.vox-mic { --mt: var(--team-1); position: relative; display: inline-flex; align-items: center; gap: 16px; padding: 0 28px;
+  font-size: 36px; font-weight: 800; background: var(--card); color: var(--mt); box-shadow: inset 0 0 0 4px var(--mt); }
+.ctl-near .cbtn.vox-mic.t2 { --mt: var(--team-2-ink); }
+.ctl-near .cbtn.vox-mic svg { width: 44px; height: 44px; flex: none; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.ctl-near .cbtn.vox-mic.on { background: var(--mt); color: var(--card); box-shadow: none; }
+.ctl-near .cbtn.vox-mic.on::before { content: ""; position: absolute; inset: -6px; border: 3px solid var(--card); animation: voxring 1.2s ease-out infinite; pointer-events: none; }
+@keyframes voxring { from { opacity: .9; } to { opacity: 0; inset: -18px; } }
+@media (prefers-reduced-motion: reduce) { .ctl-near .cbtn.vox-mic.on::before { animation: none; opacity: .6; } }
+.ctl-near .cbtn.vox-mic.fail { opacity: .45; }
+/* يسمع ولا يصل صوت (7.6): تنبيه باهت مكان النص المسموع */
+.vox-heard .words:not([data-idle=""])[data-idle]::before { content: attr(data-idle); position: absolute; inset-inline: 0; top: 0; font-size: 34px; line-height: 48px; font-weight: 600; color: var(--text); opacity: .55; }

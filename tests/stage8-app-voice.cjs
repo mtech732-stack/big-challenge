@@ -42,6 +42,7 @@ const { check: _c, finish: _f } = { check: null, finish: null };
           if (m === 'status') return { available: true, installed: v.installed, mic: v.mic };
           if (m === 'install') { for (const pct of [10, 40, 80]) { v.emit('progress', { pct }); await new Promise(r => setTimeout(r, 300)); } v.installed = true; return {}; }
           if (m === 'requestAccess') { v.mic = 'granted'; return { mic: 'granted' }; }
+          if (m === 'start' && v.failStart) throw new Error(v.failStart);
           if (m === 'start') { v.live = true; v.hints = o.hints; v.id = o.id; (v.ids ??= []).push(o.id); return {}; }
           if (m === 'stop') { v.live = false; return {}; }
           return {};
@@ -99,8 +100,29 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     await closeMore(f);
     check('قبل «ابدأ» لا سماع ولا صفوف', !(await page.evaluate(() => window.__voice.live)) && !(await f.$eval('#auc', e => e.classList.contains('vox'))));
     await go(f, 'act:start');
-    check('مع «ابدأ» يبدأ السماع بتلميحات القائمة، وتظهر الصفوف الثلاثة', await page.evaluate(() => window.__voice.live && window.__voice.hints.includes('باص'))
-      && await f.$eval('#auc', e => e.classList.contains('vox')) && await f.$eval('#voxMic', e => e.classList.contains('live')));
+    // زر الميكروفون (design/app.md 7.6، طلب المالك 13 نوفمبر): السماع لا يبدأ مع «ابدأ»، بل بضغطة المقدّم.
+    const micBtn = () => f.$eval('[data-cmd="vox:listen"]', b => {
+      const c = document.getElementById('canvas').getBoundingClientRect(), k = c.width / 1920, r = b.getBoundingClientRect(), n = document.querySelector('[data-cmd="act:count"]').getBoundingClientRect();
+      return { cls: b.className, text: b.textContent, h: Math.round(r.height / k), gap: Math.round((n.left - r.right) / k), svg: !!b.querySelector('svg'), slash: b.innerHTML.includes('M5 5l26 26') };
+    }).catch(() => null);
+    let mb = await micBtn();
+    check(`مع «ابدأ» لا يبدأ السماع، والزر «ابدأ السماع» موقوف يسار «عُدّ · +1» بفاصل 24، ولا صفوف (${JSON.stringify(mb)})`,
+      !(await page.evaluate(() => window.__voice.live)) && mb?.text === 'ابدأ السماع' && !mb.cls.includes(' on') && mb.svg && mb.h === 72 && mb.gap === 24
+      && !(await f.$eval('#auc', e => e.classList.contains('vox'))));
+    await page.screenshot({ path: `${shots}/app-voice-mic-off.png` });
+    let sc0 = await f.evaluate(() => window.__stageCheck());
+    check(`فحص التداخل والشبكة والزر موقوف (${sc0.ok ? '' : sc0.problems.join('، ')})`, sc0.ok);
+    await go(f, 'vox:listen');
+    mb = await micBtn();
+    check(`ضغطة الزر تبدأ السماع بتلميحات القائمة، فيصير «يسمع · أوقف» ممتلئاً، وتظهر الصفوف الثلاثة (${JSON.stringify(mb)})`, await page.evaluate(() => window.__voice.live && window.__voice.hints.includes('باص'))
+      && mb?.text === 'يسمع · أوقف' && mb.cls.includes(' on') && await f.$eval('#auc', e => e.classList.contains('vox')) && await f.$eval('#voxMic', e => e.classList.contains('live')));
+    sc0 = await f.evaluate(() => window.__stageCheck());
+    check(`فحص التداخل والشبكة والزر يسمع (${sc0.ok ? '' : sc0.problems.join('، ')})`, sc0.ok);
+    // ضغطة ثانية توقفه وتبقى الصفوف، وثالثة تعيده.
+    await go(f, 'vox:listen');
+    check('ضغطة ثانية توقفه، والصفوف باقية', !(await page.evaluate(() => window.__voice.live)) && (await micBtn())?.text === 'ابدأ السماع' && await f.$eval('#auc', e => e.classList.contains('vox')));
+    await go(f, 'vox:listen');
+    check('وثالثة تعيده', await page.evaluate(() => window.__voice.live) && (await micBtn())?.text === 'يسمع · أوقف');
     // ملاحظة المعاين 94: الكلمة الأخيرة في النص المتغيّر قد تكون نصف كلمة، فلا يضيء ما فيها حتى تأتي بعدها كلمة.
     await heard(page, 'سيارة باص');
     await wait(150);
@@ -185,9 +207,12 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     await page.screenshot({ path: `${shots}/app-voice-reveal.png` });
     sc = await f.evaluate(() => window.__stageCheck());
     check(`فحص التداخل والشبكة بعد الكشف (${sc.ok ? '' : sc.problems.join('، ')})`, sc.ok);
-    // التراجع عن الكشف يعيد السماع ويُبقي ما سُمع.
+    // التراجع عن الكشف (7.6، الحالة 1): الزر «موقوف» ولا يُستأنف السماع وحده، والنص باقٍ. وضغطة تعيده ويُكمل النص.
     await go(f, 'undo');
-    check(`التراجع عن الكشف يعيد السماع والنص (${await words(f)})`, await page.evaluate(() => window.__voice.live) && (await words(f)).startsWith('سيارة.hit'));
+    check(`التراجع عن الكشف: الزر موقوف، والنص باقٍ (${await words(f)})`, !(await page.evaluate(() => window.__voice.live)) && (await micBtn())?.text === 'ابدأ السماع'
+      && (await words(f)).startsWith('سيارة.hit'));
+    await go(f, 'vox:listen');
+    check('وضغطة تعيد السماع', await page.evaluate(() => window.__voice.live));
     await heard(page, 'سفينة يعني');
     await wait(400);
     check(`وما بعده يُلحق بالنص (${await chips(f)})`, (await chips(f)).includes('سفينة') && (await words(f)).endsWith('سفينة.hit يعني'));
@@ -230,7 +255,7 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     await go(f, 'raise:1');
     await cmd(f, 'vox:toggle'); await wait(500);
     await closeMore(f);
-    await go(f, 'act:start');
+    await go(f, 'act:start'); await go(f, 'vox:listen');
     await heard(page, 'سيارة باص يعني');
     await wait(400);
     check(`الموضوع الأول: أضاء ما قيل (${await chips(f)})`, JSON.stringify(await chips(f)) === '["سيارة","حافلة"]');
@@ -244,6 +269,14 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     await go(f, 'act:reveal'); await go(f, 'act:ok'); await go(f, 'act:next');
     await hideQr(f);
     await go(f, 'raise:2'); await go(f, 'act:start');
+    check('الموضوع الثاني: الزر يعود «موقوفاً» ولا سماع حتى الضغط', !(await page.evaluate(() => window.__voice.live)) && !!(await f.$('[data-cmd="vox:listen"]:not(.on)')));
+    await go(f, 'vox:listen');
+    // يسمع ولا يصل صوت (ملاحظة المالك 13 نوفمبر): بعد 6 ثوانٍ يُقال ذلك مكان النص، ويزول بأول صوت.
+    const idle = () => f.$eval('#voxHeard .words', e => e.dataset.idle ?? '');
+    const idle0 = await idle();
+    await wait(6400);
+    const idle1 = await idle();
+    check(`يسمع ولا يصل صوت 6 ثوانٍ: «لا يصل صوت؟» مكان النص (${idle0 || '—'} ← ${idle1})`, !idle0 && /لا يصل صوت/.test(idle1));
     const second = await page.evaluate(() => window.__voice.id);
     check(`الموضوع الثاني: جلسة سماع جديدة برقم آخر (${first} ← ${second})`, second && second !== first && await page.evaluate(() => window.__voice.live));
     await page.evaluate(id => window.__voice.emit('final', { id, text: 'سيارة باص يعني قطار' }), first);
@@ -253,11 +286,26 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     const items = (await st()).topics[(await st()).index].items;
     await heard(page, `${items[0].name} و ${items[1].name} يعني`);
     await wait(500);
-    check(`والثاني يسمع ويضيء (${await chips(f)})`, (await chips(f)).length >= 1 && (await st()).said.length >= 1);
+    check(`والثاني يسمع ويضيء، وزال «لا يصل صوت» (${await chips(f)})`, (await chips(f)).length >= 1 && (await st()).said.length >= 1 && !(await idle()));
     // والثالث كذلك، ونهاية جلسة الثاني تصل بعد بدئه.
     await go(f, 'act:reveal'); await go(f, 'act:ok'); await go(f, 'act:next');
     await hideQr(f);
     await go(f, 'raise:1'); await go(f, 'act:start');
+    // يتعذّر (7.6): رفض الغلاف البدء، فالزر «السماع متعذّر» بخط مائل، وضغطة تُظهر السبب، ثم يعود «ابدأ السماع» فيُعاد.
+    await page.evaluate(() => { window.__voice.failStart = 'النموذج العربي غير منزّل'; });
+    await go(f, 'vox:listen');
+    const fl = await f.$eval('[data-cmd="vox:listen"]', b => ({ text: b.textContent, fail: b.classList.contains('fail'), slash: b.innerHTML.includes('M5 5l26 26'), op: getComputedStyle(b).opacity }));
+    check(`البدء يتعذّر: «السماع متعذّر» بشفافية 0.45 وخط مائل، و«عُدّ · +1» يعمل (${JSON.stringify(fl)})`, fl.text === 'السماع متعذّر' && fl.fail && fl.slash && fl.op === '0.45'
+      && !(await f.$('[data-cmd="act:count"].off')));
+    await page.screenshot({ path: `${shots}/app-voice-mic-fail.png` });
+    const scF = await f.evaluate(() => window.__stageCheck());
+    check(`فحص التداخل والشبكة والزر يتعذّر (${scF.ok ? '' : scF.problems.join('، ')})`, scF.ok);
+    await go(f, 'vox:listen');
+    check(`وضغطة تُظهر السبب (${await f.$eval('[data-cmd="vox:listen"]', b => b.textContent)})`, (await f.$eval('[data-cmd="vox:listen"]', b => b.textContent)) === 'النموذج غير منزّل: شغّله من «⋯»');
+    await page.evaluate(() => { window.__voice.failStart = ''; });
+    await wait(3000);
+    check('ثم يعود «ابدأ السماع»', (await f.$eval('[data-cmd="vox:listen"]', b => b.textContent)) === 'ابدأ السماع');
+    await go(f, 'vox:listen');
     const third = await page.evaluate(() => window.__voice.id);
     await page.evaluate(id => window.__voice.emit('final', { id, text: 'كلام الموضوع الثاني' }), second);
     await wait(500);
