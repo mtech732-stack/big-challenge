@@ -1,7 +1,7 @@
 // اختبار آلي للترتيب بالتحكيم المباشر بنافذة واحدة (الوثيقة 5.6، 1.7، design/s8.md 3)، في رابط المعاينة:
 // الباركود في بداية القائمة ثم يُخفى، و«ابدأ». في الإجابة يُنقر رقم الخانة على اللوحة فتنكشف بلون صاحب الدور ونقاطها رقمها، ثم لحظة 1.2 ثانية
-// والدور للخصم بعدّاده. والفخ يُخصم رقمه دون الصفر. و«خطأ» ثم زرّا لون الدور التالي. وانتهاء وقت الإجابة ينقل الدور، و«تراجع» يعيد آخر حكم.
-// ثم انقضاء وقت القائمة (دقيقتان ونصف)، والفخاخ ظاهرة الأرقام من أولها، وفحص التداخل والكلمات الممنوعة في كل حالة، مرتين: بالدوري، ثم بأطول محتوى.
+// والدور للخصم بعدّاده. والفخ يُخصم رقمه دون الصفر. و«خطأ» ينقل الدور إلى الخصم مباشرة (1.25). وانتهاء وقت الإجابة ينقل الدور، و«تراجع» يعيد آخر حكم.
+// ثم انقضاء وقت القائمة (5 دقائق، 1.25)، والفخاخ ظاهرة الأرقام من أولها، وفحص التداخل والكلمات الممنوعة في كل حالة، مرتين: بالدوري، ثم بأطول محتوى.
 // الاستعمال: node tests/stage5-ranking-single.cjs [الرابط] [مجلد الصور]
 const fs = require('fs');
 const path = require('path');
@@ -84,7 +84,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     let sl = await slots();
     check(tag + `ثم «ابدأ» وحده، والخانات الثلاث عشرة بأرقامها والفخاخ ظاهرة بلا اسم (${await near()})`, (await near()) === 'ابدأ' && (await side()) === starter
       && sl.length === 13 && sl.every((x, i) => !x.name && x.num === String(i + 1)) && sl.slice(10).every(x => x.cls.includes('trap') && x.visible));
-    check(tag + 'وقت القائمة «2:30» قبل «ابدأ»', (await text('#rclock b')) === '2:30');
+    check(tag + 'وقت القائمة «5:00» قبل «ابدأ»', (await text('#rclock b')) === '5:00');
     await look('ظهور القائمة');
     await shot('read');
 
@@ -122,20 +122,18 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     await tap('undo');
     sl = await slots();
     check(tag + '«تراجع»: يُرفع الفخ ويعود الدور لمن وقع فيه بعدّاده', (await st()).team === opp && (await st()).phase === 'ask' && !sl[12].name && sl[12].num === '13' && sl[12].cmd === 'act:item:13');
-    // «خطأ»: لا نقاط بلا مربع، ويقف عدّاد الإجابة، وزرّا لون الدور التالي.
-    await tap('act:wrong');
-    check(tag + `«خطأ»: «لا نقاط» و«لم تُكشف خانة» بلا مربع، والحدّ في المنتصف، وزرّا «التالي» بلوني الفريقين (${await near()})`, (await st()).phase === 'wrong'
-      && (await text('#say')) === 'لم تُكشف خانة' && await frame.$eval('#box', e => e.classList.contains('bare')) && (await side()) === 0 && (await near()) === 'التالي | التالي'
-      && await frame.$eval('#near', n => n.children[0].classList.contains('t1') && n.children[1].classList.contains('t2')) && !(await frame.$eval('#canvas', c => c.classList.contains('running')))
-      && (await slots()).every(x => !x.cmd));
+    // «خطأ» (1.25): لا نقاط، والدور للخصم مباشرة بعدّاده، والخانات تُنقر، بلا زرّي لون.
+    const sc0 = JSON.stringify(await scores());
+    await tap('act:wrong'); await wait(600);
+    check(tag + `«خطأ»: الدور لصاحب البدء مباشرة بعدّاده، و«خطأ» و«أنهِ القائمة» لا «التالي» (${await near()})`, (await st()).phase === 'ask' && (await st()).team === starter
+      && (await side()) === starter && !(await near()).includes('التالي') && await frame.$eval('#canvas', c => c.classList.contains('running'))
+      && (await slots()).some(x => x.cmd) && JSON.stringify(await scores()) === sc0);
     await look('خطأ');
     await shot('wrong');
-    await tap('act:turn:' + opp);
-    check(tag + 'اختيار لون الخصم نفسه: الدور له بعدّاده', (await st()).team === opp && (await st()).phase === 'ask' && (await side()) === opp);
     await tap('undo');
-    check(tag + '«تراجع» يعيد اختيار اللون', (await st()).phase === 'wrong');
-    await tap('act:turn:' + starter);
-    check(tag + 'اختيار اللون الآخر: الدور لصاحب البدء', (await st()).team === starter);
+    check(tag + '«تراجع» يعيد الدور لمن أخطأ بعدّاده', (await st()).phase === 'ask' && (await st()).team === opp);
+    await tap('act:wrong'); await wait(300);
+    check(tag + 'ثم «خطأ» ثانية: الدور لصاحب البدء', (await st()).team === starter);
     // انتهى وقت الإجابة: إلى الخصم بعدّاده، بلا اختيار.
     await frame.waitForFunction(o => JSON.parse(parent.localStorage.getItem('big-challenge.match')).round.state.team === o, opp, { timeout: 20000, polling: 200 });
     check(tag + 'انتهى وقت الإجابة: الدور للخصم بعدّاده، بلا اختيار', (await st()).phase === 'ask' && (await side()) === opp);
@@ -146,14 +144,14 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
       && (await text('#next')) === 'كُشف 1 من 10' && (await near()) === 'القائمة 2');
     await look('نهاية القائمة');
     await tap('act:next');
-    // القائمة 2: الباركود، ثم يبدؤها الآخر، ووقتها 2:30 يجري من «ابدأ» حتى ينقضي.
+    // القائمة 2: الباركود، ثم يبدؤها الآخر، ووقتها 5:00 يجري من «ابدأ» حتى ينقضي.
     await tap('qr:hide');
     let s = await st();
-    check(tag + `القائمة 2: يبدؤها الخصم، و«القائمة 2 من 2»، و«ابدأ» وحده، و«بقي للقائمة 2:30» (${await near()} · ${await text('#rclock b')})`, s.index === 1 && s.phase === 'read' && s.team === opp
-      && (await text('#b1')) === 'القائمة 2 من 2' && (await near()) === 'ابدأ' && (await text('#rclock b')) === '2:30');
+    check(tag + `القائمة 2: يبدؤها الخصم، و«القائمة 2 من 2»، و«ابدأ» وحده، و«بقي للقائمة 5:00» (${await near()} · ${await text('#rclock b')})`, s.index === 1 && s.phase === 'read' && s.team === opp
+      && (await text('#b1')) === 'القائمة 2 من 2' && (await near()) === 'ابدأ' && (await text('#rclock b')) === '5:00');
     await tap('act:start'); await wait(1500);
-    check(tag + `وقت القائمة يعدّ تنازلياً (${await text('#rclock b')})`, /^2:2[5-8]$/.test(await text('#rclock b')));
-    await stage.evaluate(() => { const real = Date.now; Date.now = () => real() + 150000; });
+    check(tag + `وقت القائمة يعدّ تنازلياً (${await text('#rclock b')})`, /^4:5[5-8]$/.test(await text('#rclock b')));
+    await stage.evaluate(() => { const real = Date.now; Date.now = () => real() + 300000; });
     await wait(1500);
     s = await st();
     check(tag + `انتهى وقت القائمة: تنتهي وتنكشف بنفسها (${s.phase} · ${await near()})`, s.phase === 'listend' && s.timeup && (await near()) === 'إنهاء الجولة' && !(await frame.$('.scr.rnk.show #rclock')));
