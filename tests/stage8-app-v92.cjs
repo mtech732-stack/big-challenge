@@ -40,8 +40,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     const { context, page, f } = await open(native);
     const corner = await f.$$eval('.ctl-corner .cbtn', els => els.filter(e => e.offsetParent).map(e => e.dataset.cmd));
     const fs = native ? null : await bx(f, '.ctl-corner [data-cmd="fullscreen"]');
-    check(`${tag} 8.4: لا «المباريات قبل التكرار» ولا أيقونتها، وفي الزاوية ${native ? 'لا شيء' : '«ملء الشاشة» وحده عند (127، 64)'} (${corner.join('، ')} ${fs ?? ''})`,
-      !(await f.$('#rp')) && !(await f.$('#rpIco')) && (native ? corner.length === 0 : corner.join() === 'fullscreen' && fs[0] === 127 && fs[1] === 64));
+    check(`${tag} 8.4: لا «المباريات قبل التكرار» ولا أيقونتها، وفي الزاوية ${native ? 'لا شيء' : '«ملء الشاشة» وحده أيقونة 96 عند (127، 64)'} (${corner.join('، ')} ${fs ?? ''})`,
+      !(await f.$('#rp')) && !(await f.$('#rpIco')) && (native ? corner.length === 0 : corner.join() === 'fullscreen' && fs.join() === '127,64,223,160'));
     let sc = await ok(f);
     check(`${tag}: وفحص التداخل والشبكة سليم في البداية (${sc})`, !sc);
     const go = await bx(f, '#startGo .cbtn'), side = await bx(f, '.start-side');

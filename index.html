@@ -496,8 +496,8 @@
     if (match.step !== 'setup') lastError = null;
     const step = match.step, wait = held();
     const c = { card: [], near: [], a: [], b: [], c: [] };
-    // «ملء الشاشة» في الموقع وحده (design/app.md 8.3): في التطبيق بلا معنى.
-    const fs = NATIVE || document.fullscreenElement ? [] : [{ cmd: 'fullscreen', label: 'ملء الشاشة', kind: 'alt' }];
+    // «ملء الشاشة» في الموقع وحده (design/app.md 8.3): في التطبيق بلا معنى. وهو أيقونة 96 في كل شاشة، ومنها البداية (ش8-أ/106).
+    const fs = NATIVE || document.fullscreenElement ? [] : [{ cmd: 'fullscreen', label: 'ملء الشاشة', kind: 'alt', icon: true }];
     const fresh = { cmd: 'new', label: 'مباراة جديدة', kind: 'alt' };
     if (step === 'setup') {
       c.names = true;
