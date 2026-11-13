@@ -26,7 +26,10 @@ public class VoicePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise)
     ]
 
-    private let audio = AVAudioEngine()
+    // محرّك صوت جديد لكل جلسة (ملاحظة المالك 13 نوفمبر: لم يُسمع إلا السؤال الأول). بين السؤالين تعود فئة الصوت إلى ما كانت،
+    // ومحرّك آبل إذا تغيّرت الفئة تحته يبقى بصيغة إدخال قديمة، فقد يعمل ولا يصله صوت. والجديد يأخذ صيغة الميكروفون الحالية.
+    private var audio = AVAudioEngine()
+    private var tapped = false
     private var engine: AnyObject?
     private var watch: NSKeyValueObservation?
     // فئة الصوت قبل السماع، تعود بعده فلا يتغير صوت اللعبة.
@@ -76,6 +79,7 @@ public class VoicePlugin: CAPPlugin, CAPBridgedPlugin {
         guard #available(iOS 26.0, *) else { call.reject("يلزم iOS 26"); return }
         if let old = engine as? VoiceEngine { old.onFinal = { _, _ in }; Task { await old.finish() } }
         stopAudio()
+        audio = AVAudioEngine()
         let hints = Array((call.getArray("hints", String.self) ?? []).prefix(100))
         let id = call.getString("id") ?? ""
         let e = VoiceEngine()
@@ -98,6 +102,8 @@ public class VoicePlugin: CAPPlugin, CAPBridgedPlugin {
                 // يبقى صوت اللعبة على التلفاز (AirPlay) ومكبّر الهاتف أثناء السماع.
                 try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowAirPlay, .allowBluetoothA2DP, .mixWithOthers])
                 try session.setActive(true)
+                guard self.engine === e else { call.resolve(); return }   // بدأت بعدها جلسة أخرى
+                self.tapped = true
                 try await e.start(locale: loc, hints: hints, audio: self.audio)
                 call.resolve()
             } catch {
@@ -116,9 +122,10 @@ public class VoicePlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve()
     }
 
+    // لا يُلمس inputNode إلا إن رُكّب عليه السماع: لمسه وفئة الصوت للعب وحده قد يثبّت صيغة بلا ميكروفون.
     private func stopAudio() {
         if audio.isRunning { audio.stop() }
-        audio.inputNode.removeTap(onBus: 0)
+        if tapped { audio.inputNode.removeTap(onBus: 0); tapped = false }
     }
 
     private func restore() {
