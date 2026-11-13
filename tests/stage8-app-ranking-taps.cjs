@@ -68,8 +68,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     check('ويزول بعد 4 ثوانٍ بلا نقرة', (await armed(f)) === '' && (await found(st)) === 1);
     await tap(f, 2);
     check('فالنقرة بعدها أولى من جديد: تحدّد ولا تكشف', (await armed(f)) === '2' && (await found(st)) === 1);
+    const turnBefore = (await st()).team;
     await cmd(f, 'act:wrong'); await wait(500);
-    check('و«خطأ» يزيل التحديد', (await armed(f)) === '' && (await found(st)) === 1 && (await st()).phase === 'wrong');
+    check('و«خطأ» يزيل التحديد، والدور للخصم (1.25)', (await armed(f)) === '' && (await found(st)) === 1 && (await st()).phase === 'ask' && (await st()).team === 3 - turnBefore);
     await context.close();
   }
   {

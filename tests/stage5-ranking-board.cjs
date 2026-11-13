@@ -1,7 +1,7 @@
 // اختبار آلي للوحة الترتيب بالنافذة الواحدة (الوثيقة 1.13) والتحكيم المباشر (5.6، 1.7، design/ranking.md، design/s8.md 3)، في رابط المعاينة:
-// الافتتاح، وظهور القائمة بالباركود ثم إخفاؤه، والعشر برتبها والفخاخ 11–13 ظاهرة الأرقام، و«ابدأ» وعدّاد 15 ثانية، ونقر ما قاله الفريق
-// (بنقر خانته على اللوحة) فتنكشف خانته بلونه ونقاط رقمها، ثم لحظة والدور للخصم تلقائياً، و«خطأ» ثم لون الدور التالي، والتراجع،
-// وإعادة التحميل، والفخ بخصم رقمه، ونهاية القائمة (تنكشف كلها) ووقتها دقيقتان ونصف، ونهاية الجولة،
+// الافتتاح، وظهور القائمة بالباركود ثم إخفاؤه، والعشر برتبها والفخاخ 11–13 ظاهرة الأرقام، و«ابدأ» وعدّاد 10 ثوانٍ، ونقر ما قاله الفريق
+// (بنقر خانته على اللوحة) فتنكشف خانته بلونه ونقاط رقمها، ثم لحظة والدور للخصم تلقائياً، و«خطأ» ينقل الدور إلى الخصم مباشرة (1.25)، والتراجع،
+// وإعادة التحميل، والفخ بخصم رقمه، ونهاية القائمة (تنكشف كلها) ووقتها 5 دقائق، ونهاية الجولة،
 // ولا اسم على الجمهور قبل أن يُكشف، وفحص التداخل في كل حالة.
 // ثم أطول محتوى (العنوان 32 وإشارته 31، وأعرض الأسماء، وأطول اسمين، ورقمان من ثلاث خانات) حتى تنكشف العشرة.
 // الاستعمال: node tests/stage5-ranking-board.cjs [الرابط] [مجلد الصور]
@@ -159,20 +159,18 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     await both('بعد الإصابة');
 
     if (!LONGRUN) {
-      // 6. «خطأ»: لا نقاط، ثم يختار المقدّم لون الدور التالي.
-      await act('wrong');
-      check('«خطأ»: «لا نقاط» و«لم تُكشف خانة»، والحدّ في المنتصف، والعدّاد يقف', (await text(audience, '#vtext')) === 'لا نقاط' && (await text(audience, '#say')) === 'لم تُكشف خانة' && (await side()) === 0
-        && !(await audience.$eval('#canvas', c => c.classList.contains('running'))));
-      check(`«التالي» بلوني الفريقين (${await ctl()})`, (await ctl()) === 'التالي | التالي'
-        && await audience.$eval('#near .turn.t1', b => getComputedStyle(b).backgroundColor) !== await audience.$eval('#near .turn.t2', b => getComputedStyle(b).backgroundColor));
+      // 6. «خطأ» (1.25): لا نقاط، والدور إلى الخصم مباشرة بعدّاده، بلا زرّي لون.
+      const sc0 = await scores();
+      await act('wrong'); await wait(900);
+      check(`«خطأ»: لا نقاط، والدور لصاحب البداية مباشرة بعدّاده، و«خطأ» و«أنهِ القائمة» لا «التالي» (${await ctl()})`, (await st()).phase === 'ask' && (await st()).team === starter
+        && (await side()) === starter && await audience.$eval('#canvas', c => c.classList.contains('running')) && !(await ctl()).includes('التالي')
+        && JSON.stringify(await scores()) === JSON.stringify(sc0));
       check('السرقة: لا كلمة «سرقة» على التلفاز', !(await audience.$eval('#canvas', c => c.innerText)).includes('سرق'));
       await both('خطأ');
       await shot('wrong');
-      // 7. التراجع عن «خطأ»: يعود الدور والعدّاد. ثم «خطأ» ولون الخصم نفسه (من أخطأ)، فيجيب ثانية.
+      // 7. التراجع عن «خطأ»: يعود الدور لمن أخطأ وعدّاده، فيجيب ثانية.
       await cmd(audience, 'undo'); await wait(900);
       check('التراجع عن «خطأ»: يعود الدور لمن أخطأ وعدّاده', (await st()).phase === 'ask' && (await side()) === opp && await audience.$eval('#canvas', c => c.classList.contains('running')));
-      await act('wrong'); await act('turn:' + opp);
-      check('اختار المقدّم لون من أخطأ: الدور له بعدّاده', (await st()).phase === 'ask' && (await st()).team === opp && (await side()) === opp);
       // 8. الخانة 2 للخصم.
       await hit(2); await wait(300);
       sl = await slots();
@@ -224,7 +222,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
       check('نهاية القائمة: لا وقت للقائمة على الشاشة', !(await audience.$('.scr.rnk.show #rclock')));
       await both('نهاية القائمة');
       await shot('listend');
-      // 12. القائمة 2: يبدؤها الفريق الآخر، والباركود يعود، ووقتها 2:30 على الشاشتين، ويعدّ تنازلياً من «ابدأ».
+      // 12. القائمة 2: يبدؤها الفريق الآخر، والباركود يعود، ووقتها 5:00 على الشاشتين (1.25)، ويعدّ تنازلياً من «ابدأ».
       await act('next');
       let s2 = await st();
       check('القائمة 2: الباركود ظاهر من جديد', await audience.$eval('#canvas', c => c.classList.contains('qr')));
@@ -232,14 +230,14 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
       sl = await slots();
       check(`القائمة 2: يبدؤها الخصم، و«القائمة 2 من 2»، ولا خانة مكشوفة (${await text(audience, '#b1')})`, s2.index === 1 && s2.phase === 'read' && s2.team === opp
         && (await text(audience, '#b1')) === 'القائمة 2 من 2' && sl.every(x => !x.name) && (await side()) === opp);
-      check(`وقت القائمة 2:30 قبل «ابدأ» على التلفاز (${await text(audience, '#rclock b')})`, (await text(audience, '#rclock b')) === '2:30');
+      check(`وقت القائمة 5:00 قبل «ابدأ» على التلفاز (${await text(audience, '#rclock b')})`, (await text(audience, '#rclock b')) === '5:00');
       await both('القائمة 2');
       await shot('list2');
       await act('start'); await wait(2200);
-      check(`بعد «ابدأ» يعدّ تنازلياً (${await text(audience, '#rclock b')})`, /^2:2[5-8]$/.test(await text(audience, '#rclock b')));
+      check(`بعد «ابدأ» يعدّ تنازلياً (${await text(audience, '#rclock b')})`, /^4:5[5-8]$/.test(await text(audience, '#rclock b')));
       await both('وقت القائمة يعدّ');
       // 13. انقضاء الدقيقتين ونصف (بتقديم ساعة الصفحة): تنتهي القائمة بنفسها، وتنكشف، و«انتهى وقت القائمة».
-      await stage.evaluate(() => { const real = Date.now; Date.now = () => real() + 150000; });
+      await stage.evaluate(() => { const real = Date.now; Date.now = () => real() + 300000; });
       await wait(1200);
       s2 = await st();
       check(`انتهى وقت القائمة: نهاية القائمة بنفسها، وكلها مكشوفة (${s2.phase})`, s2.phase === 'listend' && s2.timeup && (await slots()).every((x, i) => x.name === bank.lists[1].items[i].name));
