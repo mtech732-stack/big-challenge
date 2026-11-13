@@ -2,7 +2,7 @@
 // والسؤال والعدّاد، والحكم والنقاط، وانتقال الإجابة للخصم، والتراجع، وإعادة التحميل، والنهاية ثم جولة «الحرف المعيّن» بعدها،
 // والجولة كلها بنهاية واحدة، وأعرض الحرفين يُصغَّران ولا يفيضان، والإجابة بعد كل سؤال، وفحص التداخل والقياسات في كل حالة.
 const { chromium } = require('playwright');
-const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne } = require('./helpers.cjs');
+const { usePin, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passWheelOne } = require('./helpers.cjs');
 
 (async () => {
   const base = process.argv[2] || 'http://localhost:8000/';
@@ -213,9 +213,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne } 
     answer: `كلمة${i}`, domain: 'daily-life' })) };
   await context.route('**/content/packs/general/last-two.json*', route => route.fulfill({ json: wide }));
   await stage.evaluate(() => localStorage.removeItem('big-challenge.seen'));
-  stage.once('dialog', d => d.accept());
   // مباراة جديدة من لوحة «⋯»: تعود إلى الإعداد. ويُعاد تحميل الصفحة كي تقرأ البنك التجريبي.
-  await cmd(audience, 'new');
+  await newMatch(audience);
   await audience.waitForSelector('[data-cmd="draw"]', { timeout: 6000 });
   check('مباراة جديدة من لوحة «⋯»: تعود الشاشة إلى الإعداد', (await stage.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).step)) === 'setup');
   await stage.reload();

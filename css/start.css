@@ -72,10 +72,3 @@
 .enter .seg { animation: in .2s ease-out both; animation-delay: calc(1s + var(--i) * .12s); }
 @media (prefers-reduced-motion: reduce) { .anim *, .enter *, .team.won, .tile.flash .fill { animation: none !important; } }
 
-/* المباريات قبل التكرار (الوثيقة 1.18، design/s8d.md 2): للمقدّم في شاشة البداية، تحت «ملء الشاشة» بـ 24 على (127، 152)
-   أو على 64 إن غاب (audience.html placeLeft). نص أبيض بشفافية 0.75 بلا لوح، بعرض محتواه: العنوان ثم سطر لكل نمط */
-.rp { position: absolute; left: 127px; top: 152px; z-index: 2; margin: 0; display: flex; flex-direction: column; align-items: flex-start;
-  color: var(--on-stage); opacity: .75; font-size: 32px; font-weight: 700; line-height: 48px; direction: rtl; white-space: nowrap; pointer-events: none; }
-.rp p { margin: 0; }
-.rp .h { font-weight: 800; }
-.rp b { font-weight: 900; }

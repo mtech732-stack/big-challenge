@@ -53,7 +53,16 @@ async function stageFrame(page) {
 async function cmd(frame, c) {
   const sel = `[data-cmd="${c}"]`;
   if (!(await frame.$(sel)) && await frame.$('[data-cmd="more"]:not(.open)')) await frame.click('[data-cmd="more"]');
+  // خانة لوحة الترتيب بنقرتين في الموقع والتطبيق (design/app.md 4.6، 8.2): الأولى تحدّدها والثانية تكشفها.
+  if (/^act:item:/.test(c)) await frame.click(sel, { timeout: 8000 });
   return frame.click(sel, { timeout: 8000 });
+}
+
+// «مباراة جديدة» من لوحة «⋯»: بعد الإعداد تسأل بلوحة من اللعبة (#askNew) في الموقع والتطبيق (design/app.md 5.5، 8.2)، لا بـ confirm.
+async function newMatch(frame) {
+  await cmd(frame, 'new');
+  const ask = await frame.waitForSelector('#askNew:not([hidden])', { timeout: 2000 }).catch(() => null);
+  if (ask) await frame.click('#askNew [data-ask="yes"]');
 }
 
 // من الإعداد إلى المواجهة بالنقر على الشاشة المشتركة. picks: الأنماط بترتيب اختيارها.
@@ -160,4 +169,4 @@ function qrReadMatrix(m, u = 4) {
   return qrRead(lum, w);
 }
 
-module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, sharedToFace, passWheelOne, hideQr, auctionNamesShown, arrangeTopics, qrRead, qrReadMatrix, qrReader };
+module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passWheelOne, hideQr, auctionNamesShown, arrangeTopics, qrRead, qrReadMatrix, qrReader };

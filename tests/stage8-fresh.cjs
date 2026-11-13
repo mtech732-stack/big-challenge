@@ -1,5 +1,5 @@
 // اختبار آلي لـ ش8-أ/67 (الوثيقة 1.18، 5.7 و8، design/s8d.md 1.2): لا يتكرر تحدٍّ في الشريط حتى يُستنفد البنك،
-// وسطر «المباريات قبل التكرار» في شاشة البداية. في الموقع والتطبيق معاً (الصفحة نفسها).
+// و«المباريات قبل التكرار» حُذفت من شاشة البداية في الموقع والتطبيق (الوثيقة 1.24، design/app.md 8.4)، والذاكرة باقية تعمل.
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
@@ -117,7 +117,7 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
     check('ولا يفترض حجماً: بنك 70 ← 10 أشرطة، و6 ← 0', P.freshLeft(short, { modes: [W], content: { 'wheel.json': bankOf(70) }, seen: [] }).wheel === 10 && P.freshLeft(short, { modes: [W], content: { 'wheel.json': bankOf(6) }, seen: [] }).wheel === 0);
   }
 
-  // ===== 5. السطر في شاشة البداية (design/s8d.md) =====
+  // ===== 5. لا قائمة في شاشة البداية (الوثيقة 1.24، design/app.md 8.4)، ولو امتلأت الذاكرة =====
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   async function open({ native = false, seen = null, size = { width: 1920, height: 1080 } } = {}) {
     const context = await browser.newContext({ viewport: size, serviceWorkers: 'block' });
@@ -133,71 +133,22 @@ const { usePin, unlock, reporter, stageFrame, cmd } = require('./helpers.cjs');
     await page.reload();
     if (!native) await unlock(page);
     const frame = await stageFrame(page);
-    await frame.waitForSelector('#rp', { timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(800);
     return { context, page, frame };
   }
-  const lines = f => f.$$eval('#rp p', ps => ps.map(p => p.textContent.replace(/\s+/g, ' ').trim()));
-  const top = f => f.$eval('#rp', e => e.style.top || getComputedStyle(e).top);
-  // الطريقة الأولى في شاشة البداية «أربعة أنماط» (newMatch: full)، ففيها شريطان: 14 تحدياً للمباراة.
-  const realWheel = Math.floor(real.challenges.length / 14);
-  {
-    const { context, page, frame } = await open();
-    const l = await lines(frame);
-    check(`الموقع، ذاكرة فارغة: العنوان ثم ستة أسطر بترتيبها والشريط آخرها (${l.join(' | ')})`, l.length === 6 && l[0] === 'المباريات قبل التكرار'
-      && l.slice(1).map(x => x.split(' · ')[0]).join() === 'الحرف المعيّن,آخر حرفين,المزاد,الترتيب,شريط البونص' && l[5] === `شريط البونص · ${realWheel || 'تتكرر الآن'}`);
-    const style = await frame.$eval('#rp', e => { const s = getComputedStyle(e); return [s.left, s.opacity, s.fontSize, s.color, getComputedStyle(e.querySelector('b')).fontWeight].join(); });
-    check(`الشكل: على 127، وشفافية 0.75، وخط 32، والعدد بوزن 900 (${style})`, style === '127px,0.75,32px,rgb(255, 255, 255),900');
-    check(`تحت «ملء الشاشة» بـ 24 على 152 (${await top(frame)})`, (await top(frame)) === '152px');
+  const content = { ...files, 'wheel.json': real };
+  const all = Object.values(content).flatMap(f => [...(f.questions ?? []), ...(f.topics ?? []), ...(f.lists ?? []), ...(f.challenges ?? [])]).map(x => x.id);
+  for (const [tag, opts] of [['الموقع', {}], ['الموقع، بنك مستنفد', { seen: all }], ['التطبيق', { native: true, size: { width: 956, height: 440 } }]]) {
+    const { context, page, frame } = await open(opts);
+    const none = !(await frame.$('#rp')) && !(await frame.$('#rpIco')) && !(await frame.evaluate(() => document.body.innerText.includes('المباريات قبل التكرار')));
     let ok = true; const fails = [];
-    for (const size of [{ width: 1920, height: 1080 }, { width: 1366, height: 768 }, { width: 1280, height: 720 }, { width: 3840, height: 2160 }]) {
+    for (const size of opts.native ? [opts.size] : [{ width: 1920, height: 1080 }, { width: 1366, height: 768 }, { width: 1280, height: 720 }, { width: 3840, height: 2160 }]) {
       await page.setViewportSize(size); await page.waitForTimeout(500);
       const r = await frame.evaluate(() => window.__stageCheck());
       if (!r.ok) { ok = false; fails.push(`${size.width}: ${r.problems.join('، ')}`); }
     }
-    check(`check.js سليم على 1920 و1366 و1280 و3840 (${fails.join(' | ')})`, ok);
-    await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.screenshot({ path: `${shots}/s8d-start.png` });
-    await frame.fill('#i1', 'الصقور'); await frame.fill('#i2', 'النجوم');
-    await cmd(frame, 'draw');
-    await frame.waitForSelector('[data-hero="pick"]', { timeout: 8000 });
-    check('يغيب بعد «اختيار الأنماط»', !(await frame.$('#rp')));
-    await context.close();
-  }
-  {
-    // بعد مباراة (الذاكرة من مسار الأربعة أعلاه بالبنك الحقيقي للأنماط): ينقص كل نمط واحداً.
-    const content = { ...files, 'wheel.json': real };
-    const one = (() => { let m = fullMatch(), seen = []; for (let i = 0; i < 6; i++) { m = P.startNext(m, { modes, content, seen, rng }); seen = [...new Set([...seen, ...P.modeOf(modes, m.round.mode).used(m.round.state)])]; m = { ...m, round: { ...m.round, state: { ...m.round.state, phase: 'end' } } }; } return seen; })();
-    const want = P.freshLeft(M.newMatch({ pack: 'general' }), { modes, content, seen: one });
-    const { context, frame } = await open({ seen: one });
-    const l = await lines(frame);
-    const got = Object.fromEntries(l.slice(1).map(x => x.split(' · ')));
-    check(`بعد مباراة: الأعداد من الذاكرة (${l.slice(1).join(' | ')})`, +got['الحرف المعيّن'] === want.letter && +got['المزاد'] === want.auction && +got['الترتيب'] === want.ranking
-      && (got['شريط البونص'] === 'تتكرر الآن') === (want.wheel === 0));
-    await context.close();
-  }
-  {
-    // البنك مستنفد: «تتكرر الآن» في كل سطر، وcheck.js سليم بأطول الأسطر.
-    const content = { ...files, 'wheel.json': real };
-    const all = Object.values(content).flatMap(f => [...(f.questions ?? []), ...(f.topics ?? []), ...(f.lists ?? []), ...(f.challenges ?? [])]).map(x => x.id);
-    const { context, page, frame } = await open({ seen: all });
-    const l = await lines(frame);
-    check(`بنك مستنفد: «تتكرر الآن» في الخمسة (${l.slice(1).join(' | ')})`, l.length === 6 && l.slice(1).every(x => x.endsWith(' · تتكرر الآن')));
-    const r = await frame.evaluate(() => window.__stageCheck());
-    check(`وcheck.js سليم بأطول الأسطر (${r.ok ? '' : r.problems.join('، ')})`, r.ok);
-    await page.screenshot({ path: `${shots}/s8d-start-zero.png` });
-    await context.close();
-  }
-  {
-    // التطبيق (design/app.md 6.1): القائمة نفسها خلف أيقونة على 64 («ملء الشاشة» مخفي، 4.3)، وتفتح بالنقر لوحاً على 184.
-    // ويُصوَّر مع الأشرطة الجانبية.
-    const { context, page, frame } = await open({ native: true, size: { width: 956, height: 440 } });
-    const hidden = await frame.$eval('#rp', e => getComputedStyle(e).display === 'none'), icoTop = await frame.$eval('#rpIco', e => getComputedStyle(e).top);
-    await frame.click('#rpIco'); await new Promise(r => setTimeout(r, 300));
-    check(`التطبيق: السطور نفسها خلف أيقونة على 64 (${icoTop})، وتفتح بالنقر على 184 (${await top(frame)})`,
-      hidden && icoTop === '64px' && (await lines(frame)).length === 6 && (await top(frame)) === '184px');
-    const r = await frame.evaluate(() => window.__stageCheck());
-    check(`التطبيق: check.js سليم (${r.ok ? '' : r.problems.join('، ')})`, r.ok);
-    await page.screenshot({ path: `${shots}/s8d-start-app.png` });
+    check(`${tag}: لا «المباريات قبل التكرار» ولا أيقونتها في شاشة البداية، وcheck.js سليم (${fails.join(' | ')})`, none && ok);
+    if (!opts.seen) await page.screenshot({ path: `${shots}/s8d-start${opts.native ? '-app' : ''}.png` });
     await context.close();
   }
   await browser.close();
