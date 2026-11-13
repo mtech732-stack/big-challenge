@@ -109,6 +109,16 @@ const { usePin, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passW
   const other = t => (t === 1 ? 2 : 1);
   // أزرار الحكم من الوحدة (1.11): J('reveal') و J('pick:1')…، ثم «السؤال التالي».
   const J = a => cmd(audience, 'act:' + a);
+  // لحظة على الرقم الكبير تُسجَّل كل تغيّر لصنفه (gain وlead وlose، واسم حركته)، لا عيّنة بعد زمن ثابت: تحت الحمل كانت العيّنة تقع
+  // قبل لحظة الكسب (false) أو بعد لحظة الصدارة التي تليها بـ 700ms (lead)، والجولة نفسها تعرضها بترتيبها (المشرف 13 نوفمبر، درس 75).
+  const trail = sel => audience.evaluate(sel => {
+    window.__trailObs?.disconnect();
+    const el = document.querySelector(sel);
+    window.__trail = [];
+    window.__trailObs = new MutationObserver(() => window.__trail.push([...el.classList].filter(c => ['gain', 'lead', 'lose'].includes(c)).join(' ') + ' · ' + getComputedStyle(el).animationName));
+    window.__trailObs.observe(el, { attributes: true, attributeFilter: ['class'] });
+  }, sel);
+  const trailed = async () => { await audience.waitForFunction(() => window.__trail.includes('gain · gain'), null, { timeout: 4000, polling: 50 }).catch(() => {}); return audience.evaluate(() => window.__trail); };
   const reveal = async team => { await J('reveal'); await wait(750); await J('pick:' + team); };
   check('الجولة 1 يبدؤها الفائز بالقرعة (1.11)', starter === (await match()).winner);
   check('الجمهور: الافتتاح بالقاعدة وحدها، بلا سطر تفاصيل', (await text(audience, '#rule')) === 'أجب بكلمة تبدأ بالحرف المعيّن' && !(await audience.$('#ruleSub')));
@@ -139,16 +149,20 @@ const { usePin, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passW
   // 3. وقت صاحب السؤال، ثم الإيقاف والاستئناف، ثم «كشف الإجابة» واختياره: الإجابة ثم اسم الفريق
   const sweeps = () => audience.$eval('#edge', e => e.getAnimations().length);
   await audience.$eval('#edge', e => e.classList.remove('sweep'));
-  await audience.waitForFunction(() => !document.getElementById('canvas').classList.contains('lead') && document.getElementById('canvas').classList.contains('running'), null, { timeout: 8000, polling: 100 });
+  // لحظة بدء العدّاد بساعة الصفحة نفسها، فيُقاس ما يُعرض بما مضى فعلاً لا بانتظار ثابت: تحت الحمل كانت 1.5 ثانية تصير 3 (0:27).
+  await audience.waitForFunction(() => { const c = document.getElementById('canvas'), on = !c.classList.contains('lead') && c.classList.contains('running');
+    if (on && !window.__run0) window.__run0 = performance.now(); return on; }, null, { timeout: 8000, polling: 100 });
   await wait(1500);
   check('الجمهور: بدء الوقت بعد العدّ لا يحرّك الحدّ (1.3)', (await sweeps()) === 0 && await visible(audience, '.team.on .ring'));
-  const t = await text(audience, '#timer');
-  check(`الجمهور: العدّاد يعدّ (${t})`, t === '0:29' || t === '0:28');
+  // الباقي 30 ناقصاً ما مضى (ومعه ما بين البدء ورصده، 0.3 ثانية على الأكثر بفحص كل 0.1)، ومضت ثانية على الأقل فهو يعدّ.
+  const left = el => s => s >= Math.floor(30 - el - 1.3) && s <= Math.ceil(30 - el);
+  const [t, el] = await audience.evaluate(() => [document.getElementById('timer').textContent, (performance.now() - window.__run0) / 1000]);
+  check(`الجمهور: العدّاد يعدّ (${t} بعد ${el.toFixed(1)} ث)`, el >= 1 && /^0:\d\d$/.test(t) && left(el)(+t.slice(2)));
   // 1.3: الحدّ يكتسح لصاحب الدور، وإطار الوقت حول لوحته يتآكل بالأصفر، والثواني فيها (design/system.md 15.2 و15.3).
-  const live = await audience.evaluate(o => { const c = document.getElementById('canvas'), p = document.getElementById('p' + o), r = p.querySelector('.ring polygon');
+  const live = await audience.evaluate(o => { const el = (performance.now() - window.__run0) / 1000, c = document.getElementById('canvas'), p = document.getElementById('p' + o), r = p.querySelector('.ring polygon');
     return { side: c.classList.contains('turn-' + o) && c.classList.contains('running') && !c.classList.contains('lead'), ring: !!p.querySelector('.ring').getClientRects().length, drain: parseFloat(getComputedStyle(r).strokeDashoffset),
-      cnt: p.querySelector('.cnt').textContent, other: !!document.querySelector(`#p${3 - o} .ring`).getClientRects().length }; }, starter);
-  check(`الجمهور: الحدّ لصاحب الدور، وإطار الوقت حوله يتآكل (${live.drain.toFixed(1)}) والثواني فيه (${live.cnt}) (1.3)`, live.side && live.ring && !live.other && live.drain > 2 && live.drain < 30 && ['29', '28'].includes(live.cnt));
+      cnt: p.querySelector('.cnt').textContent, other: !!document.querySelector(`#p${3 - o} .ring`).getClientRects().length, el }; }, starter);
+  check(`الجمهور: الحدّ لصاحب الدور، وإطار الوقت حوله يتآكل (${live.drain.toFixed(1)}) والثواني فيه (${live.cnt}) (1.3)`, live.side && live.ring && !live.other && live.drain > 2 && live.drain < 30 && live.el >= 1 && left(live.el)(+live.cnt));
   await both('العدّاد يعدّ');
   await J('pause');
   await wait(800);
@@ -182,11 +196,11 @@ const { usePin, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passW
     && await audience.$eval('#near [data-cmd="act:pick:1"]', e => e.classList.contains('who') && e.classList.contains('t1')));
   await both('كُشفت الإجابة');
   await stage.screenshot({ path: `${shots}/s2-revealed.png` });
+  await trail(`#s${starter}`);
   await J('pick:' + starter);
-  await wait(450);
   // لحظة الكسب: تبدأ بعد 250ms وتدوم 600ms، على الرقم الكبير نفسه (ملاحظة المعاين 22، و1.3).
-  const gain = await audience.$eval(`#s${starter}`, g => g.classList.contains('gain') && g.getAnimations().length > 0 && getComputedStyle(g).animationName);
-  check(`الجمهور: لحظة الكسب على الرقم الكبير للكاسب (${gain})`, gain === 'gain');
+  const gain = await trailed();
+  check(`الجمهور: لحظة الكسب على الرقم الكبير للكاسب (${gain.join(' ← ')})`, gain.includes('gain · gain'));
   await wait(450);
   check('الجمهور: الحكم «[اسم الفريق] · +3» بلون الفريق فوق الإجابة، والحدّ يقف على الكاسب وجهته ومضت', (await text(audience, '#vtext')) === `${LONG[starter - 1]} · +3` && await audience.$eval('#verdict', (e, s) => e.classList.contains('t' + s), starter)
     && await visible(audience, '#box #verdict') && (await none(audience, '.team .cnt')) && (await none(audience, '.ring'))
@@ -206,10 +220,15 @@ const { usePin, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passW
   check('السؤال 2: الدور للفريق الآخر، وسطر الإجابة يختفي، والحدّ يكتسح له', (await match()).round.state.team === other(starter) && await audience.$eval(`#p${other(starter)}`, e => e.classList.contains('on')) && !(await visible(audience, '#reveal'))
     && await audience.$eval('#canvas', (c, o) => c.classList.contains('turn-' + o), other(starter)));
   await wait(500);
+  // متى ظهر «0:10» بساعة الصفحة، فيُقاس ما يُعرض بعده بما مضى فعلاً لا بانتظار ثابت (تحت الحمل كان يصير 0:08، المشرف 13 نوفمبر).
+  await audience.evaluate(() => { window.__t10 = 0; window.__t10Obs?.disconnect(); const t = document.getElementById('timer');
+    window.__t10Obs = new MutationObserver(() => { if (!window.__t10 && t.textContent === '0:10') window.__t10 = performance.now(); });
+    window.__t10Obs.observe(t, { childList: true, characterData: true, subtree: true }); });
   await J('steal');
   await wait(400);
-  check('الجمهور: وقت الخصم: المؤشر عليه، والعدّاد 0:10 بالأصفر يعدّ، ولا شارة', await audience.$eval(`#p${starter}`, e => e.classList.contains('on'))
-    && ['0:10', '0:09'].includes(await text(audience, '#timer')) && !(await audience.$('#b4')) && await audience.$eval('#canvas', c => !c.classList.contains('lead')));
+  const [st10, el10] = await audience.evaluate(() => [document.getElementById('timer').textContent, window.__t10 ? (performance.now() - window.__t10) / 1000 : -1]);
+  check(`الجمهور: وقت الخصم: المؤشر عليه، والعدّاد 0:10 بالأصفر يعدّ، ولا شارة (${st10} بعد ${el10.toFixed(1)} ث من 0:10)`, await audience.$eval(`#p${starter}`, e => e.classList.contains('on'))
+    && el10 >= 0 && /^0:\d\d$/.test(st10) && +st10.slice(2) <= 10 && +st10.slice(2) >= Math.floor(10 - el10 - 1) && !(await audience.$('#b4')) && await audience.$eval('#canvas', c => !c.classList.contains('lead')));
   check('الجمهور: الحدّ يكتسح للخصم فوراً (1.3)', await audience.$eval('#canvas', (c, o) => c.classList.contains('turn-' + o) && !c.classList.contains('turn-' + (3 - o)), starter));
   check('في وقت الخصم: «إيقاف مؤقت» وحده في صف الشارات، و«كشف الإجابة» أسفل اليمين', (await match()).round.state.team === starter && (await near()) === 'إيقاف مؤقت' && (await ans()) === 'كشف الإجابة');
   await both('وقت الخصم');
@@ -240,11 +259,12 @@ const { usePin, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passW
   await J('steal');
   await wait(1200);
   check('ثم «وقت الخصم»: الدور للخصم', (await match()).round.state.team === thief);
+  await trail(`#s${thief}`);
   await reveal(thief);
-  await wait(450);
   // الكسب بعد تبادل الصدارة: رقم الخصم العملاق عليه «lose» من السؤال 1، فتُزال قبل «gain» ولا تغلبها (ملاحظة المعاين 22).
-  const regain = await audience.$eval(`#s${thief}`, g => [...g.classList].filter(c => ['gain', 'lead', 'lose'].includes(c)).join(' ') + ' · ' + getComputedStyle(g).animationName);
-  check(`الجمهور: لحظة الكسب للمتأخر بعد أن تخلّف (${regain})`, regain === 'gain · gain');
+  // فيكون في السجل «gain» وحدها بحركتها، لا «lose gain».
+  const regain = await trailed();
+  check(`الجمهور: لحظة الكسب للمتأخر بعد أن تخلّف (${regain.join(' ← ')})`, regain.includes('gain · gain'));
   await wait(150);
   check('إجابة الخصم: «[اسمه] · +6» بلونه، ورصيده 6', (await text(audience, '#vtext')) === `${LONG[thief - 1]} · +6` && await audience.$eval('#verdict', (e, s) => e.classList.contains('t' + s), thief) && (await text(audience, `#s${thief}`)) === '6');
   await wait(600);
@@ -294,7 +314,10 @@ const { usePin, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passW
   // 8. بقية الجولة، ثم النهاية
   for (let i = 4; i < 6; i++) { await wait(750); await J('next'); await wait(750); await reveal((await match()).round.state.questions[i].owner); }
   await wait(750);
-  check('بعد السادس: «إنهاء الجولة»', (await near()) === 'إنهاء الجولة');
+  // تحت الحمل كانت الحالة «decided» والأزرار ما زالت أزرار الكشف (+9 | +9 | لم يُجب أحد) لحظةً: رسم الإطار يتأخر عن الحفظ، لا خطأ في الجولة.
+  // فتُنتظر أزرار ما بعد الحكم (حتى 3 ثوانٍ) بعد أن تثبت الحالة، والشرط كما هو.
+  await audience.waitForFunction(() => [...document.querySelectorAll('#near .cbtn')].map(x => x.textContent.trim()).join(' | ') === 'إنهاء الجولة', null, { timeout: 3000, polling: 100 }).catch(() => {});
+  { const n6 = await near(), st6 = await match(); check(`بعد السادس: «إنهاء الجولة» (${n6} · ${st6.round.state.index} ${st6.round.state.phase})`, n6 === 'إنهاء الجولة'); }
   await both('أطول صف');
   await J('next');
   await audience.waitForSelector('.scr.show[data-s="end"]');
@@ -303,7 +326,7 @@ const { usePin, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passW
   check('الجمهور: «انتهت الجولة 1» وحصيلة كل فريق و«التالي: شريط البونص» في مربع الإعلان', (await text(audience, '#b1')) === 'انتهت الجولة 1' && (await text(audience, '#next')) === 'التالي: شريط البونص' && await visible(audience, '#box #next')
     && (await text(audience, '#r1')) === `+${totals[1]}` && (await text(audience, '#r2')) === `+${totals[2]}`);
   check('الجمهور: لا مؤشر دور ولا عدّاد ولا حكم في النهاية', !(await audience.$('.team.on')) && (await none(audience, '.team .cnt')) && !(await visible(audience, '#verdict')));
-  check('النهاية: «شريط البونص» في البطاقة، بلا «تخطَّ» (اكتملت ش6)', (await card()) === 'شريط البونص');
+  check('النهاية: «شريط البونص» في البطاقة، بلا «تخطَّ» (اكتملت ش6)', (await card()) === 'إلى شريط البونص');
   await both('النهاية');
   // «التالي» نص أبيض على الطرف بلا مربع (15.4 و15.12، قرار المصمّم في PR #92).
   check('الجمهور: «التالي» في النهاية نص أبيض بلا مربع، في موضع المربع (15.4)', await audience.$eval('#box', b => b.classList.contains('bare') && !b.querySelector(':scope > i').getClientRects().length
@@ -312,7 +335,9 @@ const { usePin, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passW
   await stage.screenshot({ path: `${shots}/s2-end.png` });
   await passWheelOne(stage, audience);
   await wait(800);
-  check('بعد شريط البونص: «ابدأ الجولة 2» (آخر حرفين)', (await card()) === 'ابدأ الجولة 2');
+  // رسم الإطار يتأخر عن الحفظ تحت الحمل: يُنتظر زر البطاقة حتى 3 ثوانٍ، والشرط كما هو.
+  await audience.waitForFunction(() => /^إلى الجولة 2: ./.test([...document.querySelectorAll('.scr.show .ctl .cbtn')].map(x => x.textContent.replace(/\s+/g, ' ').trim()).join(' | ')), null, { timeout: 3000, polling: 100 }).catch(() => {});
+  check('بعد شريط البونص: «ابدأ الجولة 2» (آخر حرفين)', /^إلى الجولة 2: ./.test((await card())));
 
   // 9. مباراة جديدة من لوحة «⋯»: تعود إلى الإعداد. وذاكرة الأسئلة: لا تُعاد أسئلة الأولى.
   const firstIds = q1.map(q => q.id);
@@ -338,9 +363,13 @@ const { usePin, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passW
   let s1 = await st();
   check('نقرتان على «السؤال التالي»: السؤال التالي في العدّ قبل الوقت، لا وقت للخصم', s1.index === 1 && s1.phase === 'ready' && !s1.steal);
   // «وقت الخصم» ثانٍ في الصف، ومكانه بعد نقره «كشف الإجابة»: النقرة الثانية لا تقع عليه.
+  // التعطيل لحظة (0.7 ثانية) يُسجَّل حين يقع، لا بعيّنة بعد 0.1 ثانية: تحت الحمل كانت العيّنة تقع بعد انقضائه (المشرف 13 نوفمبر).
+  await audience.evaluate(() => { window.__offSeen = false; window.__offObs?.disconnect();
+    window.__offObs = new MutationObserver(() => { if (document.querySelector('#near .cbtn')?.classList.contains('off')) window.__offSeen = true; });
+    window.__offObs.observe(document.getElementById('near'), { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] }); });
   await audience.dblclick('#near [data-cmd="act:steal"]');
-  await wait(100);
-  check('أزرار الجولة معطّلة لحظةً بعد التغيّر', await audience.$eval('#near .cbtn', e => e.classList.contains('off')));
+  await audience.waitForFunction(() => window.__offSeen, null, { timeout: 2000, polling: 50 }).catch(() => {});
+  check('أزرار الجولة معطّلة لحظةً بعد التغيّر', await audience.evaluate(() => { window.__offObs.disconnect(); return window.__offSeen; }));
   // ونقرة متأخرة تصل الصفحة رغم التعطيل على الشاشة (أبطأ إطار): الصفحة نفسها تمهلها.
   await audience.evaluate(() => parent.postMessage({ bc: 'cmd', cmd: 'act:reveal' }, location.origin));
   await wait(800);
@@ -396,8 +425,10 @@ const { usePin, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passW
           if (!b.getClientRects().length) continue;
           const r = b.getBoundingClientRect();
           const pts = [[.5, .5], [.1, .15], [.9, .15], [.1, .85], [.9, .85]].map(([x, y]) => [r.left + r.width * x, r.top + r.height * y]);
-          const n = pts.filter(([x, y]) => document.elementFromPoint(x, y)?.closest('button') !== b).length;
-          if (n) out.push(`«${b.textContent.trim()}» ${n}/5`);
+          const hits = pts.map(([x, y]) => document.elementFromPoint(x, y)), n = hits.filter(h => h?.closest('button') !== b).length;
+          // ما فوق الزر باسمه، ليُعرف السبب إن أخفق (تحت الحمل، المشرف 13 نوفمبر).
+          const top = hits.find(h => h?.closest('button') !== b), who = top ? `${top.tagName.toLowerCase()}#${top.id}.${[...top.classList].join('.')}` : 'لا شيء';
+          if (n) out.push(`«${b.textContent.trim()}» ${n}/5 (${who} · ${innerWidth}×${innerHeight} · ${Math.round(r.left)},${Math.round(r.top)})`);
         }
         return out;
       }, v);

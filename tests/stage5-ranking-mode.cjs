@@ -131,6 +131,15 @@ const { reporter } = require('./helpers.cjs');
     check('حالة wrong محفوظة قبل 1.25: زرّا اللون، وبهما يكمل', ranking.actions(old).filter(x => x.id === 'turn').map(x => x.team).join() === '1,2'
       && o.state.phase === 'ask' && o.state.team === 1);
   }
+  // ش8-أ/108: «خطأ» في الإجابة وحدها. في غيرها يُهمل، فلا ينتقل الدور ولا تتغير الحالة (ولا لحظة).
+  {
+    const bad = ['intro', 'read', 'hit', 'wrong', 'listend', 'end'].filter(ph => {
+      const st = { ...s, phase: ph, verdict: ph === 'hit' ? { team: 2, points: 3, rank: 3 } : null, at: ph === 'hit' ? 0 : null };
+      const r = ranking.act(st, 'wrong', {}, 10_000_000);
+      return r.state !== st || r.events.length;
+    });
+    check(`108: «خطأ» خارج الإجابة يُهمل في كل حالة (${bad.join('، ') || 'لا شيء تغيّر'})`, !bad.length);
+  }
   // انتهى وقت الإجابة: إلى الخصم بعدّاده، بلا اختيار، ولحظة انتقال.
   go('timeout', round.timer.id);
   check('انتهى الوقت: الدور للخصم بعدّاد 10 ثوانٍ، بلا حكم ولا نقاط، ولحظة «انتقال»', s.phase === 'ask' && s.team === 1 && round.timer?.seconds === ANSWER_SECONDS && !a.verdict

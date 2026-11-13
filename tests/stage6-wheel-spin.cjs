@@ -72,7 +72,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     // جولة الترتيب بلا إجابات: القائمتان تنتهيان، فالرصيد 0 و0 (تعادل).
     await go('act:show');
     for (let k = 0; k < 2; k++) { await go('qr:hide'); await go('act:start'); await go('act:finish'); await go('act:next'); }
-    check(`${tag}نهاية الجولة 1: في البطاقة «شريط البونص»، و«التالي: شريط البونص» على الشاشة`, await text(audience, '.scr.end.show .ctl') === 'شريط البونص' && await text(audience, '#next') === 'التالي: شريط البونص');
+    check(`${tag}نهاية الجولة 1: في البطاقة «شريط البونص»، و«التالي: شريط البونص» على الشاشة`, await text(audience, '.scr.end.show .ctl') === 'إلى شريط البونص' && await text(audience, '#next') === 'التالي: شريط البونص');
     await go('next');
     const m = await saved(stage), spinner = m.winner === 1 ? 2 : 1;
     await audience.waitForSelector('.scr.whl.show');
@@ -121,7 +121,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
       && await aud.evaluate(() => { const el = document.getElementById('label'); return Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)) <= 3; }));
     await wait(500);
     const kind = (await saved(stage)).round.state.slots[stop].kind;
-    check(`${tag}بعد الوقوف: «نجح · +10» و«لم ينجح» (أو «التالي · الدورة 2» لخانة حظ)`, await near(aud) === (kind === 'luck' ? 'التالي · الدورة 2' : 'نجح · +10|لم ينجح'));
+    check(`${tag}بعد الوقوف: «نجح · +10» و«لم ينجح» (أو «التالي · الدورة 2» لخانة حظ)`, await near(aud) === (kind === 'luck' ? 'الدورة التالية' : 'نجح · +10|لم ينجح'));
     await audienceCheck(aud, `${tag}بعد الوقوف`, d);
     if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-slot.png') });
     else await stage.screenshot({ path: path.join(shots, 'wheel-slot-long.png') });
@@ -148,7 +148,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     { const s2 = (await saved(stage)).round.state; if (s2.slots[s2.landed].kind === 'challenge') { await go('act:failed', aud); } }
     await go('act:finish', aud);
     check(`${tag}«إنهاء الشريط»: نهايتها، «انتهى الشريط»، و«التالي: الجولة 2 · الحرف المعيّن»، وفي البطاقة «ابدأ الجولة 2»`, await aud.evaluate(() => !!document.querySelector('.scr.end.show'))
-      && await text(aud, '#b1') === 'انتهى الشريط' && await text(aud, '#next') === 'التالي: الجولة 2 · الحرف المعيّن' && await text(aud, '.scr.end.show .ctl') === 'ابدأ الجولة 2');
+      && await text(aud, '#b1') === 'انتهى الشريط' && await text(aud, '#next') === 'التالي: الجولة 2 · الحرف المعيّن' && /^إلى الجولة 2: ./.test(await text(aud, '.scr.end.show .ctl')));
     await audienceCheck(aud, `${tag}نهاية العجلة`, d);
     await go('next', aud);
     const after = await saved(stage);
@@ -166,7 +166,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     const go = async c => { await cmd(audience, c); await wait(800); };
     await go('act:show');
     for (let k = 0; k < 2; k++) { await go('qr:hide'); await go('act:start'); await go('act:finish'); await go('act:next'); }
-    check('الرابط العادي: «شريط البونص» في البطاقة بلا «تخطَّ»', await text(audience, '.scr.end.show .ctl') === 'شريط البونص');
+    check('الرابط العادي: «شريط البونص» في البطاقة بلا «تخطَّ»', await text(audience, '.scr.end.show .ctl') === 'إلى شريط البونص');
     await go('next');
     await wait(600);
     check('الرابط العادي: يبدأ الشريط، و«أطلق الشريط»', await audience.$$eval('#near button', b => b.map(x => x.textContent.trim()).join('|')) === 'أطلق الشريط' && await audience.isVisible('.scr.whl.show'));
