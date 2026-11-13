@@ -299,7 +299,7 @@
       // نص الإجابات للباركود ما دام ظاهراً، يرسمه العرض رمزاً لا نصاً.
       qr: (q => (q ? answersText(q.mode.id, q.mode.presenter(q.st)) : null))(qrShown()),
       // المساعد الصوتي في الوفاء (design/app.md 7): النص المسموع وما حدده المقدّم منه. ولا شيء منه في الموقع.
-      ...(voxShown() ? { vox: voxView() } : {}),
+      ...(voxKey(), voxShown() ? { vox: voxView() } : {}),
     };
   }
   function update(next, anim) {
@@ -336,11 +336,16 @@
   }
   // النقرة المزدوجة أو المتأخرة (تقرير المعاين ش2، التعثّر 1): بعد كل تغيّر في حالة السؤال يأتي زر آخر مكان المنقور،
   // فتُهمل نقرات أزرار الجولة 0.7 ثانية، وتظهر معطّلة حتى يراها المقدّم. ومنها تغيّرها بانتهاء الوقت.
+  // ش8-أ/111 (المدقّق): والمهلة تُقاس بوقت النقر نفسه حين يصل معها (clickAt، بساعة الحقبة من event.timeStamp في شاشة الجمهور)، من وقت النقرة
+  // التي غيّرت الحالة (holdFrom). فكانت تُقاس بلحظة المعالجة، فإن تأخرت معالجة النقرة الثانية أكثر من 0.7 ثانية (جهاز بطيء أو حمل)
+  // قُبلت، فيُتراجع خطوتين ويضيع حكم صحيح. والنقرة بلا وقت (ومنها المتأخرة بلا نقر، 85) تُقاس بلحظة معالجتها كما كانت.
   const HOLD_MS = 700;
-  let heldUntil = 0, holdTimer = 0;
-  const held = () => performance.now() < heldUntil;
+  const epoch = () => performance.timeOrigin + performance.now();
+  let heldUntil = 0, holdTimer = 0, holdFrom = 0, clickAt = null;
+  const held = () => clickAt !== null ? clickAt < holdFrom + HOLD_MS : performance.now() < heldUntil;
   function hold() {
     heldUntil = performance.now() + HOLD_MS;
+    holdFrom = clickAt ?? epoch();
     clearTimeout(holdTimer);
     holdTimer = setTimeout(render, HOLD_MS + 20);
   }
@@ -446,6 +451,7 @@
       $('sv' + k).textContent = match.scores[k];
     }
     $('undoScore').disabled = match.step === 'play' ? !match.round?.history.length : !match.history.length;
+    voxKey();
     renderStage(error);
     voxSync();
   }
@@ -717,7 +723,9 @@
     link?.send('view', view());
   }
   // يبدأ السماع مع الوفاء ويتوقف بانقضاء وقته أو بـ«كشف القائمة» (5.5.1). يُستدعى بعد كل رسم.
-  function voxSync() {
+  // مفتاح الوفاء الجاري، ومعه يُصفَّر النص في الموضوع الجديد. يُستدعى قبل رسم الشاشة، فلا يصل إليها نص الموضوع السابق
+  // (ش8-أ/110: في الموضوع الثاني ظهرت صفوف النص بكلمات الأول قبل أي ضغطة، لأن الرسم سبق التصفير).
+  function voxKey() {
     if (!vox.ok || !match) return;
     const st = voxFulfil();
     // والوفاء يُعرف بعدّاده (root يبقى مع «تراجع» يستأنف الوقت)، وبعد انقضاء الوقت لا عدّاد فيبقى ما كان.
@@ -725,8 +733,13 @@
     const key = !st ? '' : root !== undefined ? at + root : vox.key.startsWith(at) ? vox.key : at + 'x';
     if (key && key !== vox.key) {
       Object.assign(vox, { key, text: '', base: '', sel: new Set(), emitted: new Set(), items: voxPrepare(st.topics[st.index].items),
-        listen: false, used: false, fail: '', why: 0 });
+        listen: false, used: false, fail: '', why: (clearTimeout(vox.why), 0) });
     }
+  }
+  function voxSync() {
+    if (!vox.ok || !match) return;
+    voxKey();
+    const st = voxFulfil();
     // يتوقف بانتهاء الوقت أو بالكشف أو بـ«تراجع» إلى ما قبل «ابدأ»، ولا يُستأنف وحده (7.6).
     if (!st || st.over || !match.round.timer || !vox.on) vox.listen = false;
     const want = vox.on && vox.listen && !!st && !st.over && !!match.round.timer;
@@ -815,7 +828,7 @@
       if (!st || !vox.ok || !vox.on || st.over || !match.round.timer) return;
       // متعذّر: الضغطة تُظهر السبب 3 ثوانٍ، والتالية تحاول من جديد.
       if (vox.fail) {
-        if (!vox.why) { vox.why = setTimeout(() => { vox.why = 0; vox.fail = ''; render(); }, 3000); render(); }
+        if (!vox.why) { clearTimeout(vox.why); vox.why = setTimeout(() => { vox.why = 0; vox.fail = ''; render(); }, 3000); render(); }
         return;
       }
       vox.listen = !vox.listen;
@@ -853,9 +866,15 @@
     if (!frame || e.source !== frame.contentWindow || e.origin !== location.origin || !match) return;
     if (e.data?.bc === 'need-ctl') return sendCtl();
     if (e.data?.bc !== 'cmd' || !shared()) return;
+    // وقت النقر نفسه (111): لا يُقبل وقت في المستقبل، ولا أقدم من دقيقة.
+    const at = Number(e.data.at), now = epoch();
+    clickAt = Number.isFinite(at) && at <= now + 50 && at > now - 60000 ? at : null;
+    try { command(e.data); } finally { clickAt = null; }
+  }));
+  function command(data) {
     // والقيمة قد تحمل «:» («act:mark:7»)، فهي كل ما بعد الأول.
-    const [cmd, ...rest] = String(e.data.cmd).split(':'), arg = rest.join(':');
-    if (cmd === 'teams' && match.step === 'setup') update(M.setTeams(match, String(e.data.a ?? ''), String(e.data.b ?? '')));
+    const [cmd, ...rest] = String(data.cmd).split(':'), arg = rest.join(':');
+    if (cmd === 'teams' && match.step === 'setup') update(M.setTeams(match, String(data.a ?? ''), String(data.b ?? '')));
     if (cmd === 'count' && match.step === 'setup' && M.METHODS[arg]?.rounds <= modes().length) update(M.setMethod(match, arg));
     if (cmd === 'draw') match.step === 'setup' ? goDraw() : startDraw();
     if (cmd === 'pick' && !drawing) update(M.pick(match, arg, modes()));
@@ -876,7 +895,7 @@
     if (cmd === 'vox') voxCmd(arg);
     if (cmd === 'fullscreen') document.documentElement.requestFullscreen?.().catch(() => {});
     if (['toPick', 'undoPick', 'toFace', 'replay', 'undo', 'scores', 'announce', 'tiebreak'].includes(cmd)) actions[cmd]();
-  }));
+  }
 
   // تطبيق آبل: تُفتح اللعبة مباشرة بلا رقم (الوثيقة 1.17، 4.3).
   if (NATIVE) unlock('');
