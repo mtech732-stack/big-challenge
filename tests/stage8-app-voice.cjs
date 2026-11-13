@@ -332,6 +332,53 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     check(`ونهاية جلسة الثاني والسماع موقوف في الثالث لا تُعدّ فيه (${JSON.stringify((await st()).said.map(x => x.i))})`, (await st()).said.length === n3);
     await context.close();
   } catch (e) { errors.push(String(e).split('\n')[0]); }
+  // ش8-أ/109 (المدقّق #540): ثلاثة حرّاس لزر الميكروفون (7.6).
+  try {
+    const { context, page, f, st } = await open(true, { installed: true });
+    await page.evaluate(() => { window.__voice.mic = 'granted'; });
+    await go(f, 'raise:1');
+    await cmd(f, 'vox:toggle'); await wait(500);
+    await closeMore(f);
+    await go(f, 'act:start');
+    // 1. لا صفوف قبل أول ضغطة ولو رُسمت البطاقة ثانيةً (vox.used): «عُدّ · +1» يرسمها من جديد.
+    await go(f, 'act:count');
+    check('قبل أول ضغطة: لا صفوف ولو رُسمت البطاقة ثانيةً', !(await f.$eval('#auc', e => e.classList.contains('vox'))) && await tally(f) === 1);
+    // 2. أوقف ثم ابدأ، ثم يصل final برقم الجلسة الأولى: لا يُغيّر النص ولا يضيء شيئاً.
+    await go(f, 'vox:listen');
+    const id1 = await page.evaluate(() => window.__voice.id);
+    await heard(page, 'سيارة يعني');
+    await wait(400);
+    await go(f, 'vox:listen'); await go(f, 'vox:listen');
+    const id2 = await page.evaluate(() => window.__voice.id), w0 = await words(f), n0 = (await st()).said.length;
+    await page.evaluate(id => window.__voice.emit('final', { id, text: 'سيارة يعني قطار سفينة يعني' }), id1);
+    await wait(500);
+    check(`أوقف ثم ابدأ: final الجلسة الأولى (${id1} ← ${id2}) لا يُغيّر النص ولا يضيء (${await words(f)})`, id2 !== id1 && (await words(f)) === w0
+      && (await st()).said.length === n0 && await page.evaluate(() => window.__voice.live));
+    // 3. بعد انتهاء الـ45 ثانية ولم يُكشف: الزر معطّل بشفافية 0.45، بلا خط مائل، والسماع موقوف.
+    await wait(46000);
+    const ov = await f.$eval('[data-cmd="vox:listen"]', b => ({ off: b.classList.contains('off'), op: getComputedStyle(b).opacity, slash: b.innerHTML.includes('M5 5l26 26'), text: b.textContent })).catch(() => null);
+    check(`بعد انتهاء الوقت: الزر معطّل بشفافية 0.45 بلا خط مائل، والسماع موقوف (${JSON.stringify(ov)})`, ov?.off && ov.op === '0.45' && !ov.slash
+      && !(await page.evaluate(() => window.__voice.live)) && !!(await f.$('[data-cmd="act:reveal"]')));
+    // ش8-أ/110 (المعاين، تجربة المالك «لم يعمل إلا للسؤال الأول»): انقضاء الوقت قبل الكشف كان يُبقي over في المواضيع بعده،
+    // فيبقى الزر معطّلاً ولا سماع. وكانت صفوف النص تظهر في الموضوع التالي بكلمات السابق قبل أي ضغطة.
+    await go(f, 'act:reveal'); await go(f, 'act:ok'); await go(f, 'act:next');
+    await hideQr(f);
+    for (const [k, team] of [[2, 2], [3, 1]]) {
+      await go(f, `raise:${team}`); await go(f, 'act:start');
+      const b = await f.$eval('[data-cmd="vox:listen"]', b => ({ off: b.classList.contains('off'), text: b.textContent })).catch(() => null);
+      check(`الموضوع ${k} بعد موضوع انقضى وقته: الزر يعمل «ابدأ السماع»، ولا صفوف ولا نص من السابق (${JSON.stringify(b)}، ${await words(f)})`,
+        b && !b.off && b.text === 'ابدأ السماع' && !(await f.$eval('#auc', e => e.classList.contains('vox'))) && !(await st()).over);
+      await go(f, 'vox:listen');
+      const items = (await st()).topics[(await st()).index].items;
+      await heard(page, `${items[0].name} يعني`);
+      await wait(500);
+      check(`والموضوع ${k} يسمع ويضيء، والنص منه وحده (${await chips(f)}، ${await words(f)})`, await page.evaluate(() => window.__voice.live)
+        && JSON.stringify(await chips(f)) === JSON.stringify([items[0].name]) && !(await words(f)).includes('سيارة'));
+      // والموضوع الثاني يُكشف قبل الوقت ثم «لم يفِ» (والأول انقضى وقته ثم «وفى»): كل نهايات الوفاء قبل الثالث.
+      if (k === 2) { await go(f, 'act:reveal'); await go(f, 'act:fail'); await go(f, 'act:next'); await hideQr(f); }
+    }
+    await context.close();
+  } catch (e) { errors.push(String(e).split('\n')[0]); }
   // الموقع: لا أيقونة ولا صفوف.
   {
     const { context, f } = await open(false);
