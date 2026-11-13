@@ -1114,7 +1114,12 @@
       if (TWO_TAPS && b.dataset.cmd === 'new' && view?.match?.step !== 'setup') { $('askNew').hidden = false; return; }
       send(b.dataset.cmd);
     });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && moreOpen) { moreOpen = false; renderCtl(); } });
+    // ش8-أ/107: وEscape يُلغي تأكيد «مباراة جديدة» من اللعبة كما كان يُلغي confirm، ولا يُرسل شيئاً.
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      if (!$('askNew').hidden) { $('askNew').hidden = true; return; }
+      if (moreOpen) { moreOpen = false; renderCtl(); }
+    });
     // الاسم عند المرور (design/s8b.md 7.1–7.2): في الزاوية عنصر مستقل تحت الأيقونة بـ 24 (data-hud)، وفي لوحة «⋯» ابنٌ لها
     // بجانب الأيقونة بـ 16 داخل سطرها، بلا data-hud، فيقيسه check.js مع اللوحة.
     // وإعادة رسم الأزرار (بدء العدّاد، أو انتهاء التعطيل بعد النقر) تمحو الاسم والفأرة ثابتة، فيُعاد لما تحتها (ملاحظة المعاين بعد v62).
