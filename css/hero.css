@@ -139,3 +139,21 @@
 :root [data-hero="start"] .start-go { top: 906px; }
 :root [data-hero="start"] .start-side { bottom: calc(1080px - 990px); }
 :root [data-hero="start"] .team .name-in { flex-basis: 440px; }
+
+/* أزرار الانتقال (design/app.md 9.1، المالك 13 نوفمبر 2026): كل زر يتقدم بالمباراة بشكل «اختيار الأنماط» (.start-go .cbtn):
+   لوح الحبر مائلاً 14° بحلقة بيضاء 5 وظل صلب، ونص أبيض 900، وسهم «←» عنصراً داخله بفاصل 20 وبحجم النص + 4.
+   في صف الشارات 72 وخط 36، وفي البطاقة (نهاية الجولة والمواجهة والنهاية) والاختيار 84 وخط 40. في الموقع والتطبيق (8). */
+:root .cbtn.go { isolation: isolate; display: inline-flex; align-items: center; justify-content: center; gap: 20px; height: 72px; padding: 0 32px;
+  white-space: nowrap; background: transparent; color: var(--card); font-size: 36px; font-weight: 900; box-shadow: none; }
+:root .card .cbtn.go, :root .pick-ctl .cbtn.go { height: 84px; padding: 0 40px; font-size: 40px; color: var(--card); }
+:root .cbtn.go::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ink); transform: skewX(calc(-1 * var(--lean)));
+  box-shadow: 0 0 0 5px var(--card), 10px 10px 0 5px #0B1033; }
+.cbtn.go .ar::before { content: "←"; }
+.cbtn.go .ar { font-style: normal; font-size: calc(1em + 4px); font-weight: 900; line-height: 1; pointer-events: none; }
+/* نبضة واحدة عند ظهوره: تتسع الحلقة من 5 إلى 14 وتتلاشى في 600ms. وبلا نبضة مع تقليل الحركة. */
+@keyframes go-pulse {
+  from { box-shadow: 0 0 0 5px var(--card), 10px 10px 0 5px #0B1033, 0 0 0 5px rgb(255 255 255 / .9); }
+  to { box-shadow: 0 0 0 5px var(--card), 10px 10px 0 5px #0B1033, 0 0 0 14px rgb(255 255 255 / 0); }
+}
+:root .cbtn.go.pulse::before { animation: go-pulse .6s ease-out 1; }
+@media (prefers-reduced-motion: reduce) { :root .cbtn.go.pulse::before { animation: none; } }
