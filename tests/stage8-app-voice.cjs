@@ -140,18 +140,21 @@ const { check: _c, finish: _f } = { check: null, finish: null };
     check(`«اعتمد» من خارج القائمة: شارة بخط متقطع، والعدّ 6 (${await chips(f)})`, (await chips(f)).at(-1) === 'كرسي متحرك' && await f.$eval('#voxLit .chip:last-child', e => e.classList.contains('own')) && await tally(f) === 6
       && (await words(f)).includes('كرسي.used متحرك.used') && !(await f.$('[data-cmd="vox:ok"]')));
     // تحديد كلمة من القائمة لم تُطابق آلياً («قطارة» مثلاً): تضيء عنصرها.
-    await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني والطائره بعد');
-    await wait(400);
-    check(`«والطائره» تطابق «طائرة» (${await chips(f)})`, (await chips(f)).includes('طائرة') && await tally(f) === 7);
     // الحذف بنقرتين. والنقرة الأولى يصل أثناءها نص جديد: الشارات تبقى في مكانها فلا تضيع (حارس المدقّق #503).
-    // ش8-أ/102: والنقرة على شارة أخرى لحظة يزول أصفر «طائرة» (0.7 ث بعد إضاءتها) تُصيبها كذلك.
-    const yellow = () => f.$eval('#voxLit .chip:last-child', e => e.classList.contains('new'));
-    const fade = [await yellow()];
-    await pressDuring(page, f, '#voxLit .chip:nth-child(3)', 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني والطائره بعد', async () => {
+    // ش8-أ/102: والإصبع على «قطار» حين تضيء «طائرة» بالأصفر ثم يزول أصفرها (0.7 ث)، فالنقرة تُصيب «قطار» كذلك.
+    // يبدأ الضغط قبل أن تضيء «طائرة»، ويُرفع بعد زوال أصفرها، فالامتداد عليه مضمون بأي حمل (لا بفارق توقيت بين خطوتين).
+    const yellow = () => f.$eval('#voxLit .chip:last-child', e => e.textContent === 'طائرة' && e.classList.contains('new')).catch(() => false);
+    const seen = [];
+    const at3 = () => f.$eval('#voxLit .chip:nth-child(3)', e => { const r = e.getBoundingClientRect(); return `${e.textContent}@${Math.round(r.left)},${Math.round(r.top)}`; });
+    const before3 = await at3();
+    await pressDuring(page, f, '#voxLit .chip:nth-child(3)', null, async () => {
       await heard(page, 'سيارة باص شنو بعد قطار كرسي متحرك زلاجة الثلج موتوسيكل يعني والطائره بعد');
-      await wait(400); fade.push(await yellow());
+      // يُرصد الأصفر حتى يظهر ثم يزول، والإصبع ما زال على الشارة.
+      for (let t = 0; t < 60 && !(seen.includes(true) && seen.at(-1) === false); t++) { seen.push(await yellow()); await wait(50); }
     });
-    check(`والنقرة امتدت على زوال الأصفر (${fade})`, fade[0] === true && fade[1] === false);
+    check(`«والطائره» تطابق «طائرة» (${await chips(f)})`, (await chips(f)).includes('طائرة') && await tally(f) === 7);
+    check(`والنقرة امتدت على أصفر «طائرة» وزواله، و«قطار» في مكانها (${seen.includes(true)}→${seen.at(-1)}، ${before3} ← ${await at3()})`,
+      seen.includes(true) && seen.at(-1) === false && before3 === await at3());
     check('النقرة الأولى، ويصل أثناءها نص ويزول الأصفر، تحدد الشارة بإطار ولا تحذف', await f.$eval('#voxLit .chip:nth-child(3)', e => e.classList.contains('armed')) && await tally(f) === 7);
     await page.screenshot({ path: `${shots}/app-voice-armed.png` });
     sc = await f.evaluate(() => window.__stageCheck());

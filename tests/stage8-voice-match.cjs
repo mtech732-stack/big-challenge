@@ -7,7 +7,7 @@ const { reporter } = require('./helpers.cjs');
 
 (async () => {
   const root = path.join(__dirname, '..');
-  const { prepare, matchMany, fold, sim, SURE } = await import(path.join(root, 'js/voice-match.js'));
+  const { prepare, matchMany, matchOne, fold, sim, SURE } = await import(path.join(root, 'js/voice-match.js'));
   const { check, finish } = reporter();
   const bank = JSON.parse(fs.readFileSync(path.join(root, 'content/packs/general/auction.json'), 'utf8'));
   const pairs = [];
@@ -39,6 +39,19 @@ const { reporter } = require('./helpers.cjs');
   check(`${DAILY.length} كلمة وعبارة يومية لا تُضيء شيئاً في البنك كله (${daily.map(([w, l]) => `${w}←${l.join('+')}`).join('، ')})`, DAILY.length >= 70 && daily.length === 0);
   for (const w of ['خلاص', 'ثلاثة', 'ثانية', 'كمان', 'القاعة', 'وقت', 'وين', 'ساعة', 'ثواني', 'من'])
     check(`«${w}» لا تُضيء شيئاً (${lit(w).join('، ')})`, lit(w).length === 0);
+  // حارس المدقّق #514: والكلمة اليومية بواو ملتصقة («وخلاص»، «وثواني»، «والجواب») يومية كذلك، فلا تُضيء شيئاً.
+  const wdaily = DAILY.filter(w => !/ /.test(w) && !w.startsWith('و')).map(w => [`و${w}`, lit(`و${w}`)]).filter(([, l]) => l.length);
+  check(`الكلمات اليومية بالواو لا تُضيء شيئاً (${wdaily.map(([w, l]) => `${w}←${l.join('+')}`).join('، ')})`, wdaily.length === 0);
+  // وحارسه الثاني: ما بقي بعد فصل الواو حرفان لا يُطابق إلا بلا طيّ («وكت» لا تُضيء «قط»، و«وبت» لا تُضيء «بط»)، و«وقط» تُضيئه.
+  for (const [said, not] of [['وكت', 'قط'], ['وبت', 'بط']]) check(`«${said}» لا تُضيء «${not}» (${lit(said).join('، ')})`, !lit(said).includes(not));
+  // و«اعتمد» (matchOne) بوجه الواو كذلك، حارس المدقّق #514.
+  {
+    const t = bank.topics.find(t => t.items.some(it => it.name === 'قط')), p = prepare(t.items), name = r => r && t.items[r.i].name;
+    const one = { وقط: name(matchOne('وقط', p)), ودب: name(matchOne('ودب', p)), وكت: name(matchOne('وكت', p)), وين: name(matchOne('وين', p)) };
+    const t2 = bank.topics.find(t => t.items.some(it => it.name === 'حمار وحشي')), z = matchOne('وحمار وحشي', prepare(t2.items));
+    check(`«اعتمد» بالواو: «وقط» قط، و«ودب» دب، و«وكت» و«وين» لا شيء، و«وحمار وحشي» حمار وحشي (${JSON.stringify(one)}، ${z && t2.items[z.i].name})`,
+      one.وقط === 'قط' && one.ودب === 'دب' && !one.وكت && !one.وين && z && t2.items[z.i].name === 'حمار وحشي');
+  }
   // وفي جملة: «يقولون أسد ونمر وين الوقت باقي وقت» تُضيء أسد ونمر وحدهما (كانت تُضيء «قط» على v107).
   {
     const t = bank.topics.find(t => t.items.some(it => it.name === 'قط')), p = prepare(t.items);
