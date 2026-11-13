@@ -862,26 +862,40 @@
     // وكل رسم كان يستبدل الشارات والكلمات، فالنقرة بين نزول الإصبع ورفعه تقع على عنصر زال فلا تصل (كعدّ المزاد السريع، ش8-أ/54).
     // والأصفر (new) لا يدخل في المقارنة: زواله يُحدَّث في شارته وحدها (ش8-أ/102: كان يُعيد رسم الشارات كلها فتضيع نقرة لحظتها).
     const fresh = [];
-    const html = list.map(x => {
+    const parts = list.map(x => {
       const id = (x.own ? 'o:' : 'i:') + x.name;
       if (!litSeen.has(id)) litSeen.set(id, still() ? -LIT_MS : now);
       const left = litSeen.get(id) + LIT_MS - now;
       if (left > 0) soon = Math.min(soon, left);
       fresh.push(left > 0);
       return `<span class="chip t${team}${x.own ? ' own' : ''}" data-cmd="act:unsay:${x.at}"><i></i><span>${esc(x.name)}</span></span>`;
-    }).join('');
+    });
     if (soon < Infinity) litLater = setTimeout(() => renderVox(view?.play?.a ?? a), soon + 20);
-    const fill = () => [...$('voxLit').children].forEach((c, k) => c.classList.toggle('new', !!fresh[k]));
+    const html = parts.join('');
     if (html !== litHtml) {
       litHtml = html;
-      $('voxLit').innerHTML = html;
-      fill();
+      // كل شارة لم يتغير ما فيها تبقى عنصرها نفسه، ويُستبدل ما تغيّر وحده: فشارة تضيء والإصبع على أخرى لا تُضيع نقرتها
+      // (ش8-أ/102، فحص الامتداد على الأصفر في stage8-app-voice).
+      const row = $('voxLit');
+      parts.forEach((h, k) => {
+        const old = row.children[k];
+        if (old?.dataset.h === h) return;
+        const t = document.createElement('template');
+        t.innerHTML = h;
+        const el = t.content.firstElementChild;
+        el.dataset.h = h;
+        if (old) old.replaceWith(el); else row.append(el);
+      });
+      while (row.children.length > parts.length) row.lastElementChild.remove();
       // ما زاد عن العرض: تبقى الأحدث ظاهرة، وتغيب الأقدم من اليمين، وحافة باهتة 48 تدل عليها. والعدد كاملاً في العدّ.
-      const row = $('voxLit'), all = [...row.children];
+      const all = [...row.children];
+      all.forEach(c => { c.hidden = false; });
       let gone = 0;
       while (row.scrollWidth > row.clientWidth + 1 && gone < all.length - 1) all[gone++].hidden = true;
       row.classList.toggle('over', gone > 0);
-    } else fill();
+    }
+    // والأصفر (new) في مكانه.
+    [...$('voxLit').children].forEach((c, k) => c.classList.toggle('new', !!fresh[k]));
     markArmed();
     renderWords(a, v);
   }
@@ -904,6 +918,9 @@
     box.classList.remove('up');
     box.classList.toggle('up', box.offsetHeight > box.parentElement.clientHeight + 1);
     $('voxMic').classList.toggle('live', !!v.live);
+    // يسمع ولم يصل صوت بعد ثوانٍ (ملاحظة المالك 13 نوفمبر: لم يُسمع إلا السؤال الأول): يُقال ذلك بدل الصمت.
+    const idle = v.idle && !words.length ? 'لا يصل صوت؟ أوقف السماع وابدأه من جديد' : '';
+    if ((box.parentElement.dataset.idle ?? '') !== idle) box.parentElement.dataset.idle = idle;
     const mic = $('voxMic').querySelector('svg');
     if (!mic.innerHTML) mic.innerHTML = ICON.mic;
   }
@@ -1033,7 +1050,7 @@
   // svg: أيقونة باسمها إن اختلف الاسم الظاهر عنها (المساعد الصوتي وتلميحاته)، وpct نسبة تنزيله تملأ إطاره.
   const button = b => `<button class="cbtn${b.kind ? ' ' + b.kind : ''}${iconic(b) ? ' ico' : ''}${b.cmd === 'more' && moreOpen ? ' open' : ''}${b.off ? ' off' : ''}" data-cmd="${esc(b.cmd)}"`
     + (b.pct !== undefined ? ` style="--pct:${Number(b.pct) || 0}%"` : '')
-    + (iconic(b) ? ` aria-label="${esc(b.label)}" data-tip="${esc(b.label)}">${b.icon ? `<svg viewBox="0 0 36 36" aria-hidden="true">${ICON[b.svg ?? b.label] ?? ''}</svg>` : ''}` : `>${b.html ?? num(b.label)}`) + '</button>';
+    + (iconic(b) ? ` aria-label="${esc(b.label)}" data-tip="${esc(b.label)}">${b.icon ? `<svg viewBox="0 0 36 36" aria-hidden="true">${ICON[b.svg ?? b.label] ?? ''}</svg>` : ''}` : b.svg ? `><svg viewBox="0 0 36 36" aria-hidden="true">${ICON[b.svg] ?? ''}</svg><span>${esc(b.label)}</span>` : `>${b.html ?? num(b.label)}`) + '</button>';
   const rows = list => (list ?? []).map(r => `<div class="ctl">${r.map(button).join('')}</div>`).join('');
   // الأزرار لا تُستبدل إن لم يتغير ما فيها: ضغطة تقع بين نزول الإصبع ورفعه على زر استُبدل لا تصل (ش8-أ/54، عدّ المزاد السريع).
   const drawn = new WeakMap();
