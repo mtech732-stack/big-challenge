@@ -31,7 +31,8 @@ function touchAudit() {
   // خانات لوحة الترتيب صفوفها متلاصقة (48 بلا فاصل)، فلا تمتد مساحتها رأسياً (4.5: إلى منتصف الفاصل، وهو 0)؛ تُقاس وحدها.
   const tight = x => /^act:item:/.test(x.name);
   // ولوحة «⋯» بأربع أيقونات فواصلها 16، فمساحة كل أيقونة فيها 112 (design/app.md 5، الملاحظات الصغيرة).
-  const four = canvas.querySelector('.ctl-more .cbtn.ico:nth-child(4)')?.closest('.ctl-more');
+  // (ش8-أ/106: «ملء الشاشة» خرج منها، فالأربع ثلاث في سطرها الأول ثم «مباراة جديدة»، كقاعدة shared.css.)
+  const four = canvas.querySelector('.ctl-more .cbtn.ico:nth-child(3)')?.closest('.ctl-more');
   const least = x => (four && four.contains(x.node) ? 111.5 : 119.5);
   const small = items.filter(x => !tight(x) && (x.hit.r - x.hit.l < least(x) || x.hit.b - x.hit.t < least(x))).map(x => `${x.name} ${Math.round(x.hit.r - x.hit.l)}×${Math.round(x.hit.b - x.hit.t)}`);
   for (const x of items) delete x.node;

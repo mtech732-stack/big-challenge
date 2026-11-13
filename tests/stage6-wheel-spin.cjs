@@ -82,7 +82,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     check(`${tag}خانات الحظ بإطار متقطع (3)، ولا خانة مضاءة قبل الدوران`, (await audience.$$('#band .ws.luck')).length === 3 && (await lit(audience)).length === 0);
     check(`${tag}الشارتان «شريط البونص» و«الدورة 1 من 2»، والحدّ لمن يديرها، ولا مربع إعلان`, await text(audience, '#mode') === 'شريط البونص' && await text(audience, '#b1') === 'الدورة 1 من 2'
       && await audience.evaluate(t => document.getElementById('canvas').classList.contains('turn-' + t), spinner) && await audience.evaluate(() => document.getElementById('box').hidden));
-    check(`${tag}قبل الدوران: «أطلق الشريط» بجانب الشارات، و«تراجع» و«⋯» وحدهما في الزاوية`, await near() === 'أطلق الشريط' && (await audience.$$('#cornerA button, #cornerB button, #cornerC button')).length === 2);
+    check(`${tag}قبل الدوران: «أطلق الشريط» بجانب الشارات، و«ملء الشاشة» و«تراجع» و«⋯» وحدها في الزاوية (106)`, await near() === 'أطلق الشريط' && (await audience.$$eval('#cornerA button, #cornerB button, #cornerC button', b => b.map(x => x.dataset.cmd).join())) === 'fullscreen,undo,more');
     await audienceCheck(audience, `${tag}قبل الدوران`, d);
     if (!LONG) await stage.screenshot({ path: path.join(shots, 'wheel-ready.png') });
 

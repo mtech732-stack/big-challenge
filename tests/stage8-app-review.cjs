@@ -41,15 +41,16 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     const b = await box(f, '#startGo .cbtn'), text = await f.$eval('#startGo .cbtn', e => { const r = document.createRange(); r.selectNodeContents(e); const t = r.getBoundingClientRect(), o = e.getBoundingClientRect(); return [t.left - o.left, o.right - t.right].map(Math.round); });
     // 5.10 (2): حشوة 44 من 768، فوسطه وسط الشعار 960. ولوحة الفريق الثاني بعرض خانتها (126–724).
     const p2 = await box(f, '#p2');
-    // وفي التطبيق الخانة 440 (design/app.md 6.4)، فاللوحة تنتهي عند 614.
-    const p2end = native ? 614 : 724;
+    // والخانة 440 (design/app.md 6.4، وفي الموقع منذ 106)، فاللوحة تنتهي عند 614.
+    const p2end = 614;
     check(`${tag} 5.8: «اختيار الأنماط» بنصه داخل إطاره بـ 44 من كل جانب، من 768 ووسطه 960، ولوحة الفريق الثاني تنتهي عند ${p2end} (${b.l}–${b.l + b.w} · ${text} · ${p2.l}–${p2.l + p2.w})`,
       b.l === 768 && Math.abs(b.l + b.w / 2 - 960) <= 2 && text.every(x => x >= 43) && p2.l === 126 && p2.l + p2.w === p2end);
     const sc = await stageOk(f);
     check(`${tag}: فحص التداخل والشبكة سليم في البداية (${sc.ok ? '' : sc.problems.join('، ')})`, sc.ok);
     if (!native) {
       const vp = await page.$eval('meta[name="viewport"]', m => m.content), us = await page.evaluate(() => getComputedStyle(document.body).userSelect);
-      check(`الموقع: viewport وتحديد النص كما كانا (${vp} · ${us})`, vp === 'width=device-width, initial-scale=1' && us !== 'none');
+      // منذ 106 (design/app.md 8.2): لا تحديد نص في الموقع أيضاً (5.1)، والتكبير ممكن فيه (وسم viewport للتطبيق وحده).
+      check(`الموقع: viewport يسمح بالتكبير، ولا تحديد نص (${vp} · ${us})`, vp === 'width=device-width, initial-scale=1' && us === 'none');
     }
     // 5.9: «يختار نمط الجولة 1» بفاصل 24 عن الإطار.
     await f.fill('#i1', 'الصقور'); await f.fill('#i2', 'النجوم');
@@ -116,6 +117,14 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     await f.click('#moreMenu [data-cmd="new"]'); await wait(300);
     await page.mouse.click(10, 10); await wait(300);
     check('والنقر خارجها إلغاء', (await f.$eval('#askNew', e => e.hidden)) && (await step(page)) === 'play');
+    // ش8-أ/107: وEscape يُلغيها كما كان يُلغي confirm.
+    if (!(await f.$('#moreMenu [data-cmd="new"]'))) { await f.click('[data-cmd="more"]'); await wait(400); }
+    await f.click('#moreMenu [data-cmd="new"]'); await wait(300);
+    const escShown = !(await f.$eval('#askNew', e => e.hidden));
+    await page.keyboard.press('Escape'); await wait(400);
+    check(`107: وEscape إلغاء (${escShown})`, escShown && (await f.$eval('#askNew', e => e.hidden)) && (await step(page)) === 'play' && dialogs.length === 0);
+    // وإن بقيت (v110) أُغلقت بـ «إلغاء» ليكمل الاختبار ويُخفق هذا الفحص وحده.
+    if (!(await f.$eval('#askNew', e => e.hidden))) { await f.click('#askNew [data-ask="no"]'); await wait(400); }
     if (!(await f.$('#moreMenu [data-cmd="new"]'))) { await f.click('[data-cmd="more"]'); await wait(400); }
     await f.click('#moreMenu [data-cmd="new"]'); await wait(300);
     await f.click('#askNew [data-ask="yes"]'); await wait(800);
@@ -123,17 +132,31 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     await context.close();
   }
   {
-    // الموقع: «مباراة جديدة» بـ confirm كما كان.
+    // الموقع منذ 106 (design/app.md 8.2): «مباراة جديدة» بلوحة اللعبة كالتطبيق، بلا confirm. و«إلغاء» يبقي المباراة.
     const { context, page, dialogs, f } = await open(false);
     await sharedToFace(f, { names: ['الصقور', 'النجوم'], picks: ['letter', 'last-two'] });
     await cmd(f, 'begin'); await f.waitForSelector('.scr.show[data-s="intro"]'); await wait(500);
-    await cmd(f, 'new'); await wait(800);
-    check('الموقع: «مباراة جديدة» بنافذة confirm كما كانت، ولا لوحة', dialogs.length === 1 && (await step(page)) === 'setup' && (await f.$eval('#askNew', e => e.hidden)));
+    await cmd(f, 'new'); await wait(500);
+    const shown = !(await f.$eval('#askNew', e => e.hidden));
+    await f.click('#askNew [data-ask="no"]'); await wait(500);
+    const kept = (await step(page)) !== 'setup' && await f.$eval('#askNew', e => e.hidden);
+    // ش8-أ/107: وEscape يُلغيها كما كان يُلغي confirm في الموقع.
+    await cmd(f, 'new'); await wait(400);
+    const escShown = !(await f.$eval('#askNew', e => e.hidden));
+    await page.keyboard.press('Escape'); await wait(400);
+    const escKept = escShown && (await step(page)) !== 'setup' && await f.$eval('#askNew', e => e.hidden);
+    // وإن بقيت (v110) أُغلقت بـ «إلغاء» ليكمل الاختبار ويُخفق هذا الفحص وحده.
+    if (!(await f.$eval('#askNew', e => e.hidden))) { await f.click('#askNew [data-ask="no"]'); await wait(400); }
+    check(`107: الموقع: وEscape إلغاء (${escShown})`, escKept);
+    await cmd(f, 'new'); await wait(300); await f.click('#askNew [data-ask="yes"]'); await wait(800);
+    check(`الموقع: «مباراة جديدة» بلوحة اللعبة (${shown})، و«إلغاء» يبقيها (${kept})، و«مباراة جديدة» فيها تبدأها، بلا نافذة متصفح (${dialogs.length})`,
+      shown && kept && (await step(page)) === 'setup' && dialogs.length === 0);
     await context.close();
   }
-  {
+  for (const native of [true, false]) {
     // لوحة «⋯» بأربع أيقونات (مع «الباركود» في الترتيب): فواصل 16، فتنتهي قبل حدّ لوحة الفريق الأول (653).
-    const { context, page, f } = await open(true);
+    // وفي الموقع كذلك منذ 106، و«ملء الشاشة» في صف الزاوية لا في اللوحة، ويحكم معها فحص التداخل والشبكة.
+    const { context, page, f } = await open(native);
     await sharedToFace(f, { names: ['الصقور', 'النجوم'], picks: ['ranking', 'letter'] });
     await wait(2700);
     await cmd(f, 'begin'); await f.waitForSelector('.scr.show[data-s="intro"]');
@@ -142,8 +165,10 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace } = require('./h
     await f.click('[data-cmd="more"]'); await wait(400);
     const icons = await f.$$eval('#moreMenu .ctl:first-child .cbtn.ico', els => els.length), p = await box(f, '#moreMenu');
     const gap = await f.$eval('#moreMenu', e => getComputedStyle(e).columnGap);
-    check(`لوحة «⋯» بأربع أيقونات (${icons}): الفواصل 16 (${gap})، وتنتهي عند ${p.l + p.w} قبل 653`, icons === 4 && gap === '16px' && p.l + p.w < 653);
-    await page.screenshot({ path: `${shots}/app-review-more4.png` });
+    const sc = await stageOk(f);
+    check(`${native ? 'التطبيق' : 'الموقع'}: لوحة «⋯» بأربع أيقونات (${icons} ثم «مباراة جديدة»): الفواصل 16 (${gap})، وتنتهي عند ${p.l + p.w} قبل 653، وفحص التداخل سليم (${sc.ok ? '' : sc.problems.join('، ')})`,
+      icons === 3 && gap === '16px' && p.l + p.w < 653 && sc.ok);
+    await page.screenshot({ path: `${shots}/${native ? 'app' : 'web'}-review-more4.png` });
     await context.close();
   }
   await browser.close();
