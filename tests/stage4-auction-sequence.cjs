@@ -53,14 +53,19 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auction
     // وبعد «كشف القائمة» (الوثيقة 1.14) القائمة كلها على الشاشة، فلا يُبحث فيها عمّا لم يُذكر.
     const listed = ['revealed', 'decided'].includes(s.phase);
     const shown = (listed ? items.map((_, i) => i) : [...said]).flatMap(i => [items[i].name, ...(items[i].alts ?? [])]).sort((a, b) => b.length - a.length);
-    const [body, bodyNoClock] = await audience.evaluate(ns => { let t = document.querySelector('.canvas').innerText;
-      for (const b of document.querySelectorAll('.cbtn')) t = t.replace(b.innerText, '');
-      t = t.replace(document.getElementById('topic').innerText, '');
-      for (const n of ns) t = t.split(n).join('');
-      // عدّاد الوفاء (45 نازلاً) في لوحة صاحب الدور يوافق أحياناً طول قائمة من 40 إلى 44 (المعاين #504). فلفحص الطول يُحذف
-      // رقم العدّاد مرة واحدة لكل لوحة، فإن ظهر الطول في موضع آخر بقي.
-      let u = t; for (const id of ['c1', 'c2']) { const c = document.getElementById(id)?.innerText.trim(); if (c) u = u.replace(c, ''); }
-      return [t, u]; }, [...LONG, ...shown]);
+    const [body, bodyNoClock] = await audience.evaluate(ns => {
+      const strip = t => { for (const b of document.querySelectorAll('.cbtn')) t = t.replace(b.innerText, '');
+        t = t.replace(document.getElementById('topic').innerText, '');
+        for (const n of ns) t = t.split(n).join(''); return t; };
+      const canvas = document.querySelector('.canvas'), t = canvas.innerText;
+      // عدّاد الوفاء (45 نازلاً) في لوحة صاحب الدور يوافق أحياناً طول قائمة من 40 إلى 44 (المعاين #504). فلفحص الطول يُقرأ النص
+      // وعنصرا العدّاد (#c1 و#c2) خارج القراءة نفسها (المدقّق #510: حذف رقمه من النص قد يأكل «4» من «44»). يُخفيان ويُعادان في
+      // المهمة نفسها، فلا تُرسم الشاشة بينهما.
+      const cs = ['c1', 'c2'].map(id => document.getElementById(id)).filter(Boolean), was = cs.map(c => c.style.display);
+      cs.forEach(c => { c.style.display = 'none'; });
+      const u = canvas.innerText;
+      cs.forEach((c, i) => { c.style.display = was[i]; });
+      return [strip(t), strip(u)]; }, [...LONG, ...shown]);
     if (/سرقة|سهل|متوسط|صعب|انسحب|في القائمة|عنصر/.test(body)) { leak = true; fails.push(`${label}: نص ممنوع على الجمهور`); }
     const unsaid = items.filter((x, i) => !said.has(i)).flatMap(x => [x.name, ...(x.alts ?? [])]);
     // اسم من حرف أو حرفين («ت» أو «7») يقع في أي نص، فلا يُبحث عنه في نص الشاشة: الشارات وحدها تحمل ما ذُكر.
