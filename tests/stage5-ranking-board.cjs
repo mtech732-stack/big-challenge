@@ -218,7 +218,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
       check('نهاية القائمة: الثلاث عشرة بأسمائها، والفخاخ بأرقامها', sl.every((x, i) => x.name === items[i].name && !x.hidden));
       check('نهاية القائمة: «كُشف 2 من 10» بلا مربع، والحدّ في المنتصف', (await text(audience, '#next')) === 'كُشف 2 من 10' && await audience.$eval('#box', e => e.classList.contains('bare'))
         && (await side()) === 0);
-      check(`«القائمة 2» (${await ctl()})`, (await ctl()) === 'القائمة 2');
+      check(`«القائمة 2» (${await ctl()})`, (await ctl()) === 'القائمة التالية');
       check('نهاية القائمة: لا وقت للقائمة على الشاشة', !(await audience.$('.scr.rnk.show #rclock')));
       await both('نهاية القائمة');
       await shot('listend');

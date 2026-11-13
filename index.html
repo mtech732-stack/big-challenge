@@ -388,7 +388,8 @@
     const kind = P.nextKind(match, units()), item = P.upcoming(match);
     const make = (text, rest) => ({ text, label: num(text), ...rest });
     if (kind === 'final') return make('إلى النتيجة النهائية', { act: 'toFinal' });
-    if (kind === 'start') return make(item.kind === 'wheel' ? 'شريط البونص' : `ابدأ الجولة ${item.n}`, { act: 'startNext' });
+    // أزرار الانتقال بفعلها ووجهتها (design/app.md 9.2): «إلى الجولة 2: المزاد» و«إلى شريط البونص»، لا اسم ما بعدها وحده.
+    if (kind === 'start') return make(item.kind === 'wheel' ? 'إلى شريط البونص' : `إلى الجولة ${item.n}: ${modeName(item.mode)}`, { act: 'startNext' });
     // لا يُتخطى الشريط إلا إن لم تصل تحدياته (content/wheel.json)، كي لا تعلق المباراة.
     if (item.kind === 'wheel') return make('تخطَّ شريط البونص', { act: 'skipNext', hint: 'لم تصل تحديات شريط البونص، فيُتخطى.' });
     return make(`تخطَّ الجولة ${item.n}`, { act: 'skipNext',
@@ -499,6 +500,8 @@
     // «ملء الشاشة» في الموقع وحده (design/app.md 8.3): في التطبيق بلا معنى. وهو أيقونة 96 في كل شاشة، ومنها البداية (ش8-أ/106).
     const fs = NATIVE || document.fullscreenElement ? [] : [{ cmd: 'fullscreen', label: 'ملء الشاشة', kind: 'alt', icon: true }];
     const fresh = { cmd: 'new', label: 'مباراة جديدة', kind: 'alt' };
+    // أزرار الانتقال (design/app.md 9): كل زر يتقدم بالمباراة لوحٌ مائل بحلقة بيضاء وسهم «←» (.cbtn.go)، لا يشبه الشارة.
+    const go = list => list.map(b => ({ ...b, kind: b.kind ? b.kind + ' go' : 'go' }));
     if (step === 'setup') {
       c.names = true;
       c.count = { value: match.method, four: modes().length >= M.METHODS.full.rounds };
@@ -514,15 +517,15 @@
       else {
         c.pick = !done && !drawing;
         if (match.picks.length) c.card.push({ cmd: 'undoPick', label: 'تراجع', kind: 'alt' });
-        c.card.push({ cmd: 'toFace', label: 'إلى المواجهة', off: !done || !!drawing });
+        c.card.push(...go([{ cmd: 'toFace', label: 'إلى المواجهة', off: !done || !!drawing }]));
       }
       c.b = [[fresh], fs];
     }
     if (step === 'face') {
       const nb = nextButton();
-      c.card = nb.act === 'startNext'
+      c.card = go(nb.act === 'startNext'
         ? [{ cmd: 'begin', label: 'ابدأ المباراة' }]
-        : [{ cmd: 'next', label: nb.text, off: !!nb.off }];
+        : [{ cmd: 'next', label: nb.text, off: !!nb.off }]);
       c.card.push({ cmd: 'replay', label: 'أعد العرض', kind: 'alt' });
       c.error = faceError;
       c.b = [[fresh], fs];
@@ -542,7 +545,7 @@
     if (mode) {
       const st = match.round.state, acts = mode.actions(st), screen = mode.audience(st).screen;
       const act = (id, label, kind) => acts.some(a => a.id === id) ? [{ cmd: 'act:' + id, label: label ?? acts.find(a => a.id === id).label, kind, off: wait }] : [];
-      if (screen === 'intro') c.card = act('show');
+      if (screen === 'intro') c.card = go(act('show'));
       const list = st.questions ?? st.topics ?? st.lists, last = !!list && st.index === list.length - 1;
       // الترتيب بالتحكيم المباشر (الوثيقة 5.6، 1.7، design/s8.md 3.2): المقدّم يقرأ القائمة من الباركود. «ابدأ»، ثم في الإجابة
       // ينقر رقم الخانة على اللوحة، أو «خطأ» (بإطار أحمر) و«أنهِ القائمة». و«خطأ» ينقل الدور إلى الخصم مباشرة (1.25)، وزرّا لون الدور التالي لمباراة محفوظة قبلها. ولحظة الإصابة بلا أزرار.
@@ -551,7 +554,7 @@
         if (ph === 'read') c.near = act('start', 'ابدأ');
         if (ph === 'ask') { c.near = [...act('wrong', 'خطأ', 'no'), ...act('finish', null, 'alt')]; c.judge = !wait; }
         if (ph === 'wrong') c.near = [1, 2].map(t => ({ cmd: 'act:turn:' + t, label: 'التالي', kind: 'turn t' + t, off: wait }));
-        if (ph === 'listend') c.near = act('next', last ? 'إنهاء الجولة' : `القائمة ${st.index + 2}`);
+        if (ph === 'listend') c.near = go(act('next', last ? 'إنهاء الجولة' : 'القائمة التالية'));
       }
       // المزاد (design/auction.md 4، 3.0): زر كل فريق بلونه برقمه («زايد» قبل أول رقم) · «ابدأ» بينهما (معطّل قبل أول رقم).
       const b = screen === 'topic' && st.phase === 'bid';
@@ -570,7 +573,7 @@
         if (ph === 'fulfil' && voxShown() && vox.sel.size) c.ans.push({ cmd: 'vox:ok', label: 'اعتمد', kind: 'vox-ok' });
         if (ph === 'revealed') c.near = [{ cmd: 'act:ok', label: `وفى · +${n}`, kind: 'who t' + t, off: wait }, { cmd: 'act:fail', label: `لم يفِ · +${AUCTION_FAIL}`, kind: 'who t' + (t === 1 ? 2 : 1), off: wait }];
         if (ph === 'complete') c.near = act('stop', 'توقّف', 'no');
-        if (ph === 'decided') c.near = act('next');
+        if (ph === 'decided') c.near = go(act('next'));
       }
       // الحرف المعيّن وآخر حرفين والجولة الفاصلة (1.11، design/s8b.md 1.2 و2): في صف الشارات زرّا الوقت «إيقاف مؤقت» (أو «استئناف» أساسياً)
       // و«وقت الخصم»، و«كشف الإجابة» أسفل اليمين مكان مربع الإعلان. وبعد الكشف في صف الشارات زرّا الفريقين بلونيهما بالنقاط
@@ -580,14 +583,14 @@
         c.near = [...act('pause', null, 'alt pause'), ...act('resume', null, 'pause on'), ...act('steal', 'وقت الخصم', 'alt'),
           ...picks.filter(a => a.team).sort((x, y) => x.team - y.team).map(a => ({ cmd: 'act:pick:' + a.team, label: tb ? 'أصاب' : a.label, kind: 'who t' + a.team, off: wait })),
           ...picks.filter(a => !a.team).map(a => ({ cmd: 'act:pick:0', label: a.label, kind: 'alt', off: wait })),
-          ...(tb ? [...act('next', `التالي · ${match.teams[mode.presenter(st).upNext]}`), ...act('announce'), ...act('again', `المحاولة ${st.attempt + 1}`)]
+          ...go(tb ? [...act('next', 'السؤال التالي'), ...act('announce'), ...act('again', `المحاولة ${st.attempt + 1}`)]
             : act('next', last ? 'إنهاء الجولة' : 'السؤال التالي'))];
         c.ans = act('reveal');
       }
       // العجلة (design/wheel.md 4): «أطلق الشريط» قبل الدوران، ولا شيء أثناءه. وبعد الحكم أو خانة الحظ «التالي · الدورة 2»، ثم «إنهاء الشريط».
       // والتحدي «نجح · +10» و«لم ينجح» (بإطار) من لحظة الوقوف، بلا توقيت (design/s8.md 4).
-      if (screen === 'wheel' || screen === 'slot') c.near = [...act('spin'), ...act('won', `نجح · +${WHEEL_POINTS}`), ...act('failed', null, 'no'), ...act('next'), ...act('finish')];
-      if (screen === 'end') { const nb = nextButton(); c.card = [{ cmd: 'next', label: nb.text, off: !!nb.off || wait }]; }
+      if (screen === 'wheel' || screen === 'slot') c.near = [...act('spin'), ...act('won', `نجح · +${WHEEL_POINTS}`), ...act('failed', null, 'no'), ...go([...act('next', 'الدورة التالية'), ...act('finish')])];
+      if (screen === 'end') { const nb = nextButton(); c.card = go([{ cmd: 'next', label: nb.text, off: !!nb.off || wait }]); }
       c.scores = true;
       corner(screen !== 'intro' || mode.id === TIEBREAK.id ? (screen !== 'intro' && !match.round.history.length) || wait : null);
     }
@@ -600,7 +603,7 @@
     if (step === 'final') {
       const win = match.final?.phase === 'win';
       c.card = win ? [{ cmd: 'new', label: 'مباراة جديدة' }]
-        : M.leaderOf(match.scores) ? [{ cmd: 'announce', label: 'أعلن الفائز', off: wait }] : [{ cmd: 'tiebreak', label: 'الجولة الفاصلة', off: wait }];
+        : go(M.leaderOf(match.scores) ? [{ cmd: 'announce', label: 'أعلن الفائز', off: wait }] : [{ cmd: 'tiebreak', label: 'إلى الجولة الفاصلة', off: wait }]);
       c.scores = true;
       corner(wait);
     }

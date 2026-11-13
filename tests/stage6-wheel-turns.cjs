@@ -105,7 +105,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     await go('act:spin');
     await audience.waitForSelector('.scr.q.show #letter.slot', { timeout: 9000 });
     await wait(1200);
-    check(`${tag}بعد الدورة الأولى: «التالي · الدورة 2»`, await near() === 'التالي · الدورة 2');
+    check(`${tag}بعد الدورة الأولى: «التالي · الدورة 2»`, await near() === 'الدورة التالية');
     await go('act:next');
     await audience.waitForSelector('.scr.whl.show');
     await wait(600);
@@ -129,7 +129,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     }
     await go('act:finish');
     check(`${tag}نهاية الشريط: «+5» لكلٍّ، و«انتهى الشريط»، وفي البطاقة «ابدأ الجولة 2»`, await text(audience, '#r1') === '+5' && await text(audience, '#r2') === '+5'
-      && await text(audience, '#b1') === 'انتهى الشريط' && await text(audience, '.scr.end.show .ctl') === 'ابدأ الجولة 2');
+      && await text(audience, '#b1') === 'انتهى الشريط' && /^إلى الجولة 2: ./.test(await text(audience, '.scr.end.show .ctl')));
     const nb = await audience.evaluate(() => [...document.querySelectorAll('#next .nb')].map(e => ({ t: e.textContent, rows: e.getClientRects().length })));
     check(`${tag}الملاحظة 39: «التالي: الجولة 2 ·» و«الحرف المعيّن» مقطعان، وكلٌّ في سطر واحد لا ينكسر`, nb.length === 2 && nb[0].t === 'التالي: الجولة 2 ·' && nb[1].t === 'الحرف المعيّن' && nb.every(x => x.rows === 1));
     if (LONG) check('الأطول: السطر لا يتسع فينكسر عند « · » (مقطعان في سطرين)', await audience.evaluate(() => { const [a, b] = document.querySelectorAll('#next .nb'); return document.getElementById('box').classList.contains('wrap') && Math.abs(a.getBoundingClientRect().top - b.getBoundingClientRect().top) > 20; }));
