@@ -15,6 +15,24 @@ async function usePin(context, record = testPinRecord()) {
   await context.route('**/pin.json*', route => route.fulfill({ json: record }));
 }
 
+// ساعة الجهاز (Date.now) في صفحات اللعبة (المقدّم والجمهور) تقف بأمر ثم لا تمضي إلا بأمر (ش8-أ/113، 114): عدّادات الجولة تعدّ بها،
+// فلا ينقضي وقتها والاختبار يطول تحت الحمل. والمهلة والمؤقتات بالساعة الرتيبة (performance.now، setTimeout) تمضي كما هي.
+// في صفحات اللعبة وحدها (addInitScript)، لا clock.setFixedTime: تلك تثبّت ساعة Playwright نفسه، ومن منتصف الجلسة تعطّل الصفحة.
+// وتقف بعد التهيئة لا من أولها: الساعة الواقفة من أول المباراة علّقت نقرة «المزاد» في صفحة الاختيار تحت الحمل الشديد (8 نسخ معاً).
+// والوقت الواقف في sessionStorage: يبقى بعد إعادة التحميل، ولا يمسحه localStorage.clear، ويشترك فيه الإطار.
+// stop(page) يوقفها عند لحظتها، وadvance(page, ms) يُمضيها.
+const TEST_CLOCK = 'big-challenge.test-clock';
+async function testClock(context) {
+  await context.addInitScript(key => {
+    const real = Date.now;
+    Date.now = () => { let at = null; try { at = sessionStorage.getItem(key); } catch {} return at === null ? real() : Number(at); };
+  }, TEST_CLOCK);
+  return {
+    stop: page => page.evaluate(key => sessionStorage.setItem(key, String(Date.now())), TEST_CLOCK),
+    advance: (page, ms) => page.evaluate(([key, ms]) => sessionStorage.setItem(key, String(Number(sessionStorage.getItem(key)) + ms)), [TEST_CLOCK, ms]),
+  };
+}
+
 async function unlock(page, pin = TEST_PIN) {
   await page.fill('#pin', pin);
   await page.click('#enter');
@@ -169,4 +187,4 @@ function qrReadMatrix(m, u = 4) {
   return qrRead(lum, w);
 }
 
-module.exports = { TEST_PIN, testPinRecord, usePin, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passWheelOne, hideQr, auctionNamesShown, arrangeTopics, qrRead, qrReadMatrix, qrReader };
+module.exports = { TEST_PIN, testPinRecord, usePin, testClock, unlock, reporter, stageFrame, cmd, newMatch, sharedToFace, passWheelOne, hideQr, auctionNamesShown, arrangeTopics, qrRead, qrReadMatrix, qrReader };
