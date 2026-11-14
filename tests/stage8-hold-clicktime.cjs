@@ -8,6 +8,7 @@
 // 5) نقرة حقيقية تحمل وقتها بساعة الصفحة الأم (بين 0 وثانية قبل وصولها)، ونقرتان حقيقيتان على «تراجع»: تراجع واحد.
 // 6) ساعة الجهاز رجعت 30 ثانية بين تحميل الصفحة والإطار (timeOrigin الإطار أقدم): الأزرار لا تُهمل بعد المهلة.
 // 7) أول نقرة بعد تحميل الصفحة، ووقتها في أول 0.7 ثانية منه: تُقبل.
+// 8) و9) حارسا وقت النقرة (113): وقت في المستقبل أو أقدم من دقيقة يُهمل، فتُقاس النقرة بلحظة معالجتها.
 const { chromium } = require('playwright');
 const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./helpers.cjs');
 
@@ -47,7 +48,7 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
 
   {
     const { context, page, f } = await open();
-    for (const c of ['act:show', 'act:reveal', 'act:pick:0', 'act:next', 'act:reveal', 'act:pick:0', 'act:next', 'act:reveal', 'act:pick:0']) await step(f, c);
+    for (const c of ['act:show', 'act:reveal', 'act:pick:0', 'act:next', 'act:reveal', 'act:pick:0', 'act:next', 'act:reveal', 'act:pick:0', 'act:next', 'act:reveal', 'act:pick:0']) await step(f, c);
     const hist = () => page.evaluate(() => JSON.parse(localStorage.getItem('big-challenge.match')).round.history.length);
     // أمر من الإطار بوقت نقر صريح: d بعد وقت النقرة الأولى (base) أو بعد الآن.
     const send = (c, d, from) => f.evaluate(([c, d, from]) => {
@@ -66,6 +67,14 @@ const { usePin, unlock, reporter, stageFrame, sharedToFace, cmd } = require('./h
     const n4 = await undos(() => f.evaluate(() => new Promise(r => { parent.postMessage({ bc: 'cmd', cmd: 'undo' }, location.origin);
       setTimeout(() => { parent.postMessage({ bc: 'cmd', cmd: 'undo' }, location.origin); r(); }, 100); })));
     check(`4) رسالتان بلا وقت بفارق 0.1 ثانية: تراجع واحد بلحظة المعالجة (${n4})`, n4 === 1);
+    // 8) حارس المستقبل (113): وقت بعد الآن بأكثر من 50ms يُهمل، فتُقاس النقرة بلحظة معالجتها. وإلا صار أول المهلة في المستقبل،
+    // فتُهمل النقرة الحقيقية بعدها بثانية (بوقت النقر) حتى يحين.
+    const n8 = await undos(async () => { await send('undo', 5000); await wait(1000); await send('undo', 0); });
+    check(`8) نقرة وقتها بعد 5 ثوانٍ من الآن تُقاس بلحظة معالجتها، فالتي بعدها بثانية تُقبل: تراجعان (${n8})`, n8 === 2);
+    // 9) حارس الدقيقة (113): وقت أقدم من دقيقة يُهمل، فتُقاس بلحظة معالجتها وتُقبل بعد انقضاء المهلة. وإلا كانت أقدم من آخر تغيّر فتُهمل.
+    await wait(900);
+    const n9 = await undos(() => send('undo', -120000));
+    check(`9) نقرة وقتها قبل دقيقتين تُقاس بلحظة معالجتها، فتُقبل بعد انقضاء المهلة: تراجع واحد (${n9})`, n9 === 1);
     // 5) نقرة حقيقية: وقتها بساعة الصفحة الأم، قبل وصولها بأقل من ثانية.
     await page.evaluate(() => { window.__ages = []; addEventListener('message', e => { if (e.data?.bc === 'cmd') window.__ages.push(performance.now() - e.data.at); }, true); });
     const undoBtn = '#cornerA [data-cmd="undo"]';

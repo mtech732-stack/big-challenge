@@ -29,11 +29,13 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auction
   const context = await browser.newContext({ viewport: { width: 1366, height: 768 }, serviceWorkers: 'block' });
   await usePin(context);
   await context.route('**/content/packs/general/auction.json', route => route.fulfill({ json: bank }));
-  // وقت الوفاء 45 ثانية (الوثيقة 1.6، ويفحصه stage4-auction-mode). وخطوات 30 عنصراً بلقطاتها وإعادة التحميل أطول منه،
-  // فيُمدّ هنا إلى 60 بالمتصفح وحده، فلا ينقضي قبل الحكم. والأرقام أدناه بـ60 لهذا.
-  await context.route('**/js/modes/auction.js', async route => {
-    const r = await route.fetch(); route.fulfill({ response: r, body: (await r.text()).replace('FULFIL_SECONDS = 45', 'FULFIL_SECONDS = 60') });
-  });
+  // وقت الوفاء 45 ثانية (الوثيقة 1.6، ويفحصه stage4-auction-mode)، يعدّه الجمهور بساعة الجهاز (Date.now). وخطوات 30 عنصراً بلقطاتها
+  // وإعادة التحميل أطول منه، وتطول أكثر تحت الحمل (ش8-أ/113: كان يُمدّ إلى 60 فينقضي تحت الحمل الشديد، فيسقط العدّاد وما بعده).
+  // فساعة الجهاز ثابتة هنا (clock.setFixedTime)، والوقت لا يمضي إلا بأمر صريح (advance). ومهلة النقرة المزدوجة ومؤقتات الصفحة
+  // بساعتها الرتيبة (performance.now، setTimeout) تمضي كما هي.
+  let clockAt = Date.now();
+  await context.clock.setFixedTime(clockAt);
+  const advance = ms => context.clock.setFixedTime(clockAt += ms);
   context.on('page', p => {
     p.on('pageerror', e => errors.push(e.message));
     p.on('console', m => m.type() === 'error' && !/content\/packs\/.+\.json/.test(m.location().url) && errors.push(m.text()));
@@ -79,6 +81,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auction
   // ش8-أ/61: الأسماء التي لا يجوز ظهورها، بنص الشاشة كلها (helpers.cjs auctionNamesShown).
   const names = async () => auctionNamesShown(audience, await st(), LONG);
   const tally = async () => `${await text(audience, '#tn')}/${await text(audience, '#tof')}`;
+  // انتظار شرط لا مدة (ش8-أ/113): حتى يبلغ العدّ n، ثم يُفحص كما هو (عدّة زائدة بعده تُسقط الفحص).
+  const counted = n => audience.waitForFunction(n => document.querySelector('#tn')?.textContent.trim() === String(n), n, { timeout: 8000 }).catch(() => {});
 
   // 1. إلى الوفاء: يزايد فريق (عشوائي) بزرّه حتى 30، ثم «ابدأ» يرسي عليه ويبدأ العدّاد فوراً (3.0؛ القائمة 54، فالعدد مخفي).
   // والعدّ بـ«عُدّ · +1» في البطاقة (الوثيقة 1.13: القائمة للمقدّم في الباركود).
@@ -103,43 +107,52 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auction
   check(`«ابدأ»: ${LONG[opener - 1]} ملتزم بـ ${N}، والجمهور يعدّ (الإطار يتآكل حول لوحته)`, s.phase === 'fulfil' && s.commit.team === opener && s.commit.n === N
     && await audience.$eval('#canvas', (c, t) => c.classList.contains('running') && c.classList.contains('turn-' + t), opener));
   const timer = (await stored()).round.timer.id;
-  await cmd(audience, 'act:count'); await wait(600);
+  await cmd(audience, 'act:count'); await counted(1); await wait(600);
   check(`أول عدّة: «1 من ${N}» بلون الملتزم، ولا شارة اسم`, (await tally()) === `1/${N}` && await audience.$eval('#tally', (e, t) => e.classList.contains('t' + t), opener)
     && (await names()).length === 0);
   await both('الوفاء · أول عدّة');
 
   // 4. عدّات متتابعة (0.4 ثانية بينها) تُحسب كلها، والعدّاد نفسه يعدّ.
   for (let k = 0; k < 4; k++) { await cmd(audience, 'act:count'); await wait(400); }
-  await wait(400);
+  await counted(5); await wait(400);
   check('أربع عدّات بفاصل 0.4 ثانية: تُحسب كلها (5 من 30)', (await tally()) === `5/${N}`);
   check('العدّاد نفسه يعدّ بعد كل عدّة', (await stored()).round.timer?.id === timer && await audience.$eval('#canvas', c => c.classList.contains('running')));
   await both('الوفاء · خمسة');
   await stage.screenshot({ path: `${shots}/s4-fulfil.png` });
 
   // 4ب. سرعة السرد (ش8-أ/54، المالك في لعب حقيقي): عشر ضغطات متتالية في أقل من ثانية تُحسب كلها، والزر لا يتعطّل بينها.
+  // بوقت صريح (ش8-أ/113، كما في stage8-hold-clicktime): كانت الضغطات تُرسل من الاختبار نقرةً نقرة وتُقاس مدتها بساعته، فتطول تحت الحمل
+  // فوق الثانية، وكذلك لو أُطلقت من الصفحة (الحمل يوقف خيطها نفسه). فتُرسل الضغطات العشر من الإطار كما يرسلها زرّه، ومع كلٍّ وقت نقرها
+  // بساعة الصفحة الأم (at، 111) بفاصل 90 ms: عشر ضغطات في 810 ms مهما تأخر وصولها، والمقدّم يقيس بها لا بلحظة المعالجة.
+  // ونقر الزر الحقيقي بسرعة في 6ب أدناه. وتعطّل الزر يُرصد بمراقب (MutationObserver) في أثناء معالجتها وبعدها، لا بعينات.
   {
-    const btn = await audience.$('#near [data-cmd="act:count"]'), bb = await btn.boundingBox();
-    const offs = [];
-    const t0 = Date.now();
-    for (let k = 0; k < 10; k++) {
-      await stage.mouse.click(bb.x + bb.width / 2, bb.y + bb.height / 2);
-      offs.push(await audience.$eval('#near [data-cmd="act:count"]', e => e.classList.contains('off')).catch(() => true));
-    }
-    const took = Date.now() - t0;
-    await wait(400);
-    check(`عشر ضغطات في ${took} ms (أقل من ثانية): العدّ 15 من 30، لا ضغطة سقطت ولا حُسبت مرتين`, took < 1000 && (await tally()) === `15/${N}` && (await st()).said.length === 15);
-    check(`والزر لم يتعطّل بعد أي ضغطة (${offs.filter(Boolean).length} معطّلة من 10)`, offs.every(x => !x));
+    const GAP = 90;
+    const r = await audience.evaluate(async GAP => {
+      const sel = '#near [data-cmd="act:count"]';
+      let off = 0;
+      const look = () => { if ([...document.querySelectorAll(sel)].some(b => b.classList.contains('off'))) off++; };
+      const mo = new MutationObserver(look);
+      mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+      const at0 = parent.performance.now(), ats = [];
+      for (let k = 0; k < 10; k++) { ats.push(at0 + k * GAP); parent.postMessage({ bc: 'cmd', cmd: 'act:count', at: ats[k] }, location.origin); }
+      await new Promise(r => setTimeout(r, 600)); look();
+      mo.disconnect();
+      return { took: Math.round(ats[9] - ats[0]), off };
+    }, GAP);
+    await counted(15); await wait(400);
+    check(`عشر ضغطات في ${r.took} ms بوقت نقرها (أقل من ثانية): العدّ 15 من 30، لا ضغطة سقطت ولا حُسبت مرتين`, r.took < 1000 && (await tally()) === `15/${N}` && (await st()).said.length === 15);
+    check(`والزر لم يتعطّل في أثناء الضغطات ولا بعدها (${r.off ? 'معطّل ' + r.off + ' مرة' : 'لم يتعطّل'})`, r.off === 0);
   }
 
   // 5. حتى 29 من 30.
   for (let k = 15; k < N - 1; k++) { await cmd(audience, 'act:count'); await wait(260); }
-  await wait(700);
+  await counted(N - 1); await wait(700);
   check('29 من 30', (await tally()) === `29/${N}` && (await st()).phase === 'fulfil');
   await both('الوفاء · 29');
 
   // 6. التراجع عن عدّة: يعود العدّ، ويبقى العدّاد.
   const undo = () => cmd(audience, 'undo');
-  await undo(); await wait(900);
+  await undo(); await counted(N - 2); await wait(900);
   check('التراجع: «28 من 30»، والعدّاد يبقى', (await tally()) === `28/${N}` && (await stored()).round.timer?.id === timer);
   // 6ب. تراجع سريع (ش8-أ/55، تقرير المعاين #338): ثلاث ضغطات «تراجع» متتالية تُرجع ثلاث عدّات،
   // و«عُدّ · +1» بعد 100 ms من «تراجع» تُحسب (لا مهلة بعد التراجع داخل الوفاء).
@@ -147,29 +160,29 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auction
     const at = async sel => { const b = await (await audience.$(sel)).boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2]; };
     const [ux, uy] = await at('[data-cmd="undo"]');
     for (let k = 0; k < 3; k++) { await stage.mouse.click(ux, uy); await wait(120); }
-    await wait(400);
+    await counted(N - 5); await wait(400);
     check('ثلاث ضغطات «تراجع» سريعة: ترجع ثلاث عدّات (25 من 30)، والعدّاد يبقى', (await tally()) === `25/${N}` && (await st()).said.length === 25
       && (await stored()).round.timer?.id === timer);
     const [cx, cy] = await at('#near [data-cmd="act:count"]');
     await stage.mouse.click(ux, uy); await wait(100); await stage.mouse.click(cx, cy);
-    await wait(400);
+    await counted(N - 5); await wait(400);
     check('«عُدّ · +1» بعد 100 ms من «تراجع»: تُحسب (25 من 30، لا 24)', (await tally()) === `25/${N}`);
     for (let k = 0; k < 3; k++) { await stage.mouse.click(cx, cy); await wait(120); }
-    await wait(400);
+    await counted(N - 2); await wait(400);
     check('ثم ثلاث عدّات تعيده إلى «28 من 30»', (await tally()) === `28/${N}`);
   }
   // إعادة تحميل الشاشة أثناء العدّ.
   await stage.reload();
   await unlock(stage);
   audience = await stageFrame(stage);
-  await wait(1200);
+  await counted(N - 2); await wait(1200);
   await hideQr(audience);
   check('إعادة تحميل الشاشة: العدّ والعدّاد كما هما', (await tally()) === `28/${N}` && await audience.$eval('#canvas', c => c.classList.contains('running')));
 
   // 7. بلغ العدد: لا حكم (1.14، «عُدّ · +1» عدّاد مساعد)، والعدّاد يعدّ. ثم «كشف القائمة» يوقفه ويُظهر القائمة صفحاتٍ بنقاطها، ثم «وفى».
   const before = (await stored()).scores[opener];
   await cmd(audience, 'act:count'); await wait(400); await cmd(audience, 'act:count');
-  await wait(1000);
+  await counted(N); await wait(1000);
   s = await st();
   check(`30 من 30: لا حكم، والعدّاد يبقى يعدّ (عدّاد مساعد، 1.14)`, s.phase === 'fulfil' && (await tally()) === `${N}/${N}` && (await stored()).scores[opener] === before
     && await audience.$eval('#canvas', c => c.classList.contains('running')));
@@ -177,6 +190,8 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auction
   const ansT = () => audience.$$eval('#ansCtl .cbtn', els => els.map(e => e.textContent.trim()).join(' | '));
   check(`السرد: «عُدّ · +1» في صف الشارات و«كشف القائمة» ثانوياً بإطار أسفل اليمين (ش8-أ/57) (${await nearT()} · ${await ansT()})`, (await nearT()) === 'عُدّ · +1' && (await ansT()) === 'كشف القائمة'
     && await audience.$eval('#ansCtl .cbtn', b => b.classList.contains('alt') && getComputedStyle(b).backgroundColor === 'rgba(0, 0, 0, 0)'));
+  // مضى من وقت الوفاء 20 ثانية بالضبط حين يُكشف (ساعة الجهاز ثابتة إلا بأمر)، فيبقى 25 حين يُتراجع عن الكشف.
+  await advance(20000);
   await cmd(audience, 'act:reveal'); await wait(1000);
   s = await st();
   const dots = () => audience.$$eval('#cxDots i', els => els.map(e => e.classList.contains('on') ? 'X' : 'o').join(''));
@@ -219,30 +234,31 @@ const { usePin, unlock, reporter, stageFrame, cmd, sharedToFace, hideQr, auction
   check('التراجع عن «وفى»: يعود الكشف بزرّي الحكم، والنقاط تعود', (await st()).phase === 'revealed' && (await stored()).scores[opener] === before && (await nearT()).startsWith('وفى'));
   await undo(); await wait(900);
   const back = await leftAt();
-  check(`التراجع عن الكشف: يعود الوفاء بما بقي من الوقت (${back} ثانية، لا 45)، والعدّ كما كان`, (await st()).phase === 'fulfil' && back > 0 && back < 44
+  check(`التراجع عن الكشف: يعود الوفاء بما بقي من الوقت (${back} ثانية: 25، لا 45)، والعدّ كما كان`, (await st()).phase === 'fulfil' && back === 25
     && await audience.$eval('#canvas', c => c.classList.contains('running')) && (await tally()) === `${N}/${N}`);
-  await undo(); await wait(400); await undo(); await wait(900);
-  // ما بقي من الوقت بعد التراجع قليل، وخطوات النافذة الواحدة أطول منه. فيُعاد عدّاد الوفاء الجاري كاملاً (60) من الآن،
-  // في الحالة المحفوظة، ثم تُعاد الشاشة. لا تغيير في اللعبة.
-  await stage.evaluate(() => { const m = JSON.parse(localStorage.getItem('big-challenge.match'));
-    m.round.timer = { ...m.round.timer, seconds: 60 }; m.timerAt = Date.now(); localStorage.setItem('big-challenge.match', JSON.stringify(m)); });
+  await undo(); await wait(400); await undo(); await counted(N - 2); await wait(900);
+  // ثم تُعاد الشاشة، والوقت الباقي (25) لا يمضي فيها إلا بأمر.
   await stage.reload();
   await unlock(stage).catch(() => {});
   audience = await stageFrame(stage);
-  await wait(800);
+  await counted(N - 2); await wait(800);
   const near = () => audience.$$eval('#near .cbtn', els => els.map(e => e.textContent.trim() + (e.classList.contains('off') ? '(معطّل)' : '')).join(' | '));
   check(`النافذة الواحدة والعدّاد يعدّ (28 من 30): «عُدّ · +1» و«كشف القائمة» (${await near()})`, (await near()) === 'عُدّ · +1' && (await ansT()) === 'كشف القائمة' && (await tally()) === `${N - 2}/${N}`);
   const nb = (await audience.$$('#near .cbtn'))[0], box = await nb.boundingBox();
   await stage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await wait(150); await stage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-  await wait(1200);
+  await counted(N); await wait(1200);
   check('«عُدّ · +1» مرتين بفاصل 0.15 ثانية: عدّتان (30 من 30)، ولا حكم ولا اسم على الشاشة', (await st()).phase === 'fulfil' && (await st()).said.length === N && (await names()).length === 0);
   await cmd(audience, 'act:reveal'); await wait(1000);
   // تراجع يعبر حدّ مرحلة (من الكشف إلى الوفاء، ش8-أ/55): المهلة باقية، فنقرة «تراجع» مضاعفة بفاصل 0.1 ثانية تُلغي الكشف وحده، لا عدّة معه.
-  {
-    const ub = await (await audience.$('[data-cmd="undo"]')).boundingBox(), [ux, uy] = [ub.x + ub.width / 2, ub.y + ub.height / 2];
-    await stage.mouse.click(ux, uy); await wait(100); await stage.mouse.click(ux, uy);
-  }
+  // بوقت النقر الصريح (ش8-أ/113، كما في stage8-hold-clicktime): الثانية وقتها بعد الأولى بـ100 ms بساعة الصفحة الأم، وإن تأخر وصولها.
+  // فكانت نقرتين من الاختبار بينهما 0.1 ثانية تطول تحت الحمل فوق المهلة (0.7)، فتُقبل الثانية وهي في المهلة بحق.
+  await audience.evaluate(async () => {
+    const at = parent.performance.now();
+    parent.postMessage({ bc: 'cmd', cmd: 'undo', at }, location.origin);
+    await new Promise(r => setTimeout(r, 100));
+    parent.postMessage({ bc: 'cmd', cmd: 'undo', at: at + 100 }, location.origin);
+  });
   await wait(900);
   check('التراجع عن الكشف بنقرة مضاعفة: «30 من 30» والوفاء (الثانية في المهلة فلا تُرجع عدّة)', (await tally()) === `${N}/${N}` && (await st()).phase === 'fulfil');
   await both('نافذة واحدة · الوفاء');
