@@ -336,16 +336,16 @@
   }
   // النقرة المزدوجة أو المتأخرة (تقرير المعاين ش2، التعثّر 1): بعد كل تغيّر في حالة السؤال يأتي زر آخر مكان المنقور،
   // فتُهمل نقرات أزرار الجولة 0.7 ثانية، وتظهر معطّلة حتى يراها المقدّم. ومنها تغيّرها بانتهاء الوقت.
-  // ش8-أ/111 (المدقّق): والمهلة تُقاس بوقت النقر نفسه حين يصل معها (clickAt، بساعة الحقبة من event.timeStamp في شاشة الجمهور)، من وقت النقرة
+  // ش8-أ/111 (المدقّق): والمهلة تُقاس بوقت النقر نفسه حين يصل معها (clickAt، بساعة هذه الصفحة الرتيبة performance.now، 112)، من وقت النقرة
   // التي غيّرت الحالة (holdFrom). فكانت تُقاس بلحظة المعالجة، فإن تأخرت معالجة النقرة الثانية أكثر من 0.7 ثانية (جهاز بطيء أو حمل)
   // قُبلت، فيُتراجع خطوتين ويضيع حكم صحيح. والنقرة بلا وقت (ومنها المتأخرة بلا نقر، 85) تُقاس بلحظة معالجتها كما كانت.
   const HOLD_MS = 700;
-  const epoch = () => performance.timeOrigin + performance.now();
-  let heldUntil = 0, holdTimer = 0, holdFrom = 0, clickAt = null;
+  // وholdFrom قبل أي تغيّر بلا حد: بساعة الصفحة الرتيبة تبدأ من 0 مع التحميل، فكانت نقرة وقتها قبل 0.7 ثانية منه تُهمل (112).
+  let heldUntil = 0, holdTimer = 0, holdFrom = -Infinity, clickAt = null;
   const held = () => clickAt !== null ? clickAt < holdFrom + HOLD_MS : performance.now() < heldUntil;
   function hold() {
     heldUntil = performance.now() + HOLD_MS;
-    holdFrom = clickAt ?? epoch();
+    holdFrom = clickAt ?? performance.now();
     clearTimeout(holdTimer);
     holdTimer = setTimeout(render, HOLD_MS + 20);
   }
@@ -866,8 +866,9 @@
     if (!frame || e.source !== frame.contentWindow || e.origin !== location.origin || !match) return;
     if (e.data?.bc === 'need-ctl') return sendCtl();
     if (e.data?.bc !== 'cmd' || !shared()) return;
-    // وقت النقر نفسه (111): لا يُقبل وقت في المستقبل، ولا أقدم من دقيقة.
-    const at = Number(e.data.at), now = epoch();
+    // وقت النقر نفسه (111) بساعة هذه الصفحة الرتيبة (112): تحسبه شاشة الجمهور من event.timeStamp ومن performance.now هنا في اللحظة نفسها،
+    // فلا يتأثر برجوع ساعة الجهاز بين تحميل الصفحة والإطار (وكانت ساعة الحقبة، فتُهمل الأزرار حتى دقيقة). ولا يُقبل وقت في المستقبل ولا أقدم من دقيقة.
+    const at = Number(e.data.at), now = performance.now();
     clickAt = Number.isFinite(at) && at <= now + 50 && at > now - 60000 ? at : null;
     try { command(e.data); } finally { clickAt = null; }
   }));
