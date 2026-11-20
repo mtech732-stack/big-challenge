@@ -1,0 +1,4 @@
+{"appId":"com.mtech732.bigchallenge","appName":"التحدي الكبير","webDir":"www",
+ "ios":{"contentInset":"never","backgroundColor":"#1238A8","scrollEnabled":false},
+ "plugins":{"SplashScreen":{"launchAutoHide":false,"launchFadeOutDuration":200,"showSpinner":false,"backgroundColor":"#0E2C86"},
+            "Keyboard":{"resize":"none","resizeOnFullScreen":false}}}
